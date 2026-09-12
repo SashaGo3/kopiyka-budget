@@ -1,0 +1,19 @@
+appId: dev.kopiyka.app
+name: "Tags and categories management screens"
+---
+- runFlow: _launch.yaml
+- tapOn: "Settings"
+- tapOn: "Tags, .*"
+- tapOn: "Add tag"
+- inputText: "maestro"
+- tapOn: "Categories, Any category"
+- tapOn: "1. food folder"
+- tapOn: "Done.*"
+- assertVisible: "Categories, 1. food"
+- tapOn: "Cancel"
+- tapOn: "Settings"
+- tapOn: "Categories, .*"
+- tapOn: "Add"
+- tapOn: "New category"
+- assertVisible: "Category in a folder"
+- tapOn: "Cancel"

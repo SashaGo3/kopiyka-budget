@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{title}} — Kopiyka Budget</title>
+    <meta name="description" content="{{description}}" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="{{canonical}}" />
+    <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
+    <link rel="apple-touch-icon" href="img/icon-180.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Kopiyka Budget" />
+    <meta property="og:url" content="{{canonical}}" />
+    <meta property="og:title" content="{{title}} — Kopiyka Budget" />
+    <meta property="og:description" content="{{description}}" />
+    <meta property="og:image" content="{{site}}img/og.png" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="img/icon-180.png" alt="" width="32" height="32" />
+          <span>Kopiyka Budget</span>
+        </a>
+        <nav class="site-nav" aria-label="Sections">
+          <a href="index.html#features">Features</a>
+          <a href="index.html#watch">Watch</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="index.html#open-source">Open source</a>
+        </nav>
+        <div class="brand-actions">
+          <!-- TODO: paste the App Store product URL here (replace href="#"). -->
+          <a class="btn" href="https://apps.apple.com/app/id6809896169" rel="noopener"
+            ><span class="long">Download on the </span>App&nbsp;Store</a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc">
+        <div class="wrap">
+          <a class="doc-back" href="index.html">&#8592; Kopiyka Budget</a>
+{{content}}
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href="privacy.html">Privacy</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="terms.html">Terms</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://github.com/SashaGo3/kopiyka-budget">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="index.html#bug">Report a bug</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>© Kopiyka contributors</span>
+        <span class="made">Made with React Native and a little Swift.</span>
+      </div>
+    </footer>
+{{scripts}}
+  </body>
+</html>

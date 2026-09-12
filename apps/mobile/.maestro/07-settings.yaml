@@ -1,0 +1,17 @@
+appId: dev.kopiyka.app
+name: "Settings: budget month start, recurring default reminder"
+---
+- runFlow: _launch.yaml
+- tapOn: "Settings"
+- tapOn: "Budget month starts on, .*"
+- tapOn: "15th, .*"
+- assertVisible: "Budget month starts on, 15th.*"
+- tapOn: "Budget month starts on, .*"
+- tapOn: "1st, .*"
+- assertVisible: "Budget month starts on, 1st.*"
+- tapOn: "Recurring, .*"
+- tapOn: "Default reminder, .*"
+- tapOn: "2 days before"
+- assertVisible: "Default reminder, 2 days before"
+- tapOn: "Default reminder, .*"
+- tapOn: "1 day before"

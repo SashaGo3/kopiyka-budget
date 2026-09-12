@@ -1,0 +1,18 @@
+appId: dev.kopiyka.app
+name: "Recurring editor: start from a transaction, repeats picker"
+---
+- runFlow: _launch.yaml
+- tapOn: "Settings"
+- tapOn: "Recurring, .*"
+- tapOn: "Add"
+- tapOn: "Start from a transaction, .*"
+- tapOn: "Search transactions"
+- inputText: "Polish"
+- tapOn: "Polish, .*"
+- assertVisible: "Start from a transaction, Seen .*"
+- waitForAnimationToEnd
+- tapOn: "Repeats, .*"
+- waitForAnimationToEnd
+- tapOn: "Every 2 weeks"
+- assertVisible: "Repeats, Every 2 weeks"
+- tapOn: "Cancel"

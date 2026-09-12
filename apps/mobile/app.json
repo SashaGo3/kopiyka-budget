@@ -1,0 +1,140 @@
+{
+  "expo": {
+    "name": "Kopiyka",
+    "slug": "kopiyka",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "kopiyka",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "dev.kopiyka.app",
+      "icon": "./assets/expo.icon",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleDisplayName": "Kopiyka Budget",
+        "NSCameraUsageDescription": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "EXDevMenuShowFloatingActionButton": false,
+        "NSUbiquitousContainers": {
+          "iCloud.dev.kopiyka": {
+            "NSUbiquitousContainerIsDocumentScopePublic": true,
+            "NSUbiquitousContainerName": "Kopiyka",
+            "NSUbiquitousContainerSupportedFolderLevels": "Any"
+          }
+        },
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "UIApplicationShortcutItems": [
+          {
+            "UIApplicationShortcutItemType": "dev.kopiyka.log",
+            "UIApplicationShortcutItemTitle": "Log expense",
+            "UIApplicationShortcutItemIconSymbolName": "plus.circle"
+          }
+        ]
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.dev.kopiyka"
+        ],
+        "com.apple.developer.icloud-container-identifiers": [
+          "iCloud.dev.kopiyka"
+        ],
+        "com.apple.developer.icloud-services": [
+          "CloudDocuments"
+        ],
+        "com.apple.developer.ubiquity-container-identifiers": [
+          "iCloud.dev.kopiyka"
+        ]
+      },
+      "buildNumber": "22"
+    },
+    "android": {
+      "package": "dev.kopiyka.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#141413",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "./plugins/withFlatLaunchScreen",
+        {
+          "backgroundColor": "#F4F4F1"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F4F4F1",
+          "dark": {
+            "backgroundColor": "#141413"
+          }
+        }
+      ],
+      "expo-sqlite",
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#2B2B2E",
+          "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach a receipt you already photographed."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Remember where you log expenses so the category can be suggested next time.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "18.0",
+            "usePrecompiledModules": false
+          }
+        }
+      ],
+      "@bacons/apple-targets",
+      "expo-maps",
+      "./plugins/withQuickLog",
+      "./plugins/withReleasePlistCleanup"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true,
+      "inlineModules": {
+        "watchedDirectories": [
+          "native"
+        ]
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+appId: dev.kopiyka.app
+name: "Closing the entry sheet with an amount asks first"
+---
+- runFlow: _launch.yaml
+- tapOn: "Log a transaction"
+- tapOn: "7"
+- swipe:
+    start: "50%, 8%"
+    end: "50%, 85%"
+- assertVisible: "Add this transaction?"
+- tapOn: "Keep editing"
+- assertVisible: "Tap to add, −7.00 PLN"
+- swipe:
+    start: "50%, 8%"
+    end: "50%, 85%"
+- tapOn: "Discard"
+- assertVisible: "Log a transaction"

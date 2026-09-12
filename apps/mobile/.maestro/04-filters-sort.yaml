@@ -1,0 +1,22 @@
+appId: dev.kopiyka.app
+name: "Filters modal and sort toggle"
+---
+- runFlow: _launch.yaml
+- tapOn: "Transactions"
+- tapOn: "Filters.*"
+- assertVisible: "Filters.*"
+- tapOn: "Expenses"
+- tapOn: "Completed"
+- tapOn: "Categories, Any category"
+- tapOn: "Supermarket"
+- tapOn: "Done.*"
+- assertVisible: "Categories, Supermarket"
+- tapOn: "Show transactions"
+- assertVisible: "Filters, .* active"
+- tapOn: "Sort by amount"
+- assertVisible: "Sort by date"
+- tapOn: "Sort by date"
+- tapOn: "Filters, .* active"
+- tapOn: "Clear"
+- tapOn: "Show transactions"
+- assertVisible: "Filters.*"

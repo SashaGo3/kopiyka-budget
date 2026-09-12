@@ -1,0 +1,18 @@
+appId: dev.kopiyka.app
+name: "Log an expense with category autoselect and a note"
+---
+- runFlow: _launch.yaml
+- tapOn: "Log a transaction"
+- tapOn: "4"
+- tapOn: "2"
+- tapOn: "Category: none"
+- tapOn: "Search categories"
+- inputText: "eat"
+- assertVisible: "Category: Eat Outside/Restaurant"
+- tapOn: "Note"
+- inputText: "Maestro lunch"
+- pressKey: Enter
+- assertVisible: "Tap to add, −42.00 PLN"
+- tapOn: "Tap to add, −42.00 PLN"
+- tapOn: "Transactions"
+- assertVisible: "Maestro lunch.*"

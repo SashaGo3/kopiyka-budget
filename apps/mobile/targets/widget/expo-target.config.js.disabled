@@ -1,0 +1,13 @@
+/** @type {import('@bacons/apple-targets/app.plugin').ConfigFunction} */
+module.exports = (config) => ({
+  type: "widget",
+  name: "KopiykaWidgets",
+  displayName: "Kopiyka",
+  bundleIdentifier: "dev.kopiyka.app.widgets",
+  deploymentTarget: "18.0",
+  frameworks: ["SwiftUI", "WidgetKit", "AppIntents"],
+  colors: { $accent: { light: "#2B2B2E", dark: "#F4F4F1" }, $widgetBackground: { light: "#F4F4F1", dark: "#141413" } },
+  entitlements: {
+    "com.apple.security.application-groups": config.ios.entitlements["com.apple.security.application-groups"],
+  },
+});

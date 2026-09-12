@@ -1,0 +1,12 @@
+appId: dev.kopiyka.app
+---
+- launchApp
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+- extendedWaitUntil:
+    visible: "Log a transaction"
+    timeout: 20000

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Remember where you log expenses so the category can be suggested next time.</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+      <dict>
+        <key>CFBundleURLName</key>
+        <string>dev.kopiyka.app.watchkitapp</string>
+        <key>CFBundleURLSchemes</key>
+        <array><string>kopiyka</string></array>
+      </dict>
+    </array>
+  </dict>
+</plist>

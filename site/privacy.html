@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Kopiyka Budget</title>
+    <meta name="description" content="Kopiyka Budget collects nothing. Where your data lives, the one network request the app makes, and what each permission is for." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/privacy.html" />
+    <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
+    <link rel="apple-touch-icon" href="img/icon-180.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Kopiyka Budget" />
+    <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/privacy.html" />
+    <meta property="og:title" content="Privacy Policy — Kopiyka Budget" />
+    <meta property="og:description" content="Kopiyka Budget collects nothing. Where your data lives, the one network request the app makes, and what each permission is for." />
+    <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="img/icon-180.png" alt="" width="32" height="32" />
+          <span>Kopiyka Budget</span>
+        </a>
+        <nav class="site-nav" aria-label="Sections">
+          <a href="index.html#features">Features</a>
+          <a href="index.html#watch">Watch</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="index.html#open-source">Open source</a>
+        </nav>
+        <div class="brand-actions">
+          <!-- TODO: paste the App Store product URL here (replace href="#"). -->
+          <a class="btn" href="https://apps.apple.com/app/id6809896169" rel="noopener"
+            ><span class="long">Download on the </span>App&nbsp;Store</a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc">
+        <div class="wrap">
+          <a class="doc-back" href="index.html">&#8592; Kopiyka Budget</a>
+          <h1>Kopiyka Budget — Privacy Policy</h1>
+          <p><em>Last updated: 12 September 2026</em></p>
+          <p>Kopiyka Budget (&quot;Kopiyka&quot;, the app) is an open-source app published by its maintainer (&quot;the developer&quot;). The source code and the issue tracker are at the repository linked below.</p>
+          <p><strong>Kopiyka does not collect any personal data.</strong> There is no account, no server, and no way for the
+          developer to see what you enter. This page explains where your data actually lives and what the
+          app asks your permission for.</p>
+          <h2>What Kopiyka is</h2>
+          <p>Kopiyka is a personal finance app for iPhone and Apple Watch. You record what you spend and earn,
+          set budgets, and look at your own numbers. Everything happens on your device.</p>
+          <h2>What it stores, and where</h2>
+          <table>
+          <thead>
+          <tr>
+          <th>What</th>
+          <th>Where it lives</th>
+          </tr>
+          </thead>
+          <tbody><tr>
+          <td>Accounts, transactions, categories, tags, budgets, recurring rules, debts, notes, and your preferences</td>
+          <td>A database file inside the app on your iPhone</td>
+          </tr>
+          <tr>
+          <td>The same data, in a form the Apple Watch app, the widgets and the Shortcuts actions can read</td>
+          <td>A shared container on your iPhone that only Kopiyka&#39;s own parts can open (the &quot;App Group&quot;)</td>
+          </tr>
+          <tr>
+          <td>Receipt photos you attach</td>
+          <td>Files in the app&#39;s own Documents folder on your iPhone</td>
+          </tr>
+          <tr>
+          <td>Backups, if you turn them on</td>
+          <td><strong>Your own iCloud Drive</strong>, in a folder named <strong>Kopiyka</strong> — visible to you in the Files app. This is your Apple Account&#39;s storage, not the developer&#39;s. With iCloud Drive turned off, backups stay in the app&#39;s folder on the phone instead.</td>
+          </tr>
+          </tbody></table>
+          <p>Nothing on that list is ever sent to the developer of Kopiyka, or to anyone else.</p>
+          <h2>What Kopiyka never does</h2>
+          <ul>
+          <li>No accounts, no sign-in, no profile.</li>
+          <li>No analytics, no usage statistics, no crash reporting service.</li>
+          <li>No advertising, no advertising identifier (IDFA), no trackers or tracking SDKs of any kind — the app never shows the App Tracking Transparency prompt because there is nothing to ask permission for.</li>
+          <li>No third-party software development kits that collect data.</li>
+          <li><strong>No connection to your bank.</strong> Kopiyka has no banking API, no card credentials, and no access
+          to your bank account. See the section on Shortcuts below for what it does instead.</li>
+          <li>No selling, sharing, or transferring of your data, because the developer never has it.</li>
+          </ul>
+          <h2>The one thing that leaves your phone</h2>
+          <p>Kopiyka makes a single kind of network request: an exchange rate lookup.</p>
+          <p>When you record something in a currency that differs from the account&#39;s currency and the app has
+          no rate stored for that day, it asks <strong>api.frankfurter.dev</strong> — a free public service that
+          publishes the European Central Bank&#39;s reference rates — for that rate.</p>
+          <p>The request contains two currency codes and a date. It contains no personal data, no identifier,
+          no account information, and no amount. Rates are then stored on your phone so the same day is
+          never asked for twice, and if you are offline the app falls back to the last rate it knows.</p>
+          <p>If you only ever use one currency, this request never happens at all.</p>
+          <h2>Permissions</h2>
+          <p>Each of these is optional. Kopiyka works without any of them, and you can change your mind at any
+          time in the iOS Settings app.</p>
+          <ul>
+          <li><strong>Location (while using the app).</strong> Off until you turn it on. When enabled, Kopiyka attaches a
+          rough location to an entry you log, and uses it to suggest the category you last chose at that
+          same place — so the coffee shop you visit every week fills itself in. The location is written
+          into your own database on the phone and is never transmitted. You can also set a &quot;home&quot;
+          location, where no suggestion is made because anything can be bought there.</li>
+          <li><strong>Camera.</strong> Used only to photograph a receipt and attach it to a transaction.</li>
+          <li><strong>Photo library.</strong> Used only to attach a receipt picture you have already taken.</li>
+          <li><strong>Notifications.</strong> Used only for reminders scheduled on your own device: a recurring payment
+          coming up, or a debt falling due. Kopiyka has no push notification server and cannot send you
+          anything from the internet.</li>
+          </ul>
+          <h2>The Shortcuts automation (beta)</h2>
+          <p>iOS never gives an app your card transactions. What it does allow is an automation you build
+          yourself in Apple&#39;s Shortcuts app: when your bank&#39;s app shows you a notification about a payment,
+          the automation hands that notification to Kopiyka.</p>
+          <p>Kopiyka reads the amount, the shop or sender, the card and the time <strong>out of that text, on your
+          device</strong>, and saves an entry for you to review. The notification text is never sent anywhere. The
+          app still has no link to your bank — it is reading a message your phone already received.</p>
+          <p>If you add Shortcuts&#39; own &quot;Get Current Location&quot; action to the automation, where you paid is passed
+          to Kopiyka by the Shortcuts app and stored in your own database like any other entry — Kopiyka never
+          asks for a location itself while the automation runs, and the step is optional.</p>
+          <p>If you do not set this automation up, none of it happens.</p>
+          <h2>Apple Watch</h2>
+          <p>If you use the watch app, your accounts, categories, tags and budgets travel between your iPhone
+          and your Apple Watch over Apple&#39;s WatchConnectivity, which is a direct link between two devices
+          you own. That data does not pass through the developer, and it is not stored anywhere else.</p>
+          <h2>Backups, export, and deleting everything</h2>
+          <ul>
+          <li><strong>Backups</strong> are written to your own iCloud Drive folder, described above. They are yours: open
+          them in Files, move them, or delete them.</li>
+          <li><strong>Export.</strong> At any time you can export everything from Settings → Data management, as a JSON
+          backup, a CSV file, or a ZIP bundle that includes your receipt photos.</li>
+          <li><strong>Deleting your data.</strong> Settings → Reset all data erases every account, category, tag, budget
+          and transaction from the phone. Deleting the app removes its database and its receipt photos
+          along with it. Backups already written to iCloud Drive are separate — delete the <strong>Kopiyka</strong>
+          folder in the Files app to remove those too.</li>
+          </ul>
+          <p>Because the developer receives no data at all, <strong>there is nothing held on the developer&#39;s side to
+          request, correct, or delete.</strong> Any right you have over your data you exercise directly, on your
+          own device and in your own iCloud account, using the controls above.</p>
+          <h2>Children</h2>
+          <p>Kopiyka is not directed at children and collects no data from anyone, of any age.</p>
+          <h2>Changes to this policy</h2>
+          <p>If this policy changes, the updated version will be published at this address with a new date at
+          the top. The app is open source, so any change to what it actually does is visible in the
+          repository&#39;s history as well.</p>
+          <h2>Contact</h2>
+          <p>Questions about this policy:</p>
+          <ul>
+          <li>Repository and issue tracker: <a href="https://github.com/SashaGo3/kopiyka-budget">https://github.com/SashaGo3/kopiyka-budget</a></li>
+          <li>Email: <a href="mailto:kopiyka_budget@icloud.com">kopiyka_budget@icloud.com</a></li>
+          </ul>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href="privacy.html">Privacy</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="terms.html">Terms</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://github.com/SashaGo3/kopiyka-budget">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="index.html#bug">Report a bug</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>© Kopiyka contributors</span>
+        <span class="made">Made with React Native and a little Swift.</span>
+      </div>
+    </footer>
+
+  </body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "kopiyka",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "start": "bun run --cwd apps/mobile start",
+    "start:clear": "bun run --cwd apps/mobile start:clear",
+    "ios": "bun run --cwd apps/mobile ios",
+    "ios:device": "bun run --cwd apps/mobile ios:device",
+    "ios:release": "bun run --cwd apps/mobile ios:release",
+    "android": "bun run --cwd apps/mobile android",
+    "android:device": "bun run --cwd apps/mobile android:device",
+    "android:release": "bun run --cwd apps/mobile android:release",
+    "prebuild": "bun run --cwd apps/mobile prebuild",
+    "prebuild:android": "bun run --cwd apps/mobile prebuild:android",
+    "prebuild:all": "bun run --cwd apps/mobile prebuild:all",
+    "prebuild:clean": "bun run --cwd apps/mobile prebuild:clean",
+    "site": "node site/build.mjs",
+    "test": "bun test",
+    "typecheck": "bun run --filter '*' typecheck"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.19",
+    "marked": "^18.0.13",
+    "typescript": "^5.6.0"
+  },
+  "patchedDependencies": {
+    "expo-modules-core@57.0.16": "patches/expo-modules-core@57.0.16.patch"
+  }
+}

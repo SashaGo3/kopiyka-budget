@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kopiyka Budget — a fast, local-first budget tracker for iPhone and Apple Watch</title>
+    <meta
+      name="description"
+      content="Log an expense in two taps, keep every number on your own phone, and get budgets that start on payday instead of the 1st. Free, open source, no account, no server, no trackers."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/" />
+    <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
+    <link rel="apple-touch-icon" href="img/icon-180.png" />
+    <link rel="stylesheet" href="styles.css" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kopiyka Budget" />
+    <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/" />
+    <meta property="og:title" content="Kopiyka Budget" />
+    <meta
+      property="og:description"
+      content="Money in. Money out. Two taps. A fast, local-first budget tracker for iPhone and Apple Watch."
+    />
+    <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Kopiyka Budget on an iPhone, showing the calculator keypad." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kopiyka Budget" />
+    <meta
+      name="twitter:description"
+      content="Money in. Money out. Two taps. A fast, local-first budget tracker for iPhone and Apple Watch."
+    />
+    <meta name="twitter:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="img/icon-180.png" alt="" width="32" height="32" />
+          <span>Kopiyka Budget</span>
+        </a>
+        <nav class="site-nav" aria-label="Sections">
+          <a href="#features">Features</a>
+          <a href="#watch">Watch</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#open-source">Open source</a>
+        </nav>
+        <div class="brand-actions">
+          <!-- Apple's "Download on the App Store" badge artwork is deliberately not embedded: it must be
+               downloaded from Apple and used under Apple's marketing guidelines. A text button is fine. -->
+          <a class="btn" href="https://apps.apple.com/app/id6809896169" rel="noopener"
+            ><span class="long">Download on the </span>App&nbsp;Store</a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ---------------------------------------------------------- hero -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="wrap">
+          <div class="hero-grid">
+            <div>
+              <span class="eyebrow" aria-hidden="true"></span>
+              <h1 id="hero-title">Money in. Money out. Two taps.</h1>
+              <p class="lede">A fast, local-first budget tracker for iPhone and Apple Watch.</p>
+              <div class="hero-actions">
+                <!-- TODO: same App Store product URL as in the header. -->
+                <a class="btn" href="https://apps.apple.com/app/id6809896169" rel="noopener">Download on the App Store</a>
+                <a class="btn btn-ghost" href="#screenshots">See it working</a>
+              </div>
+              <p class="quiet">Free. No account. No trackers.</p>
+            </div>
+            <div class="hero-shot">
+              <img
+                src="img/shots/log.png"
+                width="560"
+                height="1143"
+                alt="Kopiyka on an iPhone: a calculator keypad with the amount, and the category on the key beside it."
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ----------------------------------------------------------- why -->
+      <section id="why" aria-labelledby="why-title">
+        <div class="wrap">
+          <div class="prose-narrow">
+            <span class="eyebrow" aria-hidden="true"></span>
+            <h2 id="why-title">Why this exists</h2>
+            <p>Not knowing where I stood with money used to drive me mad, so more than ten years ago I started logging every expense. The first app I used was free when I began and later became a one-time purchase, which was fair enough. The habit stuck, but the app never gave me any real insight into where my money was actually going.</p>
+<p>For the last two years I used a budgeting app that cost quite a lot as a one-time purchase. The developer had gone quiet on known bugs, and the “native” iOS app had become painfully slow: I would wait a couple of seconds before I could type a single digit. The last straw was the Apple Watch app, which simply stopped working. The explanation was “Apple”, while everything else on the watch worked fine. It was not Apple.</p>
+<p>I have worked as a React Native developer for many years, shipping apps that real people use every day, and I had wanted for a long time to give something back to open source and fix this one problem: a free, local app for tracking money that is actually good and pleasant to use. I finally had the reason.</p>
+<p>I am happy with how it turned out. The Shortcuts automation alone removes almost all of the friction I used to have, and tags paired with categories feel so obvious that I still wonder why nobody did it. I built this with care and I intend to keep looking after it.</p>
+<p>Your data is yours, so if I ever get hit by a bus you can take it anywhere in a minute. I am not planning on that: I have a daughter, Olivia, on the way, and a lot to live for.</p>
+<p>Thank you for trying Kopiyka.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------ features -->
+      <section id="features" aria-labelledby="features-title">
+        <div class="wrap">
+          <span class="eyebrow" aria-hidden="true"></span>
+          <h2 id="features-title">What it does</h2>
+
+          <div class="cards">
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="3"/><path d="M8.5 7h7M8.5 11h2M13 11h2.5M8.5 15h2M13 15h2.5M8.5 18.5h7"/></svg>
+              </span>
+              <h3>Two taps</h3>
+              <p>Amount on the keypad, category on the key beside it, done.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="3"/><path d="M9 6.5 9.4 3a1 1 0 0 1 1-.9h3.2a1 1 0 0 1 1 .9l.4 3.5M9 17.5l.4 3.5a1 1 0 0 0 1 .9h3.2a1 1 0 0 0 1-.9l.4-3.5M19 10v3"/></svg>
+              </span>
+              <h3>Apple Watch</h3>
+              <p>The whole flow on your wrist, phone still in your pocket.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="15.5" cy="15.5" r="1.6"/></svg>
+              </span>
+              <h3>Budgets that start on payday</h3>
+              <p>Paid on the 25th? Your budget month runs the 25th to the 24th.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.5s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10.2" r="2.6"/></svg>
+              </span>
+              <h3>It learns where you shop</h3>
+              <p>A shop you have filed before files itself the next time.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.8 3.6v4.6h-4.6"/><path d="M12 7.6V12l2.8 1.7"/></svg>
+              </span>
+              <h3>Recurring payments</h3>
+              <p>Subscriptions post themselves; bills that change wait for your tap.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5h18M3 8.5 6 4h12l3 4.5M3 8.5V19a1.5 1.5 0 0 0 1.5 1.5h15A1.5 1.5 0 0 0 21 19V8.5"/><path d="M9.5 12.2a2.5 2.5 0 0 0 5 0"/></svg>
+              </span>
+              <h3>Trip mode</h3>
+              <p>One budget for the trip, a daily allowance, every expense tagged.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="7.5" r="3"/><path d="M2.8 20c0-3.1 2.6-5.3 5.7-5.3s5.7 2.2 5.7 5.3"/><path d="M16.5 6.2a3 3 0 0 1 0 5.8M18.5 14.9c1.7.8 2.8 2.4 2.8 4.4"/></svg>
+              </span>
+              <h3>Debts</h3>
+              <p>Who owes whom, with a reminder on the due date.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 20.5h17"/><rect x="4.5" y="12" width="3.6" height="6"/><rect x="10.2" y="7.5" width="3.6" height="10.5"/><rect x="15.9" y="4" width="3.6" height="14"/></svg>
+              </span>
+              <h3>Insights</h3>
+              <p>Free to spend, days until salary, a savings goal — you choose.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 4.2 1.4 5.6 1.9 6.2a.7.7 0 0 1-.5 1.2H4.6a.7.7 0 0 1-.5-1.2C4.6 14.6 6 13.2 6 9Z"/><path d="M10 19.5a2.3 2.3 0 0 0 4 0"/></svg>
+              </span>
+              <h3>Bank notifications <span class="beta">Beta</span></h3>
+              <p>A Shortcuts automation reads the payment notification, on your phone.</p>
+            </article>
+
+            <article class="card">
+              <span class="glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 16.5a4.2 4.2 0 0 1 .5-8.4 5.8 5.8 0 0 1 11.1 1.6 3.7 3.7 0 0 1-.6 7.3"/><path d="M12 11v9M12 20l-3-3M12 20l3-3"/></svg>
+              </span>
+              <h3>Your data</h3>
+              <p>On your phone, backed up to your iCloud, exportable any time.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------- screenshots -->
+      <section id="screenshots" aria-labelledby="screenshots-title">
+        <div class="wrap">
+          <div class="strip-head">
+            <div>
+              <span class="eyebrow" aria-hidden="true"></span>
+              <h2 id="screenshots-title">A look at it</h2>
+            </div>
+            <div class="strip-controls" hidden id="strip-controls">
+              <button type="button" id="strip-prev" aria-controls="strip" aria-label="Scroll screenshots left">&#8592;</button>
+              <button type="button" id="strip-next" aria-controls="strip" aria-label="Scroll screenshots right">&#8594;</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="wrap">
+          <div class="strip" id="strip" tabindex="0" role="group" aria-label="Screenshots, scrollable">
+            <figure class="slide">
+              <img src="img/shots/data.png" width="560" height="1143" loading="lazy" alt="Data management: iCloud backups, exports and receipt photos" />
+              <figcaption>Your money. Your data. Your phone.</figcaption>
+            </figure>
+            <figure class="slide">
+              <img src="img/shots/budgets.png" width="560" height="1143" loading="lazy" alt="Budgets for a month that runs from one payday to the next" />
+              <figcaption>Months that start on payday</figcaption>
+            </figure>
+            <figure class="slide">
+              <img src="img/shots/transactions.png" width="560" height="1143" loading="lazy" alt="A list of transactions with place, tags and account on each row" />
+              <figcaption>It learns where you shop</figcaption>
+            </figure>
+            <figure class="slide">
+              <img src="img/shots/insights.png" width="560" height="1143" loading="lazy" alt="Insight cards: free to spend, days until salary, a savings goal" />
+              <figcaption>Insights you actually asked for</figcaption>
+            </figure>
+            <figure class="slide">
+              <img src="img/shots/trip.png" width="560" height="1143" loading="lazy" alt="A trip with its own budget, daily allowance and tagged expenses" />
+              <figcaption>Trip mode</figcaption>
+            </figure>
+            <figure class="slide">
+              <img src="img/shots/recurring.png" width="560" height="1143" loading="lazy" alt="Recurring payments, some posting themselves and some waiting for approval" />
+              <figcaption>Rent asks. Netflix doesn’t.</figcaption>
+            </figure>
+            <figure class="slide">
+              <img src="img/shots/debts.png" width="560" height="1143" loading="lazy" alt="Debts owed and lent, each with a due date" />
+              <figcaption>Who owes whom</figcaption>
+            </figure>
+            <figure class="slide">
+              <img src="img/shots/shortcut.png" width="560" height="1143" loading="lazy" alt="The Shortcuts automation that turns a bank notification into a pending entry" />
+              <figcaption>Your bank pings. Kopiyka listens.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------------- watch -->
+      <section id="watch" aria-labelledby="watch-title">
+        <div class="wrap">
+          <span class="eyebrow" aria-hidden="true"></span>
+          <h2 id="watch-title">On the wrist</h2>
+          <p class="section-intro">
+            The whole flow happens on the watch — amount, category, tags — with today's entries and
+            your budgets a swipe away. There is a complication for the watch face, and on an Ultra
+            you can put it on the Action button.
+          </p>
+        </div>
+        <div class="wrap">
+          <div class="watch-row" role="group" aria-label="Apple Watch screenshots, scrollable">
+            <figure class="watch-shot">
+              <img src="img/watch/keypad.png" width="300" height="480" loading="lazy" alt="Apple Watch keypad with an amount typed in" />
+              <figcaption>Tap the amount</figcaption>
+            </figure>
+            <figure class="watch-shot">
+              <img src="img/watch/categories.png" width="300" height="480" loading="lazy" alt="Category list on Apple Watch" />
+              <figcaption>Pick a category</figcaption>
+            </figure>
+            <figure class="watch-shot">
+              <img src="img/watch/tags.png" width="300" height="480" loading="lazy" alt="Tag picker on Apple Watch" />
+              <figcaption>Tag it</figcaption>
+            </figure>
+            <figure class="watch-shot">
+              <img src="img/watch/history.png" width="300" height="480" loading="lazy" alt="Today's expenses on Apple Watch" />
+              <figcaption>Recent expenses</figcaption>
+            </figure>
+            <figure class="watch-shot">
+              <img src="img/watch/budgets.png" width="300" height="480" loading="lazy" alt="Budget left, shown on Apple Watch" />
+              <figcaption>Budget left</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------- privacy -->
+      <section id="privacy" aria-labelledby="privacy-title">
+        <div class="wrap">
+          <div class="prose-narrow">
+            <span class="eyebrow" aria-hidden="true"></span>
+            <h2 id="privacy-title">Privacy</h2>
+            <p>
+              Kopiyka collects nothing: there is no account and no server to send anything to. The
+              only request it ever makes is an exchange rate from the European Central Bank.
+            </p>
+            <div class="linkrow">
+              <a class="btn btn-ghost" href="privacy.html">Privacy Policy</a>
+              <a class="btn btn-ghost" href="terms.html">Terms of Use</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------- migrate -->
+      <section id="migrate" aria-labelledby="migrate-title">
+        <div class="wrap">
+          <div class="prose-narrow">
+            <span class="eyebrow" aria-hidden="true"></span>
+            <h2 id="migrate-title">Moving from another app</h2>
+            <p>
+              Export from your old app, hand the file and a ready-made prompt to an AI assistant,
+              and import the result.
+            </p>
+            <div class="linkrow">
+              <a class="btn btn-ghost" href="migrate.html">Read the migration guide</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------- open source -->
+      <section id="open-source" aria-labelledby="open-source-title">
+        <div class="wrap">
+          <div class="prose-narrow">
+            <span class="eyebrow" aria-hidden="true"></span>
+            <h2 id="open-source-title">Open source</h2>
+            <p>
+              MIT licensed, built with React Native and a little Swift; pull requests are welcome.
+              Android is not planned for now, but maybe later.
+            </p>
+            <div class="linkrow">
+              <a class="btn btn-ghost" href="https://github.com/SashaGo3/kopiyka-budget">Kopiyka on GitHub</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ----------------------------------------------------------- bug -->
+      <section id="bug" aria-labelledby="bug-title">
+        <div class="wrap">
+          <div class="prose-narrow">
+            <span class="eyebrow" aria-hidden="true"></span>
+            <h2 id="bug-title">Found a bug?</h2>
+            <p>
+              Tell me and I will fix it — if the app misbehaved, Settings → Diagnostics has a crash
+              report worth attaching.
+            </p>
+            <div class="linkrow">
+              <a class="btn btn-ghost" href="https://github.com/SashaGo3/kopiyka-budget/issues/new?template=bug_report.md">Open an issue</a>
+              <a class="btn btn-ghost" href="mailto:kopiyka_budget@icloud.com?subject=Kopiyka%20Budget%20bug">Email</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href="privacy.html">Privacy</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="terms.html">Terms</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://github.com/SashaGo3/kopiyka-budget">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="#bug">Report a bug</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>© Kopiyka contributors</span>
+        <span class="made">Made with React Native and a little Swift.</span>
+      </div>
+    </footer>
+
+    <script>
+      // Progressive enhancement only: the strip scrolls with touch, trackpad and
+      // arrow keys without any of this. The buttons stay hidden if JS is off.
+      (function () {
+        var strip = document.getElementById('strip');
+        var controls = document.getElementById('strip-controls');
+        if (!strip || !controls) return;
+        controls.hidden = false;
+        var step = function () {
+          var slide = strip.querySelector('.slide');
+          return slide ? slide.getBoundingClientRect().width + 24 : 260;
+        };
+        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var go = function (dir) {
+          strip.scrollBy({ left: dir * step(), behavior: reduce ? 'auto' : 'smooth' });
+        };
+        document.getElementById('strip-prev').addEventListener('click', function () { go(-1); });
+        document.getElementById('strip-next').addEventListener('click', function () { go(1); });
+      })();
+    </script>
+  </body>
+</html>

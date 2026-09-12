@@ -1,0 +1,72 @@
+diff --git a/ios/Core/AppContext.swift b/ios/Core/AppContext.swift
+index 7fe775e25f5c01a512c7d4380ddf0cc3d0e7e544..22ce9ad92dc688b3065ad82fbfe0f89801d2303b 100644
+--- a/ios/Core/AppContext.swift
++++ b/ios/Core/AppContext.swift
+@@ -162,6 +162,7 @@ public final class AppContext: NSObject, EXAppContextProtocol, @unchecked Sendab
+     self.config = config ?? AppContextConfig(documentDirectory: nil, cacheDirectory: nil, appGroups: appCodeSignEntitlements.appGroups)
+ 
+     super.init()
++    AppContext.noteLive(self)
+ 
+     self.moduleRegistry.register(module: JSLoggerModule(appContext: self), name: nil)
+     listenToClientAppNotifications()
+@@ -697,6 +698,34 @@ public final class AppContext: NSObject, EXAppContextProtocol, @unchecked Sendab
+     _runtime = nil
+   }
+ 
++  // MARK: - Live contexts (patched: Kopiyka)
++
++  /**
++   Every app context created in this process, newest last, held weakly. Fabric view classes are
++   created once per process (React Native's component view factory is a singleton) and bound to
++   the app context that existed at that time; after a reload in the dev client that context is
++   gone while the class stays, so `ExpoFabricView` falls back to the newest live context here
++   instead of crashing with "The app context has been lost".
++   */
++  private final class WeakContext { weak var value: AppContext?; init(_ v: AppContext) { value = v } }
++  private static let liveLock = NSLock()
++  nonisolated(unsafe) private static var live: [WeakContext] = []
++
++  private static func noteLive(_ context: AppContext) {
++    liveLock.lock(); defer { liveLock.unlock() }
++    live.removeAll { $0.value == nil }
++    live.append(WeakContext(context))
++  }
++
++  /**
++   The most recently created app context that is still alive, if any.
++   */
++  public static var newestLive: AppContext? {
++    liveLock.lock(); defer { liveLock.unlock() }
++    live.removeAll { $0.value == nil }
++    return live.last?.value
++  }
++
+   /**
+    Cleans things up before deallocation.
+    */
+diff --git a/ios/Fabric/ExpoFabricView.swift b/ios/Fabric/ExpoFabricView.swift
+index 8f6a1bcd6a46a8c92d18f7efb82be9026e825a05..f6b60d2a874f8bb09221f17c676dd98efb831219 100644
+--- a/ios/Fabric/ExpoFabricView.swift
++++ b/ios/Fabric/ExpoFabricView.swift
+@@ -185,7 +185,8 @@ open class ExpoFabricView: ExpoFabricViewObjC, AnyExpoView {
+   internal static func inject(appContext: AppContext) {
+     // Keep it weak so we don't leak the app context. We use `var` because `let` is only supported in Swift 6.0+
+     weak var weakAppContext = appContext
+-    let appContextBlock: @convention(block) () -> AppContext? = { weakAppContext }
++    // Patched (Kopiyka): after a reload the bound context is gone but the class survives; use the newest live one.
++    let appContextBlock: @convention(block) () -> AppContext? = { weakAppContext ?? AppContext.newestLive }
+     let appContextBlockImp: IMP = imp_implementationWithBlock(appContextBlock)
+     class_replaceMethod(object_getClass(ExpoFabricView.self), #selector(appContextFromClass), appContextBlockImp, "@@:")
+   }
+@@ -193,6 +194,10 @@ open class ExpoFabricView: ExpoFabricViewObjC, AnyExpoView {
+   internal static func injectInitializer(appContext: AppContext, moduleName: String, viewName: String, toViewClass viewClass: AnyClass) {
+     // The default initializer for native views. It will be called by Fabric.
+     let newBlock: @convention(block) () -> Any = {[weak appContext] in
++      // Patched (Kopiyka): React Native keeps this class in its singleton component view factory, so after a
++      // reload the app context it was bound to is deallocated while views keep being created from it.
++      // Fall back to the newest live app context instead of crashing with "The app context has been lost".
++      let appContext = appContext ?? AppContext.newestLive
+       guard let appContext, let moduleHolder = appContext.moduleRegistry.get(moduleHolderForName: moduleName) else {
+         fatalError(Exceptions.AppContextLost().reason)
+       }

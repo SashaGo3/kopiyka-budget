@@ -1,0 +1,150 @@
+{
+  "_doc": [
+    "Shared by the capture script (writes raw/) and scripts/screenshots/frame.mjs (writes appstore/).",
+    "Capture needs only: iphone[].id + iphone[].theme -> raw/iphone/<theme>/<id>.png at 1320x2868,",
+    "and watch[].id -> raw/watch/<id>.png at the Ultra 3 native size (422x514).",
+    "Framing fields: title (\\n = manual break), subtitle, note (small closing line),",
+    "layout = phone | phone-bottom | phone-watch, watch = <watch id> to compose beside the phone,",
+    "bg = slide background (text colour is derived from its luminance), accent = rule colour.",
+    "Devices are composited into Apple's own product bezels from screenshots/frames/.",
+    "iphone[] is the numbered App Store set, in order; max 10.",
+    "extras[] uses the same schema but renders to appstore/extras/ instead: unnumbered spares,",
+    "kept out of the contact sheet unless you pass --contact-sheet=all. Promote one by moving it",
+    "into iphone[] (and dropping one of the ten)."
+  ],
+  "iphone": [
+    {
+      "id": "log",
+      "title": "Money in.\nMoney out.\nTwo taps.",
+      "subtitle": "Amount, category, done —\nbefore the receipt has finished printing.",
+      "theme": "light",
+      "layout": "phone-bottom",
+      "bg": "#F4F4F1"
+    },
+    {
+      "id": "data",
+      "title": "Your money.\nYour data.\nYour phone.",
+      "subtitle": "No account, no server, no ads, no trackers.\nA copy in your own iCloud, CSV or JSON\nexport whenever you like.",
+      "note": "Free. Forever. Not a trial.",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#ECEAE3"
+    },
+    {
+      "id": "budgets",
+      "title": "Months that\nstart on payday",
+      "subtitle": "Paid on the 25th? Your budget month\nruns 25 Aug – 24 Sep.\nThe calendar can mind its own business.",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#F4F4F1"
+    },
+    {
+      "id": "transactions",
+      "title": "It learns\nwhere you shop",
+      "subtitle": "Coffee at the same corner twice —\nthe third time it files itself.\nPlace, tags and account on every row.",
+      "theme": "light",
+      "layout": "phone-bottom",
+      "bg": "#ECEAE3"
+    },
+    {
+      "id": "watch",
+      "title": "Log it from\nyour wrist",
+      "subtitle": "Amount, category, tags — the whole flow\non Apple Watch, phone still in your pocket.",
+      "theme": "dark",
+      "layout": "phone-watch",
+      "watch": "keypad",
+      "bg": "#141413"
+    },
+    {
+      "id": "insights",
+      "title": "Insights you\nactually asked for",
+      "subtitle": "Free to spend, days until salary,\na savings goal, what your subscriptions cost\na year. You pick the cards.",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#2B2B2E"
+    },
+    {
+      "id": "trip",
+      "title": "Trip mode",
+      "subtitle": "One budget for the trip, a daily allowance,\nevery espresso tagged on its own.\nEnds when you come home.",
+      "theme": "light",
+      "layout": "phone-bottom",
+      "bg": "#ECEAE3",
+      "accent": "#C8A96A"
+    },
+    {
+      "id": "recurring",
+      "title": "Rent asks.\nNetflix doesn’t.",
+      "subtitle": "Subscriptions post themselves on the day;\nbills that change wait for your tap.",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#F4F4F1"
+    },
+    {
+      "id": "debts",
+      "title": "Who owes whom",
+      "subtitle": "Lent 20 for lunch? It’s written down —\nwith a nudge on the due date.",
+      "theme": "light",
+      "layout": "phone-bottom",
+      "bg": "#ECEAE3"
+    },
+    {
+      "id": "shortcut",
+      "title": "Your bank pings.\nKopiyka listens.",
+      "subtitle": "A Shortcuts automation reads the amount and\nthe shop out of the notification, on your phone.\nYou just approve.",
+      "note": "Beta — needs a bank app that sends payment notifications.",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#ECEAE3",
+      "accent": "#C8A96A"
+    }
+  ],
+  "extras": [
+    {
+      "id": "accounts",
+      "title": "Every account,\nany currency",
+      "subtitle": "Cash, cards, savings in euro or dollars —\nnet worth in one number.",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#F4F4F1"
+    },
+    {
+      "id": "categories",
+      "title": "Folders, categories,\ntags",
+      "subtitle": "Your own tree, your own icons,\ntags scoped to where they make sense.",
+      "theme": "light",
+      "layout": "phone-bottom",
+      "bg": "#ECEAE3"
+    },
+    {
+      "id": "welcome",
+      "title": "Set up in\nunder a minute",
+      "subtitle": "Name an account, keep the preset categories,\nstart logging.",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#F4F4F1"
+    }
+  ],
+  "watch": [
+    {
+      "id": "keypad",
+      "title": "Tap the amount"
+    },
+    {
+      "id": "categories",
+      "title": "Pick a category"
+    },
+    {
+      "id": "tags",
+      "title": "Tag it"
+    },
+    {
+      "id": "history",
+      "title": "Recent expenses"
+    },
+    {
+      "id": "budgets",
+      "title": "Budget left"
+    }
+  ]
+}

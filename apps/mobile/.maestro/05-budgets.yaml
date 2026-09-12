@@ -1,0 +1,17 @@
+appId: dev.kopiyka.app
+name: "Budgets: scope picker, month picker, folder expansion into transactions"
+---
+- runFlow: _launch.yaml
+- tapOn: "Budgets"
+- tapOn: "Spending from .*"
+- assertVisible: "Spending from"
+- tapOn: "All accounts.*"
+- tapOn: ".*, choose month"
+- assertVisible: "Previous year"
+- swipe:
+    start: "50%, 8%"
+    end: "50%, 85%"
+- tapOn: "3. fixed, .*"
+- assertVisible: "All 3. fixed transactions"
+- tapOn: "All 3. fixed transactions"
+- assertVisible: "Filters, 2 active"

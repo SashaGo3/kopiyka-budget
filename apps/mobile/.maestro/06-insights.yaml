@@ -1,0 +1,12 @@
+appId: dev.kopiyka.app
+name: "Insights: add, view and remove a card"
+---
+- runFlow: _launch.yaml
+- tapOn: "Insights"
+- tapOn: "Add insight"
+- tapOn: "Until salary, .*"
+- tapOn: "Save"
+- assertVisible: "until .*"
+- tapOn: "Edit Until salary"
+- tapOn: "Remove insight"
+- tapOn: "Remove"

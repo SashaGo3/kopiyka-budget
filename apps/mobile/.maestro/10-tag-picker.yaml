@@ -1,0 +1,20 @@
+appId: dev.kopiyka.app
+name: "Tag picker orders tags used with the chosen category and keeps the keyboard clear"
+---
+- runFlow: _launch.yaml
+- tapOn: "Log a transaction"
+- tapOn: "Category: none"
+- tapOn: "Search categories"
+- inputText: "sup"
+- assertVisible: "Category: Supermarket"
+- tapOn: "Tags"
+- assertVisible: "Done.*"
+- tapOn: "Search tags"
+- inputText: "swe"
+- assertVisible: "Sweet.*"
+- tapOn: "Sweet.*"
+- tapOn: "Done.*"
+- assertVisible: "Tags: Sweet.*"
+- swipe:
+    start: "50%, 8%"
+    end: "50%, 85%"

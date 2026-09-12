@@ -1,0 +1,733 @@
+/* Kopiyka Budget — promo site
+   Hand-written, no framework, no external fonts, no external scripts. */
+
+:root {
+  --bg: #f4f4f1;
+  --bg-alt: #eceae3;
+  --card: #ffffff;
+  --border: #d9d9d4;
+  --text: #2b2b2e;
+  --muted: #56565a;
+  --accent: #c8a96a;
+  --shadow: 0 1px 2px rgba(43, 43, 46, 0.05), 0 8px 24px rgba(43, 43, 46, 0.06);
+  --radius: 14px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+  --maxw: 1120px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413;
+    --bg-alt: #1a1a19;
+    --card: #1f1f1e;
+    --border: #2e2e2c;
+    --text: #f4f4f1;
+    --muted: #a9a9a3;
+    --accent: #c8a96a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--border);
+}
+
+a:hover {
+  text-decoration-color: var(--accent);
+}
+
+/* Graphite, not the accent: the focus ring has to clear 3:1 against the page,
+   and #C8A96A on off-white does not. The accent stays a decorative rule. */
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+  margin: 0 0 0.4em;
+  font-weight: 800;
+}
+
+h1 {
+  font-size: clamp(2.1rem, 7vw, 3.6rem);
+}
+
+h2 {
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+}
+
+h3 {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0 0 1em;
+}
+
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--card);
+  color: var(--text);
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+}
+
+/* ---------- header ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .site-header {
+    background: var(--bg);
+  }
+}
+
+.site-header .wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-block: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+  font-size: 1.0625rem;
+  white-space: nowrap;
+}
+
+.brand img {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.site-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.site-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+
+.site-nav a:hover,
+.site-nav a:focus-visible {
+  color: var(--text);
+}
+
+.btn {
+  display: inline-block;
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  opacity: 0.86;
+  text-decoration: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* ---------- sections ---------- */
+
+section {
+  padding-block: clamp(48px, 8vw, 88px);
+  border-top: 1px solid var(--border);
+}
+
+section:first-of-type {
+  border-top: 0;
+}
+
+.eyebrow {
+  display: block;
+  width: 56px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin-bottom: 22px;
+}
+
+.lede {
+  font-size: clamp(1.0625rem, 2.2vw, 1.3125rem);
+  color: var(--muted);
+  max-width: 40ch;
+}
+
+.section-intro {
+  max-width: 62ch;
+  color: var(--muted);
+}
+
+/* ---------- hero ---------- */
+
+.hero {
+  padding-top: clamp(40px, 7vw, 76px);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(24px, 5vw, 56px);
+  align-items: center;
+}
+
+.hero-grid > * {
+  min-width: 0;
+}
+
+.hero h1 {
+  max-width: 12ch;
+  overflow-wrap: break-word;
+}
+
+/* The shots are bare devices on a transparent canvas, so they get no card
+   chrome of their own — a border round a photo of a phone is a border too many. */
+.hero-shot {
+  max-width: 340px;
+  margin-left: auto;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 30px;
+}
+
+.quiet {
+  margin: 16px 0 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* ---------- why ---------- */
+
+/* A reading column that sits inside a .wrap, so it starts on the same left
+   edge as every other section instead of centring itself. */
+.prose-narrow {
+  max-width: 68ch;
+}
+
+.prose-narrow p {
+  font-size: 1.0625rem;
+}
+
+/* ---------- features ---------- */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.card .glyph {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 14px;
+  color: var(--text);
+}
+
+.card .glyph svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.card .beta {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: 2px;
+}
+
+/* ---------- screenshot strip ---------- */
+
+.strip-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.strip-controls {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.strip-controls button {
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.strip-controls button:hover {
+  border-color: var(--accent);
+}
+
+.strip {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 20px;
+  padding: 28px 20px 22px;
+  margin-inline: -20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.slide {
+  scroll-snap-align: center;
+  flex: 0 0 auto;
+  width: 250px;
+  margin: 0;
+}
+
+.slide img {
+  width: 250px;
+}
+
+.slide figcaption {
+  margin-top: 16px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- watch ---------- */
+
+.watch-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 26px 20px 18px;
+  margin-inline: -20px;
+  scroll-padding-inline: 20px;
+}
+
+/* 144px keeps all seven shots inside the 1120px column on a desktop; narrower
+   viewports scroll the row instead. */
+.watch-shot {
+  flex: 0 0 auto;
+  width: 144px;
+  margin: 0;
+  scroll-snap-align: center;
+  text-align: center;
+}
+
+.watch-shot img {
+  width: 144px;
+}
+
+.watch-shot figcaption {
+  margin-top: 10px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* ---------- privacy / migrate / open source ---------- */
+
+.linkrow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+/* ---------- footer ---------- */
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding-block: 34px 46px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.site-footer .wrap {
+  display: flex;
+  gap: 10px 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.site-footer a {
+  color: var(--muted);
+}
+
+.site-footer .sep {
+  opacity: 0.45;
+}
+
+.site-footer .made {
+  margin-left: auto;
+}
+
+/* ---------- doc pages ---------- */
+
+.doc {
+  padding-block: clamp(36px, 6vw, 64px);
+  border-top: 0;
+}
+
+.doc .wrap {
+  max-width: 68ch;
+}
+
+.doc h1 {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  margin-bottom: 0.5em;
+}
+
+.doc h2 {
+  font-size: 1.3125rem;
+  margin-top: 2em;
+  padding-top: 0.9em;
+  border-top: 1px solid var(--border);
+}
+
+.doc h3 {
+  margin-top: 1.6em;
+}
+
+.doc p,
+.doc li {
+  color: var(--text);
+}
+
+.doc em {
+  color: var(--muted);
+}
+
+.doc ul,
+.doc ol {
+  padding-left: 1.25em;
+}
+
+.doc li {
+  margin-bottom: 0.5em;
+}
+
+.doc blockquote {
+  margin: 1.4em 0;
+  padding-left: 1em;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+
+.doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.4em 0;
+  font-size: 0.9375rem;
+  display: block;
+  overflow-x: auto;
+}
+
+.doc th,
+.doc td {
+  border: 1px solid var(--border);
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc th {
+  background: var(--card);
+  font-weight: 700;
+}
+
+.doc code {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+.doc pre {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.doc pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+  white-space: pre;
+}
+
+.doc hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2.4em 0;
+}
+
+.codeblock {
+  position: relative;
+  margin: 1.6em 0;
+}
+
+/* Room for the Copy button, and a smaller face so more of the prompt fits
+   before the block has to scroll sideways. */
+.codeblock pre {
+  padding-top: 48px;
+  font-size: 0.75rem;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.copy-btn:hover {
+  border-color: var(--accent);
+}
+
+.doc-back {
+  display: inline-block;
+  margin-bottom: 22px;
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 860px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero h1 {
+    max-width: none;
+  }
+
+  .hero-shot {
+    max-width: 320px;
+    margin-left: 0;
+  }
+
+  .site-footer .made {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  body {
+    font-size: 16px;
+  }
+
+  .wrap {
+    padding-inline: 18px;
+  }
+
+  .site-header .wrap {
+    gap: 8px;
+    padding-block: 10px;
+  }
+
+  .brand {
+    font-size: 1rem;
+  }
+
+  .brand img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .site-nav {
+    width: 100%;
+    margin-left: 0;
+    gap: 16px;
+    order: 3;
+  }
+
+  .brand-actions {
+    margin-left: auto;
+  }
+
+  /* "Download on the App Store" does not fit beside the wordmark on a phone;
+     the header button becomes "App Store" and the hero keeps the full label. */
+  .brand-actions .btn {
+    font-size: 0.8125rem;
+    padding: 7px 14px;
+  }
+
+  .brand-actions .btn .long {
+    display: none;
+  }
+
+  .strip,
+  .watch-row {
+    margin-inline: -18px;
+    padding-inline: 18px;
+    scroll-padding-inline: 18px;
+  }
+
+  .slide,
+  .slide img {
+    width: 208px;
+  }
+
+  .strip-controls {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  .site-header,
+  .strip-controls,
+  .copy-btn {
+    display: none;
+  }
+}

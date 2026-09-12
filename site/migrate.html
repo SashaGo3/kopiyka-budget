@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Migrating from another app — Kopiyka Budget</title>
+    <meta name="description" content="Export from your old budget app, hand the file and this prompt to an AI assistant, and import the result into Kopiyka Budget." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/migrate.html" />
+    <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
+    <link rel="apple-touch-icon" href="img/icon-180.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Kopiyka Budget" />
+    <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/migrate.html" />
+    <meta property="og:title" content="Migrating from another app — Kopiyka Budget" />
+    <meta property="og:description" content="Export from your old budget app, hand the file and this prompt to an AI assistant, and import the result into Kopiyka Budget." />
+    <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="img/icon-180.png" alt="" width="32" height="32" />
+          <span>Kopiyka Budget</span>
+        </a>
+        <nav class="site-nav" aria-label="Sections">
+          <a href="index.html#features">Features</a>
+          <a href="index.html#watch">Watch</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="index.html#open-source">Open source</a>
+        </nav>
+        <div class="brand-actions">
+          <!-- TODO: paste the App Store product URL here (replace href="#"). -->
+          <a class="btn" href="https://apps.apple.com/app/id6809896169" rel="noopener"
+            ><span class="long">Download on the </span>App&nbsp;Store</a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc">
+        <div class="wrap">
+          <a class="doc-back" href="index.html">&#8592; Kopiyka Budget</a>
+          <h1>Migrating from another app (with an AI&#39;s help)</h1>
+          <p>Kopiyka imports one thing: its own backup format, a single JSON file. There is no importer for other
+          apps&#39; exports on purpose — every app exports something different, and a converter that is right
+          for one export is wrong for the next. What works instead: export from your old app, hand that file
+          and the prompt below to an AI assistant (Claude, ChatGPT, a local model — anything that can read a
+          file and write JSON), and import the result.</p>
+          <p>The whole thing takes a few minutes. Your data goes wherever you send it and nowhere else; if that
+          matters to you, use a local model, or ask the assistant for a script and run it yourself.</p>
+          <h2>Steps</h2>
+          <ol>
+          <li><strong>Export from your old app.</strong> CSV is ideal; JSON or XLSX also work. You want <em>transactions</em> with
+          date, amount, currency, account, category and (if you have them) notes, tags and transfers.</li>
+          <li><strong>Open a chat with an AI assistant</strong>, attach the export, and paste the prompt from the next
+          section. Read its questions — it will usually need to know your base currency and how transfers
+          are represented.</li>
+          <li><strong>Save the answer as <code>kopiyka-import.json</code></strong> (the assistant may offer a file; if it prints JSON,
+          copy everything between the outer braces).</li>
+          <li><strong>Get the file onto your phone</strong> — AirDrop, iCloud Drive, Files.</li>
+          <li>In Kopiyka: <strong>Settings → Data management → Import → Replace everything with a file</strong> (on a fresh
+          install) or <strong>Merge</strong> (to add to what is already there). The app writes a safety backup before a
+          replace and tells you where it is.</li>
+          <li>Check a few months in Transactions and the account balances under Settings → Accounts. If a
+          balance is off, the export had no opening balance: set <code>opening_balance_minor</code> on that account
+          in the JSON (or edit the account in the app) so the balance today matches your bank.</li>
+          </ol>
+          <h2>The prompt</h2>
+          <p>Copy this whole block. Attach your export in the same message.</p>
+          <div class="codeblock"><button type="button" class="copy-btn" hidden>Copy</button><pre tabindex="0" role="region" aria-label="The conversion prompt"><code class="language-text">I am moving my personal finance history into an app called Kopiyka. It imports one file format,
+          described below. Please convert the attached export into that format.
+
+          Before you write anything, ask me (in one message) about anything you cannot infer from the file:
+          my base currency, how transfers between my accounts appear in the export, whether categories are
+          nested (folder › category), and the time zone to use if dates have no offset.
+
+          Then produce ONE JSON document that follows the specification exactly. Rules:
+
+          - Keep every transaction. Do not summarise, sample, or drop rows. If a row cannot be converted,
+            list it at the end of your reply instead of silently skipping it.
+          - Money is integers in minor units of the *account&#39;s* currency (cents, groszy, kopiykas):
+            12.34 EUR → 1234. Expenses are negative, income positive.
+          - Every row needs an `id`: use a fresh UUID v4 for each row, and reuse the same id everywhere that
+            row is referenced (account_id, category_id, parent_id, tag_ids). Never derive an id from a name.
+          - Categories: one row per category. A folder is simply a category whose `parent_id` is null and
+            that has other categories pointing at it. Transactions must point at the innermost category,
+            never at a folder. If the export has a flat category list, make them all top-level.
+          - Tags: one row per distinct tag; a transaction&#39;s `tag_ids` is a JSON array *string* of tag ids,
+            e.g. &quot;[\&quot;…\&quot;,\&quot;…\&quot;]&quot; (an empty list is &quot;[]&quot;).
+          - Transfers: an export usually has either one row with a source and a target account, or two rows
+            (money out, money in). Produce two transactions — negative on the source account, positive on
+            the destination, each in its own account&#39;s currency — sharing one new `transfer_id`, with
+            `category_id` null. If the two legs are in different currencies, set `entered_amount_minor`,
+            `entered_currency` and `exchange_rate` on the destination leg as described below.
+          - Dates are ISO 8601 with an offset: &quot;2026-03-17T16:28:39+01:00&quot;. If the export has only a day,
+            use 12:00:00 in the time zone I gave you. `updated_at` is epoch milliseconds — use the export
+            time (now) for every row. `deleted` is always 0.
+          - Recurring rules, budgets, debts and insights are optional. Include recurring rules only if the
+            export clearly has them (subscriptions with a period); otherwise leave the arrays empty and I
+            will set them up in the app.
+          - `settings.base_currency` is my base currency. Leave `rates` as an empty array unless the export
+            contains exchange rates.
+          - Output the JSON and nothing else in that code block. Pretty-print with 1 space of indentation.
+
+          === SPECIFICATION: Kopiyka backup JSON ===
+
+          {
+           &quot;format&quot;: &quot;kopiyka-backup&quot;,          // exactly this
+           &quot;version&quot;: 1,
+           &quot;exported_at&quot;: &quot;2026-09-12T10:00:00.000Z&quot;,
+           &quot;settings&quot;: { &quot;base_currency&quot;: &quot;EUR&quot; },
+           &quot;accounts&quot;: [ Account ],
+           &quot;categories&quot;: [ Category ],
+           &quot;tags&quot;: [ Tag ],
+           &quot;transactions&quot;: [ Transaction ],
+           &quot;recurring_rules&quot;: [ RecurringRule ],  // may be []
+           &quot;budgets&quot;: [],                          // may be []
+           &quot;insights&quot;: [],                         // may be []
+           &quot;debts&quot;: [],                            // may be []
+           &quot;rates&quot;: []                             // may be []
+          }
+
+          Every row in every table has these three fields:
+            id: string (UUID v4)   updated_at: integer (epoch ms)   deleted: 0
+
+          Account {
+            name: string
+            currency: string                 // ISO 4217, &quot;EUR&quot;, &quot;USD&quot;, &quot;PLN&quot;, &quot;UAH&quot; …
+            type: &quot;cash&quot; | &quot;bank&quot; | &quot;card&quot; | &quot;investment&quot; | &quot;savings&quot; | &quot;other&quot;
+            group_name: string               // a heading the accounts are listed under; &quot;Personal&quot; if the export has none
+            icon: string | null              // SF Symbol name, e.g. &quot;creditcard.fill&quot;, &quot;banknote.fill&quot;, &quot;building.columns.fill&quot;; null is fine
+            color: string | null             // &quot;#RRGGBB&quot; or null
+            sort: integer                    // display order, 0, 1, 2 …
+            archived: 0 | 1
+            include_in_net_worth: 0 | 1      // 1 unless it is a loan/credit account you exclude
+            opening_balance_minor: integer   // balance before the first transaction in the file; 0 if unknown
+          }
+
+          Category {
+            name: string
+            parent_id: string | null         // id of the folder category, or null for a top-level one
+            icon: string | null              // SF Symbol name or null
+            color: string | null             // &quot;#RRGGBB&quot; or null
+            sort: integer
+            kind: &quot;expense&quot; | &quot;income&quot;
+            description: string | null       // optional words that describe what belongs here
+          }
+
+          Tag {
+            name: string
+            color: string | null
+            category_ids: string             // JSON array string of category ids the tag is meant for; &quot;[]&quot; = any
+          }
+
+          Transaction {
+            account_id: string
+            date: string                     // ISO 8601 with offset
+            amount_minor: integer            // minor units of the account&#39;s currency; negative = expense
+            category_id: string | null       // innermost category; null for transfers or uncategorised rows
+            payee: string | null             // shop or counterparty, if the export separates it from the note
+            notes: string | null             // the note / description
+            tag_ids: string                  // JSON array string of tag ids, &quot;[]&quot; if none
+            pending: 0 | 1                   // 0 for history
+            transfer_id: string | null       // same new UUID on both legs of a transfer, else null
+            entered_amount_minor: integer | null   // only when the payment was in another currency: the amount as charged
+            entered_currency: string | null        // … and its currency
+            exchange_rate: number | null           // entered units per 1 account unit (entered_amount / amount)
+            recurring_id: string | null      // id of a recurring rule that produced this row, else null
+            lat: number | null               // where it was logged, if known
+            lon: number | null
+            place: string | null             // human name of that place
+            photo: null                      // receipt photos cannot be imported this way
+            source: null
+          }
+
+          RecurringRule {
+            account_id: string
+            amount_minor: integer            // negative = expense
+            category_id: string | null
+            payee: string | null
+            notes: string | null
+            tag_ids: string                  // &quot;[]&quot; if none
+            frequency: &quot;daily&quot; | &quot;weekly&quot; | &quot;monthly&quot; | &quot;yearly&quot;
+            interval: integer                // 1 = every period, 2 = every second period …
+            start_date: string               // &quot;YYYY-MM-DD&quot;
+            end_date: string | null
+            next_date: string                // &quot;YYYY-MM-DD&quot;, the first occurrence not yet posted (after today)
+            notify: 0 | 1
+            notify_days_before: integer
+            auto_post: 0 | 1                 // 1 = posts itself on the day; 0 = asks first
+            active: 0 | 1
+            time_of_day: string              // &quot;HH:MM&quot;
+          }
+
+          === EXAMPLE (two accounts, a folder with one category, a tag, one expense and one transfer) ===
+
+          {
+           &quot;format&quot;: &quot;kopiyka-backup&quot;,
+           &quot;version&quot;: 1,
+           &quot;exported_at&quot;: &quot;2026-09-12T10:00:00.000Z&quot;,
+           &quot;settings&quot;: { &quot;base_currency&quot;: &quot;EUR&quot; },
+           &quot;accounts&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Main&quot;, &quot;currency&quot;: &quot;EUR&quot;, &quot;type&quot;: &quot;bank&quot;, &quot;group_name&quot;: &quot;Personal&quot;, &quot;icon&quot;: &quot;building.columns.fill&quot;,
+              &quot;color&quot;: &quot;#2B2B2E&quot;, &quot;sort&quot;: 0, &quot;archived&quot;: 0, &quot;include_in_net_worth&quot;: 1, &quot;opening_balance_minor&quot;: 250000 },
+            { &quot;id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000002&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Cash&quot;, &quot;currency&quot;: &quot;EUR&quot;, &quot;type&quot;: &quot;cash&quot;, &quot;group_name&quot;: &quot;Personal&quot;, &quot;icon&quot;: &quot;banknote.fill&quot;,
+              &quot;color&quot;: null, &quot;sort&quot;: 1, &quot;archived&quot;: 0, &quot;include_in_net_worth&quot;: 1, &quot;opening_balance_minor&quot;: 0 }
+           ],
+           &quot;categories&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Food&quot;, &quot;parent_id&quot;: null, &quot;icon&quot;: &quot;cart.fill&quot;, &quot;color&quot;: &quot;#FF9F0A&quot;, &quot;sort&quot;: 0, &quot;kind&quot;: &quot;expense&quot;, &quot;description&quot;: null },
+            { &quot;id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000002&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Groceries&quot;, &quot;parent_id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000001&quot;, &quot;icon&quot;: &quot;cart.fill&quot;, &quot;color&quot;: &quot;#FF9F0A&quot;,
+              &quot;sort&quot;: 1, &quot;kind&quot;: &quot;expense&quot;, &quot;description&quot;: &quot;supermarket, market, bakery&quot; }
+           ],
+           &quot;tags&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0003-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Weekend&quot;, &quot;color&quot;: &quot;#30D158&quot;, &quot;category_ids&quot;: &quot;[]&quot; }
+           ],
+           &quot;transactions&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0004-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;account_id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000001&quot;, &quot;date&quot;: &quot;2026-09-06T18:42:00+01:00&quot;, &quot;amount_minor&quot;: -2350,
+              &quot;category_id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000002&quot;, &quot;payee&quot;: &quot;Pingo Doce&quot;, &quot;notes&quot;: null,
+              &quot;tag_ids&quot;: &quot;[\&quot;5f1a2b3c-0003-4a00-8000-000000000001\&quot;]&quot;, &quot;pending&quot;: 0, &quot;transfer_id&quot;: null,
+              &quot;entered_amount_minor&quot;: null, &quot;entered_currency&quot;: null, &quot;exchange_rate&quot;: null, &quot;recurring_id&quot;: null,
+              &quot;lat&quot;: null, &quot;lon&quot;: null, &quot;place&quot;: null, &quot;photo&quot;: null, &quot;source&quot;: null },
+            { &quot;id&quot;: &quot;5f1a2b3c-0004-4a00-8000-000000000002&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;account_id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000001&quot;, &quot;date&quot;: &quot;2026-09-07T09:00:00+01:00&quot;, &quot;amount_minor&quot;: -10000,
+              &quot;category_id&quot;: null, &quot;payee&quot;: null, &quot;notes&quot;: &quot;ATM&quot;, &quot;tag_ids&quot;: &quot;[]&quot;, &quot;pending&quot;: 0,
+              &quot;transfer_id&quot;: &quot;5f1a2b3c-0005-4a00-8000-000000000001&quot;,
+              &quot;entered_amount_minor&quot;: null, &quot;entered_currency&quot;: null, &quot;exchange_rate&quot;: null, &quot;recurring_id&quot;: null,
+              &quot;lat&quot;: null, &quot;lon&quot;: null, &quot;place&quot;: null, &quot;photo&quot;: null, &quot;source&quot;: null },
+            { &quot;id&quot;: &quot;5f1a2b3c-0004-4a00-8000-000000000003&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;account_id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000002&quot;, &quot;date&quot;: &quot;2026-09-07T09:00:00+01:00&quot;, &quot;amount_minor&quot;: 10000,
+              &quot;category_id&quot;: null, &quot;payee&quot;: null, &quot;notes&quot;: &quot;ATM&quot;, &quot;tag_ids&quot;: &quot;[]&quot;, &quot;pending&quot;: 0,
+              &quot;transfer_id&quot;: &quot;5f1a2b3c-0005-4a00-8000-000000000001&quot;,
+              &quot;entered_amount_minor&quot;: null, &quot;entered_currency&quot;: null, &quot;exchange_rate&quot;: null, &quot;recurring_id&quot;: null,
+              &quot;lat&quot;: null, &quot;lon&quot;: null, &quot;place&quot;: null, &quot;photo&quot;: null, &quot;source&quot;: null }
+           ],
+           &quot;recurring_rules&quot;: [],
+           &quot;budgets&quot;: [],
+           &quot;insights&quot;: [],
+           &quot;debts&quot;: [],
+           &quot;rates&quot;: []
+          }
+          </code></pre></div>
+          <h2>Checking the result before you import</h2>
+          <ul>
+          <li>It must start with <code>&quot;format&quot;: &quot;kopiyka-backup&quot;</code> and have an <code>accounts</code> array, or the app rejects
+          it with &quot;Not a Kopiyka backup&quot;.</li>
+          <li>Every <code>account_id</code> / <code>category_id</code> / <code>parent_id</code> / tag id must exist in the file. The app does not
+          verify this on import: a transaction pointing at an unknown account shows up nowhere and counts in
+          no balance.</li>
+          <li>Amounts must be integers. <code>12.34</code> is wrong; <code>1234</code> is right.</li>
+          <li>Transfers must be two rows with the same <code>transfer_id</code> and opposite signs.</li>
+          <li>If you ran the conversion twice, import only the last file: ids are freshly generated each time,
+          so importing both would double everything. (If you <em>do</em> want to re-import a corrected version,
+          use <em>Replace everything</em> — merge never deletes, so the old rows would stay.)</li>
+          </ul>
+          <p>The full set of rules the importer follows — ids are the identity, merge never deletes, replace does,
+          exchange rates are never dropped — is in <a href="https://github.com/SashaGo3/kopiyka-budget/blob/main/DATA.md">DATA.md</a> at the repository root. A rendered
+          example of a complete backup with budgets, rules, trips and debts is the demo dataset the screenshots
+          use: <code>apps/mobile/screenshots/demo/kopiyka-demo.json</code>.</p>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href="privacy.html">Privacy</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="terms.html">Terms</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://github.com/SashaGo3/kopiyka-budget">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="index.html#bug">Report a bug</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>© Kopiyka contributors</span>
+        <span class="made">Made with React Native and a little Swift.</span>
+      </div>
+    </footer>
+    <script>
+      document.querySelectorAll('.copy-btn').forEach(function (b) {
+        if (!navigator.clipboard) return;
+        b.hidden = false;
+        b.onclick = function () {
+          navigator.clipboard.writeText(b.parentNode.querySelector('pre').innerText).then(function () {
+            b.textContent = 'Copied';
+            setTimeout(function () { b.textContent = 'Copy'; }, 1600);
+          });
+        };
+      });
+    </script>
+  </body>
+</html>

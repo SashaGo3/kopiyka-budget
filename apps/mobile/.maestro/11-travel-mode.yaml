@@ -1,0 +1,42 @@
+appId: dev.kopiyka.app
+name: "Travel mode: start a trip from Settings, new expenses carry the tag, end the trip"
+---
+- runFlow: _launch.yaml
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Travel mode, .*"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Travel mode, .*"
+- assertVisible: "Tap to start the trip.*"
+- tapOn: "Trip name"
+- inputText: "Maestro trip"
+# the keyboard covers the amount keypad, so close it first
+- pressKey: Enter
+- tapOn: "5"
+- tapOn: "0"
+- tapOn: "0"
+- tapOn: "Tap to start the trip.*"
+- assertVisible: "Already paid for Maestro trip?"
+- tapOn: "Skip"
+- assertVisible: "Travel mode, Maestro trip.*"
+# iOS 26 minimises the tab bar while the list is scrolled: scroll back up first
+- scrollUntilVisible:
+    element: "Accounts, .*"
+    direction: UP
+- tapOn: "Budgets"
+- assertVisible: "Trip Maestro trip, .*"
+- tapOn: "Log a transaction"
+- assertVisible: "Tag Maestro trip"
+- swipe:
+    start: "50%, 8%"
+    end: "50%, 85%"
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Travel mode, .*"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Travel mode, .*"
+- assertVisible: "End the trip to Maestro trip?"
+- tapOn: "End trip"
+- assertVisible: "Travel mode, Tag every new expense.*"

@@ -1,0 +1,18 @@
+appId: dev.kopiyka.app
+name: "Switch an entry to a transfer and back"
+---
+- runFlow: _launch.yaml
+- tapOn: "Log a transaction"
+- tapOn: "5"
+- tapOn: "Transfer"
+- assertVisible: "Make this a transfer?"
+- tapOn: "Make transfer"
+- waitForAnimationToEnd
+- assertVisible: "Back to expense"
+- assertVisible: "From Account.*: 5.*"
+- tapOn: "Back to expense"
+- assertVisible: "Tap to add, −5.00 PLN"
+- swipe:
+    start: "50%, 8%"
+    end: "50%, 85%"
+- tapOn: "Discard"
