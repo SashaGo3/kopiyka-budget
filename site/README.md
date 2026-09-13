@@ -69,11 +69,10 @@ constants in `site/build.mjs` plus the two hand-written HTML files.
 
 ## Publishing
 
-`.github/workflows/pages.yml` deploys this folder to GitHub Pages. It is set to
-`workflow_dispatch` only, so nothing is published until you turn Pages on
-(Settings → Pages → Source: GitHub Actions) and press "Run workflow" yourself. The comment block
-at the top of that file explains how to switch it to deploy on every push, and how to serve the
-site without Actions at all.
+`.github/workflows/pages.yml` deploys this folder to GitHub Pages at
+<https://sashago3.github.io/kopiyka-budget/> on every push to `main` that touches `site/` (Pages
+source: GitHub Actions). "Run workflow" on the Actions tab deploys by hand. The comment block at the
+top of that file has the details.
 
 ## A custom domain
 

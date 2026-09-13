@@ -1,47 +1,21 @@
 # Deploys the static promo site in site/ to GitHub Pages.
 #
-# ---------------------------------------------------------------------------
-# Nothing happens until you ask for it. This workflow has no push trigger:
-# it only runs when you press "Run workflow" on the Actions tab
-# (workflow_dispatch). Adding the file does not switch Pages on.
+# Pages is switched on for this repository (Settings → Pages → Source: "GitHub Actions"), so every
+# push to main that touches site/ (or this file) publishes the site at
+# https://sashago3.github.io/kopiyka-budget/ a minute later. "Run workflow" on the Actions tab
+# deploys by hand.
 #
-# (a) Turning Pages on
-#     GitHub → your repository → Settings → Pages → Build and deployment →
-#     Source: "GitHub Actions". That is the only setting this workflow needs.
-#     Then go to the Actions tab, pick "Deploy site to GitHub Pages", and press
-#     "Run workflow". The site appears at
-#     https://sashago3.github.io/kopiyka-budget/ a minute later.
-#
-# (b) Deploying automatically on every push, once you are happy with it
-#     Replace the `on:` block below with:
-#
-#         on:
-#           push:
-#             branches: [main]
-#             paths: ['site/**', '.github/workflows/pages.yml']
-#           workflow_dispatch:
-#
-#     Keep workflow_dispatch so you can still deploy by hand.
-#
-# (c) Serving the site WITHOUT Actions at all
-#     Settings → Pages → Source: "Deploy from a branch" publishes a branch
-#     directly, with no workflow involved. Its classic mode only offers two
-#     folders: the repository root (/) or /docs. It cannot be pointed at
-#     site/. So to use it you would either
-#       - rename site/ to docs/ (this repository already uses docs/ for the
-#         markdown the site is built from, so they would have to be merged or
-#         the markdown moved first), or
-#       - copy the built site/ into docs/ as part of your release routine, or
-#       - push the contents of site/ to a dedicated `gh-pages` branch root.
-#     The Actions route below avoids all of that, which is why it is the
-#     default here.
+# Serving WITHOUT Actions: Settings → Pages → "Deploy from a branch" only offers the repository root
+# or /docs, not site/, so it would need site/ copied into docs/ or a gh-pages branch. Not worth it.
 #
 # Custom domain: see site/README.md (a CNAME file in site/).
 # ---------------------------------------------------------------------------
-
 name: Deploy site to GitHub Pages
 
 on:
+  push:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
