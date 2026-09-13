@@ -36,6 +36,9 @@ export const BACKUP_META_KEYS = [
   "period_start_day", "base_currency", "recurring_notify_days_before",
   "location_enabled", "home_lat", "home_lon", "home_place",
   "current_account", "budget_scope", "hide_income", "show_balance", "backup_per_day",
+  // "" (or absent) means the app follows the phone's own language, so a restore onto a phone set to
+  // another language does the right thing without the backup having to say so.
+  "language",
 ] as const;
 
 /**

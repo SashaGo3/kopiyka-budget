@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import { router } from "expo-router";
@@ -8,18 +8,41 @@ import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { Keypad, evalExpr } from "@/components/Keypad";
 import { C, S } from "@/constants/theme";
-import { currencyName } from "@/lib/currencies";
+import { currencyName, isKnownCurrency, suggestedCurrency } from "@/lib/currencies";
+import { countryCode, locationStatus, quickLocation } from "@/lib/location";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { pickAndImport } from "@/lib/importers";
 import { setOnboarded } from "@/lib/onboarding";
 import { setCurrentAccount } from "@/lib/settings";
 
-/** Step 2: the main account with what is on it right now (becomes the opening balance). */
+/**
+ * Step 2: the main account with what is on it right now (becomes the opening balance).
+ *
+ * The currency is guessed rather than asked for: the phone's region already says what money is
+ * spent here (`suggestedCurrency`), and on the rare phone whose location permission is already
+ * granted — a reinstall, a restore — the country it is actually in wins over a region setting
+ * somebody moved away from and never changed. Either way it is a default with the picker one tap
+ * away, and the guess stops the moment the user picks for themselves.
+ */
 export default function OnboardingAccount() {
   const [name, setName] = useState("Main");
-  const [currency, setCurrency] = useState<string>("PLN");
+  const [currency, setCurrency] = useState<string>(() => suggestedCurrency());
+  const [chosenByHand, setChosenByHand] = useState(false);
   const [curKey] = useState(() => newPickKey("obcur"));
-  usePickResult<string>(curKey, (v: string) => setCurrency(v));
+  usePickResult<string>(curKey, (v: string) => { setChosenByHand(true); setCurrency(v); });
+  useEffect(() => {
+    if (chosenByHand) return;
+    let alive = true;
+    void (async () => {
+      if ((await locationStatus()) !== "granted") return;
+      const fix = await quickLocation();
+      if (!fix || !alive) return;
+      const country = await countryCode(fix);
+      const better = country ? suggestedCurrency(country) : null;
+      if (alive && better && isKnownCurrency(better)) setCurrency((cur) => (chosenByHand ? cur : better));
+    })();
+    return () => { alive = false; };
+  }, [chosenByHand]);
   const type: AccountType = "bank";
   const [expr, setExpr] = useState("");
   const [busy, setBusy] = useState(false);

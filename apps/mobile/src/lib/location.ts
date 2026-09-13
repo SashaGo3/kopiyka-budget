@@ -53,3 +53,14 @@ export async function cityName(c: Coords, timeoutMs = 3000): Promise<string | nu
     return p?.city || p?.subregion || p?.region || p?.country || null;
   } catch { return null; }
 }
+
+/**
+ * ISO 3166-1 country code for a fix ("PL"), or null. Used to offer the right currency to someone
+ * whose phone is still set to the region they moved away from.
+ */
+export async function countryCode(c: Coords, timeoutMs = 3000): Promise<string | null> {
+  try {
+    const r = await Promise.race([Location.reverseGeocodeAsync({ latitude: c.lat, longitude: c.lon }), new Promise<null>((res) => setTimeout(() => res(null), timeoutMs))]);
+    return r?.[0]?.isoCountryCode?.toUpperCase() || null;
+  } catch { return null; }
+}

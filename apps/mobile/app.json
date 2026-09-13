@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kopiyka",
     "slug": "kopiyka",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kopiyka",
@@ -48,7 +48,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "23"
+      "buildNumber": "24"
     },
     "android": {
       "package": "dev.kopiyka.app",

@@ -86,6 +86,14 @@ export interface Transaction extends Synced {
    * so), "receipt", "watch", "siri", or null for hand-entered.
    */
   source: string | null;
+  /**
+   * Money that came back on this very row: you paid the whole table, someone handed you their share,
+   * and the expense is smaller than what left the account at the till. Signed minor units in the
+   * account currency, always opposite in sign to `amount_minor`, and summed over every return booked
+   * so far — so what was originally paid is `amount_minor - refunded_minor` and no second row has to
+   * remember it. 0 on everything that never had a return (see `packages/core/src/returns.ts`).
+   */
+  refunded_minor: number;
 }
 
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";

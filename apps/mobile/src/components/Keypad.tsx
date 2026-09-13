@@ -1,15 +1,20 @@
 import { memo, useCallback } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from "react-native";
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
-import { applyKey, applyKeySigned, evalExpr, exprSign, hasOperator, negateExpr } from "@kopiyka/core";
+import { applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr } from "@kopiyka/core";
+import { useT } from "@/i18n";
 import { C, R, S } from "@/constants/theme";
-export { applyKey, applyKeySigned, evalExpr, exprSign, hasOperator, negateExpr };
+export { applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr };
 
 /**
  * Numeric keypad in the Control-app layout: an operator strip, then
  *   7 8 9 ⌫ / 4 5 6 C / 1 2 3 ± / 0 . [extra]
  * The native keyboard is never used for amounts.
+ *
+ * There is no "=" key. The amount field above always shows what the sum currently comes to, and the
+ * sum itself is written out under it (`CalcLine`), so 90 − 30 reads as 60 with "90 − 30" beneath —
+ * one less key to press, and nothing hidden behind pressing it.
  */
 export interface KeypadProps {
   value: string;
@@ -29,22 +34,21 @@ const GRID: string[][] = [["7", "8", "9", "⌫"], ["4", "5", "6", "C"], ["1", "2
 const OPS = ["÷", "×", "−", "+"];
 
 export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign }: KeypadProps) {
+  const t = useT();
   const press = useCallback((k: string) => {
     void Haptics.selectionAsync();
     if (k === "±") { onToggleSign?.(); return; }
     if (k === "C") {
       if (!value) return;
-      Alert.alert("Clear amount?", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Clear", style: "destructive", onPress: () => onChange("") }]);
+      Alert.alert(t("Clear amount?"), undefined, [{ text: t("Cancel"), style: "cancel" }, { text: t("Clear"), style: "destructive", onPress: () => onChange("") }]);
       return;
     }
     onChange(applyKey(value, k), k);
-  }, [value, onChange, onToggleSign]);
-  const showEquals = hasOperator(value);
+  }, [value, onChange, onToggleSign, t]);
   return (
     <View style={styles.wrap}>
       <View style={styles.ops}>
-        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? "Divide" : o === "×" ? "Multiply" : o === "−" ? "Subtract" : "Add"} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
-        <Pressable onPress={() => showEquals && press("=")} accessibilityRole="button" accessibilityLabel="Equals" accessibilityState={{ disabled: !showEquals }} style={({ pressed }) => [styles.op, styles.eq, !showEquals && { opacity: 0.35 }, pressed && styles.pressed]}><Text style={[styles.opText, { color: C.onTint }]}>=</Text></Pressable>
+        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("Divide") : o === "×" ? t("Multiply") : o === "−" ? t("Subtract") : t("Add")} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
       </View>
       {GRID.map((row, i) => (
         <View key={i} style={styles.row}>
@@ -75,7 +79,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             if (k === "±" && !allowSign) return <View key={k} style={styles.key} />;
             return (
               <Pressable key={k} onPress={() => press(k)} onLongPress={k === "⌫" ? () => onChange("") : undefined}
-                style={({ pressed }) => [styles.key, wide && styles.wide, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={k === "⌫" ? "Delete" : k === "C" ? "Clear" : k === "±" ? "Change sign" : k}>
+                style={({ pressed }) => [styles.key, wide && styles.wide, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={k === "⌫" ? t("Delete") : k === "C" ? t("Clear") : k === "±" ? t("Change sign") : k}>
                 {k === "⌫" ? <SymbolView name="delete.left" size={22} tintColor={C.label} />
                   : k === "±" ? <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
                   : <Text style={[styles.keyText, k === "C" && styles.clear, fn && styles.fnText]} maxFontSizeMultiplier={1.3}>{k}</Text>}
@@ -87,6 +91,16 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
     </View>
   );
 });
+
+/**
+ * The sum being typed, written out under the amount field: "90 − 30" while the field itself already
+ * reads 60. Blank (but still occupying its line, so nothing jumps) when the amount is a plain number.
+ * One line, shrinking to fit, because a long sum must stay readable next to a large amount.
+ */
+export function CalcLine({ expr, style }: { expr: string; style?: StyleProp<TextStyle> }) {
+  const calc = formatExpr(expr);
+  return <Text style={[styles.calc, style]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} accessibilityLabel={calc || undefined}>{calc || " "}</Text>;
+}
 
 /** Full-width tap-to-add button: the value and the action, nothing that looks like a slider. */
 export function ConfirmBar({ amount, label, onPress, disabled, color }: { amount: string; label: string; onPress: () => void; disabled?: boolean; color?: string }) {
@@ -103,8 +117,8 @@ const styles = StyleSheet.create({
   wrap: { gap: S.sm, paddingHorizontal: S.md },
   ops: { flexDirection: "row", gap: S.sm },
   op: { flex: 1, minHeight: 36, borderRadius: R.sm + 2, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
-  eq: { backgroundColor: C.tint },
   opText: { fontSize: 20, color: C.tint, fontWeight: "600" },
+  calc: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"], minHeight: 20, textAlign: "center" },
   row: { flexDirection: "row", gap: S.sm },
   key: { flex: 1, minHeight: 54, borderRadius: R.md, alignItems: "center", justifyContent: "center", backgroundColor: C.fill },
   wide: { flex: 1 },

@@ -14,7 +14,7 @@ describe("backup", () => {
   test("carries every preference the app stores, and no identity of the device it came from", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
       "backup_per_day", "base_currency", "budget_scope", "current_account",
-      "hide_income", "home_lat", "home_lon", "home_place", "location_enabled",
+      "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled",
       "period_start_day", "recurring_notify_days_before", "show_balance",
     ]);
     // These describe the install, not the data, and must never travel with a backup.

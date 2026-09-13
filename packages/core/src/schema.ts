@@ -100,6 +100,12 @@ export const MIGRATIONS: string[][] = [
     // fired at a hard-coded 09:00, and move to 08:00 with everything else.
     `ALTER TABLE debts ADD COLUMN notify_time TEXT NOT NULL DEFAULT '08:00'`,
   ],
+  [
+    // v11: money that came back. `refunded_minor` is the signed total of the returns booked against
+    // the row, so the amount it was paid at is `amount_minor - refunded_minor` and no second row is
+    // needed to remember it. 0 means nothing came back, which is what every existing row gets.
+    `ALTER TABLE transactions ADD COLUMN refunded_minor INTEGER NOT NULL DEFAULT 0`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

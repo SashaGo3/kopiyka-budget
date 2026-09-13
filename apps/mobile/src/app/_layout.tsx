@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, Linking, AppState, InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
+import { initLanguage, useT } from "@/i18n";
 import { Brand, C, R, S } from "@/constants/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
@@ -16,6 +17,9 @@ import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
 markAppCodeStart();
+
+// The language, before anything renders a word: the stored choice, or the phone's own (src/i18n).
+initLanguage();
 
 // Persist the last uncaught error to disk before anything else can go wrong. All builds, not just __DEV__.
 installCrashLog();
@@ -42,6 +46,8 @@ const darkTheme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: Bra
 export default function RootLayout() {
   markRootLayoutRender(); // boot trace: first render, not first effect — closer to when the tree starts committing
   const scheme = useColorScheme();
+  // Subscribes the root to the language, so the native header titles below follow a change made in Settings.
+  const t = useT();
   // `+native-intent` navigates warm deep links itself, and needs the navigation state to do it.
   registerNavigationRef(useNavigationContainerRef());
   useEffect(() => {
@@ -75,8 +81,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="accounts/[id]" options={{ title: "", headerBackTitle: "Back" }} />
-          <Stack.Screen name="pending" options={{ title: "Pending", headerBackTitle: "Back" }} />
+          <Stack.Screen name="accounts/[id]" options={{ title: "", headerBackTitle: t("Back") }} />
+          <Stack.Screen name="pending" options={{ title: t("Pending"), headerBackTitle: t("Back") }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
           <Stack.Screen name="transfer/[id]" options={fit} />
           <Stack.Screen name="account/edit" options={fit} />
@@ -91,7 +97,7 @@ export default function RootLayout() {
           <Stack.Screen name="photo/view" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="recurring/[id]" options={modal} />
           <Stack.Screen name="recurring/confirm" options={fit} />
-          <Stack.Screen name="recurring/due" options={{ title: "Recurring due", headerBackTitle: "Back" }} />
+          <Stack.Screen name="recurring/due" options={{ title: t("Recurring due"), headerBackTitle: t("Back") }} />
           <Stack.Screen name="pick/category" options={picker} />
           <Stack.Screen name="pick/icon" options={picker} />
           <Stack.Screen name="pick/color" options={picker} />
@@ -126,13 +132,14 @@ export const links = {
 
 /** expo-router renders this per route on an uncaught render error. Logs through the same writer as `installCrashLog`, then offers a retry instead of the native red/white crash screen. */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const t = useT();
   useEffect(() => { recordCrash(error, false); }, [error]);
   return (
     <View style={errorStyles.screen}>
-      <Text style={errorStyles.title}>Something went wrong</Text>
+      <Text style={errorStyles.title}>{t("Something went wrong")}</Text>
       <Text style={errorStyles.message}>{error.message}</Text>
-      <Pressable onPress={() => void retry()} accessibilityRole="button" accessibilityLabel="Try again" style={({ pressed }) => [errorStyles.button, pressed && { opacity: 0.7 }]}>
-        <Text style={errorStyles.buttonText}>Try again</Text>
+      <Pressable onPress={() => void retry()} accessibilityRole="button" accessibilityLabel={t("Try again")} style={({ pressed }) => [errorStyles.button, pressed && { opacity: 0.7 }]}>
+        <Text style={errorStyles.buttonText}>{t("Try again")}</Text>
       </Pressable>
     </View>
   );

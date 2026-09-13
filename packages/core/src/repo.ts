@@ -12,7 +12,7 @@ export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description"],
   tags: ["name", "color", "category_ids"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
-    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source"],
+    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
     "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day"],
   budgets: ["category_id", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended"],
@@ -109,7 +109,7 @@ export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<
   return save(db, "transactions", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", pending: 0, transfer_id: null,
     entered_amount_minor: null, entered_currency: null, exchange_rate: null, recurring_id: null, lat: null, lon: null, place: null, photo: null,
-    source: null, ...t,
+    source: null, refunded_minor: 0, ...t,
   } as Transaction);
 }
 

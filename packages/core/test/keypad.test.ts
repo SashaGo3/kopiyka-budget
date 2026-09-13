@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyKey, applyKeySigned, evalExpr, exprSign, hasOperator, negateExpr } from "../src/keypad";
+import { applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr } from "../src/keypad";
 
 function type(keys: string, start = ""): string { return [...keys].reduce((e, k) => applyKey(e, k), start); }
 function typeSigned(keys: string, negativeDefault: boolean): string {
@@ -55,6 +55,26 @@ describe("keypad", () => {
     expect(negateExpr("−100−20")).toBe("100−20");
     expect(negateExpr("")).toBe("");
   });
+  test("evalPartial keeps the amount field on a number while a sum is half typed", () => {
+    // There is no "=" key: the field shows where the sum stands, so a trailing operator is dropped.
+    expect(evalPartial("−90")).toBe(-90);
+    expect(evalPartial("−90−")).toBe(-90);
+    expect(evalPartial("−90−30")).toBe(-120);
+    expect(evalPartial("10+30")).toBe(40);
+    expect(evalPartial("10×")).toBe(10);
+    expect(evalPartial("")).toBeNull();
+    expect(evalPartial("−")).toBeNull();
+  });
+  test("formatExpr spells the sum out, and says nothing about a plain number", () => {
+    expect(formatExpr("−90+30")).toBe("−90 + 30");
+    expect(formatExpr("10−30")).toBe("10 − 30");
+    expect(formatExpr("2×3÷4")).toBe("2 × 3 ÷ 4");
+    expect(formatExpr("−90−")).toBe("−90 − ");
+    expect(formatExpr("−90")).toBe("");
+    expect(formatExpr("90")).toBe("");
+    expect(formatExpr("")).toBe("");
+  });
+
   test("exprSign follows the evaluated value", () => {
     expect(exprSign("−100−20")).toBe(-1);
     expect(exprSign("100−20")).toBe(1);

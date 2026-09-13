@@ -15,6 +15,7 @@ import { ensureLocationPermission, locationStatus, placeName, quickLocation } fr
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { endTravel, tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { humanDayTime } from "@/lib/dates";
+import { LANGUAGES, getLanguage, isFollowingDevice, setLanguage, useT, type Language } from "@/i18n";
 
 const ordinal = (d: number) => `${d}${d === 1 || d === 21 ? "st" : d === 2 || d === 22 ? "nd" : d === 3 || d === 23 ? "rd" : "th"}`;
 
@@ -27,6 +28,7 @@ function countList(parts: [number, string, string?][]): string {
 }
 
 export default function SettingsScreen() {
+  const t = useT();
   const backup = useBackupState();
   const prefs = useQuery(() => ({ startDay: getPeriodStartDay(), location: getLocationEnabled(), home: getHomeLocation(), hideIncome: getHideIncome(), showBalance: getShowBalance() }));
   const counts = useQuery((db) => {
@@ -52,7 +54,16 @@ export default function SettingsScreen() {
     if (!diff) return base;
     return `${base} · ${formatMinor(Math.abs(diff), counts.debtNet.currency)} ${counts.debtNet.currency} ${diff > 0 ? "owed to you" : "you owe"}`;
   })();
-  const keys = useMemo(() => ({ day: newPickKey("startday"), custom: newPickKey("startcustom") }), []);
+  const keys = useMemo(() => ({ day: newPickKey("startday"), custom: newPickKey("startcustom"), lang: newPickKey("lang") }), []);
+  // "auto" is not a language but the absence of a choice: the app keeps following the phone, so
+  // someone who switches their iPhone to Polish gets Polish here too without coming back.
+  const language = useQuery(() => ({ code: getLanguage(), auto: isFollowingDevice() }));
+  usePickResult<string>(keys.lang, useCallback((v: string) => { setLanguage(v === "auto" ? null : (v as Language)); notifyChange(); }, []));
+  const pickLanguage = () => router.push({ pathname: "/pick/option", params: { key: keys.lang, title: t("Language"), selected: language.auto ? "auto" : language.code,
+    options: JSON.stringify([
+      { value: "auto", label: t("Match my phone"), subtitle: LANGUAGES.find((l) => l.code === getLanguage())?.name },
+      ...LANGUAGES.map((l) => ({ value: l.code, label: l.name, subtitle: t(l.english) })),
+    ]) } });
   const setDay = useCallback((v: string) => { setPeriodStartDay(Number(v)); notifyChange(); }, []);
   usePickResult<string>(keys.custom, setDay);
   usePickResult<string>(keys.day, useCallback((v: string) => {
@@ -149,9 +160,10 @@ export default function SettingsScreen() {
           <ToggleRow icon="airplane" iconColor="#0A84FF" title="Travel mode" value={!!trip} onChange={toggleTravel} style={styles.divider}
             subtitle={tripStats ? `${tripLine(tripStats)}${tripStats.days_left === 0 && trip?.ends ? ` · planned until ${humanDayTime(trip.ends)}` : ""}` : "Tag every new expense and track a trip budget"} />
         </Card>
-        <SectionHeader>Preferences</SectionHeader>
+        <SectionHeader>{t("Preferences")}</SectionHeader>
         <Card>
-          <Row icon="calendar" iconColor="#FF9F0A" title="Budget month starts on" subtitle={prefs.startDay === 1 ? "1st · calendar month" : `${ordinal(prefs.startDay)} · e.g. ${prefs.startDay} Aug – ${prefs.startDay - 1} Sep`} onPress={pickDay} />
+          <Row icon="globe" iconColor="#5E5CE6" title={t("Language")} subtitle={language.auto ? t("Following your phone · {name}", { name: LANGUAGES.find((l) => l.code === language.code)?.name ?? "" }) : LANGUAGES.find((l) => l.code === language.code)?.name} onPress={pickLanguage} />
+          <Row style={styles.divider} icon="calendar" iconColor="#FF9F0A" title="Budget month starts on" subtitle={prefs.startDay === 1 ? "1st · calendar month" : `${ordinal(prefs.startDay)} · e.g. ${prefs.startDay} Aug – ${prefs.startDay - 1} Sep`} onPress={pickDay} />
           <ToggleRow icon="bell.badge" iconColor="#FF3B30" title="Notifications" subtitle={perm.notif === "granted" ? "Reminders for recurring transactions" : perm.notif === "denied" ? "Turned off in the Settings app" : "Reminders before recurring payments are due"} value={perm.notif === "granted"} onChange={(v) => void toggleNotifications(v)} style={styles.divider} />
           <ToggleRow icon="eye.slash" iconColor="#8E8E93" title="Hide income" subtitle={prefs.hideIncome ? "Transactions shows expenses and transfers only" : "Show income in the Transactions list"} value={prefs.hideIncome} onChange={setHideIncome} style={styles.divider} />
           <ToggleRow icon="eye" iconColor="#0A84FF" title="Show balance when logging" subtitle={prefs.showBalance ? "The new-entry sheet opens with the balance before and after" : "Folded behind the chevron until you tap it"} value={prefs.showBalance} onChange={setShowBalance} style={styles.divider} />
