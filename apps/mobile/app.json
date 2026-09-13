@@ -91,7 +91,7 @@
         "expo-camera",
         {
           "cameraPermission": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
-          "microphonePermission": false,
+          "microphonePermission": "Kopiyka never records audio. iOS requires this notice because the camera library used for receipt photos can access the microphone.",
           "recordAudioAndroid": false
         }
       ],
@@ -105,9 +105,9 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Remember where you log expenses so the category can be suggested next time.",
-          "locationAlwaysAndWhenInUsePermission": false,
-          "locationAlwaysPermission": false,
-          "motionUsagePermission": false
+          "locationAlwaysAndWhenInUsePermission": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
+          "locationAlwaysPermission": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
+          "motionUsagePermission": "Kopiyka does not use motion data. iOS requires this notice because a library the app includes can access it."
         }
       ],
       [
