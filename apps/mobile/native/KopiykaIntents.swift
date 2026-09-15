@@ -470,9 +470,14 @@ struct LogPaymentIntent: AppIntent {
     // remembers. Both halves come from the same source, so a point and a name never disagree.
     let lat = fix?.latitude ?? history.lat
     let lon = fix?.longitude ?? history.lon
-    // The spot's own name beats the city the bank printed, which beats where this shop was last seen.
-    // Only read off a placemark that also carried a usable point, so the name always has one behind it.
-    let place = (fix == nil ? nil : location?.kpPlaceName) ?? parsed?.place ?? history.place
+    // Where you were, not where the bank says the shop is registered. The fix the automation passed
+    // (its Location parameter), else where this shop was last seen — both of which have a point
+    // behind them. The town printed on the notification is *not* a location: a card used abroad, or
+    // an online order, prints a town the phone was nowhere near, and writing it here would put the
+    // purchase on the map in the wrong country. It goes in the note instead, where it belongs — it
+    // is something the bank told you about the purchase, like the shop's name.
+    // Only read a name off a placemark that also carried a usable point, so a name always has one.
+    let place = (fix == nil ? nil : location?.kpPlaceName) ?? history.place
     // History has filed this name by hand before, so the entry is already understood and skips the
     // pending queue — unless the amount had to be converted, because then the number itself is an
     // estimate and wants a pair of eyes; or unless this shop has been filed more than one way
@@ -504,7 +509,11 @@ struct LogPaymentIntent: AppIntent {
 
     // What the payer called the transfer names it; without that, a shop names it on its own and
     // without either the notification itself has to.
-    let note = [parsed?.reference, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
+    // "Place: CYBEX, BAYREUTH." — the shop and the town as the bank printed them. Kept together, so
+    // the row is named after the purchase rather than after a town on its own.
+    var printedPlace: String? = nil
+    if let town = parsed?.place { printedPlace = [shop, town].compactMap { $0 }.joined(separator: ", ") }
+    let note = [parsed?.reference, printedPlace, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
     // The bank's own timestamp, so a notification that arrives late still lands on the right day.
     // Only a day a payment could actually have happened on: a notification about something scheduled
     // would otherwise file the entry in the future, where it sits invisible until the day comes.

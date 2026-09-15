@@ -11,7 +11,7 @@ const STEPS: { title: string; subtitle: string }[] = [
   { title: "Add a filter, then Run Immediately", subtitle: "iOS will not save the automation without a filter. Use a word every payment notification contains, such as “Amount”. Run Immediately means nothing to confirm after you pay; turn “Notify When Run” off as well and it stays out of your way entirely." },
   { title: "Add action → “Log payment from an app notification”", subtitle: "Search for it by name; it is listed under Kopiyka Budget. The action reads “Log the payment in …” with one empty field." },
   { title: "Put the Notification into that field", subtitle: "Tap the empty field, then Select Variable → Notification. That one variable carries the whole thing — the amount, the shop or sender, the card, the time — and Kopiyka reads what it needs out of it." },
-  { title: "Optional: remember where you paid", subtitle: "Add “Get Current Location” above the Kopiyka action, then open Show More on the Kopiyka action and put its result into the Location field. Shortcuts will ask for location permission once; Kopiyka itself never reads your location in the background." },
+  { title: "Optional: remember where you paid", subtitle: "Add “Get Current Location” above the Kopiyka action, then open Show More on the Kopiyka action and put its result into the Location field. That is the only thing that sets an entry's location — the town printed on the notification goes in the note, because a card used abroad names a town your phone was nowhere near. Shortcuts will ask for location permission once; Kopiyka itself never reads your location in the background." },
 ];
 
 /**
