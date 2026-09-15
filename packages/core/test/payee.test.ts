@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createTransaction, getRow, remove, suggestCategoryNear } from "../src/repo";
-import { fillPending, isFiledBefore, noPayeeHistory, payeeHistory, samePaymentSince } from "../src/payee";
+import { fillPending, isFiledBefore, noPayeeHistory, payeeHistory, payeeOptions, samePaymentSince } from "../src/payee";
 
 function seed() {
   const db = openBunDb(); migrate(db);
@@ -222,5 +222,63 @@ describe("a notification payment that came with a location", () => {
     expect([filled.lat, filled.lon, filled.place]).toEqual([spot.lat, spot.lon, "Zabka"]);
     const again = fillPending(db, blank.id, { place: "Elsewhere", lat: 50, lon: 20 })!;
     expect([again.lat, again.lon, again.place]).toEqual([spot.lat, spot.lon, "Zabka"]);
+  });
+});
+
+describe("payeeOptions", () => {
+  test("empty name, and a name nobody filed, return nothing", () => {
+    const { db, acc } = seed();
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Unfiled Shop" });
+    expect(payeeOptions(db, null)).toEqual([]);
+    expect(payeeOptions(db, "Unfiled Shop")).toEqual([]);
+    expect(payeeOptions(db, "Never Seen")).toEqual([]);
+  });
+
+  test("one way of filing a shop is one option", () => {
+    const { db, acc, food } = seed();
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Costa", category_id: food.id, tag_ids: JSON.stringify(["coffee"]) });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-04T10:00:00+02:00", amount_minor: -1100, payee: "Costa", category_id: food.id, tag_ids: JSON.stringify(["coffee"]) });
+    expect(payeeOptions(db, "costa")).toEqual([{ category_id: food.id, tag_ids: ["coffee"], count: 2 }]);
+  });
+
+  test("the same shop filed two ways offers both, most used first", () => {
+    const { db, acc, food } = seed();
+    const fuel = createCategory(db, { name: "Fuel" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -20000, payee: "ORLEN 4021", category_id: fuel.id });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-02T10:00:00+02:00", amount_minor: -1200, payee: "ORLEN 4021", category_id: food.id, tag_ids: JSON.stringify(["snack"]) });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-03T10:00:00+02:00", amount_minor: -18000, payee: "ORLEN 4021", category_id: fuel.id });
+    expect(payeeOptions(db, "ORLEN 4021")).toEqual([
+      { category_id: fuel.id, tag_ids: [], count: 2 },
+      { category_id: food.id, tag_ids: ["snack"], count: 1 },
+    ]);
+  });
+
+  test("tags in another order are the same option; different tags are not", () => {
+    const { db, acc, food } = seed();
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Zabka", category_id: food.id, tag_ids: JSON.stringify(["snack", "work"]) });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-02T10:00:00+02:00", amount_minor: -1000, payee: "Zabka", category_id: food.id, tag_ids: JSON.stringify(["work", "snack"]) });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-03T10:00:00+02:00", amount_minor: -1000, payee: "Zabka", category_id: food.id, tag_ids: JSON.stringify(["snack"]) });
+    const opts = payeeOptions(db, "Zabka");
+    expect(opts.length).toBe(2);
+    // The newest of the two rows sets the order the tags come back in.
+    expect(opts[0]).toEqual({ category_id: food.id, tag_ids: ["work", "snack"], count: 2 });
+    expect(opts[1]).toEqual({ category_id: food.id, tag_ids: ["snack"], count: 1 });
+  });
+
+  test("a note matches like a payee does, and the exact name wins over the chain", () => {
+    const { db, acc, food } = seed();
+    const fuel = createCategory(db, { name: "Fuel" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, notes: "gym membership", category_id: food.id });
+    expect(payeeOptions(db, null, "gym membership")).toEqual([{ category_id: food.id, tag_ids: [], count: 1 }]);
+    // "ORLEN 4021" is filed; "ORLEN 9" is not, so it falls back to the chain's first word.
+    createTransaction(db, { account_id: acc.id, date: "2026-09-02T10:00:00+02:00", amount_minor: -20000, payee: "ORLEN 4021", category_id: fuel.id });
+    expect(payeeOptions(db, "ORLEN 9")).toEqual([{ category_id: fuel.id, tag_ids: [], count: 1 }]);
+  });
+
+  test("deleted and transfer rows are not options", () => {
+    const { db, acc, food } = seed();
+    const t = createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Gone", category_id: food.id });
+    remove(db, "transactions", t.id);
+    expect(payeeOptions(db, "Gone")).toEqual([]);
   });
 });

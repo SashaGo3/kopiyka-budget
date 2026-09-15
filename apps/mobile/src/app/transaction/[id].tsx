@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, rateOrFallback, remove, save, suggestCategoryNear, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, rateOrFallback, remove, save, suggestCategoryNear, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -100,6 +100,32 @@ export default function TransactionSheet() {
     return c ? { ...c, parentName: parent?.name ?? null } : null;
   }, [categoryId]);
   const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((tag) => tagIds.includes(tag.id)), [tagIds.join(",")]);
+
+  // ---- "What was it this time?" ------------------------------------------------------------------
+  // A petrol station sells fuel, a hot dog and a bottle of something, and history can only ever
+  // repeat whichever of them came last. So when this name has been filed more than one way before,
+  // every one of those ways is offered as a chip: one tap sets that category *and* its tags together,
+  // because the pair is the past decision. One way, or none, is nothing to ask about — the Category
+  // key is right there for anything new.
+  const catNames = useQuery((d) => new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, c.name])), []);
+  const tagNames = useQuery((d) => new Map(listRows(d, "tags", "deleted=0").map((x) => [x.id, x.name])), []);
+  const filed = useQuery((d) => payeeOptions(d, payee, note.trim() || null), [payee, note.trim()]);
+  // A category or tag that has since been deleted is not an option any more: the tag is dropped from
+  // the pairing, and a pairing whose category is gone is dropped whole. Two pairings that differ only
+  // by a tag nobody kept are then the same pairing, and are shown once.
+  const options = useMemo(() => {
+    const seen = new Set<string>();
+    return filed.flatMap((o) => {
+      if (o.category_id && !catNames.has(o.category_id)) return [];
+      const tag_ids = o.tag_ids.filter((x) => tagNames.has(x));
+      const key = `${o.category_id ?? ""}|${tag_ids.join(",")}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ ...o, tag_ids, key }];
+    });
+  }, [filed, catNames, tagNames]);
+  const sameAsNow = (o: { category_id: string | null; tag_ids: string[] }) =>
+    o.category_id === categoryId && o.tag_ids.length === tagIds.length && o.tag_ids.every((x) => tagIds.includes(x));
 
   // The expression is the signed amount; `kind` follows its sign, falling back to the stored default
   // while it is empty. `evalPartial` rather than `evalExpr`, because with no "=" key the field has to
@@ -387,6 +413,15 @@ export default function TransactionSheet() {
             {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered. */}
             <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("Expense") }, { value: "income", label: t("Income"), color: C.green as unknown as string }, ...(isNew && accounts.length > 1 ? [{ value: "transfer" as Kind, label: t("Transfer") }] : [])]} />
           </View>
+          {options.length > 1 ? (
+            <ChipRow>
+              {options.map((o) => {
+                const label = [o.category_id ? catNames.get(o.category_id)! : t("No category"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
+                return <Chip key={o.key} icon="clock.arrow.circlepath" label={label} active={sameAsNow(o)}
+                  onPress={() => { setCategoryId(o.category_id); setTagIds(o.tag_ids); setSuggested(false); }} />;
+              })}
+            </ChipRow>
+          ) : null}
           <ChipRow>
             <Chip icon="calendar" label={dayLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
             <Chip icon="clock" label={timeLabel(date)} compact onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: timeLabel(date) } })} />

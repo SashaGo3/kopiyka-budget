@@ -469,8 +469,10 @@ struct LogPaymentIntent: AppIntent {
     let place = (fix == nil ? nil : location?.kpPlaceName) ?? parsed?.place ?? history.place
     // History has filed this name by hand before, so the entry is already understood and skips the
     // pending queue — unless the amount had to be converted, because then the number itself is an
-    // estimate and wants a pair of eyes.
-    let known = history.filedBefore && !converted
+    // estimate and wants a pair of eyes; or unless this shop has been filed more than one way
+    // (fuel one week, a hot dog the next), because then the last filing is not a decision about
+    // this payment and the entry sheet has to ask which of them it was.
+    let known = history.filedBefore && !converted && !history.ambiguous
 
     // The same amount on the same account, minutes ago, from a shop whose name is compatible: one tap,
     // two notifications (Wallet's and the bank app's), or iOS re-delivering one. Never a second entry.

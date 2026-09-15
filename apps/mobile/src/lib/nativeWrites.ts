@@ -3,7 +3,7 @@
  * Native code must not touch the database while JS has it open (two SQLite copies in one process
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
-import { createTransaction, fillPending, getRow, payeeHistory, remove, samePaymentSince, save, suggestCategoryNear, withTripTag } from "@kopiyka/core";
+import { createTransaction, fillPending, getRow, payeeHistory, payeeOptions, remove, samePaymentSince, save, suggestCategoryNear, withTripTag } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
@@ -55,6 +55,9 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       const reply: Record<string, unknown> = {
         category_id: hist.category_id ?? undefined, tag_ids: hist.tag_ids,
         place: hist.place ?? undefined, lat: hist.lat ?? undefined, lon: hist.lon ?? undefined,
+        // How many different ways this name was filed before. More than one and the automation has no
+        // business picking for you: the entry stays pending so the sheet can ask which it was.
+        variants: payeeOptions(db, str(w.payee), str(w.note)).length,
       };
       if (w.op === "payment") {
         // Wallet and the bank app both notify the same tap, and iOS can re-deliver a notification.

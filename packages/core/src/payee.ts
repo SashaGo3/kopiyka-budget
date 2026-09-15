@@ -33,13 +33,12 @@ export function isFiledBefore(h: PayeeHistory): boolean {
 }
 
 /**
- * The category, tags and place of the most recent hand-filed transaction for this name: the shop's
- * exact name first, then the note's, then the shop's first word, so different branches of one chain
- * ("ZABKA ZE212 K.5" / "ZABKA NANO 3087") still find each other. A name matches whether it was filed
- * as a payee or as a note, because a Shortcut that has only a note writes it into `notes`.
- * Empty when the name is new.
+ * The SQL that finds this name, in the order it should be tried: the shop's exact name first, then
+ * the note's, then the shop's first word, so different branches of one chain ("ZABKA ZE212 K.5" /
+ * "ZABKA NANO 3087") still find each other. A name matches whether it was filed as a payee or as a
+ * note, because a Shortcut that has only a note writes it into `notes`.
  */
-export function payeeHistory(db: SqlDriver, payee: string | null | undefined, note?: string | null): PayeeHistory {
+function nameTries(payee: string | null | undefined, note?: string | null): [string, string[]][] {
   const shop = payee?.trim() || null;
   // The whole note, not its first line: an automation writes one line, and an exact match is the
   // only rule that cannot file an entry under the wrong thing.
@@ -50,6 +49,18 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
   if (title && title.toLowerCase() !== shop?.toLowerCase()) tries.push([byName, [title, title]]);
   const head = shop?.split(" ")[0];
   if (head && head.length >= 3 && head !== shop) tries.push(["payee LIKE ? COLLATE NOCASE", [`${head}%`]]);
+  return tries;
+}
+
+/** Rows that were filed under something: a category, tags, or both. */
+const FILED = "(category_id IS NOT NULL OR tag_ids <> '[]')";
+
+/**
+ * The category, tags and place of the most recent hand-filed transaction for this name (matched as
+ * `nameTries` describes). Empty when the name is new.
+ */
+export function payeeHistory(db: SqlDriver, payee: string | null | undefined, note?: string | null): PayeeHistory {
+  const tries = nameTries(payee, note);
   if (!tries.length) return noPayeeHistory();
 
   /** The newest past entry matching any of the names above, in that order, that also satisfies `has`. */
@@ -63,7 +74,7 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
   };
   // Category and tags come from whichever single row matches, so they always describe one past
   // decision; a row with tags but no category still counts.
-  const filed = newest("category_id, tag_ids", "(category_id IS NOT NULL OR tag_ids <> '[]')");
+  const filed = newest("category_id, tag_ids", FILED);
   // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
   // whether or not that is the entry the category came from.
   const seen = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)");
@@ -74,6 +85,46 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
     lat: (seen?.lat as number | null) ?? null,
     lon: (seen?.lon as number | null) ?? null,
   };
+}
+
+/**
+ * One way this name has been filed before: a category and the tags that went with it, and how often.
+ * The same shop sells different things — fuel, a hot dog, a bottle of something — so one past
+ * decision is not the whole story.
+ */
+export interface PayeeOption {
+  category_id: string | null;
+  tag_ids: string[];
+  /** How many past entries for this name were filed exactly this way. */
+  count: number;
+}
+
+/**
+ * Every distinct (category, tags) pair this name was ever filed under, most used first, so the
+ * entry sheet can offer "fuel or hot dog?" instead of silently repeating whichever came last.
+ * Matched by the same names, in the same order, as `payeeHistory` — the first of them that has any
+ * filed rows at all answers, so a branch of a chain is never mixed with the whole chain.
+ * Empty when the name is new; a single entry means history is unambiguous.
+ */
+export function payeeOptions(db: SqlDriver, payee: string | null | undefined, note?: string | null, limit = 6): PayeeOption[] {
+  for (const [where, binds] of nameTries(payee, note)) {
+    const rows = db.all<Row>(
+      `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${FILED} AND ${where} ORDER BY date DESC LIMIT 200`, binds);
+    if (!rows.length) continue;
+    const out = new Map<string, PayeeOption>();
+    for (const r of rows) {
+      const tag_ids = jsonIds((r.tag_ids as string | null) ?? null);
+      const category_id = (r.category_id as string | null) ?? null;
+      // Tags sorted only for the key: two rows with the same tags in another order are one option.
+      const key = `${category_id ?? ""}|${[...tag_ids].sort().join(",")}`;
+      const seen = out.get(key);
+      if (seen) seen.count++;
+      else out.set(key, { category_id, tag_ids, count: 1 });
+    }
+    // Rows arrive newest first, so a stable sort by count keeps the most recent of equally common pairs on top.
+    return [...out.values()].sort((a, b) => b.count - a.count).slice(0, limit);
+  }
+  return [];
 }
 
 /**

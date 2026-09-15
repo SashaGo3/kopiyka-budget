@@ -612,9 +612,14 @@ enum KPStore {
     var place: String?
     var lat: Double?
     var lon: Double?
+    /// How many different (category, tags) pairs this name was ever filed under (core `payeeOptions`).
+    var variants: Int = 0
     /// History filed this name under a category before, so a new entry for it is already understood
     /// and needs no trip through the pending queue (core `isFiledBefore`).
     var filedBefore: Bool { categoryId != nil }
+    /// The same shop, filed more than one way — fuel one week, a hot dog the next. History can only
+    /// repeat the last of them, so nothing here is a decision: the entry has to be asked about.
+    var ambiguous: Bool { variants > 1 }
     static let none = PayeeHistory()
   }
 
@@ -662,6 +667,17 @@ enum KPStore {
       out.categoryId = opt(stmt, 0)
       out.tagIds = jsonIds(str(stmt, 1))
       sqlite3_finalize(stmt)
+    }
+    // How many ways this name was filed, so a caller can tell a decision from a coin toss. Counted
+    // over the same name that answered above, since `newest` takes the first one that matches at all.
+    for t in tries {
+      var stmt: OpaquePointer?
+      let sql = "SELECT COUNT(*) FROM (SELECT DISTINCT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) LIMIT 200)"
+      guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
+      for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
+      let n = sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : 0
+      sqlite3_finalize(stmt)
+      if n > 0 { out.variants = n; break }
     }
     // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
     // whether or not that is the entry the category came from.
