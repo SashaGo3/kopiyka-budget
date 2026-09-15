@@ -65,7 +65,10 @@ export default function RootLayout() {
         void notifications.runAutoPosting().then(() => notifications.rescheduleRecurringNotifications());
       });
     });
-    const appState = AppState.addEventListener("change", (s) => { if (s === "active") void notifications.runAutoPosting(); });
+    // Coming back to the foreground: post anything that fell due, and re-read the database. A
+    // Shortcut automation writes card payments straight into it while the app is suspended, and
+    // nothing in JS ever hears about those — without this the entry only appears on a cold start.
+    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); } });
     const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); });
     // A tapped reminder goes where it is about: this debt, this recurring occurrence. The same
     // response can arrive twice — once cached from the cold launch that the tap caused, once live —

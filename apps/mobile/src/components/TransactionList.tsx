@@ -1,9 +1,9 @@
-import { memo, useMemo } from "react";
-import { Pressable, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { memo, useCallback, useMemo, useState } from "react";
+import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { formatMinor, jsonIds, paidAmountMinor, type Transaction } from "@kopiyka/core";
-import { useQuery } from "@/store";
+import { notifyChange, useQuery } from "@/store";
 import { AmountPill, CategoryIcon, Empty, Money, TagPill } from "@/components/ui";
 import { t } from "@/i18n";
 import { C, S } from "@/constants/theme";
@@ -46,6 +46,15 @@ export function TransactionList({ rows, header, showAccount = true, resetKey, fl
 }) {
   const sections = flat ? [{ title: "", day: "", data: rows, total: 0, currency: "" }] : groupByDay(rows);
   const selecting = !!selected;
+  // Pull to refresh: a Shortcut automation writes card payments into the database directly while the
+  // app is in the background, and nothing tells JS about it. There is nothing to fetch — the query
+  // just runs again — so the spinner only stays long enough to be seen.
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = useCallback(() => {
+    setRefreshing(true);
+    notifyChange();
+    setTimeout(() => setRefreshing(false), 350);
+  }, []);
   // Tags loaded once; resolved per row into a stable Map so the tags array a row gets doesn't
   // change reference (and TxItem doesn't re-render) unless that row's tags or the tags table did.
   const tagsById = useQuery((db) => new Map(db.all<{ id: string; name: string; color: string | null }>(
@@ -63,6 +72,7 @@ export function TransactionList({ rows, header, showAccount = true, resetKey, fl
       contentInsetAdjustmentBehavior="automatic"
       onScroll={onScroll}
       scrollEventThrottle={16}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       contentContainerStyle={{ paddingBottom: 220 }}
       ListHeaderComponent={header}
       ListEmptyComponent={<Empty title={t("No transactions")} hint={t("Tap Log to add one.")} />}
