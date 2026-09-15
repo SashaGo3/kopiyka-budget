@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, getRow, jsonIds, listRows, remove, save, type Transaction } from "@kopiyka/core";
+import { dueManualRules, getRow, jsonIds, listRows, remove, save, sumInBase, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -15,7 +15,7 @@ import { C, R, S } from "@/constants/theme";
 import { EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
-import { getBaseCurrency } from "@/lib/rates";
+import { getBaseCurrency, useRates } from "@/lib/rates";
 import { getBudgetScope, getHideIncome, setBudgetScope } from "@/lib/settings";
 import { scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
 import { markBooted } from "@/lib/boot";
@@ -88,11 +88,31 @@ export default function TransactionsScreen() {
   const pending = useQuery((d) => d.get<{ n: number; total: number | null }>(
     `SELECT COUNT(*) AS n, SUM(CASE WHEN a.currency=? THEN t.amount_minor ELSE 0 END) AS total
      FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.deleted=0 AND t.pending=1`, [base]), [base]);
-  const totals = useMemo(() => {
-    let inc = 0, exp = 0;
-    for (const t of rows) if (!t.transfer_id && t.currency === base) { if (t.amount_minor > 0) inc += t.amount_minor; else exp += t.amount_minor; }
-    return { inc, exp };
-  }, [rows, base]);
+  // Income and expenses, per currency first. Money held in another currency used to be dropped from
+  // both numbers outright — a salary paid in dollars added up to nothing, and scoping to the account
+  // holding it showed a month with no income at all.
+  const perCurrency = useMemo(() => {
+    const inc = new Map<string, number>(), exp = new Map<string, number>();
+    for (const t of rows) {
+      if (t.transfer_id) continue;   // a transfer moves your own money: neither earned nor spent
+      const side = t.amount_minor > 0 ? inc : exp;
+      side.set(t.currency, (side.get(t.currency) ?? 0) + t.amount_minor);
+    }
+    const list = (m: Map<string, number>) => [...m].map(([currency, minor]) => ({ currency, minor }));
+    return { inc: list(inc), exp: list(exp), currencies: [...new Set([...inc.keys(), ...exp.keys()])] };
+  }, [rows]);
+  const { rateFor, loading: fetchingRates } = useRates(perCurrency.currencies, base);
+  // One currency on screen — the usual case, and what scoping to a single foreign account gives —
+  // is shown exactly, in that currency. Only a genuinely mixed list is converted, and then it says so.
+  // At today's rate, like Net worth and Budgets: there is no rate row for most past days, and the
+  // question these two numbers answer is what the month comes to now, not on each day it happened.
+  const only = perCurrency.currencies.length <= 1 ? perCurrency.currencies[0] ?? base : null;
+  const totals = only
+    ? { inc: perCurrency.inc[0]?.minor ?? 0, exp: perCurrency.exp[0]?.minor ?? 0, currency: only, approx: false, missing: [] as string[] }
+    : (() => {
+        const i = sumInBase(perCurrency.inc, base, rateFor), e = sumInBase(perCurrency.exp, base, rateFor);
+        return { inc: i.minor, exp: e.minor, currency: base, approx: true, missing: [...new Set([...i.missing, ...e.missing])] };
+      })();
   const toggleSort = () => { setSort((s) => (s === "date" ? "amount" : "date")); setSortGen((g) => g + 1); };
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: "Spending from", options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
@@ -182,9 +202,13 @@ export default function TransactionsScreen() {
           ) : null}
           {/* Totals next — the month at a glance. Then what still needs a decision: recurring you owe, then entries to check. */}
           <StatPair stats={[
-            ...(hideIncome ? [] : [{ label: "Income", minor: totals.inc, currency: base, color: C.green }]),
-            { label: "Expenses", minor: totals.exp, currency: base, color: C.red },
+            ...(hideIncome ? [] : [{ label: "Income", minor: totals.inc, currency: totals.currency, color: C.green, approx: totals.approx }]),
+            { label: "Expenses", minor: totals.exp, currency: totals.currency, color: C.red, approx: totals.approx },
           ]} />
+          {/* Same words as Net worth uses, for the same reason: a total quietly missing a currency is worse than one that admits it. */}
+          {totals.missing.length ? (
+            <Text style={styles.ratesWarn}>{fetchingRates ? `Fetching ${totals.missing.join(", ")} rate…` : `No rate yet for ${totals.missing.join(", ")}, so it is left out. Connect to the internet once.`}</Text>
+          ) : null}
           {dueRecurring.n > 0 ? (
             <Pressable onPress={() => router.push("/recurring/due")} accessibilityRole="button" accessibilityLabel={`${dueRecurring.n} recurring payments due, review them`}
               style={({ pressed }) => [styles.due, pressed && { opacity: 0.7 }]}>
@@ -241,4 +265,5 @@ const styles = StyleSheet.create({
   pendingSub: { fontSize: 13, color: C.secondary },
   pendingSum: { fontSize: 16, fontWeight: "700", color: C.orange },
   headerLink: { color: C.tint, fontSize: 17 },
+  ratesWarn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingBottom: S.xs },
 });

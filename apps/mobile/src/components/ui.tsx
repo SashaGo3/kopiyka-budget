@@ -102,7 +102,7 @@ export function SectionHeader({ children, right }: { children: ReactNode; right?
   );
 }
 
-export function Money({ minor, currency, style, colored, sign }: { minor: number; currency: string; style?: StyleProp<TextStyle>; colored?: boolean; sign?: boolean }) {
+export function Money({ minor, currency, style, colored, sign, approx }: { minor: number; currency: string; style?: StyleProp<TextStyle>; colored?: boolean; sign?: boolean; approx?: boolean }) {
   const neg = minor < 0;
   const abs = Math.abs(minor);
   const d = 2;
@@ -111,7 +111,7 @@ export function Money({ minor, currency, style, colored, sign }: { minor: number
   const color = colored ? (neg ? C.label : C.green) : C.label;
   return (
     <Text style={[styles.money, { color }, style]} maxFontSizeMultiplier={1.6}>
-      {neg ? "−" : sign ? "+" : ""}{int}.{frac} <Text style={{ opacity: 0.55, fontSize: 13 }}>{currency}</Text>
+      {approx ? "≈" : ""}{neg ? "−" : sign ? "+" : ""}{int}.{frac} <Text style={{ opacity: 0.55, fontSize: 13 }}>{currency}</Text>
     </Text>
   );
 }
@@ -197,13 +197,13 @@ export function BigButton({ label, onPress, destructive, disabled }: { label: st
  * The label is set small and tracked like a section header so the number, not the caption, is
  * what the eye lands on first.
  */
-export function StatPair({ stats }: { stats: { label: string; minor: number; currency: string; color?: ColorValue }[] }) {
+export function StatPair({ stats }: { stats: { label: string; minor: number; currency: string; color?: ColorValue; approx?: boolean }[] }) {
   return (
     <View style={styles.stats}>
       {stats.map((s) => (
         <View key={s.label} style={styles.stat}>
           <Text style={styles.statLabel} maxFontSizeMultiplier={1.4}>{s.label}</Text>
-          <Money minor={s.minor} currency={s.currency} style={[styles.statValue, s.color ? { color: s.color } : null]} />
+          <Money minor={s.minor} currency={s.currency} approx={s.approx} style={[styles.statValue, s.color ? { color: s.color } : null]} />
         </View>
       ))}
     </View>
