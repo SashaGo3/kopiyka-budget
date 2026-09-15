@@ -58,22 +58,29 @@ export function sumInBase(totals: { currency: string; minor: number }[], base: s
  * but not for a breakdown.
  *
  * When everything involved is already in one currency — the usual case, and what looking at a single
- * foreign account gives — that currency is used and nothing is converted: the number is exact and
- * needs no rate at all. Only a genuinely mixed set falls back to `base`, and then `approx` says so,
- * because an approximate figure that does not admit it is worse than no figure.
+ * foreign account gives — that currency is used and nothing is converted at all. Only a genuinely
+ * mixed set falls back to `base`.
  *
- * Groups are summed independently but share the one decision, so income and expenses (or a count's
- * worth of pending entries) are never printed in two different currencies side by side.
+ * The *currency* is one decision for all the groups, so income and expenses are never printed in two
+ * different currencies side by side. Whether a number was **converted** is each group's own business:
+ * zloty expenses beside dollar income are exact, and marking them approximate because something else
+ * on the screen was converted says the opposite of the truth. `converted` carries the parts that did
+ * need a rate, so a screen can explain the "≈" it is showing rather than leaving it to be wondered at.
  */
 export function oneCurrency(
   groups: { currency: string; minor: number }[][],
   base: string,
   rateFor: (from: string, to: string) => number | null,
-): { currency: string; approx: boolean; missing: string[]; totals: number[] } {
+): { currency: string; missing: string[]; totals: { minor: number; approx: boolean; converted: { currency: string; minor: number }[] }[] } {
   const currencies = [...new Set(groups.flat().map((g) => g.currency))];
-  if (currencies.length <= 1) {
-    return { currency: currencies[0] ?? base, approx: false, missing: [], totals: groups.map((g) => g.reduce((a, x) => a + x.minor, 0)) };
-  }
-  const sums = groups.map((g) => sumInBase(g, base, rateFor));
-  return { currency: base, approx: true, missing: [...new Set(sums.flatMap((x) => x.missing))], totals: sums.map((x) => x.minor) };
+  const currency = currencies.length <= 1 ? currencies[0] ?? base : base;
+  const missing = new Set<string>();
+  const totals = groups.map((g) => {
+    if (currency !== base) return { minor: g.reduce((a, x) => a + x.minor, 0), approx: false, converted: [] };
+    const sum = sumInBase(g, base, rateFor);
+    for (const m of sum.missing) missing.add(m);
+    const converted = g.filter((x) => x.currency !== currency);
+    return { minor: sum.minor, approx: converted.length > 0, converted };
+  });
+  return { currency, missing: [...missing], totals };
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, getRow, jsonIds, listRows, oneCurrency, remove, save, type Transaction } from "@kopiyka/core";
+import { dueManualRules, formatMinor, getRow, jsonIds, listRows, oneCurrency, remove, save, trimNumber, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -12,7 +12,7 @@ import { PeriodPill } from "@/components/PeriodPill";
 import { ScopePill } from "@/components/ScopePill";
 import { Money, StatPair } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
-import { EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter } from "@/lib/filters";
+import { EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
 import { getBaseCurrency, useRates } from "@/lib/rates";
@@ -23,7 +23,7 @@ import { markBooted } from "@/lib/boot";
 /** A currency → total map as the list `oneCurrency` takes. */
 const perList = (m: Map<string, number>) => [...m].map(([currency, minor]) => ({ currency, minor }));
 
-type Params = { category?: string; tag?: string; name?: string; from?: string; to?: string; accounts?: string; nonce?: string };
+type Params = { category?: string; tag?: string; name?: string; from?: string; to?: string; accounts?: string; type?: TxType; nonce?: string };
 
 /**
  * Sorting and filtering live in the bottom bar (thumb zone); active filters are pinned
@@ -46,7 +46,7 @@ export default function TransactionsScreen() {
   const scope = useQuery(() => getBudgetScope());
   const scopeAccounts = useQuery((db) => scopeAccountIds(scope, listRows(db, "accounts", "deleted=0")), [scope]);
   const accounts = useQuery((db) => listRows(db, "accounts", "deleted=0 AND archived=0", [], "sort, name"));
-  const fromParams = useCallback((): TxFilter => ({ ...EMPTY_FILTER, categories: p.category ? [p.category] : [], tags: p.tag ? [p.tag] : [], accounts: p.accounts ? p.accounts.split(",").filter(Boolean) : p.tag ? [] : scopeAccounts, from: p.from ?? null, to: p.to ?? null }), [p.category, p.tag, p.accounts, p.from, p.to, scopeAccounts]);
+  const fromParams = useCallback((): TxFilter => ({ ...EMPTY_FILTER, categories: p.category ? [p.category] : [], tags: p.tag ? [p.tag] : [], accounts: p.accounts ? p.accounts.split(",").filter(Boolean) : p.tag ? [] : scopeAccounts, type: p.type ?? null, from: p.from ?? null, to: p.to ?? null }), [p.category, p.tag, p.accounts, p.type, p.from, p.to, scopeAccounts]);
   const [filter, setFilter] = useState<TxFilter>(fromParams);
   useEffect(() => { setFilter((f) => ({ ...f, accounts: scopeAccounts })); }, [scopeAccounts.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sort, setSort] = useState<"date" | "amount">("date");
@@ -120,6 +120,26 @@ export default function TransactionsScreen() {
   const pendingSum = oneCurrency([pending.per], base, rateFor);
   const dueSum = oneCurrency([dueRecurring.per], base, rateFor);
   const missingRates = [...new Set([...totals.missing, ...pendingSum.missing, ...dueSum.missing])];
+  /**
+   * A stat, and — when its number had to be converted — a way to find out why. The "≈" otherwise has
+   * to be taken on trust, which is the one thing an approximate number cannot ask for: tapping names
+   * the money that was converted and the rate it went at, and offers the rows themselves.
+   */
+  const statOf = (t: { minor: number; approx: boolean; converted: { currency: string; minor: number }[] }, label: string, kind: "income" | "expense") => ({
+    minor: t.minor, currency: totals.currency, approx: t.approx,
+    onPress: t.approx ? () => {
+      const lines = t.converted.map((c) => {
+        const rate = rateFor(c.currency, totals.currency);
+        return `${formatMinor(Math.abs(c.minor), c.currency)} ${c.currency}${rate ? ` at ${trimNumber(rate)}` : " — no rate yet"}`;
+      });
+      const ids = accounts.filter((a) => t.converted.some((c) => c.currency === a.currency)).map((a) => a.id);
+      Alert.alert(`${label} is approximate`,
+        `${lines.join("\n")}\n\nConverted into ${totals.currency} at today's rate. Everything else in this ${label.toLowerCase()} total was already in ${totals.currency}.`, [
+          { text: "OK", style: "cancel" },
+          ...(ids.length ? [{ text: "Show them", onPress: () => router.push({ pathname: "/transactions", params: { accounts: ids.join(","), type: kind, ...(filter.from ? { from: filter.from } : {}), ...(filter.to ? { to: filter.to } : {}), nonce: String(Date.now()) } }) }] : []),
+        ]);
+    } : undefined,
+  });
   const toggleSort = () => { setSort((s) => (s === "date" ? "amount" : "date")); setSortGen((g) => g + 1); };
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: "Spending from", options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
@@ -209,8 +229,8 @@ export default function TransactionsScreen() {
           ) : null}
           {/* Totals next — the month at a glance. Then what still needs a decision: recurring you owe, then entries to check. */}
           <StatPair stats={[
-            ...(hideIncome ? [] : [{ label: "Income", minor: totals.totals[0]!, currency: totals.currency, color: C.green, approx: totals.approx }]),
-            { label: "Expenses", minor: totals.totals[1]!, currency: totals.currency, color: C.red, approx: totals.approx },
+            ...(hideIncome ? [] : [{ label: "Income", ...statOf(totals.totals[0]!, "Income", "income"), color: C.green }]),
+            { label: "Expenses", ...statOf(totals.totals[1]!, "Expenses", "expense"), color: C.red },
           ]} />
           {/* Same words as Net worth uses, for the same reason: a total quietly missing a currency is worse than one that admits it. */}
           {missingRates.length ? (
@@ -224,7 +244,7 @@ export default function TransactionsScreen() {
                 <Text style={styles.pendingTitle}>{dueRecurring.n === 1 ? "1 recurring payment due" : `${dueRecurring.n} recurring payments due`}</Text>
                 <Text style={styles.pendingSub}>Tap to post or skip</Text>
               </View>
-              {dueSum.totals[0] ? <Money minor={dueSum.totals[0]} currency={dueSum.currency} approx={dueSum.approx} style={styles.dueSum} /> : null}
+              {dueSum.totals[0]!.minor ? <Money minor={dueSum.totals[0]!.minor} currency={dueSum.currency} approx={dueSum.totals[0]!.approx} style={styles.dueSum} /> : null}
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}
@@ -236,7 +256,7 @@ export default function TransactionsScreen() {
                 <Text style={styles.pendingTitle}>{pending.n === 1 ? "1 pending entry" : `${pending.n} pending entries`}</Text>
                 <Text style={styles.pendingSub}>Tap to check and approve</Text>
               </View>
-              {pendingSum.totals[0] ? <Money minor={pendingSum.totals[0]} currency={pendingSum.currency} approx={pendingSum.approx} style={styles.pendingSum} /> : null}
+              {pendingSum.totals[0]!.minor ? <Money minor={pendingSum.totals[0]!.minor} currency={pendingSum.currency} approx={pendingSum.totals[0]!.approx} style={styles.pendingSum} /> : null}
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}

@@ -202,9 +202,9 @@ export default function BudgetsScreen() {
             })}
             {/* Only worth a line when there is more than one thing to add up. */}
             {data.spending.length > 1 ? (
-              <View accessible style={[styles.spendRow, styles.divider]} accessibilityLabel={`Total spending ${spendingTotal.totals[0]! / 100} ${spendingTotal.currency}`}>
+              <View accessible style={[styles.spendRow, styles.divider]} accessibilityLabel={`Total spending ${spendingTotal.totals[0]!.minor / 100} ${spendingTotal.currency}`}>
                 <Text style={[styles.spendName, styles.totalName]}>Total</Text>
-                <Money minor={spendingTotal.totals[0]!} currency={spendingTotal.currency} approx={spendingTotal.approx} style={styles.totalAmt} />
+                <Money minor={spendingTotal.totals[0]!.minor} currency={spendingTotal.currency} approx={spendingTotal.totals[0]!.approx} style={styles.totalAmt} />
               </View>
             ) : null}
           </Card>

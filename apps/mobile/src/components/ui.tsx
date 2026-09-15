@@ -233,14 +233,15 @@ export function BigButton({ label, onPress, destructive, disabled }: { label: st
  * The label is set small and tracked like a section header so the number, not the caption, is
  * what the eye lands on first.
  */
-export function StatPair({ stats }: { stats: { label: string; minor: number; currency: string; color?: ColorValue; approx?: boolean }[] }) {
+export function StatPair({ stats }: { stats: { label: string; minor: number; currency: string; color?: ColorValue; approx?: boolean; onPress?: () => void }[] }) {
   return (
     <View style={styles.stats}>
       {stats.map((s) => (
-        <View key={s.label} style={styles.stat}>
+        <Pressable key={s.label} onPress={s.onPress} disabled={!s.onPress} style={({ pressed }) => [styles.stat, pressed && { opacity: 0.6 }]}
+          accessibilityRole={s.onPress ? "button" : undefined} accessibilityLabel={s.onPress ? `${s.label}, approximate. Tap to see what was converted.` : undefined}>
           <Text style={styles.statLabel} maxFontSizeMultiplier={1.4}>{s.label}</Text>
           <Money minor={s.minor} currency={s.currency} approx={s.approx} style={[styles.statValue, s.color ? { color: s.color } : null]} />
-        </View>
+        </Pressable>
       ))}
     </View>
   );
