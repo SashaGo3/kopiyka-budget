@@ -106,6 +106,14 @@ export const MIGRATIONS: string[][] = [
     // needed to remember it. 0 means nothing came back, which is what every existing row gets.
     `ALTER TABLE transactions ADD COLUMN refunded_minor INTEGER NOT NULL DEFAULT 0`,
   ],
+  [
+    // v12: a budget covers a set of categories rather than one. `category_id` stays, holding the
+    // first of them, so a row written here still reads as a budget for *something* on a build that
+    // predates this — a narrower budget than intended rather than an "everything" one, which would
+    // have silently suppressed every other budget in `freeMoney`.
+    `ALTER TABLE budgets ADD COLUMN category_ids TEXT NOT NULL DEFAULT '[]'`,
+    `UPDATE budgets SET category_ids = json_array(category_id) WHERE category_id IS NOT NULL AND category_ids = '[]'`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

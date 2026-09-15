@@ -5,7 +5,7 @@
 import type { SqlDriver } from "./db";
 import type { Budget, Frequency, InsightKind, RecurringRule, Transaction } from "./models";
 import { normTitle } from "./detect";
-import { accountBalanceMinor, categorySpend, getRow, jsonIds, listRows, recurringSpend, tagIdsOf, tagSpend } from "./repo";
+import { accountBalanceMinor, budgetCategoryIds, categorySpend, getRow, inBudgetScope, jsonIds, listRows, recurringSpend, tagIdsOf, tagSpend } from "./repo";
 import { addPeriod, budgetPeriod, dueOccurrences } from "./recurring";
 
 export interface UpcomingTemplate { category_id: string | null; tag_ids: string[]; notes: string | null; amount_minor: number; account_id: string }
@@ -76,7 +76,7 @@ export function activeBudgets(db: SqlDriver, _end: string, budgetAccount: string
   const out: Budget[] = [];
   for (const b of rows) {
     if ((b.account_id ?? null) !== budgetAccount) continue;
-    const key = `${b.tag_id ? `tag:${b.tag_id}` : b.category_id ?? "all"}|${b.currency}`;
+    const key = `${b.tag_id ? `tag:${b.tag_id}` : budgetCategoryIds(b).join("+") || "all"}|${b.currency}`;
     if (seen.has(key)) continue; seen.add(key); out.push(b);
   }
   return out;
@@ -89,9 +89,9 @@ export function budgetRows(db: SqlDriver, o: { start: string; end: string; accou
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
   const spend = categorySpend(db, o.start, o.end, o.accountIds);
   return activeBudgets(db, o.end, o.budgetAccount).map((b) => {
-    const inScope = (cid: string | null) => !b.category_id || cid === b.category_id || cats.get(cid ?? "")?.parent_id === b.category_id;
+    const ids = budgetCategoryIds(b);
     const pool = b.tag_id ? tagSpend(db, b.tag_id, { fromIso: o.start, toIso: o.end, accountIds: o.accountIds }) : spend;
-    const scoped = pool.filter((s) => s.currency === b.currency && inScope(s.category_id));
+    const scoped = pool.filter((s) => s.currency === b.currency && inBudgetScope(ids, cats, s.category_id));
     return { budget: b, spent_minor: -scoped.reduce((a, s) => a + s.spent_minor, 0), children: scoped.map((s) => ({ category_id: s.category_id, spent_minor: -s.spent_minor })) };
   });
 }
@@ -102,9 +102,9 @@ export interface MoneyByCurrency { currency: string; minor: number }
 export function freeMoney(db: SqlDriver, o: { start: string; end: string; accountIds?: string[]; budgetAccount: string | null }): MoneyByCurrency[] {
   const rows = budgetRows(db, o);
   const out = new Map<string, number>();
-  const overall = new Set(rows.filter((r) => !r.budget.category_id).map((r) => r.budget.currency));
+  const overall = new Set(rows.filter((r) => !budgetCategoryIds(r.budget).length).map((r) => r.budget.currency));
   for (const r of rows) {
-    if (r.budget.category_id && overall.has(r.budget.currency)) continue;
+    if (budgetCategoryIds(r.budget).length && overall.has(r.budget.currency)) continue;
     out.set(r.budget.currency, (out.get(r.budget.currency) ?? 0) + r.budget.amount_minor - r.spent_minor);
   }
   return [...out].map(([currency, minor]) => ({ currency, minor }));

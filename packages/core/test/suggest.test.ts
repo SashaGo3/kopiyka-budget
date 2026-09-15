@@ -27,48 +27,48 @@ describe("suggestBudget", () => {
   test("averages the last 3 complete periods, a category with its subcategories, one currency", () => {
     const { db, food } = seed();
     // Aug: 20000(food)+10000(coffee)+5000(tagged food, still counts for the category) = 35000. Jul: 10000. Jun: 20000.
-    const r = suggestBudget(db, { categoryId: food.id, tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
+    const r = suggestBudget(db, { categoryIds: [food.id], tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
     expect(r).toEqual({ average_minor: Math.round((35000 + 10000 + 20000) / 3), last_minor: 35000, max_minor: 35000, periods: 3 });
   });
 
   test("current, still-running period is excluded", () => {
     const { db, food } = seed();
-    const r = suggestBudget(db, { categoryId: food.id, tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
+    const r = suggestBudget(db, { categoryIds: [food.id], tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
     expect(r.last_minor).not.toBe(99900);
   });
 
   test("subcategory rolls up into the parent, not counted on its own", () => {
     const { db, coffee } = seed();
-    const r = suggestBudget(db, { categoryId: coffee.id, tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
+    const r = suggestBudget(db, { categoryIds: [coffee.id], tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
     expect(r).toEqual({ average_minor: Math.round(10000 / 3), last_minor: 10000, max_minor: 10000, periods: 3 });
   });
 
   test("tag budget counts every expense with the tag, any category", () => {
     const { db, tag } = seed();
-    const r = suggestBudget(db, { categoryId: null, tagId: tag.id, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
+    const r = suggestBudget(db, { categoryIds: [], tagId: tag.id, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
     expect(r).toEqual({ average_minor: Math.round(5000 / 3), last_minor: 5000, max_minor: 5000, periods: 3 });
   });
 
   test("null category and tag = all spending", () => {
     const { db } = seed();
-    const r = suggestBudget(db, { categoryId: null, tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
+    const r = suggestBudget(db, { categoryIds: [], tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })!;
     expect(r).toEqual({ average_minor: Math.round((35000 + 10000 + 20000) / 3), last_minor: 35000, max_minor: 35000, periods: 3 });
   });
 
   test("account scope narrows the pool", () => {
     const { db, acc, food } = seed();
-    const r = suggestBudget(db, { categoryId: food.id, tagId: null, currency: "PLN", accountIds: [acc.id], startDay: 1, today: "2026-09-20" })!;
+    const r = suggestBudget(db, { categoryIds: [food.id], tagId: null, currency: "PLN", accountIds: [acc.id], startDay: 1, today: "2026-09-20" })!;
     expect(r.last_minor).toBe(35000); // every PLN row is already on acc
   });
 
   test("no spend at all in the window returns null", () => {
     const { db, rent } = seed();
-    expect(suggestBudget(db, { categoryId: rent.id, tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })).toBeNull();
+    expect(suggestBudget(db, { categoryIds: [rent.id], tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20" })).toBeNull();
   });
 
   test("respects a non-default periods count", () => {
     const { db, food } = seed();
-    const r = suggestBudget(db, { categoryId: food.id, tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20", periods: 1 })!;
+    const r = suggestBudget(db, { categoryIds: [food.id], tagId: null, currency: "PLN", startDay: 1, today: "2026-09-20", periods: 1 })!;
     expect(r).toEqual({ average_minor: 35000, last_minor: 35000, max_minor: 35000, periods: 1 });
   });
 });

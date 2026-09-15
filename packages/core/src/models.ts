@@ -122,7 +122,15 @@ export interface RecurringRule extends Synced {
 }
 
 export interface Budget extends Synced {
-  category_id: string | null; // null = overall budget
+  /**
+   * The categories (or folders) this budget counts, as a JSON array; `"[]"` is an overall budget.
+   * A folder id counts everything inside it, future categories included — the deliberate exception
+   * to "nothing is filed into a folder" (DATA.md rule 5). Read it through `budgetCategoryIds`,
+   * never directly: rows written before this was a set carry their one category in `category_id`.
+   */
+  category_ids: string;
+  /** The first of `category_ids`, kept in step with it so older builds still read the budget as scoped. */
+  category_id: string | null;
   /** Budget for a tag instead of a category: every expense carrying the tag counts (any category). */
   tag_id: string | null;
   currency: string;

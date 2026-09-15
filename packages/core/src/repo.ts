@@ -15,7 +15,7 @@ export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
     "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
     "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day"],
-  budgets: ["category_id", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended"],
+  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended"],
   insights: ["kind", "params", "sort"],
   debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
 };
@@ -121,7 +121,35 @@ export function createRecurring(db: SqlDriver, r: Partial<RecurringRule> & Pick<
 }
 
 export function createBudget(db: SqlDriver, b: Partial<Budget> & Pick<Budget, "currency" | "amount_minor" | "starts">): Budget {
-  return save(db, "budgets", { category_id: null, tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, ...b } as Budget);
+  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, ...b } as Budget));
+}
+
+/**
+ * The categories (or folders) a budget counts; empty means everything. The set lives in
+ * `category_ids`, but a budget written before a budget could have more than one — or restored from
+ * a backup of that time — carries its single category in `category_id` instead, so both are read.
+ */
+export function budgetCategoryIds(b: { category_id: string | null; category_ids?: string | null }): string[] {
+  const ids = jsonIds(b.category_ids ?? null);
+  return ids.length ? ids : b.category_id ? [b.category_id] : [];
+}
+
+/** Keeps `category_id` in step with the set, so one budget never says two different things. Call before every save. */
+export function scopedBudget<T extends { category_id: string | null; category_ids?: string | null }>(b: T): T {
+  const ids = budgetCategoryIds(b);
+  return { ...b, category_ids: JSON.stringify(ids), category_id: ids[0] ?? null };
+}
+
+/**
+ * Does spending in category `cid` count towards a budget scoped to `ids`? An empty scope counts
+ * everything; a folder in the scope counts every category inside it (DATA.md rule 5's deliberate
+ * exception), and spending with no category at all counts only for an overall budget or one that
+ * asked for "none".
+ */
+export function inBudgetScope(ids: string[], cats: Map<string, { parent_id: string | null }>, cid: string | null): boolean {
+  if (!ids.length) return true;
+  if (cid === null) return ids.includes("none");   // the picker's "Uncategorized", as in lib/filters
+  return ids.includes(cid) || ids.includes(cats.get(cid)?.parent_id ?? "");
 }
 
 export function createInsight(db: SqlDriver, i: Partial<Insight> & Pick<Insight, "kind">): Insight {

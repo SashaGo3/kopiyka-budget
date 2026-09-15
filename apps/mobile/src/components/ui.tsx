@@ -16,8 +16,8 @@ export function SheetFrame({ top, bottom, onLayout }: { top: ReactNode; bottom: 
   );
 }
 
-export function Title({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[styles.title, style]}>{children}</Text>;
+export function Title({ children, style, numberOfLines }: { children: ReactNode; style?: StyleProp<TextStyle>; numberOfLines?: number }) {
+  return <Text style={[styles.title, style]} numberOfLines={numberOfLines}>{children}</Text>;
 }
 export function Subtle({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
   return <Text style={[styles.subtle, style]}>{children}</Text>;

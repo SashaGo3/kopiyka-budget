@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, remove, sumInBase, tagColor, tripStats, type Budget } from "@kopiyka/core";
+import { budgetCategoryIds, budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, remove, sumInBase, tagColor, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -47,20 +47,33 @@ export default function BudgetsScreen() {
     const tags = new Map(listRows(db, "tags", "1=1").map((t) => [t.id, t]));
     const rows = budgetRows(db, { start, end, accountIds: scopeIds, budgetAccount }).map((r) => {
       const b = r.budget;
-      const c = b.category_id ? cats.get(b.category_id) : undefined;
+      const ids = budgetCategoryIds(b);
+      const scoped = ids.length > 0;
+      const one = ids.length === 1 ? cats.get(ids[0]!) : undefined;
       const tag = b.tag_id ? tags.get(b.tag_id) : undefined;
       const merged = new Map<string, Line>();
       for (const ch of r.children) {
+        // A scoped budget breaks down by the categories that were actually spent in; an overall one
+        // by folder, because otherwise the list is every category you own.
         const sc = ch.category_id ? cats.get(ch.category_id) : undefined;
         const top = sc?.parent_id ? cats.get(sc.parent_id) : sc;
-        const ref = b.category_id ? sc : top;
-        const id = b.category_id ? sc?.id ?? null : top?.id ?? null;
-        const name = b.category_id ? (sc?.id === b.category_id ? "Direct" : sc?.name ?? "Uncategorized") : top?.name ?? "Uncategorized";
+        const ref = scoped ? sc : top;
+        const id = scoped ? sc?.id ?? null : top?.id ?? null;
+        // "Direct" only makes sense against a single named scope — with several, each line is named.
+        const name = scoped
+          ? (one && sc?.id === one.id ? "Direct" : sc?.name ?? "Uncategorized")
+          : top?.name ?? "Uncategorized";
         const e = merged.get(id ?? "none") ?? { id, name, spent: 0, icon: ref?.icon ?? null, color: ref?.color ?? null };
         e.spent += ch.spent_minor; merged.set(id ?? "none", e);
       }
-      return { id: b.id, name: tag ? tag.name : c?.name ?? "Everything", parent: tag ? "Tag" : c?.parent_id ? cats.get(c.parent_id)?.name ?? null : null, currency: b.currency, limit: b.amount_minor, spent: r.spent_minor,
-        icon: tag ? "number" : c?.icon ?? null, color: tag ? tagColor(tag.name, tag.color) : c?.color ?? null, children: [...merged.values()].sort((a, z) => z.spent - a.spent) };
+      const scopeName = ids.map((cid) => (cid === "none" ? "Uncategorized" : cats.get(cid)?.name ?? "?")).join(", ");
+      return { id: b.id, name: tag ? tag.name : scopeName || "Everything",
+        // The folder above it places a single category; several of them place themselves.
+        parent: tag ? "Tag" : one?.parent_id ? cats.get(one.parent_id)?.name ?? null : null,
+        currency: b.currency, limit: b.amount_minor, spent: r.spent_minor,
+        // Several categories have no one icon between them, so the row falls back to one derived
+        // from the name (CategoryIcon → `iconFor`), as an uncategorized line already does.
+        icon: tag ? "number" : one?.icon ?? null, color: tag ? tagColor(tag.name, tag.color) : one?.color ?? null, children: [...merged.values()].sort((a, z) => z.spent - a.spent) };
     });
     const groups = new Map<string, Line & { currency: string; children: Line[] }>();
     for (const s of categorySpend(db, start, end, scopeIds)) {
@@ -122,7 +135,7 @@ export default function BudgetsScreen() {
               <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: b.id } })} style={styles.budgetHead} accessibilityRole="button" accessibilityLabel={`Edit budget ${b.name}`}>
                 <CategoryIcon name={b.name} icon={b.icon} color={b.color} size={34} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.budgetName}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
+                  <Text style={styles.budgetName} numberOfLines={2}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
                   <Text style={styles.budgetSub}>{periodLabel(start, end)} · {over ? "Exceeded" : "Available"}</Text>
                 </View>
                 <AmountPill minor={b.limit - b.spent} currency={b.currency} />

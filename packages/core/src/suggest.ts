@@ -3,7 +3,7 @@
  */
 import type { SqlDriver } from "./db";
 import { addPeriod, budgetPeriod } from "./recurring";
-import { categorySpend, listRows, tagSpend } from "./repo";
+import { categorySpend, inBudgetScope, listRows, tagSpend } from "./repo";
 import { todayLocalDay } from "./trips";
 
 export interface SuggestedBudget { average_minor: number; last_minor: number; max_minor: number; periods: number }
@@ -14,10 +14,10 @@ export interface SuggestedBudget { average_minor: number; last_minor: number; ma
  * or all spending (both null) — one currency, one account scope. Null when there was no
  * spend at all in the window.
  */
-export function suggestBudget(db: SqlDriver, o: { categoryId: string | null; tagId: string | null; currency: string; accountIds?: string[]; startDay: number; today?: string; periods?: number }): SuggestedBudget | null {
+export function suggestBudget(db: SqlDriver, o: { categoryIds: string[]; tagId: string | null; currency: string; accountIds?: string[]; startDay: number; today?: string; periods?: number }): SuggestedBudget | null {
   const n = o.periods ?? 3;
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
-  const inScope = (cid: string | null) => !o.categoryId || cid === o.categoryId || cats.get(cid ?? "")?.parent_id === o.categoryId;
+  const inScope = (cid: string | null) => inBudgetScope(o.categoryIds, cats, cid);
   let end = budgetPeriod(o.today ?? todayLocalDay(), o.startDay).start; // start of the current (incomplete) period
   const perPeriod: number[] = [];
   for (let i = 0; i < n; i++) {

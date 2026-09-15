@@ -69,10 +69,19 @@ A folder is a category that has (live) categories inside it — `folderIds` in
 stays pickable, so a flat database is never left with nothing to choose.
 
 Transactions, intents, the watch and the receipt reader all filter through that rule. **Budgets are
-the deliberate exception**: a budget on a folder counts every category inside it, which is why
-`/pick/category` takes `folders=1` and only the budget sheet passes it. Any new caller has to decide
-which of the two it is: does the answer end up on a transaction (folders out) or on a
-budget/insight/tag scope (folders in)?
+the deliberate exception**: a budget on a folder counts every category inside it, which is why the
+budget sheet picks through `/pick/categories` — the multi-picker, which resolves a fully ticked
+folder back to the folder's own id, so the budget keeps meaning "this folder, including whatever is
+added to it later". Any new caller has to decide which of the two it is: does the answer end up on a
+transaction (folders out) or on a budget/insight/tag scope (folders in)?
+
+A budget's scope is a **set**, not one category: `budgets.category_ids` (JSON, `"[]"` = everything),
+read through `budgetCategoryIds` and matched with `inBudgetScope` — never by hand, because a budget
+written before v12, or restored from a backup of that time, carries its single category in the older
+`category_id` column instead. `category_id` is still written, holding the *first* of the set, so such
+a row read by an older build is a narrower budget than intended rather than an "everything" one —
+which would have silently suppressed every other budget of that currency in `freeMoney`. Keep the two
+in step with `scopedBudget` before every save.
 
 ## 6. Money is integers, in minor units
 

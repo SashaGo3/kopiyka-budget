@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { createBudget, getRow, listRows, remove, save, suggestBudget, toMinor, fromMinor, type Budget } from "@kopiyka/core";
+import { budgetCategoryIds, createBudget, getRow, listRows, remove, save, scopedBudget, suggestBudget, toMinor, fromMinor, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -17,19 +17,24 @@ export default function BudgetEdit() {
   const existing = id === "new" ? null : getRow(db, "budgets", id) ?? null;
   const accountId = existing ? existing.account_id : account || null;
   const accountName = useQuery((d) => (accountId ? getRow(d, "accounts", accountId)?.name ?? null : null), [accountId]);
-  const [categoryId, setCategoryId] = useState<string | null>(existing?.category_id ?? null);
+  const [categoryIds, setCategoryIds] = useState<string[]>(() => (existing ? budgetCategoryIds(existing) : []));
   const [tagId, setTagId] = useState<string | null>(existing?.tag_id ?? null);
   const tag = useQuery((d) => (tagId ? getRow(d, "tags", tagId) : null), [tagId]);
   const currency = existing?.currency ?? getBaseCurrency();
   const [expr, setExpr] = useState(existing ? String(fromMinor(existing.amount_minor, existing.currency)) : "");
   const startDay = getPeriodStartDay();
-  const cat = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) : null), [categoryId]);
-  const suggestion = useQuery((d) => suggestBudget(d, { categoryId, tagId, currency, accountIds: accountId ? [accountId] : undefined, startDay }), [categoryId, tagId, currency, accountId, startDay]);
+  // One name reads better than a count, so the names are spelled out until there are too many of them.
+  const catNames = useQuery((d) => {
+    const cats = new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, c.name]));
+    return categoryIds.map((cid) => (cid === "none" ? "Uncategorized" : cats.get(cid) ?? "?"));
+  }, [categoryIds.join(",")]);
+  const scopeLabel = catNames.length === 0 ? null : catNames.length <= 2 ? catNames.join(", ") : `${catNames.length} categories`;
+  const suggestion = useQuery((d) => suggestBudget(d, { categoryIds, tagId, currency, accountIds: accountId ? [accountId] : undefined, startDay }), [categoryIds.join(","), tagId, currency, accountId, startDay]);
   const roundToWhole = (m: number) => Math.round(fromMinor(m, currency));
   const key = useMemo(() => newPickKey("bcat"), []);
   const tagKey = useMemo(() => newPickKey("btag"), []);
-  usePickResult<string | null>(key, (v: string | null) => { setCategoryId(v); setTagId(null); });
-  usePickResult<string>(tagKey, (v: string) => { setTagId(v); setCategoryId(null); });
+  usePickResult<string[]>(key, (v: string[]) => { setCategoryIds(v); if (v.length) setTagId(null); });
+  usePickResult<string>(tagKey, (v: string) => { setTagId(v); setCategoryIds([]); });
   const pickTag = () => {
     const tags = listRows(db, "tags", "deleted=0", [], "name");
     if (!tags.length) { Alert.alert("No tags yet", "Create a tag in Settings → Tags first."); return; }
@@ -40,8 +45,9 @@ export default function BudgetEdit() {
   const commit = () => {
     if (!valid) return;
     mutate((d) => {
-      const base = { category_id: categoryId, tag_id: tagId, currency, amount_minor: toMinor(value!, currency), starts: monthBounds(todayLocal()).start, start_day: startDay, account_id: accountId } as const;
-      if (existing) save(d, "budgets", { ...existing, ...base } as Budget); else createBudget(d, base);
+      const base = { category_ids: JSON.stringify(categoryIds), tag_id: tagId, currency, amount_minor: toMinor(value!, currency), starts: monthBounds(todayLocal()).start, start_day: startDay, account_id: accountId } as const;
+      // `scopedBudget` keeps `category_id` in step with the set; `createBudget` does it itself.
+      if (existing) save(d, "budgets", scopedBudget({ ...existing, ...base }) as Budget); else createBudget(d, base);
     });
     router.back();
   };
@@ -53,7 +59,7 @@ export default function BudgetEdit() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>{tag ? `#${tag.name}` : cat ? cat.name : "Everything"}</Title>
+          <Title numberOfLines={2}>{tag ? `#${tag.name}` : scopeLabel ?? "Everything"}</Title>
           <Subtle>Monthly limit in {currency}{startDay > 1 ? ` · periods start on the ${startDay}th` : ""}{accountName ? ` · only for ${accountName}` : ""}</Subtle>
           {suggestion ? (
             <View style={styles.suggest}>
@@ -71,9 +77,12 @@ export default function BudgetEdit() {
       bottom={
         <>
           <ChipRow>
-            <Chip icon="folder" label={cat?.name ?? "Category"} active={!!cat} onPress={() => router.push({ pathname: "/pick/category", params: { key, selected: categoryId ?? "", folders: "1" } })} />
+            {/* The multi-picker resolves a fully ticked folder back to the folder's own id, which is
+                exactly what a budget wants: "this folder, including categories added later". */}
+            <Chip icon="folder" label={scopeLabel ?? "Categories"} active={categoryIds.length > 0}
+              onPress={() => router.push({ pathname: "/pick/categories", params: { key, selected: categoryIds.join(","), title: "Budget for" } })} />
             <Chip icon="number" label={tag?.name ?? "Tag"} active={!!tag} onPress={pickTag} />
-            <Chip icon="asterisk" label="All spending" active={!cat && !tag} onPress={() => { setCategoryId(null); setTagId(null); }} />
+            <Chip icon="asterisk" label="All spending" active={!categoryIds.length && !tag} onPress={() => { setCategoryIds([]); setTagId(null); }} />
           </ChipRow>
           <Keypad value={expr} onChange={setExpr} allowSign={false} />
           <ConfirmBar amount={`${expr || "0"} ${currency}`} label={existing ? "Tap to save" : "Tap to add budget"} onPress={commit} disabled={!valid} />

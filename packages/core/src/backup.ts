@@ -114,7 +114,7 @@ const ROW_DEFAULTS: Record<SyncedTable, Record<string, unknown>> = {
   recurring_rules: { account_id: "", amount_minor: 0, category_id: null, payee: null, notes: null, tag_ids: "[]", frequency: "monthly",
     interval: 1, start_date: "1970-01-01", end_date: null, next_date: "1970-01-01", notify: 1, notify_days_before: 0, auto_post: 0,
     active: 1, time_of_day: "09:00" },
-  budgets: { category_id: null, currency: "", amount_minor: 0, period: "monthly", starts: "1970-01-01", start_day: 1, account_id: null,
+  budgets: { category_id: null, category_ids: "[]", currency: "", amount_minor: 0, period: "monthly", starts: "1970-01-01", start_day: 1, account_id: null,
     tag_id: null, ends: null, ended: null },
   insights: { kind: "", params: "{}", sort: 0 },
   debts: { person: "", direction: "owed_to_me", amount_minor: 0, currency: "", account_id: null, opened_date: "1970-01-01", due_date: null, notes: null, settled_date: null, notify: 1, notify_time: DEFAULT_DEBT_NOTIFY_TIME, transaction_id: null },
