@@ -1,8 +1,11 @@
 import Foundation
 
 /**
- * What the notification automation made of each notification it was handed, kept so a bank whose
+ * The notifications the automation could **not** turn into a transaction, kept so a bank whose
  * wording the reader does not know yet can be fixed instead of silently losing purchases.
+ *
+ * Only the failures: a log that also recorded every payment it got right would be mostly noise, and
+ * a transaction that exists is its own record of having been read.
  *
  * A file, not a table: the intent runs with the app closed and must never open the database while JS
  * owns it, and a diagnostic log has no business travelling in a backup or syncing to the watch. It
@@ -19,14 +22,8 @@ enum KPParseLog {
   /// Enough to cover a few weeks of card use; a few hundred short lines, well under a megabyte.
   static let maxEntries = 300
 
-  /// What became of one notification. `logged` and `pending` wrote a row; nothing else did.
+  /// Why nothing was written. Anything that *did* write a row is not recorded here at all.
   enum Outcome: String, Codable {
-    /// Read, written, and understood well enough not to need checking.
-    case logged
-    /// Read and written, waiting in the Pending queue.
-    case pending
-    /// The same charge was already logged — two notifications for one tap.
-    case duplicate
     /// Money is named and no amount could be read out of it: the one worth working on.
     case unreadable
     /// No money in it at all, or money the bank is not charging (a balance, a code, a declined card).

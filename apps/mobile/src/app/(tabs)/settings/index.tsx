@@ -15,6 +15,7 @@ import { ensureLocationPermission, locationStatus, placeName, quickLocation } fr
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { endTravel, tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { humanDayTime } from "@/lib/dates";
+import { parseLogCount } from "@/lib/parselog";
 import { LANGUAGES, getLanguage, isFollowingDevice, setLanguage, useT, type Language } from "@/i18n";
 
 const ordinal = (d: number) => `${d}${d === 1 || d === 21 ? "st" : d === 2 || d === 22 ? "nd" : d === 3 || d === 23 ? "rd" : "th"}`;
@@ -90,6 +91,10 @@ export default function SettingsScreen() {
   const refreshPerm = useCallback(() => { void Promise.all([notificationStatus(), locationStatus()]).then(([notif, loc]) => setPerm({ notif, loc })); }, []);
   useEffect(refreshPerm, [refreshPerm]);
   useFocusEffect(refreshPerm);
+  // The automation writes to a file with the app closed, so this is re-read on arrival rather than
+  // being part of the store. Counting lines, not decoding them: the row only needs "how many".
+  const [missedNotifications, setMissed] = useState(0);
+  useFocusEffect(useCallback(() => { setMissed(parseLogCount()); }, []));
   const toggleLocation = async (on: boolean) => {
     if (on && perm.loc === "denied") { void Linking.openSettings(); return; }
     if (on && !(await ensureLocationPermission())) { refreshPerm(); return; }
@@ -179,7 +184,14 @@ export default function SettingsScreen() {
         </Card>
         <SectionHeader>Shortcuts</SectionHeader>
         <Card>
-          <Row icon="bell.badge" iconColor="#FF9F0A" title="Automate with Shortcut" subtitle="Log payments from your bank's or Wallet's notifications" onPress={() => router.push("/settings/shortcut")} />
+          {/* First, and only when there is something in it: a notification the automation could not
+              read is a purchase that may be missing, and nothing else says so. */}
+          {missedNotifications ? (
+            <Row icon="exclamationmark.triangle" iconColor="#FF453A" title="Notification log"
+              subtitle={`${missedNotifications} notification${missedNotifications === 1 ? "" : "s"} could not be turned into a transaction`}
+              onPress={() => router.push("/settings/parselog")} style={styles.divider} />
+          ) : null}
+          <Row icon="bell.badge" iconColor="#FF9F0A" title="Automate with Shortcut" subtitle="Log payments from your bank's or Wallet's notifications" onPress={() => router.push("/settings/shortcut")} style={missedNotifications ? styles.divider : undefined} />
           {/* Boot trace and the last JS crash: useful while developing, noise in a shipped build. The version lives in the footer instead. */}
           {__DEV__ ? <Row icon="stethoscope" iconColor="#8E8E93" title="Diagnostics" subtitle="Boot trace and the last recorded crash" onPress={() => router.push("/settings/diagnostics")} style={styles.divider} /> : null}
         </Card>

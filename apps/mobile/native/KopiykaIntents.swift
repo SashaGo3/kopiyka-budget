@@ -477,10 +477,13 @@ struct LogPaymentIntent: AppIntent {
     // pending queue — unless the amount had to be converted, because then the number itself is an
     // estimate and wants a pair of eyes; or unless this shop has been filed more than one way
     // (fuel one week, a hot dog the next), because then the last filing is not a decision about
-    // this payment and the entry sheet has to ask which of them it was; or unless the bank has only
-    // *blocked* the money, since an authorisation settles days later and can settle at another
-    // amount — a tip added, a fuel pump's estimate replaced by what was actually pumped.
-    let known = history.filedBefore && !converted && !history.ambiguous && parsed?.hold != true
+    // this payment and the entry sheet has to ask which of them it was.
+    //
+    // A hold is deliberately *not* one of these. Every card payment is an authorisation until the
+    // bank settles it — for some banks every notification says so in as many words — so treating one
+    // as unsettled would put every payment back in the queue and undo the whole point of history
+    // filling a shop in. "Pending" already means exactly "not final yet".
+    let known = history.filedBefore && !converted && !history.ambiguous
 
     // The same amount on the same account, minutes ago, from a shop whose name is compatible: one tap,
     // two notifications (Wallet's and the bank app's), or iOS re-delivering one. Never a second entry.
@@ -496,15 +499,12 @@ struct LogPaymentIntent: AppIntent {
                                   tagIds: history.tagIds, lat: lat, lon: lon, confirm: known, timeout: 4)
         NotificationCenter.default.post(name: KP.externalChange, object: nil)
       }
-      KPParseLog.record(.duplicate, text: raw, parse: parsed, account: acc.name,
-                        note: twin.pending ? "filled in the entry already waiting" : "already logged and confirmed")
       return .result()
     }
 
     // What the payer called the transfer names it; without that, a shop names it on its own and
     // without either the notification itself has to.
-    let note = [parsed?.hold == true ? "blocked, not settled yet" : nil, parsed?.reference,
-                shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
+    let note = [parsed?.reference, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
     // The bank's own timestamp, so a notification that arrives late still lands on the right day.
     // Only a day a payment could actually have happened on: a notification about something scheduled
     // would otherwise file the entry in the future, where it sits invisible until the day comes.
@@ -521,12 +521,6 @@ struct LogPaymentIntent: AppIntent {
       KPParseLog.record(.failed, text: raw, parse: parsed, account: acc.name, note: saved.error ?? "the app refused the write")
       throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.")
     }
-    let stillPending = pending && !known
-    KPParseLog.record(stillPending ? .pending : .logged, text: raw, parse: parsed, account: acc.name,
-                      note: [parsed?.hold == true ? "blocked, not settled" : nil,
-                             history.ambiguous ? "shop filed more than one way" : nil,
-                             converted ? "converted from \(enteredCurrency ?? "another currency")" : nil,
-                             guessed ? "category guessed" : nil].compactMap { $0 }.joined(separator: "; "))
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)
     // Off the critical path: the watch update is pure side work the shortcut's own result does not

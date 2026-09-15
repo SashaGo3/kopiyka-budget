@@ -1,9 +1,10 @@
 /**
- * The notification automation's own log (native/KPParseLog.swift).
+ * The notifications the automation could not turn into a transaction (native/KPParseLog.swift).
  *
- * The automation runs with the app closed and says nothing, which is the point of it — but a bank
- * whose wording the reader does not know yet then loses purchases silently. So every notification it
- * is handed leaves a line here, and this is how the app reads them back.
+ * It runs with the app closed and says nothing, which is the point of it — but a bank whose wording
+ * the reader does not know yet then loses purchases silently. So the ones it could not use leave a
+ * line here, and this is how the app reads them back. The ones it *could* use are not recorded: the
+ * transaction is its own record of having been read.
  *
  * A file in the app group rather than a table: the intent must not open the database while JS owns
  * it, and a diagnostic log has no business travelling in a backup. It holds whole notification texts,
@@ -16,8 +17,8 @@ import { APP_GROUP } from "@/db";
 
 export const PARSE_LOG_FILE = "parse-log.jsonl";
 
-/** What became of one notification; mirrors `KPParseLog.Outcome`. */
-export type ParseOutcome = "logged" | "pending" | "duplicate" | "unreadable" | "ignored" | "failed";
+/** Why nothing was written; mirrors `KPParseLog.Outcome`. */
+export type ParseOutcome = "unreadable" | "ignored" | "failed";
 
 export interface ParseEntry {
   at: string;
@@ -31,8 +32,15 @@ export interface ParseEntry {
   note?: string | null;
 }
 
-/** The outcomes that did not end in a row. What the log is for. */
-export const UNLOGGED: ParseOutcome[] = ["unreadable", "ignored", "failed"];
+/** How many are waiting, without decoding any of them: the Settings row only needs the count. */
+export function parseLogCount(): number {
+  try {
+    const f = logFile();
+    return f?.exists ? f.textSync().split("\n").filter((l) => l.trim()).length : 0;
+  } catch {
+    return 0;
+  }
+}
 
 function logFile(): File | null {
   if (Platform.OS !== "ios") return null;

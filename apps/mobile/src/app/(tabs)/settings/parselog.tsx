@@ -3,47 +3,41 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Stack, useFocusEffect } from "expo-router";
 import { File, Paths } from "expo-file-system";
 import { SymbolView } from "expo-symbols";
-import { Card, Chip, ChipRow, Empty, Row, SectionHeader } from "@/components/ui";
+import { Card, Empty, Row, SectionHeader } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
-import { clearParseLog, parseLogCsv, readParseLog, UNLOGGED, type ParseEntry, type ParseOutcome } from "@/lib/parselog";
+import { clearParseLog, parseLogCsv, readParseLog, type ParseEntry, type ParseOutcome } from "@/lib/parselog";
 
-/** Colour and words per outcome. The three that wrote nothing are the ones worth looking at. */
+/** Why nothing was written, in words and in a colour. Red is a purchase that may have been lost. */
 const OUTCOME: Record<ParseOutcome, { label: string; color: string; why: string }> = {
-  logged: { label: "Logged", color: "#30D158", why: "Read and saved; history already knew the shop." },
-  pending: { label: "Pending", color: "#FF9F0A", why: "Read and saved, waiting to be checked." },
-  duplicate: { label: "Duplicate", color: "#8E8E93", why: "The same charge was already logged." },
-  unreadable: { label: "Unreadable", color: "#FF453A", why: "Money is named and no amount could be read." },
-  ignored: { label: "Ignored", color: "#8E8E93", why: "No amount, or money the bank is not charging." },
-  failed: { label: "Failed", color: "#FF453A", why: "Understood, but nothing was written." },
+  unreadable: { label: "Unreadable", color: "#FF453A", why: "Money is named and no amount could be read out of it. This is the one worth working on." },
+  failed: { label: "Failed", color: "#FF453A", why: "Understood, but nothing was written — no account to put it on, or the app refused." },
+  ignored: { label: "Not money", color: "#8E8E93", why: "No amount in it, or money the bank is not charging: a balance, a code, a declined card. Usually right." },
 };
 
 /**
- * What the notification automation made of every notification it was handed.
+ * The notifications the automation could not turn into a transaction.
  *
- * The automation is deliberately silent — it runs with the app closed and must not interrupt a
- * payment to say it worked. The cost of that silence is that a bank whose wording the reader does
- * not know yet loses purchases without anyone noticing, so it writes down what it saw instead
- * (`native/KPParseLog.swift`). This screen is where that gets read, and the CSV is for working
- * through a batch of them properly.
+ * It is deliberately silent — it runs with the app closed and must not interrupt a payment to say it
+ * worked. The cost of that silence is that a bank whose wording the reader does not know yet loses
+ * purchases without anyone noticing, so the ones it could not use are written down instead
+ * (`native/KPParseLog.swift`). The ones it could are not: a transaction is its own record.
  *
- * "Not logged" is the default view, because it is the only one that needs anything doing.
+ * The CSV is for working through a batch of them properly.
  */
 export default function ParseLogScreen() {
   const [entries, setEntries] = useState<ParseEntry[]>([]);
-  const [onlyUnlogged, setOnlyUnlogged] = useState(true);
   const [open, setOpen] = useState<string | null>(null);
   // Re-read on every visit: the automation appends to the file while this screen is not on screen.
   useFocusEffect(useCallback(() => { setEntries(readParseLog()); }, []));
-  const shown = useMemo(() => (onlyUnlogged ? entries.filter((e) => UNLOGGED.includes(e.outcome)) : entries), [entries, onlyUnlogged]);
-  const unlogged = useMemo(() => entries.filter((e) => UNLOGGED.includes(e.outcome)).length, [entries]);
+  const missed = useMemo(() => entries.filter((e) => e.outcome !== "ignored").length, [entries]);
 
   const exportCsv = async () => {
     if (!entries.length) return;
     try {
       const name = `Kopiyka-notifications-${todayLocal()}.csv`;
       const f = new File(Paths.cache, name);
-      f.write(parseLogCsv(entries));   // always the whole log, whatever this screen is filtered to
+      f.write(parseLogCsv(entries));
       const Sharing = require("expo-sharing") as typeof import("expo-sharing"); // eslint-disable-line @typescript-eslint/no-require-imports
       await Sharing.shareAsync(f.uri, { mimeType: "text/csv", UTI: "public.comma-separated-values-text", dialogTitle: name });
     } catch (e) { Alert.alert("Export failed", (e as Error).message); }
@@ -58,16 +52,12 @@ export default function ParseLogScreen() {
       <Stack.Screen options={{ title: "Notification log" }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 60 }}>
         <Text style={styles.intro}>
-          Every notification the automation was handed, newest first, and what it made of it. Nothing here left the phone.
-          {entries.length ? ` ${entries.length} kept, ${unlogged} of them not logged.` : ""}
+          Notifications the automation could not turn into a transaction, newest first. The ones it could are not here — the transaction is the record of those. Nothing here left the phone.
+          {missed ? ` ${missed} may be a purchase that was missed.` : ""}
         </Text>
-        <ChipRow>
-          <Chip icon="exclamationmark.triangle" label={`Not logged${unlogged ? ` (${unlogged})` : ""}`} active={onlyUnlogged} onPress={() => setOnlyUnlogged(true)} />
-          <Chip icon="list.bullet" label={`All${entries.length ? ` (${entries.length})` : ""}`} active={!onlyUnlogged} onPress={() => setOnlyUnlogged(false)} />
-        </ChipRow>
 
-        {shown.length ? <SectionHeader>{onlyUnlogged ? "Nothing was written for these" : "Everything it saw"}</SectionHeader> : null}
-        {shown.map((e, i) => {
+        {entries.length ? <SectionHeader>Nothing was written for these</SectionHeader> : null}
+        {entries.map((e, i) => {
           const o = OUTCOME[e.outcome] ?? OUTCOME.ignored;
           const id = `${e.at}-${i}`;
           const expanded = open === id;
@@ -93,9 +83,8 @@ export default function ParseLogScreen() {
             </View>
           );
         })}
-        {!shown.length ? (
-          <Empty title={entries.length ? "Nothing went wrong" : "Nothing logged yet"}
-            hint={entries.length ? "Every notification it saw was read or was not about money." : "It fills up as your bank's notifications arrive."} />
+        {!entries.length ? (
+          <Empty title="Nothing was missed" hint="Every notification the automation was handed became a transaction, or was not about money." />
         ) : null}
 
         <Card style={{ marginTop: S.lg }}>
