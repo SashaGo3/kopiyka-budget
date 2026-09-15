@@ -17,6 +17,7 @@ func describe(_ o: KPPaymentText.Outcome) -> String {
     if let b = p.balance { bits.append(String(format: "left=%.2f", b)) }
     if let d = p.date { bits.append("date=\(d)\(p.time.map { " \($0)" } ?? "")") }
     if p.income { bits.append("INCOME") }
+    if p.hold { bits.append("HOLD") }
     return bits.joined(separator: " ")
   }
 }
@@ -110,6 +111,19 @@ let blobs: [(String, String, Want)] = [
   ("Notification variable · Wallet", "PKO Bank Polski\nGlovo\n99,26 PLN", .payment),
   ("Notification variable · two lines", "Payment card authorization\nAmount: 36,00 PLN. Place: ZABKA, KRAKOW.", .payment),
   ("Notification variable · not a payment", "Instagram\nsomeone liked your photo", .ignored),
+  // A hold: real money, not yet taken. Names a balance twice over — in its own title — and must
+  // still be read as the purchase it is.
+  ("Notification variable · blocked balance (hold)", """
+   Blocked balance
+   Amount: 1222,23 PLN.
+
+   Account no.:  27..5837
+
+   Location: BLIK INTERNET: WWW.SMYK.COM
+
+   Available balance: +13109,11 PLN
+   """, .payment),
+  ("Notification variable · hold released is not a purchase", "Zwolnienie blokady\nKwota: 1222,23 PLN", .ignored),
 ]
 
 let args = Array(CommandLine.arguments.dropFirst())

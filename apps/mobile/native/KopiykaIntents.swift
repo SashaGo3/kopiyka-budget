@@ -472,8 +472,10 @@ struct LogPaymentIntent: AppIntent {
     // pending queue — unless the amount had to be converted, because then the number itself is an
     // estimate and wants a pair of eyes; or unless this shop has been filed more than one way
     // (fuel one week, a hot dog the next), because then the last filing is not a decision about
-    // this payment and the entry sheet has to ask which of them it was.
-    let known = history.filedBefore && !converted && !history.ambiguous
+    // this payment and the entry sheet has to ask which of them it was; or unless the bank has only
+    // *blocked* the money, since an authorisation settles days later and can settle at another
+    // amount — a tip added, a fuel pump's estimate replaced by what was actually pumped.
+    let known = history.filedBefore && !converted && !history.ambiguous && parsed?.hold != true
 
     // The same amount on the same account, minutes ago, from a shop whose name is compatible: one tap,
     // two notifications (Wallet's and the bank app's), or iOS re-delivering one. Never a second entry.
@@ -499,7 +501,8 @@ struct LogPaymentIntent: AppIntent {
 
     // What the payer called the transfer names it; without that, a shop names it on its own and
     // without either the notification itself has to.
-    let note = [parsed?.reference, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
+    let note = [parsed?.hold == true ? "blocked, not settled yet" : nil, parsed?.reference,
+                shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
     // The bank's own timestamp, so a notification that arrives late still lands on the right day.
     // Only a day a payment could actually have happened on: a notification about something scheduled
     // would otherwise file the entry in the future, where it sits invisible until the day comes.
