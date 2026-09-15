@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { budgetRows, categorySpend, formatMinor, listRows, listTrips, remove, sumInBase, tagColor, tripStats, type Budget } from "@kopiyka/core";
+import { budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, remove, sumInBase, tagColor, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -75,10 +75,14 @@ export default function BudgetsScreen() {
     return { rows, spending: [...groups.values()].map((g) => ({ ...g, children: g.children.sort((a, b) => b.spent - a.spent) })).sort((a, b) => b.spent - a.spent) };
   }, [start, end, scopeIds.join(","), budgetAccount]);
 
-  const { rateFor } = useRates([...new Set(data.rows.map((r) => r.currency))], base);
+  const { rateFor } = useRates([...new Set([...data.rows, ...data.spending].map((r) => r.currency))], base);
   const planned = sumInBase(data.rows.map((r) => ({ currency: r.currency, minor: r.limit })), base, rateFor);
   const available = sumInBase(data.rows.map((r) => ({ currency: r.currency, minor: r.limit - r.spent })), base, rateFor);
   const exceeded = data.rows.filter((r) => r.spent > r.limit).length;
+  // What the categories below add up to. Spending is grouped per currency, so a month with a foreign
+  // card in it lists the same category twice and there was no one number to read off the section at
+  // all; `oneCurrency` keeps a single-currency month exact and only converts a genuinely mixed one.
+  const spendingTotal = oneCurrency([data.spending.map((g) => ({ currency: g.currency, minor: -g.spent }))], base, rateFor);
   const openCategory = (id: string | null, name: string) => router.push({ pathname: "/transactions", params: { category: id ?? "none", name, from: start, to: end, accounts: scopeIds.join(","), nonce: String(Date.now()) } });
   const toggle = (key: string) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
   const removeTrip = (t: Budget) => {
@@ -175,8 +179,16 @@ export default function BudgetsScreen() {
                 </View>
               );
             })}
+            {/* Only worth a line when there is more than one thing to add up. */}
+            {data.spending.length > 1 ? (
+              <View accessible style={[styles.spendRow, styles.divider]} accessibilityLabel={`Total spending ${spendingTotal.totals[0]! / 100} ${spendingTotal.currency}`}>
+                <Text style={[styles.spendName, styles.totalName]}>Total</Text>
+                <Money minor={spendingTotal.totals[0]!} currency={spendingTotal.currency} approx={spendingTotal.approx} style={styles.totalAmt} />
+              </View>
+            ) : null}
           </Card>
         ) : null}
+        {spendingTotal.missing.length ? <Text style={styles.ratesWarn}>No rate yet for {spendingTotal.missing.join(", ")}, so it is left out of the total.</Text> : null}
         {pastTrips.length ? (
           <SectionHeader right={pastTrips.length > 3 ? <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? "Hide past trips" : "Show past trips"}><Text style={styles.addText}>{pastOpen ? "Hide" : `Show ${pastTrips.length}`}</Text></Pressable> : undefined}>Past trips</SectionHeader>
         ) : null}
@@ -203,6 +215,9 @@ const styles = StyleSheet.create({
   childAmt: { fontSize: 15, color: C.secondary },
   spendRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, minHeight: 46 },
   spendName: { flex: 1, fontSize: 16, color: C.label },
+  totalName: { fontWeight: "600" },
+  totalAmt: { fontWeight: "700" },
+  ratesWarn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingTop: S.xs },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   children: { backgroundColor: C.bgGrouped, paddingVertical: 4, paddingLeft: S.lg + 36, paddingRight: S.lg },
   childRow: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 40 },
