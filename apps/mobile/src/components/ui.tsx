@@ -184,6 +184,42 @@ export function CategoryIcon({ name, icon, color, size = 30 }: { name: string; i
   );
 }
 
+/**
+ * Several category icons as one overlapping stack, for something that covers more than one category
+ * (a budget over a set of them). Each tile keeps its own icon and colour and is cut out of the
+ * background behind it, so the pile reads as a pile rather than as one smudged tile.
+ *
+ * A folder stands for itself here: it arrives as one entry wearing its own icon, never expanded into
+ * whatever is inside it — the whole point of scoping a budget to a folder is that its contents are
+ * not a list you maintain. One entry is drawn exactly as `CategoryIcon` would draw it.
+ */
+export function CategoryIconStack({ items, size = 30, max = 3, cutout = C.card }: {
+  items: { name: string; icon?: string | null; color?: string | null }[]; size?: number; max?: number; cutout?: ColorValue;
+}) {
+  const shown = items.slice(0, max);
+  if (shown.length <= 1) return <CategoryIcon name={shown[0]?.name ?? "?"} icon={shown[0]?.icon} color={shown[0]?.color} size={size} />;
+  // Each tile after the first is shrunk a little and slid over the one before it.
+  const tile = size * 0.78;
+  const step = tile * 0.62;
+  return (
+    <View style={{ width: step * (shown.length - 1) + tile, height: size, justifyContent: "center" }}>
+      {shown.map((it, i) => {
+        const m = iconFor(it.name, { icon: it.icon ?? null, color: it.color ?? null });
+        return (
+          <View key={`${it.name}-${i}`} style={{
+            position: "absolute", left: i * step, width: tile, height: tile, borderRadius: tile * 0.28,
+            backgroundColor: m.color + "26", alignItems: "center", justifyContent: "center",
+            // The ring is the background showing through, which is what makes the overlap legible.
+            borderWidth: i ? 1.5 : 0, borderColor: cutout,
+          }}>
+            <SymbolView name={m.icon as SFSymbol} size={tile * 0.55} tintColor={m.color} />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function BigButton({ label, onPress, destructive, disabled }: { label: string; onPress: () => void; destructive?: boolean; disabled?: boolean }) {
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.big, destructive && { backgroundColor: C.red }, (pressed || disabled) && { opacity: 0.5 }]}>

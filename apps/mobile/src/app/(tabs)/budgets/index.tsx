@@ -6,7 +6,7 @@ import { budgetCategoryIds, budgetRows, categorySpend, formatMinor, listRows, li
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { AmountPill, Card, CategoryIcon, Empty, FadeIn, Money, ProgressBar, SectionHeader, StatPair } from "@/components/ui";
+import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, ProgressBar, SectionHeader, StatPair } from "@/components/ui";
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
@@ -67,13 +67,19 @@ export default function BudgetsScreen() {
         e.spent += ch.spent_minor; merged.set(id ?? "none", e);
       }
       const scopeName = ids.map((cid) => (cid === "none" ? "Uncategorized" : cats.get(cid)?.name ?? "?")).join(", ");
+      // One entry per thing the budget was scoped to, in the order it was picked. A folder is one
+      // entry wearing its own icon: a budget on a folder is not a budget on a list of categories.
+      const scopeIcons = ids.map((cid) => {
+        const sc = cid === "none" ? undefined : cats.get(cid);
+        return { name: sc?.name ?? "Uncategorized", icon: sc?.icon ?? null, color: sc?.color ?? null };
+      });
       return { id: b.id, name: tag ? tag.name : scopeName || "Everything",
         // The folder above it places a single category; several of them place themselves.
         parent: tag ? "Tag" : one?.parent_id ? cats.get(one.parent_id)?.name ?? null : null,
         currency: b.currency, limit: b.amount_minor, spent: r.spent_minor,
-        // Several categories have no one icon between them, so the row falls back to one derived
-        // from the name (CategoryIcon → `iconFor`), as an uncategorized line already does.
-        icon: tag ? "number" : one?.icon ?? null, color: tag ? tagColor(tag.name, tag.color) : one?.color ?? null, children: [...merged.values()].sort((a, z) => z.spent - a.spent) };
+        icon: tag ? "number" : one?.icon ?? null, color: tag ? tagColor(tag.name, tag.color) : one?.color ?? null,
+        // Several categories have no one icon between them, so the row shows the pile (a tag has its own).
+        icons: tag ? [] : scopeIcons, children: [...merged.values()].sort((a, z) => z.spent - a.spent) };
     });
     const groups = new Map<string, Line & { currency: string; children: Line[] }>();
     for (const s of categorySpend(db, start, end, scopeIds)) {
@@ -133,7 +139,9 @@ export default function BudgetsScreen() {
           return (
             <FadeIn key={b.id} delay={bi * 40} style={styles.budget}>
               <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: b.id } })} style={styles.budgetHead} accessibilityRole="button" accessibilityLabel={`Edit budget ${b.name}`}>
-                <CategoryIcon name={b.name} icon={b.icon} color={b.color} size={34} />
+                {b.icons.length > 1
+                  ? <CategoryIconStack items={b.icons} size={34} />
+                  : <CategoryIcon name={b.name} icon={b.icon} color={b.color} size={34} />}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.budgetName} numberOfLines={2}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
                   <Text style={styles.budgetSub}>{periodLabel(start, end)} · {over ? "Exceeded" : "Available"}</Text>
