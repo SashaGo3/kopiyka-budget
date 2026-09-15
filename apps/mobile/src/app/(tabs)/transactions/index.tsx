@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, getRow, jsonIds, listRows, remove, save, sumInBase, type Transaction } from "@kopiyka/core";
+import { dueManualRules, getRow, jsonIds, listRows, oneCurrency, remove, save, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -19,6 +19,9 @@ import { getBaseCurrency, useRates } from "@/lib/rates";
 import { getBudgetScope, getHideIncome, setBudgetScope } from "@/lib/settings";
 import { scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
 import { markBooted } from "@/lib/boot";
+
+/** A currency → total map as the list `oneCurrency` takes. */
+const perList = (m: Map<string, number>) => [...m].map(([currency, minor]) => ({ currency, minor }));
 
 type Params = { category?: string; tag?: string; name?: string; from?: string; to?: string; accounts?: string; nonce?: string };
 
@@ -78,19 +81,25 @@ export default function TransactionsScreen() {
   // into any month, and an entry nobody ever approves is exactly the one that must stay visible.
   // Manual recurring payments whose day has passed. Like Pending, deliberately outside the filter
   // and the period: a payment you still owe is not something a month view should hide.
+  // Every figure on this screen is summed per currency and only then reduced to one (`oneCurrency`):
+  // a count and an amount that disagree are worse than either on its own, and money held in another
+  // currency used to be dropped from all three of them without a word.
   const dueRecurring = useQuery((d) => {
     const due = dueManualRules(d, todayLocal());
     const accounts = new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a]));
-    let total = 0;
-    for (const { rule, days } of due) if (accounts.get(rule.account_id)?.currency === base) total += rule.amount_minor * days.length;
-    return { n: due.length, total };
-  }, [base]);
-  const pending = useQuery((d) => d.get<{ n: number; total: number | null }>(
-    `SELECT COUNT(*) AS n, SUM(CASE WHEN a.currency=? THEN t.amount_minor ELSE 0 END) AS total
-     FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.deleted=0 AND t.pending=1`, [base]), [base]);
-  // Income and expenses, per currency first. Money held in another currency used to be dropped from
-  // both numbers outright — a salary paid in dollars added up to nothing, and scoping to the account
-  // holding it showed a month with no income at all.
+    const per = new Map<string, number>();
+    for (const { rule, days } of due) {
+      const currency = accounts.get(rule.account_id)?.currency;
+      if (currency) per.set(currency, (per.get(currency) ?? 0) + rule.amount_minor * days.length);
+    }
+    return { n: due.length, per: perList(per) };
+  }, []);
+  const pending = useQuery((d) => {
+    const groups = d.all<{ currency: string; minor: number; n: number }>(
+      `SELECT a.currency AS currency, SUM(t.amount_minor) AS minor, COUNT(*) AS n
+       FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.deleted=0 AND t.pending=1 GROUP BY a.currency`);
+    return { n: groups.reduce((a, g) => a + g.n, 0), per: groups.map((g) => ({ currency: g.currency, minor: g.minor })) };
+  }, []);
   const perCurrency = useMemo(() => {
     const inc = new Map<string, number>(), exp = new Map<string, number>();
     for (const t of rows) {
@@ -98,21 +107,19 @@ export default function TransactionsScreen() {
       const side = t.amount_minor > 0 ? inc : exp;
       side.set(t.currency, (side.get(t.currency) ?? 0) + t.amount_minor);
     }
-    const list = (m: Map<string, number>) => [...m].map(([currency, minor]) => ({ currency, minor }));
-    return { inc: list(inc), exp: list(exp), currencies: [...new Set([...inc.keys(), ...exp.keys()])] };
+    return { inc: perList(inc), exp: perList(exp) };
   }, [rows]);
-  const { rateFor, loading: fetchingRates } = useRates(perCurrency.currencies, base);
-  // One currency on screen — the usual case, and what scoping to a single foreign account gives —
-  // is shown exactly, in that currency. Only a genuinely mixed list is converted, and then it says so.
-  // At today's rate, like Net worth and Budgets: there is no rate row for most past days, and the
-  // question these two numbers answer is what the month comes to now, not on each day it happened.
-  const only = perCurrency.currencies.length <= 1 ? perCurrency.currencies[0] ?? base : null;
-  const totals = only
-    ? { inc: perCurrency.inc[0]?.minor ?? 0, exp: perCurrency.exp[0]?.minor ?? 0, currency: only, approx: false, missing: [] as string[] }
-    : (() => {
-        const i = sumInBase(perCurrency.inc, base, rateFor), e = sumInBase(perCurrency.exp, base, rateFor);
-        return { inc: i.minor, exp: e.minor, currency: base, approx: true, missing: [...new Set([...i.missing, ...e.missing])] };
-      })();
+  // Pending and the recurring dues are deliberately outside the filter and the period, so their
+  // currencies are asked for here too rather than taken from the rows on screen.
+  const currencies = useMemo(() => [...new Set([...perCurrency.inc, ...perCurrency.exp, ...pending.per, ...dueRecurring.per].map((x) => x.currency))],
+    [perCurrency, pending, dueRecurring]);
+  const { rateFor, loading: fetchingRates } = useRates(currencies, base);
+  // Converted at today's rate, like Net worth and Budgets: there is no rate row for most past days,
+  // and what these numbers answer is what the month comes to now, not on each day it happened.
+  const totals = oneCurrency([perCurrency.inc, perCurrency.exp], base, rateFor);
+  const pendingSum = oneCurrency([pending.per], base, rateFor);
+  const dueSum = oneCurrency([dueRecurring.per], base, rateFor);
+  const missingRates = [...new Set([...totals.missing, ...pendingSum.missing, ...dueSum.missing])];
   const toggleSort = () => { setSort((s) => (s === "date" ? "amount" : "date")); setSortGen((g) => g + 1); };
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: "Spending from", options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
@@ -202,12 +209,12 @@ export default function TransactionsScreen() {
           ) : null}
           {/* Totals next — the month at a glance. Then what still needs a decision: recurring you owe, then entries to check. */}
           <StatPair stats={[
-            ...(hideIncome ? [] : [{ label: "Income", minor: totals.inc, currency: totals.currency, color: C.green, approx: totals.approx }]),
-            { label: "Expenses", minor: totals.exp, currency: totals.currency, color: C.red, approx: totals.approx },
+            ...(hideIncome ? [] : [{ label: "Income", minor: totals.totals[0]!, currency: totals.currency, color: C.green, approx: totals.approx }]),
+            { label: "Expenses", minor: totals.totals[1]!, currency: totals.currency, color: C.red, approx: totals.approx },
           ]} />
           {/* Same words as Net worth uses, for the same reason: a total quietly missing a currency is worse than one that admits it. */}
-          {totals.missing.length ? (
-            <Text style={styles.ratesWarn}>{fetchingRates ? `Fetching ${totals.missing.join(", ")} rate…` : `No rate yet for ${totals.missing.join(", ")}, so it is left out. Connect to the internet once.`}</Text>
+          {missingRates.length ? (
+            <Text style={styles.ratesWarn}>{fetchingRates ? `Fetching ${missingRates.join(", ")} rate…` : `No rate yet for ${missingRates.join(", ")}, so it is left out. Connect to the internet once.`}</Text>
           ) : null}
           {dueRecurring.n > 0 ? (
             <Pressable onPress={() => router.push("/recurring/due")} accessibilityRole="button" accessibilityLabel={`${dueRecurring.n} recurring payments due, review them`}
@@ -217,11 +224,11 @@ export default function TransactionsScreen() {
                 <Text style={styles.pendingTitle}>{dueRecurring.n === 1 ? "1 recurring payment due" : `${dueRecurring.n} recurring payments due`}</Text>
                 <Text style={styles.pendingSub}>Tap to post or skip</Text>
               </View>
-              {dueRecurring.total ? <Money minor={dueRecurring.total} currency={base} style={styles.dueSum} /> : null}
+              {dueSum.totals[0] ? <Money minor={dueSum.totals[0]} currency={dueSum.currency} approx={dueSum.approx} style={styles.dueSum} /> : null}
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}
-          {pending && pending.n > 0 ? (
+          {pending.n > 0 ? (
             <Pressable onPress={() => router.push("/pending")} accessibilityRole="button" accessibilityLabel={`${pending.n} pending, review them`}
               style={({ pressed }) => [styles.pending, pressed && { opacity: 0.7 }]}>
               <SymbolView name="clock.badge.exclamationmark" size={20} tintColor={C.orange} />
@@ -229,7 +236,7 @@ export default function TransactionsScreen() {
                 <Text style={styles.pendingTitle}>{pending.n === 1 ? "1 pending entry" : `${pending.n} pending entries`}</Text>
                 <Text style={styles.pendingSub}>Tap to check and approve</Text>
               </View>
-              {pending.total ? <Money minor={pending.total} currency={base} style={styles.pendingSum} /> : null}
+              {pendingSum.totals[0] ? <Money minor={pendingSum.totals[0]} currency={pendingSum.currency} approx={pendingSum.approx} style={styles.pendingSum} /> : null}
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}

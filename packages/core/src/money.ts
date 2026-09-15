@@ -52,3 +52,28 @@ export function sumInBase(totals: { currency: string; minor: number }[], base: s
   }
   return { minor: Math.round(sum), missing };
 }
+
+/**
+ * One figure per group, all of them in the same currency, for a screen that has room for a number
+ * but not for a breakdown.
+ *
+ * When everything involved is already in one currency — the usual case, and what looking at a single
+ * foreign account gives — that currency is used and nothing is converted: the number is exact and
+ * needs no rate at all. Only a genuinely mixed set falls back to `base`, and then `approx` says so,
+ * because an approximate figure that does not admit it is worse than no figure.
+ *
+ * Groups are summed independently but share the one decision, so income and expenses (or a count's
+ * worth of pending entries) are never printed in two different currencies side by side.
+ */
+export function oneCurrency(
+  groups: { currency: string; minor: number }[][],
+  base: string,
+  rateFor: (from: string, to: string) => number | null,
+): { currency: string; approx: boolean; missing: string[]; totals: number[] } {
+  const currencies = [...new Set(groups.flat().map((g) => g.currency))];
+  if (currencies.length <= 1) {
+    return { currency: currencies[0] ?? base, approx: false, missing: [], totals: groups.map((g) => g.reduce((a, x) => a + x.minor, 0)) };
+  }
+  const sums = groups.map((g) => sumInBase(g, base, rateFor));
+  return { currency: base, approx: true, missing: [...new Set(sums.flatMap((x) => x.missing))], totals: sums.map((x) => x.minor) };
+}
