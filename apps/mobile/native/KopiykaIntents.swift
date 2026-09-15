@@ -1,7 +1,6 @@
 import AppIntents
 import CoreLocation
 import UIKit
-import UserNotifications
 import WidgetKit
 
 // App Intents for Siri, Shortcuts, the Action button and Spotlight. Compiled into the
@@ -379,6 +378,9 @@ struct LogPaymentIntent: AppIntent {
     // separate fields when it was built before that existed.
     let outcome = trimmed(notification).map { KPPaymentText.read(notification: $0) }
       ?? KPPaymentText.read(title: alertTitle, subtitle: alertSubtitle, body: alertBody)
+    // The notification as it arrived, kept for the log: the only way to fix a bank whose wording the
+    // reader does not know yet is to still have the wording afterwards.
+    let raw = trimmed(notification) ?? [alertTitle, alertSubtitle, alertBody].compactMap { trimmed($0) }.joined(separator: " · ")
     var parsed: KPPaymentText.Parse? = nil
     if case .payment(let p) = outcome { parsed = p }
     // A mapped Amount (the old Transaction automation) beats the text; without either there is
@@ -386,8 +388,10 @@ struct LogPaymentIntent: AppIntent {
     let value = amount.map(abs).flatMap { $0 > 0 ? $0 : nil } ?? parsed?.amount
     guard let value else {
       if case .unreadable = outcome {
+        KPParseLog.record(.unreadable, text: raw, note: "money named, no amount read")
         throw KPIntentError("Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.")
       }
+      KPParseLog.record(.ignored, text: raw, note: "no amount, or money the bank is not charging")
       return .result()   // not a payment: the ordinary outcome, and it says nothing
     }
 
@@ -395,6 +399,7 @@ struct LogPaymentIntent: AppIntent {
     // and history, which this automation cannot afford (see the round-trip budgets below).
     let (accounts, currentAccount) = KPStore.accountList()
     guard let acc = resolveAccount(accounts, current: currentAccount, parsed: parsed) else {
+      KPParseLog.record(.failed, text: raw, parse: parsed, note: "no account to put it on")
       throw KPIntentError("No accounts in Kopiyka yet. Open it on your iPhone first.")
     }
 
@@ -491,11 +496,8 @@ struct LogPaymentIntent: AppIntent {
                                   tagIds: history.tagIds, lat: lat, lon: lon, confirm: known, timeout: 4)
         NotificationCenter.default.post(name: KP.externalChange, object: nil)
       }
-      // Nothing new was written, and saying "logged" twice for one tap would be a lie about the
-      // count — but silence here reads as "it missed this one", so it says what actually happened.
-      LogPaymentIntent.announce(title: "Already logged",
-                                body: [shop, KPFormat.money(paid, paidCurrency ?? acc.currency)].compactMap { $0 }.joined(separator: " · "),
-                                url: "kopiyka://transaction/\(twin.id)")
+      KPParseLog.record(.duplicate, text: raw, parse: parsed, account: acc.name,
+                        note: twin.pending ? "filled in the entry already waiting" : "already logged and confirmed")
       return .result()
     }
 
@@ -515,17 +517,16 @@ struct LogPaymentIntent: AppIntent {
                                               place: place, pending: pending && !known, date: date,
                                               source: guessed ? "shortcut-guess" : "shortcut",
                                               enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, timeout: 4)
-    guard saved.ok else { throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.") }
-    // The automation runs with nothing on screen and Shortcuts is told not to report it, so this
-    // banner is the only evidence the charge was caught. It names the money, the shop and whether the
-    // entry still needs a look, and opens that entry when tapped.
+    guard saved.ok else {
+      KPParseLog.record(.failed, text: raw, parse: parsed, account: acc.name, note: saved.error ?? "the app refused the write")
+      throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.")
+    }
     let stillPending = pending && !known
-    LogPaymentIntent.announce(
-      title: stillPending ? "Logged · check it" : "Logged",
-      body: [shop, KPFormat.money(income ? charged : -charged, acc.currency),
-             stillPending ? (history.ambiguous ? "waiting in Pending — which was it this time?" : "waiting in Pending") : nil]
-        .compactMap { $0 }.joined(separator: " · "),
-      url: stillPending ? "kopiyka://pending" : "kopiyka://transactions")
+    KPParseLog.record(stillPending ? .pending : .logged, text: raw, parse: parsed, account: acc.name,
+                      note: [parsed?.hold == true ? "blocked, not settled" : nil,
+                             history.ambiguous ? "shop filed more than one way" : nil,
+                             converted ? "converted from \(enteredCurrency ?? "another currency")" : nil,
+                             guessed ? "category guessed" : nil].compactMap { $0 }.joined(separator: "; "))
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)
     // Off the critical path: the watch update is pure side work the shortcut's own result does not
@@ -534,20 +535,6 @@ struct LogPaymentIntent: AppIntent {
     // its way back.
     Task.detached(priority: .utility) { WatchBridge.shared.pushState() }
     return .result()
-  }
-
-  /// A banner from the automation itself, so a payment logged with the app closed leaves a trace.
-  /// Off when Settings → Automate with Shortcut says so (meta `shortcut_notify`); never asks for
-  /// permission — the app asks once, for reminders, and without it this simply stays quiet.
-  /// Delivered by identifier so iOS replaces the previous one rather than stacking a pile of them.
-  static func announce(title: String, body: String, url: String) {
-    guard KPStore.meta("shortcut_notify") != "0" else { return }
-    let content = UNMutableNotificationContent()
-    content.title = title
-    content.body = body
-    content.sound = nil
-    content.userInfo = ["url": url]
-    UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "kopiyka.shortcut.logged", content: content, trigger: nil))
   }
 
   private func trimmed(_ s: String?) -> String? {

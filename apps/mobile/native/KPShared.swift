@@ -110,9 +110,6 @@ struct KPWatchState: Codable {
   var home: Home? = nil
   /// Newest cached exchange rate per "BASE>QUOTE" pair; the inverse is derived when only one side is stored.
   var rates: [String: Double]? = nil
-  /// Settings → Automate with Shortcut → "Tell me when it logs something" (meta `shortcut_notify`).
-  /// Absent — an older file, or no answer at all — means on.
-  var shortcut_notify: Bool? = nil
 
   static let empty = KPWatchState(generated_at: "", current_account: "", accounts: [], categories: [], tags: [], together: [:], history: [], snapshot: nil, location_enabled: false)
 
@@ -341,7 +338,6 @@ enum KPStore {
     switch key {
     case "current_account": return s.current_account
     case "location_enabled": return (s.location_enabled ?? false) ? "1" : "0"
-    case "shortcut_notify": return (s.shortcut_notify ?? true) ? "1" : "0"
     case "home_lat": return s.home.map { String($0.lat) }
     case "home_lon": return s.home.map { String($0.lon) }
     default: return nil
@@ -557,7 +553,7 @@ enum KPStore {
         accounts: accounts(db).map { .init(id: $0.id, name: $0.name, currency: $0.currency, balance: balances[$0.id] ?? 0) },
         categories: cats, tags: tags, together: together, history: history(db, limit: 50), snapshot: snap,
         location_enabled: meta(db, "location_enabled") == "1",
-        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0")
+        home: home(db))
     }
     if let built { return built }
     // JS owns the database. It writes the state file before every `updateWatch`, so this is current.

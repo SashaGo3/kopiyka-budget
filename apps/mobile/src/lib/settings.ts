@@ -36,15 +36,6 @@ export function setShowBalance(on: boolean): void { write("show_balance", on ? "
 export function getHideIncome(): boolean { return read("hide_income") === "1"; }
 export function setHideIncome(on: boolean): void { write("hide_income", on ? "1" : "0"); }
 
-/**
- * Say so when the notification automation logs a payment: a banner naming the amount and the shop,
- * which opens the entry it wrote. On by default — an automation you never hear from is an automation
- * you cannot trust, and the one thing worth knowing is that the charge did land.
- * Absent means on, so the answer is the same before anyone has ever touched the switch.
- */
-export function getShortcutNotify(): boolean { return read("shortcut_notify") !== "0"; }
-export function setShortcutNotify(on: boolean): void { write("shortcut_notify", on ? "1" : "0"); }
-
 /** Account scope for Budgets / Insights / Transactions: "" = all, "group:<name>" or an account id (see lib/scope.ts). */
 export function getBudgetScope(): string { return read("budget_scope") ?? ""; }
 export function setBudgetScope(s: string): void { write("budget_scope", s); }

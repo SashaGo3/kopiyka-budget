@@ -15,7 +15,7 @@ describe("backup", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
       "backup_per_day", "base_currency", "budget_scope", "current_account",
       "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled",
-      "period_start_day", "recurring_notify_days_before", "shortcut_notify", "show_balance",
+      "period_start_day", "recurring_notify_days_before", "show_balance",
     ]);
     // These describe the install, not the data, and must never travel with a backup.
     for (const k of ["device_id", "last_pulled_seq", "onboarded"]) expect(BACKUP_META_KEYS as readonly string[]).not.toContain(k);
