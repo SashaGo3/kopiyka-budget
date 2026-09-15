@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
-import { useColorScheme, Linking, AppState, InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
+import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
 import { initLanguage, useT } from "@/i18n";
 import { Brand, C, R, S } from "@/constants/theme";
@@ -11,7 +11,7 @@ import { KPBridge } from "@/lib/bridge";
 import { BootSkeleton } from "@/components/BootSkeleton";
 import { notifyChange } from "@/store";
 import { installNativeWrites } from "@/lib/nativeWrites";
-import { registerNavigationRef } from "@/lib/deeplink";
+import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
 
@@ -67,10 +67,19 @@ export default function RootLayout() {
     });
     const appState = AppState.addEventListener("change", (s) => { if (s === "active") void notifications.runAutoPosting(); });
     const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); });
-    const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      const url = r.notification.request.content.data?.url;
-      if (typeof url === "string") void Linking.openURL(url);
-    });
+    // A tapped reminder goes where it is about: this debt, this recurring occurrence. The same
+    // response can arrive twice — once cached from the cold launch that the tap caused, once live —
+    // so each notification is followed only once.
+    let followed: string | null = null;
+    const follow = (r: import("expo-notifications").NotificationResponse | null) => {
+      const url = r?.notification.request.content.data?.url;
+      const id = r?.notification.request.identifier ?? null;
+      if (typeof url !== "string" || (id !== null && id === followed)) return;
+      followed = id;
+      openDeepLink(url);
+    };
+    const sub = Notifications.addNotificationResponseReceivedListener(follow);
+    void Notifications.getLastNotificationResponseAsync().then(follow).catch(() => {});
     const offWatch = KPBridge.onExternalChange(() => notifyChange());
     return () => { offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
   }, []);

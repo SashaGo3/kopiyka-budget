@@ -68,3 +68,43 @@ export function openEntrySheet(params: Params) {
   });
 }
 
+/** `kopiyka://settings/debts?x=1` → the path and params expo-router wants. */
+export function parseLink(url: string): { name: string; params: Params } {
+  const [route = "", query = ""] = url.replace(/^[a-z][a-z0-9+.-]*:\/*/i, "").split("?");
+  return { name: route.replace(/^\/+|\/+$/g, ""), params: parseQuery(query) };
+}
+
+export function parseQuery(query: string): Params {
+  const out: Params = {};
+  for (const pair of query.split("&")) {
+    if (!pair) continue;
+    const eq = pair.indexOf("=");
+    const decode = (x: string) => { try { return decodeURIComponent(x.replace(/\+/g, " ")); } catch { return x; } };
+    out[decode(eq < 0 ? pair : pair.slice(0, eq))] = eq < 0 ? "" : decode(pair.slice(eq + 1));
+  }
+  return out;
+}
+
+/**
+ * Follow a `kopiyka://` link from inside the app — what tapping a notification does (the reminder
+ * says which debt or which recurring rule it is about, so it has to land there).
+ *
+ * Navigated here rather than handed back to iOS through `Linking.openURL`: the round trip out of the
+ * app and in again is the app opening itself, which is the one thing the system need not honour, and
+ * it would arrive at `+native-intent` with no way to tell it from a cold launch. Everything above the
+ * tabs is dismissed first, so a tap never buries the target under a sheet that was already open.
+ */
+export function openDeepLink(url: string) {
+  const { name, params } = parseLink(url);
+  if (!name) return;
+  if (name === "log" || name === "transaction/new") { openEntrySheet(params); return; }
+  whenActive(() => {
+    const routes = rootStackRoutes();
+    if (routes.length > 1) router.dismiss(routes.length - 1);
+    // A plain href when there is nothing to carry, so a link naming a row ("transaction/<id>") is
+    // matched against the route tree rather than taken for a route pattern of its own.
+    const href = Object.keys(params).length ? { pathname: `/${name}`, params } : `/${name}`;
+    router.push(href as Parameters<typeof router.push>[0]);
+  });
+}
+
