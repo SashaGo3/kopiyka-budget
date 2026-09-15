@@ -31,6 +31,9 @@ export default function BudgetEdit() {
   const scopeLabel = catNames.length === 0 ? null : catNames.length <= 2 ? catNames.join(", ") : `${catNames.length} categories`;
   const suggestion = useQuery((d) => suggestBudget(d, { categoryIds, tagId, currency, accountIds: accountId ? [accountId] : undefined, startDay }), [categoryIds.join(","), tagId, currency, accountId, startDay]);
   const roundToWhole = (m: number) => Math.round(fromMinor(m, currency));
+  const pick = (label: string, minor: number) => (
+    <Chip key={label} compact label={`${label} · ${group(roundToWhole(minor))}`} onPress={() => setExpr(String(roundToWhole(minor)))} />
+  );
   const key = useMemo(() => newPickKey("bcat"), []);
   const tagKey = useMemo(() => newPickKey("btag"), []);
   usePickResult<string[]>(key, (v: string[]) => { setCategoryIds(v); if (v.length) setTagId(null); });
@@ -64,10 +67,17 @@ export default function BudgetEdit() {
           {suggestion ? (
             <View style={styles.suggest}>
               <Subtle>Suggested</Subtle>
+              {/* The averages first, shortest window to longest, then the two extremes. Each chip
+                  names the number of months it covers rather than claiming "a year" or "all time"
+                  over whatever history happens to exist; the longer ones are dropped when they would
+                  only repeat a shorter one. */}
               <ChipRow>
-                <Chip compact label={`Avg ${suggestion.periods} month${suggestion.periods === 1 ? "" : "s"} · ${group(roundToWhole(suggestion.average_minor))}`} onPress={() => setExpr(String(roundToWhole(suggestion.average_minor)))} />
-                <Chip compact label={`Last month · ${group(roundToWhole(suggestion.last_minor))}`} onPress={() => setExpr(String(roundToWhole(suggestion.last_minor)))} />
-                <Chip compact label={`Highest · ${group(roundToWhole(suggestion.max_minor))}`} onPress={() => setExpr(String(roundToWhole(suggestion.max_minor)))} />
+                {pick(`Avg ${months(suggestion.periods)}`, suggestion.average_minor)}
+                {suggestion.year_minor !== null ? pick(`Avg ${months(suggestion.year_periods)}`, suggestion.year_minor) : null}
+                {suggestion.all_periods > Math.max(suggestion.year_periods, suggestion.periods) ? pick(`Avg all ${months(suggestion.all_periods)}`, suggestion.all_minor) : null}
+                {pick("Last month", suggestion.last_minor)}
+                {pick("Highest", suggestion.max_minor)}
+                {suggestion.min_minor !== suggestion.max_minor ? pick("Lowest", suggestion.min_minor) : null}
               </ChipRow>
             </View>
           ) : null}
@@ -94,6 +104,7 @@ export default function BudgetEdit() {
 }
 
 function group(n: number): string { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+function months(n: number): string { return `${n} month${n === 1 ? "" : "s"}`; }
 
 const styles = StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.md, gap: 4 },
