@@ -1,6 +1,8 @@
 import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack } from "expo-router";
-import { Card, Row, SectionHeader } from "@/components/ui";
+import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
+import { useQuery } from "@/store";
+import { getShortcutNotify, setShortcutNotify } from "@/lib/settings";
 import { C, R, S } from "@/constants/theme";
 
 /** Setup steps, worded as what you actually tap, in the order the Shortcuts app puts them in. */
@@ -22,6 +24,7 @@ const STEPS: { title: string; subtitle: string }[] = [
  * native/KopiykaIntents.swift; this screen only explains the setup.
  */
 export default function ShortcutScreen() {
+  const notify = useQuery(() => getShortcutNotify());
   const openShortcuts = () => {
     Linking.openURL("shortcuts://").catch(() => Alert.alert("Shortcuts not available", "Install the Shortcuts app from the App Store, then come back."));
   };
@@ -51,9 +54,16 @@ export default function ShortcutScreen() {
           <Row icon="arrow.up.forward.app" title="Open Shortcuts" onPress={openShortcuts} />
         </Card>
 
+        <SectionHeader>While it runs</SectionHeader>
+        <Card>
+          <ToggleRow icon="bell.badge" iconColor="#0A84FF" title="Tell me when it logs something"
+            subtitle="A banner naming the amount and the shop, and whether the entry still wants a look. Tap it to open the entry. Needs notifications to be allowed."
+            value={notify} onChange={setShortcutNotify} />
+        </Card>
+
         <SectionHeader>What to expect</SectionHeader>
         <Card>
-          <Row icon="speaker.slash" iconColor="#8E8E93" title="You never hear from it" subtitle="No banner, no confirmation. It speaks up only when a notification names money it could not read — then it tells you what it saw." />
+          <Row icon="bell.badge" iconColor="#8E8E93" title="One banner per payment, and no more" subtitle="It says what it logged, so you can see the charge landed — turn that off just above and it goes silent. Either way it speaks up when a notification names money it could not read." />
           <Row icon="hourglass" iconColor="#FF9F0A" title="Everything new waits in Pending" subtitle="Approve from the Pending row on Transactions. A category may be guessed from the shop's name — or, with the optional step above, from the one you usually pick where you are — to save you a tap. The queue marks it “guess” and it never approves itself." style={styles.divider} />
           <Row icon="wand.and.stars" iconColor="#30D158" title="A payment you have filed before fills itself in" subtitle="Same shop or sender, filed by hand once: its category, tags and place are copied on and it skips Pending." style={styles.divider} />
           <Row icon="arrow.triangle.branch" iconColor="#FF9F0A" title="A shop you file two ways still asks" subtitle="Fuel one week, a hot dog the next: the entry waits in Pending, and its sheet offers every pairing of category and tags you have used there — one tap each." style={styles.divider} />

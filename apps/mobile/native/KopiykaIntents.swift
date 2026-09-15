@@ -1,6 +1,7 @@
 import AppIntents
 import CoreLocation
 import UIKit
+import UserNotifications
 import WidgetKit
 
 // App Intents for Siri, Shortcuts, the Action button and Spotlight. Compiled into the
@@ -488,6 +489,11 @@ struct LogPaymentIntent: AppIntent {
                                   tagIds: history.tagIds, lat: lat, lon: lon, confirm: known, timeout: 4)
         NotificationCenter.default.post(name: KP.externalChange, object: nil)
       }
+      // Nothing new was written, and saying "logged" twice for one tap would be a lie about the
+      // count — but silence here reads as "it missed this one", so it says what actually happened.
+      LogPaymentIntent.announce(title: "Already logged",
+                                body: [shop, KPFormat.money(paid, paidCurrency ?? acc.currency)].compactMap { $0 }.joined(separator: " · "),
+                                url: "kopiyka://transaction/\(twin.id)")
       return .result()
     }
 
@@ -507,6 +513,16 @@ struct LogPaymentIntent: AppIntent {
                                               source: guessed ? "shortcut-guess" : "shortcut",
                                               enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, timeout: 4)
     guard saved.ok else { throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.") }
+    // The automation runs with nothing on screen and Shortcuts is told not to report it, so this
+    // banner is the only evidence the charge was caught. It names the money, the shop and whether the
+    // entry still needs a look, and opens that entry when tapped.
+    let stillPending = pending && !known
+    LogPaymentIntent.announce(
+      title: stillPending ? "Logged · check it" : "Logged",
+      body: [shop, KPFormat.money(income ? charged : -charged, acc.currency),
+             stillPending ? (history.ambiguous ? "waiting in Pending — which was it this time?" : "waiting in Pending") : nil]
+        .compactMap { $0 }.joined(separator: " · "),
+      url: stillPending ? "kopiyka://pending" : "kopiyka://transactions")
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)
     // Off the critical path: the watch update is pure side work the shortcut's own result does not
@@ -515,6 +531,20 @@ struct LogPaymentIntent: AppIntent {
     // its way back.
     Task.detached(priority: .utility) { WatchBridge.shared.pushState() }
     return .result()
+  }
+
+  /// A banner from the automation itself, so a payment logged with the app closed leaves a trace.
+  /// Off when Settings → Automate with Shortcut says so (meta `shortcut_notify`); never asks for
+  /// permission — the app asks once, for reminders, and without it this simply stays quiet.
+  /// Delivered by identifier so iOS replaces the previous one rather than stacking a pile of them.
+  static func announce(title: String, body: String, url: String) {
+    guard KPStore.meta("shortcut_notify") != "0" else { return }
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = body
+    content.sound = nil
+    content.userInfo = ["url": url]
+    UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "kopiyka.shortcut.logged", content: content, trigger: nil))
   }
 
   private func trimmed(_ s: String?) -> String? {
