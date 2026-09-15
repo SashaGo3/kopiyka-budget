@@ -155,10 +155,15 @@ export default function TransactionsScreen() {
     <Pressable onPress={onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={label}><Text style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</Text></Pressable>
   );
   const range = filter.from || filter.to ? rangeLabel(filter.from, filter.to) : filter.upcoming ? "Upcoming" : "";
+  // What the screen was opened *about* — a category from Budgets, a tag or a category from its
+  // editor — kept in the title beside the range. Dropped as soon as that filter is gone, so the
+  // header never names something the list is no longer showing.
+  const named = p.name && ((p.category && filter.categories.includes(p.category)) || (p.tag && filter.tags.includes(p.tag))) ? p.name : "";
+  const customTitle = [named, range].filter(Boolean).join(" · ");
 
   return (
     <>
-      <Stack.Screen options={{ title: selecting ? `${chosen.length} selected` : custom ? range : isSearchTab ? "Search" : "Transactions", headerLargeTitle: !custom,
+      <Stack.Screen options={{ title: selecting ? `${chosen.length} selected` : custom ? customTitle : isSearchTab ? "Search" : "Transactions", headerLargeTitle: !custom,
         headerLeft: selecting ? () => headerButton(allChosen ? "Deselect all" : "Select all", toggleAll) : undefined,
         headerRight: rows.length || selecting ? () => headerButton(selecting ? "Done" : "Select", () => setSelected(selecting ? null : new Set()), selecting) : undefined,
         // Search lives in the search tab only (iOS puts its field in the bottom tab bar).

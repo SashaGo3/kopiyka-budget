@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow } from "@/components/ui";
+import { ALL_TIME } from "@/lib/filters";
 import { C, S } from "@/constants/theme";
 
 /**
@@ -37,11 +38,13 @@ export default function CategoryEdit() {
   usePickResult<string | null>(keys.icon, useCallback((v) => setIcon(v), []));
   usePickResult<string | null>(keys.color, useCallback((v) => setColor(v), []));
   usePickResult<string>(keys.folder, useCallback((v) => setParentId(v), []));
-  // Jump to this category's transactions (all time, in the Settings stack so it doesn't close Settings).
+  // Jump to this category's transactions: the Transactions tab itself, filtered to it over all time,
+  // rather than a second list of its own — one screen shows transactions, and everything there
+  // (sorting, the filter sheet, multi-select) then works on this list too.
   const showTransactions = () => {
     if (!existing) return;
     router.back();
-    setTimeout(() => router.push({ pathname: "/settings/transactions", params: { category: existing.id, name: existing.name } }), 350);
+    setTimeout(() => router.push({ pathname: "/transactions", params: { category: existing.id, name: existing.name, from: ALL_TIME, nonce: String(Date.now()) } }), 350);
   };
   const parentFolder = parentId ? parents.find((p) => p.id === parentId) ?? null : null;
   // A category with no colour of its own takes its folder's, so a folder that was given a colour

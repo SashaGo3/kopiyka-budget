@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, DeleteRow, ModalHeader, Row, SectionHeader, TagPill } from "@/components/ui";
+import { ALL_TIME } from "@/lib/filters";
 import { C, S } from "@/constants/theme";
 
 /** Tag editor: name, colour, and which categories (or whole folders) it belongs to. */
@@ -29,11 +30,12 @@ export default function TagEdit() {
       { text: "Convert", style: "destructive", onPress: () => { mutate((d) => convertTagToCategory(d, existing.id, { parent_id: parent })); router.back(); } },
     ]);
   }, [existing, uses]));
-  // Jump to this tag's transactions (all time, in the Settings stack so it doesn't close Settings).
+  // Jump to this tag's transactions: the Transactions tab itself, filtered to it over all time (see
+  // the same jump in category/edit.tsx).
   const showTransactions = () => {
     if (!existing) return;
     router.back();
-    setTimeout(() => router.push({ pathname: "/settings/transactions", params: { tag: existing.id, name: existing.name } }), 350);
+    setTimeout(() => router.push({ pathname: "/transactions", params: { tag: existing.id, name: existing.name, from: ALL_TIME, nonce: String(Date.now()) } }), 350);
   };
   const convert = () => {
     const folders = [...cats.values()].filter((c) => !c.parent_id);
