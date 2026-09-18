@@ -496,11 +496,11 @@ export default function TransactionSheet() {
             <Chip icon="text.alignleft" label={t("Note")} active={!!note} onPress={openNote} />
             <Chip icon="mappin.and.ellipse" label={t("Place")} active={!!coords || !!place} onPress={openLocation} />
             <Chip icon="hourglass" label={t("Pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
-            <Chip icon="square.split.2x1" label={t("Split")} active={parts.length > 0} compact onPress={openSplit} />
+            <Chip icon="square.split.2x1" label={t("Split")} active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
             <Chip icon="camera" label={t("Photo")} active={!!photoSrc} compact onPress={openPhoto} />
             {/* Not an attribute of this entry but an action on another one: the amount typed goes
                 back onto an earlier expense instead of being added here. */}
-            {isNew ? <Chip icon="arrow.uturn.backward" label={t("Return")} onPress={askForReturn} /> : null}
+            {isNew ? <Chip icon="arrow.uturn.backward" label={t("Return")} disabled={!valid} onPress={askForReturn} /> : null}
             {isNew && RECEIPT_SCANNER_ENABLED ? <Chip icon="doc.text.viewfinder" label={t("Receipt")} compact onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
           </ChipRow>
           <Keypad value={expr} onChange={onKeypadChange} onToggleSign={negate}

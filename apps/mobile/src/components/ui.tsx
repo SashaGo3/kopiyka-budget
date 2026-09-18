@@ -23,9 +23,10 @@ export function Subtle({ children, style }: { children: ReactNode; style?: Style
   return <Text style={[styles.subtle, style]}>{children}</Text>;
 }
 
-export function Chip({ label, icon, active, onPress, tint, compact }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean }) {
+export function Chip({ label, icon, active, onPress, tint, compact, disabled }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active }} style={({ pressed }) => [styles.chip, compact && styles.chipCompact, active && styles.chipActive, pressed && { opacity: 0.6 }]}>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active, disabled: !!disabled }}
+      style={({ pressed }) => [styles.chip, compact && styles.chipCompact, active && styles.chipActive, disabled && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
       <Text numberOfLines={1} style={[styles.chipText, active && styles.chipTextActive]} ellipsizeMode="middle">{label}</Text>
     </Pressable>
