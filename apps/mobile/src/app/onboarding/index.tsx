@@ -36,7 +36,7 @@ export default function Welcome() {
   };
   return (
     <OnboardingFrame step={1} title="Kopiyka" subtitle="Local-first budgeting. Set up in under a minute."
-      primary={{ label: "Get started", onPress: () => router.push("/onboarding/account") }}
+      primary={{ label: "Get started", onPress: () => router.push("/onboarding/location") }}
       secondary={{ label: busy ? "Restoring…" : "Restore from a backup", onPress: () => void restore() }}>
       <View style={styles.hero}>
         <Image source={require("../../../assets/images/icon.png")} style={styles.icon} accessibilityIgnoresInvertColors />

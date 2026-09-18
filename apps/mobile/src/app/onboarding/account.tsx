@@ -16,13 +16,13 @@ import { setOnboarded } from "@/lib/onboarding";
 import { setCurrentAccount } from "@/lib/settings";
 
 /**
- * Step 2: the main account with what is on it right now (becomes the opening balance).
+ * Step 3: the main account with what is on it right now (becomes the opening balance).
  *
  * The currency is guessed rather than asked for: the phone's region already says what money is
- * spent here (`suggestedCurrency`), and on the rare phone whose location permission is already
- * granted — a reinstall, a restore — the country it is actually in wins over a region setting
- * somebody moved away from and never changed. Either way it is a default with the picker one tap
- * away, and the guess stops the moment the user picks for themselves.
+ * spent here (`suggestedCurrency`), and on a phone whose location permission has been granted —
+ * the step before this one, a reinstall, a restore — the country it is actually in wins over a
+ * region setting somebody moved away from and never changed. Either way it is a default with the
+ * picker one tap away, and the guess stops the moment the user picks for themselves.
  */
 export default function OnboardingAccount() {
   const [name, setName] = useState("Main");
@@ -69,7 +69,7 @@ export default function OnboardingAccount() {
     finally { setBusy(false); }
   };
   return (
-    <OnboardingFrame step={2} title="Your main account" subtitle="What is on it right now becomes the opening balance. More accounts can be added later in Settings."
+    <OnboardingFrame step={3} title="Your main account" subtitle="What is on it right now becomes the opening balance. More accounts can be added later in Settings."
       primary={{ label: expr ? `Continue with ${shown} ${currency}` : "Continue with 0", onPress: next, disabled: !valid }}
       secondary={{ label: busy ? "Restoring…" : "I have a backup to restore", onPress: () => void restore() }}>
       <View style={styles.form}>
