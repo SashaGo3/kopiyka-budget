@@ -30,7 +30,7 @@ export default function Welcome() {
       if (!summary) return;
       setOnboarded();
       const hasAccounts = listRows(db, "accounts", "deleted=0").length > 0;
-      Alert.alert("Backup restored", summary, [{ text: "Continue", onPress: () => router.replace(hasAccounts ? "/onboarding/permissions" : "/onboarding/account") }]);
+      Alert.alert("Backup restored", summary, [{ text: "Continue", onPress: () => router.replace(hasAccounts ? "/transactions" : "/onboarding/account") }]);
     } catch (e) { Alert.alert("Could not restore", (e as Error).message); }
     finally { setBusy(false); }
   };

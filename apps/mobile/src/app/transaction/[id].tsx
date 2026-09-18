@@ -329,13 +329,14 @@ export default function TransactionSheet() {
     setExpr(key !== undefined ? applyKeySigned(expr, key, { negativeDefault: defaultMode === "expense" }) : newExpr);
   const locationOn = useQuery(() => getLocationEnabled());
   const pickLocation = () => router.push({ pathname: "/pick/location", params: { key: keys.loc, ...(coords ? { lat: String(coords.lat), lon: String(coords.lon) } : {}) } });
-  // Location stays off until the user says so: the first tap on Place asks, then requests the iOS permission.
+  // Location stays off until the user says so, and the first tap on Place is that yes: it goes
+  // straight to the iOS prompt, whose own text says why the app is asking. A message of ours in
+  // front of it, with a way out of it, is what App Review reads as delaying the request
+  // (guideline 5.1.1(iv)). Granting it turns the preference on; refusing still opens the picker,
+  // where a place can be searched for and pinned by hand without any location access at all.
   const openLocation = () => {
     if (locationOn || coords || place) { pickLocation(); return; }
-    Alert.alert(t("Remember where you spend?"), t("Kopiyka attaches a coarse location to what you log and suggests the category you used at the same place. You can turn this off in Settings."), [
-      { text: t("Not now"), style: "cancel" },
-      { text: t("Turn on"), onPress: () => { void ensureLocationPermission().then((ok) => { if (!ok) return; setLocationEnabled(true); pickLocation(); }); } },
-    ]);
+    void ensureLocationPermission().then((ok) => { if (ok) setLocationEnabled(true); pickLocation(); });
   };
 
   const signColor = kind === "expense" ? C.label : C.green;

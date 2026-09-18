@@ -6,7 +6,7 @@ import { C, S } from "@/constants/theme";
 
 /** Shared chrome for the welcome flow: step dots, a big title, a line of context, the body, and the actions pinned at the bottom. */
 export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true }: {
-  step: 1 | 2 | 3 | 4; title: string; subtitle: string; children?: ReactNode;
+  step: 1 | 2 | 3; title: string; subtitle: string; children?: ReactNode;
   primary: { label: string; onPress: () => void; disabled?: boolean };
   secondary?: { label: string; onPress: () => void };
   scroll?: boolean;
@@ -14,8 +14,8 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   const insets = useSafeAreaInsets();
   const body = (
     <>
-      <View style={styles.dots} accessibilityLabel={`Step ${step} of 4`}>
-        {[1, 2, 3, 4].map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
+      <View style={styles.dots} accessibilityLabel={`Step ${step} of 3`}>
+        {[1, 2, 3].map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
       </View>
       <FadeIn><Text style={styles.title} maxFontSizeMultiplier={1.3}>{title}</Text></FadeIn>
       <FadeIn delay={80}><Text style={styles.subtitle}>{subtitle}</Text></FadeIn>

@@ -6,13 +6,23 @@ import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { setOnboarded } from "@/lib/onboarding";
 
-/** Step 3: a ready-made set of folders and categories; one tap adds them all. */
+/**
+ * Step 3, and the last one: a ready-made set of folders and categories; one tap adds them all.
+ *
+ * Nothing about notifications or location is asked here. A screen that explains a permission and
+ * then lets the user leave without the iOS prompt appearing is what App Review reads as delaying
+ * the request (guideline 5.1.1(iv)), so each permission is asked for where its feature is used —
+ * the Place button on an entry, a reminder on a recurring payment, the switches in Settings —
+ * and the reason is carried by the prompt's own text.
+ */
 export default function OnboardingCategories() {
   const { folders, categories } = presetCounts();
   const next = (seed: boolean) => {
     if (seed) mutate((d) => seedCategories(d));
-    router.push("/onboarding/permissions");
+    setOnboarded();
+    router.replace("/transactions");
   };
   return (
     <OnboardingFrame step={3} title="Categories, ready to go" subtitle={`${categories} categories in ${folders} folders, each with a short description so Siri and the watch can match them. Rename, add or remove any later.`}
