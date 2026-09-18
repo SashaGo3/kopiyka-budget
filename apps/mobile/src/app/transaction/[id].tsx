@@ -496,8 +496,8 @@ export default function TransactionSheet() {
             <Chip icon="text.alignleft" label={t("Note")} active={!!note} onPress={openNote} />
             <Chip icon="mappin.and.ellipse" label={t("Place")} active={!!coords || !!place} onPress={openLocation} />
             <Chip icon="hourglass" label={t("Pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
-            <Chip icon="square.split.2x1" label={t("Split")} active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
             <Chip icon="camera" label={t("Photo")} active={!!photoSrc} compact onPress={openPhoto} />
+            <Chip icon="square.split.2x1" label={t("Split")} active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
             {/* Not an attribute of this entry but an action on another one: the amount typed goes
                 back onto an earlier expense instead of being added here. */}
             {isNew ? <Chip icon="arrow.uturn.backward" label={t("Return")} disabled={!valid} onPress={askForReturn} /> : null}
