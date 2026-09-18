@@ -7,6 +7,7 @@ import { formatMinor, iconFor, listRows, splitAmounts, type SplitPart } from "@k
 import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
+import type { AmountPick } from "@/app/pick/amount";
 import { ModalHeader, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { useT } from "@/i18n";
@@ -55,9 +56,20 @@ export default function SplitEditor() {
     }
     setRows((list) => list.map((r) => (r.key === key ? { ...r, ...change(r) } : r)));
   }, []);
+  const openCat = (key: string | null, selected: string | null) => {
+    editing.current = key;
+    router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kindIsIncome ? "income" : "expense", selected: selected ?? "" } });
+  };
+  const openTags = (key: string | null, selected: string[], category: string | null) => {
+    editing.current = key;
+    router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: selected.join(","), category: category ?? "" } });
+  };
   usePickResult<string | null>(keys.cat, useCallback((v) => patch((r) => ({ ...r, category_id: v })), [patch]));
   usePickResult<string[]>(keys.tags, useCallback((v) => patch((r) => ({ ...r, tag_ids: v })), [patch]));
-  usePickResult<number>(keys.amt, useCallback((v) => patch((r) => ({ ...r, amount_minor: Math.abs(v) })), [patch]));
+  // The keypad a part opens carries the Category and Tags keys itself, so one screen answers how
+  // much and what of; the rows on the card stay tappable for changing either afterwards.
+  usePickResult<AmountPick>(keys.amt, useCallback((v: AmountPick) =>
+    patch((r) => ({ ...r, amount_minor: Math.abs(v.minor), category_id: v.category_id, tag_ids: v.tag_ids })), [patch]));
 
   const catNames = useQuery((d) => new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, c])), []);
   const tagRows = useQuery((d) => new Map(listRows(d, "tags", "deleted=0").map((x) => [x.id, x])), []);
@@ -71,14 +83,6 @@ export default function SplitEditor() {
       : t("Every part needs a category");
   const done = () => { resolvePick(p.key, { main, parts: rows.map(({ key: _k, ...part }) => part) } satisfies SplitResult); router.back(); };
 
-  const openCat = (key: string | null, selected: string | null) => {
-    editing.current = key;
-    router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kindIsIncome ? "income" : "expense", selected: selected ?? "" } });
-  };
-  const openTags = (key: string | null, selected: string[], category: string | null) => {
-    editing.current = key;
-    router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: selected.join(","), category: category ?? "" } });
-  };
   // A part can only ever be worth what the entry still has: the rest of it, plus whatever this part
   // is already holding, since editing it hands that back first. The ceiling is a minor unit under
   // that, because the entry has to keep something to still be an entry — but what is printed is the
@@ -89,6 +93,7 @@ export default function SplitEditor() {
     router.push({ pathname: "/pick/amount", params: {
       key: keys.amt, title: t("How much of it?"), currency, value: String(row.amount_minor),
       available: String(available), max: String(Math.max(available - 1, 0)),
+      kind: kindIsIncome ? "income" : "expense", category: row.category_id ?? "", tags: row.tag_ids.join(","),
     } });
   };
   // A new part opens on its amount: that is the question being asked, and a row sitting at zero is
