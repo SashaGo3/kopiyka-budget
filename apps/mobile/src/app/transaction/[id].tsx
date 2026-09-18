@@ -69,6 +69,11 @@ export default function TransactionSheet() {
   // from here now changes the row's title, with the shop kept underneath it as the payee line.
   const [note, setNote] = useState(existing?.notes ?? existing?.payee ?? p.note ?? "");
   const [noteOpen, setNoteOpen] = useState(false);
+  // iOS drops the caret at the end of the text when a field takes focus, which opens a long note
+  // scrolled past its first words. Pin the selection to the start for the moment focus lands and
+  // then let go, so the note opens at its beginning and behaves like an ordinary field afterwards.
+  const [caret, setCaret] = useState<{ start: number; end: number } | undefined>(undefined);
+  const openNote = () => { setCaret({ start: 0, end: 0 }); setNoteOpen(true); };
   // The shop a Shortcut or a receipt filed this under. No field of its own — it is carried so that
   // saving keeps it and Duplicate copies it.
   const [payee] = useState<string | null>(existing?.payee ?? p.payee ?? null);
@@ -351,8 +356,10 @@ export default function TransactionSheet() {
           </Pressable>
           {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("Copied")}</Text> : <CalcLine expr={expr} style={styles.result} />}
           <View style={styles.details}>
-            <Pressable onPress={() => setNoteOpen(true)} style={styles.line} accessibilityRole="button" accessibilityLabel={note ? t("Note: {note}", { note }) : t("Add a note")}>
-              <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !note && styles.placeholder]} numberOfLines={2}>{note || t("Add a note")}</Text>
+            {/* The note is the entry's title, so the line shows it whole where it fits and ends in an
+                ellipsis where it does not — four lines is as much as the sheet can spare. */}
+            <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={note ? t("Note: {note}", { note }) : t("Add a note")}>
+              <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !note && styles.placeholder]} numberOfLines={4} ellipsizeMode="tail">{note || t("Add a note")}</Text>
             </Pressable>
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
                 payment or a scanned receipt names the shop without ever pinning it on the map. */}
@@ -403,8 +410,12 @@ export default function TransactionSheet() {
       }
       bottom={noteOpen ? (
         <View style={styles.noteBox}>
-          <TextInput ref={noteRef} autoFocus value={note} onChangeText={setNote} placeholder={t("Note")} placeholderTextColor={C.tertiary} style={styles.noteInput}
-            returnKeyType="done" blurOnSubmit onSubmitEditing={() => setNoteOpen(false)} onBlur={() => setNoteOpen(false)} accessibilityLabel={t("Note")} />
+          {/* Multiline, so Return writes a line instead of closing the field: Done closes it. The box
+              grows with the note up to eight lines or so and scrolls beyond that, with the line that
+              does not fit left half-shown so it is plain there is more. */}
+          <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder={t("Note")} placeholderTextColor={C.tertiary} style={styles.noteInput}
+            selection={caret} onFocus={() => setTimeout(() => setCaret(undefined), 0)}
+            onBlur={() => setNoteOpen(false)} accessibilityLabel={t("Note")} />
           <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("Done")}><Text style={styles.noteDone}>{t("Done")}</Text></Pressable>
         </View>
       ) : (
@@ -425,7 +436,7 @@ export default function TransactionSheet() {
           <ChipRow>
             <Chip icon="calendar" label={dayLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
             <Chip icon="clock" label={timeLabel(date)} compact onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: timeLabel(date) } })} />
-            <Chip icon="text.alignleft" label={t("Note")} active={!!note} onPress={() => setNoteOpen(true)} />
+            <Chip icon="text.alignleft" label={t("Note")} active={!!note} onPress={openNote} />
             <Chip icon="mappin.and.ellipse" label={t("Place")} active={!!coords || !!place} onPress={openLocation} />
             <Chip icon="hourglass" label={t("Pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
             <Chip icon="camera" label={t("Photo")} active={!!photoSrc} compact onPress={openPhoto} />
@@ -453,6 +464,7 @@ const styles = StyleSheet.create({
   result: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"], minHeight: 20, textAlign: "center" },
   details: { alignSelf: "stretch", gap: 4, paddingHorizontal: S.xs },
   line: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 26 },
+  noteLine: { alignItems: "flex-start", paddingVertical: 4 },
   lineText: { color: C.label, fontSize: 15, flexShrink: 1 },
   placeholder: { color: C.tertiary },
   thumb: { width: 28, height: 28, borderRadius: 6, backgroundColor: C.fill },
@@ -465,9 +477,9 @@ const styles = StyleSheet.create({
   unwrap: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: C.fill, flexShrink: 1 },
   corner: { position: "absolute", top: 8, left: S.md, width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
   trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
-  noteBox: { flexDirection: "row", alignItems: "center", gap: S.md, marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, minHeight: 50 },
-  noteInput: { flex: 1, fontSize: 17, color: C.label, height: 50 },
-  noteDone: { color: C.tint, fontSize: 17, fontWeight: "700" },
+  noteBox: { flexDirection: "row", alignItems: "flex-end", gap: S.md, marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, paddingVertical: 8, minHeight: 50 },
+  noteInput: { flex: 1, fontSize: 17, color: C.label, minHeight: 34, maxHeight: 176, paddingTop: 7, paddingBottom: 7 },
+  noteDone: { color: C.tint, fontSize: 17, fontWeight: "700", paddingVertical: 7 },
 });
 
 /** Why an entry cannot take the return the user typed, in words rather than in a code. */
