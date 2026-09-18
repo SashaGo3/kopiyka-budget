@@ -478,7 +478,10 @@ export default function TransactionSheet() {
             {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered. */}
             <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("Expense") }, { value: "income", label: t("Income"), color: C.green as unknown as string }, ...(isNew && accounts.length > 1 ? [{ value: "transfer" as Kind, label: t("Transfer") }] : [])]} />
           </View>
-          {options.length > 1 ? (
+          {/* Only while the entry is being written: "what was it this time?" is a question about a
+              new expense. An entry already saved has its answer, and the row cost the confirm bar
+              its safe-area margin on a sheet that had run out of room. */}
+          {isNew && options.length > 1 ? (
             <ChipRow>
               {options.map((o) => {
                 const label = [o.category_id ? catNames.get(o.category_id)! : t("No category"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
@@ -512,18 +515,18 @@ export default function TransactionSheet() {
 }
 
 const styles = StyleSheet.create({
-  top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.xs, gap: 6 },
+  top: { paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs, gap: 4 },
   amountRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 8, maxWidth: "100%" },
   amount: { fontSize: 54, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 },
   currency: { fontSize: 22, color: C.secondary, fontWeight: "600" },
   result: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"], minHeight: 20, textAlign: "center" },
   details: { alignSelf: "stretch", gap: 4, paddingHorizontal: S.xs },
-  line: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 26 },
+  line: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 24 },
   noteLine: { alignItems: "flex-start", paddingVertical: 4 },
   lineText: { color: C.label, fontSize: 15, flexShrink: 1 },
   placeholder: { color: C.tertiary },
   thumb: { width: 28, height: 28, borderRadius: 6, backgroundColor: C.fill },
-  accountRow: { flexDirection: "row", alignItems: "center", gap: S.sm, alignSelf: "stretch", marginTop: 4 },
+  accountRow: { flexDirection: "row", alignItems: "center", gap: S.sm, alignSelf: "stretch", marginTop: 2 },
   accountPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.fill, borderRadius: 22, paddingHorizontal: 12, minHeight: 40, paddingVertical: 6, flexShrink: 1 },
   accountIcon: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   accountText: { fontSize: 15, color: C.label, flexShrink: 1 },
