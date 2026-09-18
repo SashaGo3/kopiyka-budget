@@ -6,7 +6,7 @@ import { HOME_RADIUS_M } from "@kopiyka/core";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
 import { C, S } from "@/constants/theme";
-import { ensureLocationPermission, placeName, quickLocation } from "@/lib/location";
+import { ensureLocationPermission, placeName, preciseLocation } from "@/lib/location";
 import { getHomeLocation, setHomeLocation, setLocationEnabled } from "@/lib/settings";
 
 const POINTS: { icon: SFSymbol; title: string; text: string }[] = [
@@ -52,11 +52,11 @@ export default function OnboardingLocation() {
   const setHomeHere = async () => {
     setSettingHome(true);
     try {
-      const c = await quickLocation();
-      if (!c) { Alert.alert("No location yet", "Could not read the phone's location. Try again in a moment, or set home later in Settings."); return; }
-      const next = { ...c, place: await placeName(c) };
-      setHomeLocation(next);
-      setHome(next);
+      const c = await preciseLocation();
+      if (!c) { Alert.alert("No location yet", "The phone has not got a fix yet. It usually comes within a few seconds of granting access, and works best away from thick walls — try again in a moment, or set home later in Settings."); return; }
+      const spot = { ...c, place: await placeName(c) };
+      setHomeLocation(spot);
+      setHome(spot);
     } finally { setSettingHome(false); }
   };
 

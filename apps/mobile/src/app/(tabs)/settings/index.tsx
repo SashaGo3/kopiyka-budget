@@ -11,7 +11,7 @@ import { C, S } from "@/constants/theme";
 import { APP_VERSION } from "@/constants/app";
 import { lastBackupLine, useBackupState } from "@/lib/backup";
 import { getHideIncome, getHomeLocation, getLocationEnabled, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setShowBalance } from "@/lib/settings";
-import { ensureLocationPermission, locationStatus, placeName, quickLocation } from "@/lib/location";
+import { ensureLocationPermission, locationStatus, placeName, preciseLocation } from "@/lib/location";
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { endTravel, tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { humanDayTime } from "@/lib/dates";
@@ -106,8 +106,8 @@ export default function SettingsScreen() {
   const useHereAsHome = async () => {
     setSettingHome(true);
     try {
-      const c = await quickLocation();
-      if (!c) { Alert.alert("No location yet", "Could not read the phone's location. Try again in a moment."); return; }
+      const c = await preciseLocation();
+      if (!c) { Alert.alert("No location yet", "The phone has not got a fix yet. Try again in a moment, somewhere with a clearer view of the sky."); return; }
       setHomeLocation({ ...c, place: await placeName(c) });
     } finally { setSettingHome(false); }
   };
