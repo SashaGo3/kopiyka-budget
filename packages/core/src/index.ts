@@ -16,6 +16,7 @@ export * from "./insights";
 export * from "./trips";
 export * from "./debts";
 export * from "./returns";
+export * from "./split";
 export * from "./regions";
 export * from "./payee";
 export * from "./suggest";

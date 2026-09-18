@@ -96,6 +96,7 @@ export default function RootLayout() {
           <Stack.Screen name="accounts/[id]" options={{ title: "", headerBackTitle: t("Back") }} />
           <Stack.Screen name="pending" options={{ title: t("Pending"), headerBackTitle: t("Back") }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
+          <Stack.Screen name="transaction/split" options={modal} />
           <Stack.Screen name="transfer/[id]" options={fit} />
           <Stack.Screen name="account/edit" options={fit} />
           <Stack.Screen name="category/edit" options={modal} />

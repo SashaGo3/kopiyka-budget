@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, rateOrFallback, remove, save, suggestCategoryNear, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryNear, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -21,6 +21,7 @@ import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { markSheetPainted } from "@/lib/boot";
 import { deletePhoto, keepPhoto, photoUri } from "@/lib/photos";
 import type { ReceiptParse } from "@/lib/bridge";
+import type { SplitResult } from "./split";
 
 type Kind = "expense" | "income" | "transfer";
 type Params = { id: string; account?: string; category?: string; amount?: string; kind?: Kind; note?: string; tags?: string; receipt?: string;
@@ -88,6 +89,10 @@ export default function TransactionSheet() {
   // Attached photo: `photo` is the stored file name, `shot` a freshly captured temporary file (kept on save).
   const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null);
   const [shot, setShot] = useState<string | null>(null);
+  // The parts carved off this entry. The entry itself is the first part and keeps what is left, so
+  // the amount on the keypad stays the receipt total; these are only the *other* ones. They are
+  // written as their own transactions on save and nothing links them afterwards (core/split.ts).
+  const [parts, setParts] = useState<SplitPart[]>([]);
   const noteRef = useRef<TextInput>(null);
   // Unwrapped from the start when the preference says so (Settings → Preferences → Show balance
   // when logging); the chevron still folds it back for this one entry without changing the setting.
@@ -138,14 +143,17 @@ export default function TransactionSheet() {
   // the field shows is what the bar adds.
   const raw = evalPartial(expr);
   const value = raw !== null ? Math.abs(raw) : null;
-  const valid = value !== null && value > 0 && !!account;
+  // With a split, the parts have to leave the entry itself something. `splitAmounts` says whether
+  // they do, and a total typed down under them is what makes an otherwise fine entry invalid.
+  const splitMinors = useMemo(() => (value !== null && parts.length ? splitAmounts(toMinor(value, currency), parts.map((x) => x.amount_minor)) : null), [value, currency, parts]);
+  const valid = value !== null && value > 0 && !!account && (!parts.length || !!splitMinors);
   const sign = raw === null ? null : raw > 0 ? 1 : raw < 0 ? -1 : 0;
   const kind: "expense" | "income" = sign === 1 ? "income" : sign === -1 ? "expense" : defaultMode;
   const signChar = kind === "expense" ? "−" : "+";
   const signed = value !== null ? toMinor(value, currency) * (kind === "expense" ? -1 : 1) : 0;
   const after = balance + signed - (existing && existing.account_id === account?.id ? existing.amount_minor : 0);
 
-  const keys = useMemo(() => ({ cat: newPickKey("cat"), acc: newPickKey("acc"), tags: newPickKey("tags"), date: newPickKey("date"), time: newPickKey("time"), loc: newPickKey("loc"), receipt: newPickKey("receipt"), shot: newPickKey("shot"), photo: newPickKey("photo"), ret: newPickKey("ret") }), []);
+  const keys = useMemo(() => ({ cat: newPickKey("cat"), acc: newPickKey("acc"), tags: newPickKey("tags"), date: newPickKey("date"), time: newPickKey("time"), loc: newPickKey("loc"), receipt: newPickKey("receipt"), shot: newPickKey("shot"), photo: newPickKey("photo"), ret: newPickKey("ret"), split: newPickKey("split") }), []);
   usePickResult<string>(keys.shot, useCallback((uri: string) => { setShot(uri); }, []));
   usePickResult<boolean>(keys.photo, useCallback(() => { setShot(null); setPhoto(null); }, []));
   const photoSrc = shot ?? (photo ? photoUri(photo) : null);
@@ -177,6 +185,21 @@ export default function TransactionSheet() {
       ]);
   });
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
+  // Splitting needs a total to share out, so the amount comes first — and the editor is given the
+  // entry's own category and tags as the first part, because that part is this entry.
+  const openSplit = () => {
+    if (value === null || value <= 0) { Alert.alert(t("Type the total first"), t("A split shares out the amount on the entry, so there has to be one.")); return; }
+    router.push({ pathname: "/transaction/split", params: {
+      key: keys.split, currency, kind, total: String(toMinor(value, currency)),
+      main: JSON.stringify({ category_id: categoryId, tag_ids: tagIds }), parts: JSON.stringify(parts),
+    } });
+  };
+  usePickResult<SplitResult>(keys.split, useCallback((r: SplitResult) => {
+    setCategoryId(r.main.category_id);
+    setSuggested(false);
+    setTagIds(r.main.tag_ids);
+    setParts(r.parts);
+  }, []));
   usePickResult<string>(keys.date, useCallback((day: string) => setDate((d) => (day === d.slice(0, 10) ? d : day === todayLocal() ? localIso() : dayWithNow(day))), []));
   usePickResult<string>(keys.time, useCallback((hhmm: string) => setDate((d) => withTime(d, hhmm)), []));
   usePickResult<(Coords & { place: string | null }) | null>(keys.loc, useCallback((v: (Coords & { place: string | null }) | null) => { setCoords(v ? { lat: v.lat, lon: v.lon } : null); setPlace(v?.place ?? null); }, []));
@@ -263,12 +286,33 @@ export default function TransactionSheet() {
     const minor = toMinor(value!, currency) * (kind === "expense" ? -1 : 1);
     // A new shot replaces the stored file; clearing the photo removes it.
     let photoName = photo;
-    if (shot) { try { photoName = keepPhoto(shot); if (existing?.photo) deletePhoto(existing.photo); } catch { photoName = photo; } }
-    else if (existing?.photo && !photo) deletePhoto(existing.photo);
+    if (shot) { try { photoName = keepPhoto(shot); if (existing?.photo) releasePhoto(existing.photo, existing.id); } catch { photoName = photo; } }
+    else if (existing?.photo && !photo) releasePhoto(existing.photo, existing.id);
     mutate((d) => {
       const base = { account_id: account.id, date, amount_minor: minor, category_id: categoryId, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagIds), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
-      if (existing) save(d, "transactions", { ...existing, ...base } as Transaction);
-      else createTransaction(d, base);
+      if (!parts.length || !splitMinors) {
+        if (existing) save(d, "transactions", { ...existing, ...base } as Transaction);
+        else createTransaction(d, base);
+        return;
+      }
+      // A split is several ordinary entries: the one being edited keeps its id and what the parts
+      // leave it (rule 1 — renaming a row is not the same as replacing it), and each part becomes a
+      // new row that differs from it only in amount, category and tags. A foreign original is shared
+      // out in the same proportions, so a part still shows what the bank actually charged for it.
+      const sign = kind === "expense" ? -1 : 1;
+      const entered = existing?.entered_amount_minor ? shareEntered(existing.entered_amount_minor, splitMinors) : null;
+      const shared = { account_id: base.account_id, date, payee, notes: base.notes, pending: base.pending, lat: base.lat, lon: base.lon, place, photo: photoName, source: existing?.source ?? null } as const;
+      splitMinors.forEach((magnitude, i) => {
+        const money = { amount_minor: magnitude * sign, ...(entered ? { entered_amount_minor: entered[i]!, entered_currency: existing!.entered_currency, exchange_rate: existing!.exchange_rate } : {}) };
+        if (i === 0) {
+          const first = { ...shared, ...money, category_id: categoryId, tag_ids: JSON.stringify(tagIds) };
+          if (existing) save(d, "transactions", { ...existing, ...first } as Transaction);
+          else createTransaction(d, first);
+          return;
+        }
+        const part = parts[i - 1]!;
+        createTransaction(d, { ...shared, ...money, category_id: part.category_id, tag_ids: JSON.stringify(part.tag_ids) });
+      });
     });
     setDone(true);
     return true;
@@ -305,7 +349,7 @@ export default function TransactionSheet() {
     ]);
   const del = () => existing && Alert.alert(t("Delete transaction?"), undefined, [
     { text: t("Cancel"), style: "cancel" },
-    { text: t("Delete"), style: "destructive", onPress: () => { setDone(true); deletePhoto(existing.photo); mutate((d) => remove(d, "transactions", existing.id)); router.back(); } },
+    { text: t("Delete"), style: "destructive", onPress: () => { setDone(true); releasePhoto(existing.photo, existing.id); mutate((d) => remove(d, "transactions", existing.id)); router.back(); } },
   ]);
   // ± and the segmented control both negate the signed expression; on an empty expression
   // there's nothing to negate, so they just switch the default mode instead.
@@ -367,6 +411,15 @@ export default function TransactionSheet() {
             {coords || place || locationOn ? (
               <Pressable onPress={openLocation} style={styles.line} accessibilityRole="button" accessibilityLabel={place ?? (coords ? t("Location: pinned") : t("Add location"))}>
                 <SymbolView name="mappin.and.ellipse" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !coords && !place && styles.placeholder]} numberOfLines={1}>{place ?? (coords ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` : t("Add location"))}{suggested ? t(" · category suggested") : ""}</Text>
+              </Pressable>
+            ) : null}
+            {parts.length && splitMinors ? (
+              <Pressable onPress={openSplit} style={styles.line} accessibilityRole="button"
+                accessibilityLabel={t("Split into {n} entries. Tap to edit.", { n: parts.length + 1 })}>
+                <SymbolView name="square.split.2x1" size={14} tintColor={C.secondary} />
+                <Text style={styles.lineText} numberOfLines={2}>
+                  {splitMinors.map((minor, i) => `${formatMinor(minor, currency)} ${i === 0 ? (category?.name ?? t("this entry")) : (catNames.get(parts[i - 1]!.category_id ?? "") ?? t("no category"))}`).join(" · ")}
+                </Text>
               </Pressable>
             ) : null}
             {refunded ? (
@@ -440,6 +493,7 @@ export default function TransactionSheet() {
             <Chip icon="text.alignleft" label={t("Note")} active={!!note} onPress={openNote} />
             <Chip icon="mappin.and.ellipse" label={t("Place")} active={!!coords || !!place} onPress={openLocation} />
             <Chip icon="hourglass" label={t("Pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
+            <Chip icon="square.split.2x1" label={t("Split")} active={parts.length > 0} compact onPress={openSplit} />
             <Chip icon="camera" label={t("Photo")} active={!!photoSrc} compact onPress={openPhoto} />
             {/* Not an attribute of this entry but an action on another one: the amount typed goes
                 back onto an earlier expense instead of being added here. */}
@@ -482,6 +536,16 @@ const styles = StyleSheet.create({
   noteInput: { flex: 1, fontSize: 17, color: C.label, minHeight: 34, maxHeight: 176, paddingTop: 7, paddingBottom: 7 },
   noteDone: { color: C.tint, fontSize: 17, fontWeight: "700", paddingVertical: 7 },
 });
+
+/**
+ * Let go of a photo file, and delete it only if no other live entry still points at it. The parts
+ * of a split share one photo — the receipt was photographed once — so the file outlives any single
+ * row of them (DATA.md rule 4: the name in the row is the index, and the file is written once).
+ */
+function releasePhoto(name: string | null | undefined, exceptId: string): void {
+  if (!name || photoInUse(db, name, exceptId)) return;
+  deletePhoto(name);
+}
 
 /** Why an entry cannot take the return the user typed, in words rather than in a code. */
 function returnReason(reason: Exclude<ReturnType<typeof checkReturn>, { ok: true }>["reason"], t: (k: string) => string): string {

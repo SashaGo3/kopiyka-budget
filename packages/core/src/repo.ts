@@ -113,6 +113,17 @@ export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<
   } as Transaction);
 }
 
+/**
+ * Does a live transaction still point at this photo file? A split gives every part the same photo
+ * — one receipt, photographed once — so the file outlives any single row and may only be deleted
+ * when the last row referencing it goes (`except` is the row being deleted or cleared right now).
+ */
+export function photoInUse(db: SqlDriver, name: string, except?: string): boolean {
+  const row = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM transactions WHERE photo=? AND deleted=0 AND id<>?`, [name, except ?? ""]);
+  return !!row?.n;
+}
+
 export function createRecurring(db: SqlDriver, r: Partial<RecurringRule> & Pick<RecurringRule, "account_id" | "amount_minor" | "frequency" | "start_date">): RecurringRule {
   return save(db, "recurring_rules", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", interval: 1, end_date: null,

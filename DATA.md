@@ -62,6 +62,11 @@ immutability is what the rest relies on:
 So changing `photo` to a name nothing wrote orphans the image, and clearing it strands the file. If
 you ever need to rewrite photo names, move the files in the same pass.
 
+One name can be held by **more than one row**: the parts of a split share the receipt that was
+photographed once (rule 11). So deleting a row is not a reason to delete its photo — `photoInUse`
+(`packages/core/src/repo.ts`) asks whether any live row still points at the file, and only the last
+one to let go takes it with them.
+
 ## 5. A folder is not a category and nothing is filed into one
 
 A folder is a category that has (live) categories inside it — `folderIds` in
@@ -127,6 +132,21 @@ SIGBUS, and it cost real data once already (2026-09-08/09).
 The same goes for tooling: never point the `sqlite3` CLI at a simulator's or device's live database.
 Create and remove test rows through the core API (`bun -e` with `openBunDb` + `createTransaction` /
 `remove`) or through the app, and clean up afterwards.
+
+## 11. A split is several entries, not one entry with parts
+
+One shop sells dinner and a lamp, and filing the whole receipt under either is a lie. So the entry
+sheet's Split writes **one ordinary transaction per part** (`packages/core/src/split.ts`), all sharing
+the account, date, payee, note, place, coordinates and photo, each with its own amount, category and
+tags. The entry being edited keeps its id and takes whatever the other parts leave it (rule 1), so
+splitting an existing row never detaches its history.
+
+Nothing links the parts afterwards — there is no `split_id`, and there is deliberately nothing to
+find: each row is the entry for what it says it is, and behaves like any other from then on. Two
+consequences worth holding on to: the parts always add up to the total exactly, because the first
+one is the remainder rather than a number of its own; and a foreign original is shared out in the
+same proportions (`shareEntered`), with the first part taking the rounding, so a part still shows
+what the bank actually charged for it (rule 6).
 
 ## Handing an export to an AI to restructure
 
