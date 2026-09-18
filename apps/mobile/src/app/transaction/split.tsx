@@ -80,12 +80,15 @@ export default function SplitEditor() {
     router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: selected.join(","), category: category ?? "" } });
   };
   // A part can only ever be worth what the entry still has: the rest of it, plus whatever this part
-  // is already holding, since editing it hands that back first.
+  // is already holding, since editing it hands that back first. The ceiling is a minor unit under
+  // that, because the entry has to keep something to still be an entry — but what is printed is the
+  // round figure it is a unit under, not the ceiling itself.
   const openAmount = (row: Row) => {
     editing.current = row.key;
+    const available = Math.max(rest + row.amount_minor, 0);
     router.push({ pathname: "/pick/amount", params: {
-      key: keys.amt, title: t("How much of it?"), currency,
-      value: String(row.amount_minor), max: String(Math.max(rest + row.amount_minor - 1, 0)),
+      key: keys.amt, title: t("How much of it?"), currency, value: String(row.amount_minor),
+      available: String(available), max: String(Math.max(available - 1, 0)),
     } });
   };
   // A new part opens on its amount: that is the question being asked, and a row sitting at zero is
