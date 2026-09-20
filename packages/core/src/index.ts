@@ -24,3 +24,4 @@ export * from "./presets";
 export * from "./keypad";
 export * from "./detect";
 export * from "./icons";
+export * from "./bulk";

@@ -115,6 +115,8 @@ export default function RootLayout() {
           <Stack.Screen name="pending" options={{ ...pushed, title: "Pending", headerBackTitle: "Back" }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
           <Stack.Screen name="transaction/split" options={modal} />
+          {/* A list that has to be read before it is agreed to, so a full card rather than a sheet. */}
+          <Stack.Screen name="transaction/bulk" options={modal} />
           <Stack.Screen name="transfer/[id]" options={fit} />
           <Stack.Screen name="account/edit" options={fit} />
           <Stack.Screen name="category/edit" options={modal} />

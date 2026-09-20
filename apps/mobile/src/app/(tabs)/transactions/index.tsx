@@ -3,7 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, getRow, jsonIds, listRows, oneCurrency, remove, save, trimNumber, type Transaction } from "@kopiyka/core";
+import { dueManualRules, formatMinor, jsonIds, listRows, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -37,10 +37,12 @@ type Params = { category?: string; tag?: string; name?: string; from?: string; t
  * (a Budgets category would otherwise stick forever). Neither the period nor the scope is one of
  * them — both are the shared selections Budgets shows too, and both have a pill here.
  * The same screen backs the search tab, where the search field is focused on arrival.
- * "Select" in the header switches to multi-edit: pick some or all rows, then set their
- * category, add / remove tags, move them to another day, confirm pending ones or delete
- * them from the bottom bar. The header keeps its large title while selecting: toggling it
- * forces a native relayout of the whole screen and made leaving selection mode stutter.
+ * "Select" in the header switches to multi-edit: pick some or all rows, then set their category,
+ * add / remove tags, move them to another day, write a note over them all, confirm pending ones or
+ * delete them from the bottom bar. Everything but delete goes through `/transaction/bulk` first,
+ * which shows what each row would become and is the only thing that writes. The header keeps its
+ * large title while selecting: toggling it forces a native relayout of the whole screen and made
+ * leaving selection mode stutter.
  */
 export default function TransactionsScreen() {
   const p = useLocalSearchParams<Params>();
@@ -59,9 +61,10 @@ export default function TransactionsScreen() {
   useEffect(() => { if (p.nonce) { setFilter(fromParams()); setSort("date"); setSortGen((g) => g + 1); } }, [p.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const navigation = useNavigation();
   const lastTabPress = useRef(0);
-  // What the tab-press handler needs to read without being re-subscribed on every keystroke.
+  // What the tab-press handler needs to read without being re-subscribed on every keystroke — and
+  // written in an effect, not during render, because the React Compiler is on.
   const shown = useRef({ filter, period });
-  shown.current = { filter, period };
+  useEffect(() => { shown.current = { filter, period }; }, [filter, period]);
   useEffect(() => {
     const tabs = navigation.getParent();
     if (!tabs) return;
@@ -91,7 +94,7 @@ export default function TransactionsScreen() {
       setSort("date"); setSortGen((g) => g + 1);   // the period is shared with Budgets: whatever month is open stays open
     });
   }, [navigation]);
-  const keys = useMemo(() => ({ filter: newPickKey("filter"), month: newPickKey("month"), scope: newPickKey("scope"), cat: newPickKey("mcat"), tags: newPickKey("mtags"), date: newPickKey("mdate") }), []);
+  const keys = useMemo(() => ({ filter: newPickKey("filter"), month: newPickKey("month"), scope: newPickKey("scope"), cat: newPickKey("mcat"), tags: newPickKey("mtags"), date: newPickKey("mdate"), note: newPickKey("mnote"), bulk: newPickKey("mbulk") }), []);
   usePickResult<TxFilter>(keys.filter, useCallback((f: TxFilter) => setFilter(f), []));
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
   usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), []));
@@ -202,31 +205,32 @@ export default function TransactionsScreen() {
   const allChosen = rows.length > 0 && chosen.length === rows.length;
   const toggleRow = useCallback((id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }), []);
   const toggleAll = () => setSelected(allChosen ? new Set() : new Set(rows.map((t) => t.id)));
-  /** Apply a change to every chosen row; both legs of a chosen transfer change together. */
-  const editChosen = (fn: (t: Transaction) => Partial<Transaction>) => {
-    mutate((d) => {
-      for (const id of chosenIds(d)) { const t = getRow(d, "transactions", id); if (t) save(d, "transactions", { ...t, ...fn(t) }); }
-    });
-    setSelected(null);
+  /** The chosen rows plus the other leg of every chosen transfer: half a transfer is not a thing to edit. */
+  const chosenIds = () => withTransferLegs(db, chosen.map((t) => t.id));
+  /**
+   * Nothing is written from this screen any more. Twelve rows changing at once has no undo and
+   * leaves no trace to read afterwards, so every multi-edit goes through the preview first, which
+   * lists what each row says now and would say after, and writes only when it is confirmed
+   * (`/transaction/bulk`). Selection mode ends when it reports back, and stays put on Cancel.
+   */
+  const review = (change: BulkChange) => {
+    if (!chosen.length) return;
+    router.push({ pathname: "/transaction/bulk", params: { key: keys.bulk, ids: chosenIds().join(","), change: JSON.stringify(change) } });
   };
-  const chosenIds = (d: Parameters<Parameters<typeof mutate>[0]>[0]) => {
-    const ids = new Set(chosen.map((t) => t.id));
-    for (const t of chosen) if (t.transfer_id) for (const leg of listRows(d, "transactions", "deleted=0 AND transfer_id=?", [t.transfer_id])) ids.add(leg.id);
-    return ids;
-  };
+  usePickResult<number>(keys.bulk, useCallback(() => setSelected(null), []));
   // Move every chosen row to another day; each keeps its own time of day.
   const pickDate = () => {
     if (!chosen.length) return;
     const same = chosen.every((t) => t.date.slice(0, 10) === chosen[0]!.date.slice(0, 10)) ? chosen[0]!.date.slice(0, 10) : todayLocal();
     router.push({ pathname: "/pick/date", params: { key: keys.date, selected: same } });
   };
-  usePickResult<string>(keys.date, useCallback((day: string) => editChosen((t) => ({ date: day + t.date.slice(10) })), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
+  usePickResult<string>(keys.date, useCallback((day: string) => review({ kind: "date", day }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const deleteChosen = () => {
     if (!chosen.length) return;
     const transfers = chosen.filter((t) => t.transfer_id).length;
     Alert.alert(chosen.length === 1 ? "Delete this transaction?" : `Delete ${chosen.length} transactions?`, transfers ? "Both sides of a transfer are deleted together." : undefined, [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => { mutate((d) => { for (const id of chosenIds(d)) remove(d, "transactions", id); }); setSelected(null); } },
+      { text: "Delete", style: "destructive", onPress: () => { const ids = chosenIds(); mutate((d) => { for (const id of ids) remove(d, "transactions", id); }); setSelected(null); } },
     ]);
   };
   const pickCategory = () => {
@@ -236,7 +240,7 @@ export default function TransactionsScreen() {
     const same = chosen.every((t) => t.category_id === chosen[0]!.category_id) ? chosen[0]!.category_id ?? "" : "-";
     router.push({ pathname: "/pick/category", params: { key: keys.cat, kind, selected: same } });
   };
-  usePickResult<string | null>(keys.cat, useCallback((v: string | null) => editChosen(() => ({ category_id: v })), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
+  usePickResult<string | null>(keys.cat, useCallback((v: string | null) => review({ kind: "category", category_id: v }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   // Tags: the picker starts with the tags every chosen row already has. Ticking adds a tag to
   // all of them, unticking one of the shared tags removes it from all; other tags are untouched.
   const shared = useMemo(() => chosen.length ? chosen.map((t) => jsonIds(t.tag_ids)).reduce((acc, ids) => acc.filter((id) => ids.includes(id))) : [], [chosen]);
@@ -248,8 +252,16 @@ export default function TransactionsScreen() {
   usePickResult<string[]>(keys.tags, useCallback((picked: string[]) => {
     const add = picked.filter((id) => !shared.includes(id)), drop = shared.filter((id) => !picked.includes(id));
     if (!add.length && !drop.length) { setSelected(null); return; }
-    editChosen((t) => { const ids = jsonIds(t.tag_ids).filter((id) => !drop.includes(id)); return { tag_ids: JSON.stringify([...ids, ...add.filter((id) => !ids.includes(id))]) }; });
+    review({ kind: "tags", add, drop });
   }, [chosen, shared])); // eslint-disable-line react-hooks/exhaustive-deps
+  // The note every chosen row gets. Whether it replaces what is there or is added as a line is
+  // asked on the preview screen, where the difference can be seen row by row.
+  const pickNote = () => {
+    if (!chosen.length) return;
+    const same = chosen.every((t) => (t.notes ?? "") === (chosen[0]!.notes ?? "")) ? chosen[0]!.notes ?? "" : "";
+    router.push({ pathname: "/pick/text", params: { key: keys.note, title: "Note", value: same, multiline: "1" } });
+  };
+  usePickResult<string>(keys.note, useCallback((text: string) => review({ kind: "note", text, mode: "replace" }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const headerButton = (label: string, onPress: () => void, bold = false) => (
     <Pressable onPress={onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={label}><Text style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</Text></Pressable>
   );
@@ -320,7 +332,8 @@ export default function TransactionsScreen() {
             <BarButton icon="folder" label="Category" active={chosen.length > 0} onPress={pickCategory} a11y={`Set category of ${chosen.length} selected`} />
             <BarButton icon="number" active={chosen.length > 0} onPress={pickTags} a11y={`Edit tags of ${chosen.length} selected`} />
             <BarButton icon="calendar" active={chosen.length > 0} onPress={pickDate} a11y={`Change date of ${chosen.length} selected`} />
-            {chosen.some((t) => t.pending) ? <BarButton icon="checkmark.circle" label="Confirm" active onPress={() => editChosen(() => ({ pending: 0 }))} a11y={`Confirm ${chosen.filter((t) => t.pending).length} pending`} /> : null}
+            <BarButton icon="text.alignleft" active={chosen.length > 0} onPress={pickNote} a11y={`Edit the note of ${chosen.length} selected`} />
+            {chosen.some((t) => t.pending) ? <BarButton icon="checkmark.circle" label="Confirm" active onPress={() => review({ kind: "confirm" })} a11y={`Confirm ${chosen.filter((t) => t.pending).length} pending`} /> : null}
             <BarButton icon="trash" color={C.red} onPress={deleteChosen} a11y={`Delete ${chosen.length} selected`} />
           </>
         ) : (
