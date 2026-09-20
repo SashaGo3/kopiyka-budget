@@ -651,13 +651,42 @@ enum KPStore {
     var lon: Double?
     /// How many different (category, tags) pairs this name was ever filed under (core `payeeOptions`).
     var variants: Int = 0
-    /// History filed this name under a category before, so a new entry for it is already understood
-    /// and needs no trip through the pending queue (core `isFiledBefore`).
+    /// How the row that supplied the category and tags was found — "exact" or "similar", nil when
+    /// nothing was found (core `PayeeMatch`). A first-word match is a guess: "BLIK INTERNET:
+    /// FLYSTORE.PL" and "BLIK INTERNET: ALLEGRO.PL" share everything except the shop.
+    var match: String?
+    /// History has a category for this name, by whatever route — enough to fill the field in.
     var filedBefore: Bool { categoryId != nil }
+    /// …and it was this very name, so the entry is already understood and needs no trip through the
+    /// pending queue (core `isTrustedFiling`).
+    var trusted: Bool { categoryId != nil && match == "exact" }
     /// The same shop, filed more than one way — fuel one week, a hot dog the next. History can only
     /// repeat the last of them, so nothing here is a decision: the entry has to be asked about.
     var ambiguous: Bool { variants > 1 }
     static let none = PayeeHistory()
+  }
+
+  /**
+   Words that say how the money moved, not who received it — "BLIK INTERNET: FLYSTORE.PL". As a
+   name's first word they say nothing about the shop, and matching on them files a bookshop under
+   groceries because both were paid for with BLIK.
+
+   The same list lives in core (`METHOD_WORDS`, packages/core/src/payee.ts) and in the parser
+   (`KPPaymentText.methodWords`). It cannot be shared: this file is compiled on its own into the
+   widget and watch targets and by the parity harness, and the parser is compiled on its own by
+   scripts/payment-parse. The parity harness is what catches them drifting apart.
+   */
+  private static let methodWords: Set<String> = [
+    "blik", "przelew", "przelewy", "przelewy24", "p24", "payu", "tpay", "dotpay", "paypal",
+    "platnosc", "platnosci", "zakup", "zakupy", "karta", "karty", "internet", "online", "ecommerce",
+    "mobile", "apple", "google", "pay", "visa", "mastercard", "payment", "transfer", "oplata", "web",
+    "переказ", "оплата", "платеж", "платіж",
+  ]
+
+  static func isMethodWord(_ word: String) -> Bool {
+    let folded = word.replacingOccurrences(of: "ł", with: "l").replacingOccurrences(of: "Ł", with: "L")
+      .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    return methodWords.contains(folded.components(separatedBy: CharacterSet.alphanumerics.inverted).joined())
   }
 
   /// SQLite half only — nil while JS owns the database; the app target's `payeeHistory`
@@ -677,33 +706,36 @@ enum KPStore {
     // of one chain ("ZABKA ZE212 K.5" / "ZABKA NANO 3087") still find each other. A name matches
     // whether it was filed as a payee or as a note: a Shortcut with only a note writes it into `notes`.
     let byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE)"
-    var tries: [(clause: String, binds: [String])] = []
-    if let s = shop, !s.isEmpty { tries.append((byName, [s, s])) }
-    if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, [t, t])) }
-    if let s = shop, let head = s.split(separator: " ").first.map(String.init), head.count >= 3, head != s {
-      tries.append(("payee LIKE ? COLLATE NOCASE", [head + "%"]))
+    var tries: [(clause: String, binds: [String], exact: Bool)] = []
+    if let s = shop, !s.isEmpty { tries.append((byName, [s, s], true)) }
+    if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, [t, t], true)) }
+    // A first word that says how you paid is no name at all, so there is nothing to widen to.
+    if let s = shop, let head = s.split(separator: " ").first.map(String.init), head.count >= 3, head != s,
+       !isMethodWord(head) {
+      tries.append(("payee LIKE ? COLLATE NOCASE", [head + "%"], false))
     }
     guard !tries.isEmpty else { return out }
 
     /// The newest past entry matching any of the names above, in that order, that also satisfies `has`.
-    /// Returns a stepped statement the caller reads and finalizes.
-    func newest(_ cols: String, _ has: String) -> OpaquePointer? {
+    /// Returns a stepped statement the caller reads and finalizes, and whether the name matched exactly.
+    func newest(_ cols: String, _ has: String) -> (stmt: OpaquePointer, exact: Bool)? {
       for t in tries {
         var stmt: OpaquePointer?
         let sql = "SELECT \(cols) FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND \(has) AND \(t.clause) ORDER BY date DESC LIMIT 1"
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
         for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
-        if sqlite3_step(stmt) == SQLITE_ROW { return stmt }
+        if sqlite3_step(stmt) == SQLITE_ROW, let stmt { return (stmt, t.exact) }
         sqlite3_finalize(stmt)
       }
       return nil
     }
     // Category and tags come from whichever single row matches, so they always describe one past
     // decision; a row with tags but no category still counts.
-    if let stmt = newest("category_id, tag_ids", "(category_id IS NOT NULL OR tag_ids <> '[]')") {
-      out.categoryId = opt(stmt, 0)
-      out.tagIds = jsonIds(str(stmt, 1))
-      sqlite3_finalize(stmt)
+    if let hit = newest("category_id, tag_ids", "(category_id IS NOT NULL OR tag_ids <> '[]')") {
+      out.categoryId = opt(hit.stmt, 0)
+      out.tagIds = jsonIds(str(hit.stmt, 1))
+      out.match = hit.exact ? "exact" : "similar"
+      sqlite3_finalize(hit.stmt)
     }
     // How many ways this name was filed, so a caller can tell a decision from a coin toss. Counted
     // over the same name that answered above, since `newest` takes the first one that matches at all.
@@ -718,11 +750,11 @@ enum KPStore {
     }
     // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
     // whether or not that is the entry the category came from.
-    if let stmt = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)") {
-      out.place = opt(stmt, 0)
-      if sqlite3_column_type(stmt, 1) != SQLITE_NULL { out.lat = sqlite3_column_double(stmt, 1) }
-      if sqlite3_column_type(stmt, 2) != SQLITE_NULL { out.lon = sqlite3_column_double(stmt, 2) }
-      sqlite3_finalize(stmt)
+    if let hit = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)") {
+      out.place = opt(hit.stmt, 0)
+      if sqlite3_column_type(hit.stmt, 1) != SQLITE_NULL { out.lat = sqlite3_column_double(hit.stmt, 1) }
+      if sqlite3_column_type(hit.stmt, 2) != SQLITE_NULL { out.lon = sqlite3_column_double(hit.stmt, 2) }
+      sqlite3_finalize(hit.stmt)
     }
     return out
   }
@@ -801,7 +833,8 @@ enum KPStore {
     return ok && ok2
   }
 
-  private static func distanceMeters(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
+  /// Rough great-circle distance in metres; good enough for "same shop" (core `distanceMeters`).
+  static func distanceMeters(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
     let r = 6_371_000.0, dLat = (lat2 - lat1) * .pi / 180, dLon = (lon2 - lon1) * .pi / 180
     let a = sin(dLat / 2) * sin(dLat / 2) + cos(lat1 * .pi / 180) * cos(lat2 * .pi / 180) * sin(dLon / 2) * sin(dLon / 2)
     return 2 * r * atan2(sqrt(a), sqrt(1 - a))

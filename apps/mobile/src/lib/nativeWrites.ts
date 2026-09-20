@@ -64,6 +64,9 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       const reply: Record<string, unknown> = {
         category_id: hist.category_id ?? undefined, tag_ids: hist.tag_ids,
         place: hist.place ?? undefined, lat: hist.lat ?? undefined, lon: hist.lon ?? undefined,
+        // Whether it was this very name or only one starting with the same word: the automation
+        // trusts the first and treats the second as a guess.
+        match: hist.match ?? undefined,
         // How many different ways this name was filed before. More than one and the automation has no
         // business picking for you: the entry stays pending so the sheet can ask which it was.
         variants: payeeOptions(db, str(w.payee), str(w.note)).length,

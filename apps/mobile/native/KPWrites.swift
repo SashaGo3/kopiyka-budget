@@ -144,7 +144,7 @@ extension KPStore {
   private static func history(_ reply: [String: Any]) -> PayeeHistory {
     PayeeHistory(categoryId: reply["category_id"] as? String, tagIds: reply["tag_ids"] as? [String] ?? [],
                  place: reply["place"] as? String, lat: reply["lat"] as? Double, lon: reply["lon"] as? Double,
-                 variants: reply["variants"] as? Int ?? 0)
+                 variants: reply["variants"] as? Int ?? 0, match: reply["match"] as? String)
   }
 
   /// What history knows about a shop or a note: the category and tags it was filed under last time and

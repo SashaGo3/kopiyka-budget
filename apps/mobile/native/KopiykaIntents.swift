@@ -453,7 +453,11 @@ struct LogPaymentIntent: AppIntent {
     // than one that is empty, but it is only ever offered *pending* and marked as a guess
     // (`source`), so the queue can say out loud which categories nobody has agreed to yet.
     var categoryId = history.categoryId
-    var guessed = false
+    // A category from history is a guess unless history recognised this exact name. The first-word
+    // rule ("ZABKA ZE212 K.5" finding "ZABKA NANO 3087") also makes "BLIK INTERNET: FLYSTORE.PL"
+    // look like every other online BLIK payment, so what it offers is worth a category and not the
+    // right to skip the queue.
+    var guessed = categoryId != nil && !history.trusted
     if categoryId == nil, let s = shop, let hit = LogPaymentIntent.matchCategory(s, KPStore.categoryRefs()) {
       categoryId = hit.id
       guessed = true
@@ -488,7 +492,14 @@ struct LogPaymentIntent: AppIntent {
     // bank settles it — for some banks every notification says so in as many words — so treating one
     // as unsettled would put every payment back in the queue and undo the whole point of history
     // filling a shop in. "Pending" already means exactly "not final yet".
-    let known = history.filedBefore && !converted && !history.ambiguous
+    // Where this shop was last seen, against where the phone says you are. A name filed before in
+    // another town is not this payment's shop, whatever it is called — so it fills the entry in and
+    // the entry still waits to be looked at.
+    var movedTown = false
+    if let fix, let hlat = history.lat, let hlon = history.lon {
+      movedTown = KPStore.distanceMeters(fix.latitude, fix.longitude, hlat, hlon) > KPStore.samePlaceRadiusM
+    }
+    let known = history.trusted && !converted && !history.ambiguous && !movedTown
 
     // The same amount on the same account, minutes ago, from a shop whose name is compatible: one tap,
     // two notifications (Wallet's and the bank app's), or iOS re-delivering one. Never a second entry.

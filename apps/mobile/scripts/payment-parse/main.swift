@@ -58,6 +58,9 @@ let samples: [(String, String?, String?, String?, Want)] = [
   // A bank that prints the purchase twice: the caller picks whichever matches the account (see `amounts`).
   ("Foreign purchase, both currencies", "Bank", nil, "Amount: 36,00 EUR (154,80 PLN)\nPlace: AMAZON", .payment),
   ("ATM withdrawal", "Bank", nil, "Wypłata z bankomatu 200,00 PLN\nMiejsce: BANKOMAT PKO, GDYNIA", .payment),
+  // An online BLIK purchase: the bank names the method and then the shop. The shop is the shop.
+  ("BLIK online", "Blocked balance", nil,
+   "Amount: 1957,52 PLN.\nAccount no.:  27..5837\nLocation: BLIK INTERNET: FLYSTORE.PL\nAvailable balance: +8986,75 PLN", .payment),
   ("Cash paid in", "Bank", nil, "Wpłata 500,00 PLN na rachunek", .payment),
   ("Salary in", "Bank", nil, "Wynagrodzenie 8 000,00 PLN", .payment),
   ("Swiss apostrophe thousands", "Bank", nil, "CHF 1'234.56 at MIGROS", .payment),
@@ -163,6 +166,24 @@ if args.isEmpty || args[0] == "--samples" {
     ("Same chain, other branch", "ZABKA ZE212 K.5", "ZABKA NANO 3087", false),
     ("Same shop, longer bank name", "El Gato Coffee", "El Gato Coffeee Roaste", true),
   ]
+  // Unwrapping the payment method: a bank wraps the shop in how it was paid for, and the wrapper is
+  // not a name. Everything before the colon has to be method words — a shop whose own name has a
+  // colon in it keeps it, or the entry would be filed under half a name.
+  let unwrapped: [(String, String)] = [
+    ("BLIK INTERNET: FLYSTORE.PL", "FLYSTORE.PL"),
+    ("Blik Internet: allegro.pl", "allegro.pl"),
+    ("ZAKUP KARTA: ROSSMANN 123", "ROSSMANN 123"),
+    ("PAYU: MEDIAEXPERT", "MEDIAEXPERT"),
+    ("BLIK: ZAKUP: EMPIK", "EMPIK"),
+    ("El Gato: Coffee Roasters", "El Gato: Coffee Roasters"),
+    ("ZABKA ZE212 K.5", "ZABKA ZE212 K.5"),
+    ("BLIK", "BLIK"),
+    ("BLIK INTERNET: PL", "BLIK INTERNET: PL"),
+  ]
+  for (input, expected) in unwrapped {
+    let got = KPPaymentText.unwrapMethod(input) ?? "-"
+    if got != expected { failures += 1; print("FAIL unwrap \(input) → \(got), expected \(expected)") }
+  }
   for (label, a, b, expected) in pairs {
     let got = KPPaymentText.sameMerchant(a, b)
     if got != expected { failures += 1; print("FAIL pairing (expected \(expected ? "merge" : "two entries"))") }
@@ -205,7 +226,7 @@ if args.isEmpty || args[0] == "--samples" {
     let got = KPPaymentText.issuer(title)
     if got != expected { failures += 1; print("FAIL issuer \(title) → \(got ?? "-"), expected \(expected ?? "-")") }
   }
-  let total = samples.count + blobs.count + pairs.count + issuers.count + directions.count + days.count + 9
+  let total = samples.count + blobs.count + pairs.count + issuers.count + directions.count + days.count + unwrapped.count + 9
   print(failures == 0 ? "\nall \(total) checks behaved as expected" : "\n\(failures) of \(total) checks went wrong")
   exit(failures == 0 ? 0 : 1)
 }

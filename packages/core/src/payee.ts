@@ -9,6 +9,16 @@ import type { SqlDriver, Row } from "./db";
 import type { Transaction } from "./models";
 import { getRow, jsonIds, save } from "./repo";
 
+/**
+ * How sure the match is.
+ *
+ * `"exact"` — this very name was filed by hand before, and repeating that decision cannot file the
+ * entry under the wrong thing. `"similar"` — only the first word matched, which is what lets the
+ * branches of a chain find each other ("ZABKA ZE212 K.5" / "ZABKA NANO 3087") and is a guess, not
+ * a decision: two shops can share a first word.
+ */
+export type PayeeMatch = "exact" | "similar";
+
 export interface PayeeHistory {
   /** From one single past row, together with `tag_ids`: they describe the same past decision. */
   category_id: string | null;
@@ -17,19 +27,54 @@ export interface PayeeHistory {
   place: string | null;
   lat: number | null;
   lon: number | null;
+  /** How the row that supplied the category was found; null when nothing was found. */
+  match: PayeeMatch | null;
 }
 
 /** Nothing is known about this name. */
 export function noPayeeHistory(): PayeeHistory {
-  return { category_id: null, tag_ids: [], place: null, lat: null, lon: null };
+  return { category_id: null, tag_ids: [], place: null, lat: null, lon: null, match: null };
+}
+
+/** History has a category for this name — by whatever route. Enough to fill the field in. */
+export function isFiledBefore(h: PayeeHistory): boolean {
+  return h.category_id !== null;
 }
 
 /**
- * History filed this name under a category before, so a new entry for it is already understood:
- * callers use this to skip the pending queue.
+ * History filed *this exact name* under a category before, so a new entry for it is already
+ * understood and needs no trip through the pending queue.
+ *
+ * A first-word match is deliberately not enough. "BLIK INTERNET: FLYSTORE.PL" and "BLIK INTERNET:
+ * ALLEGRO.PL" share everything but the shop, and the queue is exactly where an entry belongs when
+ * the only thing recognised about it is how it was paid for.
  */
-export function isFiledBefore(h: PayeeHistory): boolean {
-  return h.category_id !== null;
+export function isTrustedFiling(h: PayeeHistory): boolean {
+  return h.category_id !== null && h.match === "exact";
+}
+
+/**
+ * Words that are how you paid, not who you paid. Banks wrap the real shop in them — "BLIK
+ * INTERNET: FLYSTORE.PL", "Zakup kartą: ROSSMANN" — so as the first word of a name they say
+ * nothing about the shop, and matching on them files a bookshop under groceries because both were
+ * paid for with BLIK.
+ */
+const METHOD_WORDS = new Set([
+  "blik", "przelew", "przelewy", "przelewy24", "p24", "payu", "tpay", "dotpay", "paypal",
+  "platnosc", "platnosci", "zakup", "zakupy", "karta", "karty", "internet", "online", "ecommerce",
+  "mobile", "apple", "google", "pay", "visa", "mastercard", "payment", "transfer", "oplata", "web",
+  "переказ", "оплата", "платеж", "платіж",
+]);
+
+/**
+ * Is this first word a shop's, or only how the money moved? Accents and punctuation come off first
+ * ("płatność" → "platnosc"), so the list holds one spelling of each word — the same one the Swift
+ * copies hold (`KPStore.isMethodWord`, `KPPaymentText.unwrapMethod`), which fold the same way.
+ */
+function isMethodWord(word: string): boolean {
+  const folded = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\u0142/g, "l")
+    .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  return METHOD_WORDS.has(folded);
 }
 
 /**
@@ -38,17 +83,20 @@ export function isFiledBefore(h: PayeeHistory): boolean {
  * "ZABKA NANO 3087") still find each other. A name matches whether it was filed as a payee or as a
  * note, because a Shortcut that has only a note writes it into `notes`.
  */
-function nameTries(payee: string | null | undefined, note?: string | null): [string, string[]][] {
+function nameTries(payee: string | null | undefined, note?: string | null): { where: string; binds: string[]; match: PayeeMatch }[] {
   const shop = payee?.trim() || null;
   // The whole note, not its first line: an automation writes one line, and an exact match is the
   // only rule that cannot file an entry under the wrong thing.
   const title = note?.trim() || null;
   const byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE)";
-  const tries: [string, string[]][] = [];
-  if (shop) tries.push([byName, [shop, shop]]);
-  if (title && title.toLowerCase() !== shop?.toLowerCase()) tries.push([byName, [title, title]]);
+  const tries: { where: string; binds: string[]; match: PayeeMatch }[] = [];
+  if (shop) tries.push({ where: byName, binds: [shop, shop], match: "exact" });
+  if (title && title.toLowerCase() !== shop?.toLowerCase()) tries.push({ where: byName, binds: [title, title], match: "exact" });
   const head = shop?.split(" ")[0];
-  if (head && head.length >= 3 && head !== shop) tries.push(["payee LIKE ? COLLATE NOCASE", [`${head}%`]]);
+  // A first word that says how you paid is no name at all, so there is nothing to widen the search to.
+  if (head && head.length >= 3 && head !== shop && !isMethodWord(head)) {
+    tries.push({ where: "payee LIKE ? COLLATE NOCASE", binds: [`${head}%`], match: "similar" });
+  }
   return tries;
 }
 
@@ -65,10 +113,10 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
 
   /** The newest past entry matching any of the names above, in that order, that also satisfies `has`. */
   const newest = (cols: string, has: string) => {
-    for (const [where, binds] of tries) {
+    for (const t of tries) {
       const row = db.get<Row>(
-        `SELECT ${cols} FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${has} AND ${where} ORDER BY date DESC LIMIT 1`, binds);
-      if (row) return row;
+        `SELECT ${cols} FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${has} AND ${t.where} ORDER BY date DESC LIMIT 1`, t.binds);
+      if (row) return { row, match: t.match };
     }
     return undefined;
   };
@@ -79,11 +127,12 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
   // whether or not that is the entry the category came from.
   const seen = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)");
   return {
-    category_id: (filed?.category_id as string | null) ?? null,
-    tag_ids: jsonIds((filed?.tag_ids as string | null) ?? null),
-    place: (seen?.place as string | null) || null,
-    lat: (seen?.lat as number | null) ?? null,
-    lon: (seen?.lon as number | null) ?? null,
+    category_id: (filed?.row.category_id as string | null) ?? null,
+    tag_ids: jsonIds((filed?.row.tag_ids as string | null) ?? null),
+    place: (seen?.row.place as string | null) || null,
+    lat: (seen?.row.lat as number | null) ?? null,
+    lon: (seen?.row.lon as number | null) ?? null,
+    match: filed?.match ?? null,
   };
 }
 
@@ -107,9 +156,9 @@ export interface PayeeOption {
  * Empty when the name is new; a single entry means history is unambiguous.
  */
 export function payeeOptions(db: SqlDriver, payee: string | null | undefined, note?: string | null, limit = 6): PayeeOption[] {
-  for (const [where, binds] of nameTries(payee, note)) {
+  for (const t of nameTries(payee, note)) {
     const rows = db.all<Row>(
-      `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${FILED} AND ${where} ORDER BY date DESC LIMIT 200`, binds);
+      `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${FILED} AND ${t.where} ORDER BY date DESC LIMIT 200`, t.binds);
     if (!rows.length) continue;
     const out = new Map<string, PayeeOption>();
     for (const r of rows) {

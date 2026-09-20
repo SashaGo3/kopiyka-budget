@@ -44,6 +44,9 @@ function build(db: SqlDriver) {
   tx({ id: "t-gym", account_id: acc.id, date: "2026-09-02T10:00:00+02:00", amount_minor: -9900, notes: "Gym membership",
        category_id: "cat-subs", tag_ids: JSON.stringify(["health"]), place: "Zdrofit" });
   // Filed as a payee, asked about as a note.
+  // An online BLIK purchase filed by hand. Another one paid the same way must not inherit it: the
+  // only thing the two names share is how the money moved.
+  tx({ id: "t-blik", account_id: acc.id, date: "2026-09-02T10:00:00+02:00", amount_minor: -8900, payee: "BLIK INTERNET: ALLEGRO.PL", category_id: "cat-subs" });
   tx({ id: "t-netflix", account_id: acc.id, date: "2026-09-03T10:00:00+02:00", amount_minor: -1000, payee: "Netflix", category_id: "cat-subs" });
   // Neither category nor tags: not a match.
   tx({ id: "t-unfiled", account_id: acc.id, date: "2026-09-04T10:00:00+02:00", amount_minor: -500, payee: "Unfiled Shop" });
@@ -79,6 +82,8 @@ const questions: Questions = {
     { payee: null, note: "Netflix" },           // a note that was filed as a payee
     { payee: null, note: "Gym" },               // a prefix of a note is not a match
     { payee: "Revolut", note: null },           // transfer leg
+    { payee: "BLIK INTERNET: FLYSTORE.PL", note: null },  // another shop, same payment method: no match
+    { payee: "BLIK INTERNET: ALLEGRO.PL", note: null },   // the same shop again: exact, and trusted
     { payee: "", note: "" },                    // nothing asked
   ],
   payment: [

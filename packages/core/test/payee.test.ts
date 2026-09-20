@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createTransaction, getRow, remove, suggestCategoryNear } from "../src/repo";
-import { fillPending, isFiledBefore, noPayeeHistory, payeeHistory, payeeOptions, samePaymentSince } from "../src/payee";
+import { fillPending, isFiledBefore, isTrustedFiling, noPayeeHistory, payeeHistory, payeeOptions, samePaymentSince } from "../src/payee";
 
 function seed() {
   const db = openBunDb(); migrate(db);
@@ -26,13 +26,29 @@ describe("payeeHistory", () => {
     const { db, acc, food } = seed();
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "ZABKA ZE212 K.5", category_id: food.id, tag_ids: JSON.stringify(["snack"]) });
     createTransaction(db, { account_id: acc.id, date: "2026-09-05T10:00:00+02:00", amount_minor: -1200, payee: "ZABKA ZE212 K.5", category_id: food.id, tag_ids: JSON.stringify(["snack", "work"]) });
-    expect(payeeHistory(db, "zabka ze212 k.5")).toEqual({ ...nothing, category_id: food.id, tag_ids: ["snack", "work"] });
+    expect(payeeHistory(db, "zabka ze212 k.5")).toEqual({ ...nothing, category_id: food.id, tag_ids: ["snack", "work"], match: "exact" });
   });
 
-  test("first-word fallback matches a different branch of the same chain", () => {
+  test("first-word fallback matches a different branch of the same chain, and says it is only similar", () => {
     const { db, acc, food } = seed();
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "ZABKA ZE212 K.5", category_id: food.id, tag_ids: JSON.stringify(["snack"]) });
-    expect(payeeHistory(db, "ZABKA NANO 3087")).toEqual({ ...nothing, category_id: food.id, tag_ids: ["snack"] });
+    const h = payeeHistory(db, "ZABKA NANO 3087");
+    expect(h).toEqual({ ...nothing, category_id: food.id, tag_ids: ["snack"], match: "similar" });
+    // Good enough to fill the category in, not good enough to skip the queue.
+    expect(isFiledBefore(h)).toBe(true);
+    expect(isTrustedFiling(h)).toBe(false);
+  });
+
+  test("how you paid is not who you paid: a method word never widens the search", () => {
+    const { db, acc, food } = seed();
+    // An earlier online BLIK payment, filed by hand.
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "BLIK INTERNET: ALLEGRO.PL", category_id: food.id, tag_ids: JSON.stringify(["snack"]) });
+    // A different shop entirely, paid the same way. It used to inherit the category above, silently
+    // and without stopping in the queue, because both names begin with "BLIK".
+    expect(payeeHistory(db, "BLIK INTERNET: FLYSTORE.PL")).toEqual(nothing);
+    expect(payeeOptions(db, "BLIK INTERNET: FLYSTORE.PL")).toEqual([]);
+    // The same shop again still matches exactly, and is still trusted.
+    expect(isTrustedFiling(payeeHistory(db, "BLIK INTERNET: ALLEGRO.PL"))).toBe(true);
   });
 
   test("unknown shop returns empty", () => {
@@ -52,20 +68,20 @@ describe("payeeHistory", () => {
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Costa", category_id: food.id, place: "Costa, Gdansk", lat: 51.11, lon: 17.03 });
     // Newer, filed, but with no location: the category comes from here, the place from the row above.
     createTransaction(db, { account_id: acc.id, date: "2026-09-06T10:00:00+02:00", amount_minor: -1400, payee: "Costa", category_id: food.id, tag_ids: JSON.stringify(["coffee"]) });
-    expect(payeeHistory(db, "Costa")).toEqual({ category_id: food.id, tag_ids: ["coffee"], place: "Costa, Gdansk", lat: 51.11, lon: 17.03 });
+    expect(payeeHistory(db, "Costa")).toEqual({ category_id: food.id, tag_ids: ["coffee"], place: "Costa, Gdansk", lat: 51.11, lon: 17.03, match: "exact" });
   });
 
   test("a note matches a row that was filed under the same note", () => {
     const { db, acc, food } = seed();
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -900, notes: "Gym membership", category_id: food.id, tag_ids: JSON.stringify(["health"]), place: "Zdrofit" });
-    expect(payeeHistory(db, null, "gym membership")).toEqual({ category_id: food.id, tag_ids: ["health"], place: "Zdrofit", lat: null, lon: null });
+    expect(payeeHistory(db, null, "gym membership")).toEqual({ category_id: food.id, tag_ids: ["health"], place: "Zdrofit", lat: null, lon: null, match: "exact" });
     expect(payeeHistory(db, null, "Gym")).toEqual(nothing);
   });
 
   test("a note matches a row that was filed under that name as a payee", () => {
     const { db, acc, food } = seed();
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -900, payee: "Netflix", category_id: food.id });
-    expect(payeeHistory(db, null, "Netflix")).toEqual({ ...nothing, category_id: food.id });
+    expect(payeeHistory(db, null, "Netflix")).toEqual({ ...nothing, category_id: food.id, match: "exact" });
   });
 
   test("the shop wins over the note when both are known", () => {

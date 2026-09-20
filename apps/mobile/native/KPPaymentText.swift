@@ -307,9 +307,35 @@ enum KPPaymentText {
   private static let nextLabel = re(#"\s(?:\#(merchantLabels)|\#(cardLabels)|\#(amountLabels)|\#(senderLabels)|\#(referenceLabels)|\#(balanceLabels)|date|data|дата|time|godzina|час)\s*[:=]"#, [.caseInsensitive])
 
   static func merchant(in lines: [String]) -> String? {
-    for l in lines { if let m = first(merchantLine, l) { return tidy(cutAtLabel(m)) } }
-    for l in lines { if let m = first(merchantInline, l), amount(in: m) == nil { return tidy(m) } }
+    for l in lines { if let m = first(merchantLine, l) { return tidy(cutAtLabel(m)).flatMap(unwrapMethod) } }
+    for l in lines { if let m = first(merchantInline, l), amount(in: m) == nil { return tidy(m).flatMap(unwrapMethod) } }
     return nil
+  }
+
+  /// Words that say how the money moved, not who received it. Also in core (`METHOD_WORDS`) and in
+  /// `KPStore.isMethodWord`; each file is compiled on its own by a harness, so none of them can share it.
+  private static let methodWords: Set<String> = [
+    "blik", "przelew", "przelewy24", "p24", "payu", "tpay", "dotpay", "paypal", "platnosc", "platnosci",
+    "zakup", "zakupy", "karta", "karty", "karta", "internet", "online", "ecommerce", "mobile",
+    "apple", "google", "pay", "visa", "mastercard", "payment", "transfer", "oplata", "web",
+  ]
+
+  /**
+   Strip the payment method a bank wraps the shop in: "BLIK INTERNET: FLYSTORE.PL" is a purchase at
+   FLYSTORE.PL, not at a shop called BLIK.
+
+   Only when *everything* before the colon is method words, so "El Gato: Coffee Roasters" — a shop
+   whose name simply has a colon in it — is left exactly as it is. Without this the name filed is the
+   payment method, and every online BLIK purchase looks to history like the same shop.
+   */
+  static func unwrapMethod(_ name: String) -> String? {
+    guard let colon = name.firstIndex(of: ":") else { return name }
+    let head = String(name[name.startIndex..<colon])
+    let tail = String(name[name.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+    let words = fold(head).components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+    guard !words.isEmpty, words.allSatisfy({ methodWords.contains($0) }), tail.count >= 3 else { return name }
+    // The tail may wrap it again ("BLIK: ZAKUP: SHOP").
+    return unwrapMethod(tail) ?? tail
   }
 
   /// The card or account the money moved on.
