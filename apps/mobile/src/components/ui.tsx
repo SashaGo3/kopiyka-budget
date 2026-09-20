@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
+import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, R, S } from "@/constants/theme";
@@ -260,16 +260,60 @@ export function ScreenNote({ children }: { children: ReactNode }) {
   return <Text style={styles.screenNote}>{children}</Text>;
 }
 
-export function Empty({ title, hint }: { title: string; hint?: string }) {
+/**
+ * An empty list. `action` is for an emptiness the app put there itself — a scope, a month, a filter —
+ * so the way out is on the same screen as the nothing it caused.
+ */
+/**
+ * A migration in progress, over the whole screen.
+ *
+ * Writes here are synchronous — one SQLite transaction on the JS thread — so while one runs nothing
+ * renders, including this. It therefore has to be on screen *before* the work starts: put it up,
+ * let two frames go by (`runBusy` below), then write. That also means there is no progress to
+ * report: a transaction either happened or did not, and splitting it into reportable pieces would
+ * trade a truthful spinner for a database that can be left half converted.
+ */
+export function BusyOverlay({ label }: { label: string }) {
+  return (
+    <View style={styles.busy} accessibilityRole="progressbar" accessibilityLabel={label} accessibilityViewIsModal>
+      <View style={styles.busyCard}>
+        <ActivityIndicator size="large" color={C.label} />
+        <Text style={styles.busyText}>{label}</Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Show the overlay, then do the work. Two frames: one to commit the state change, one to let the
+ * screen actually paint it — a single `requestAnimationFrame` still lands before the pixels do, and
+ * the blocking write would then run behind an overlay nobody ever saw.
+ */
+export function runBusy(show: () => void, work: () => void, done: () => void): void {
+  show();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    try { work(); } finally { done(); }
+  }));
+}
+
+export function Empty({ title, hint, action }: { title: string; hint?: string; action?: { label: string; onPress: () => void } }) {
   return (
     <View style={{ padding: S.xxl, alignItems: "center", gap: S.sm }}>
       <Text style={{ color: C.secondary, fontSize: 17, fontWeight: "600" }}>{title}</Text>
       {hint ? <Text style={{ color: C.tertiary, textAlign: "center" }}>{hint}</Text> : null}
+      {action ? (
+        <Pressable onPress={action.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={action.label} style={({ pressed }) => pressed && { opacity: 0.6 }}>
+          <Text style={{ color: C.tint, fontSize: 15, fontWeight: "600", paddingTop: S.xs }}>{action.label}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  busy: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" },
+  busyCard: { alignItems: "center", gap: S.md, paddingHorizontal: S.xl, paddingVertical: S.xl, borderRadius: R.card, backgroundColor: C.card, minWidth: 200 },
+  busyText: { color: C.label, fontSize: 15, textAlign: "center" },
   screenNote: { color: C.tertiary, fontSize: 13, lineHeight: 18, paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.xs },
   title: { fontSize: 22, fontWeight: "700", color: C.label },
   subtle: { fontSize: 14, color: C.secondary },

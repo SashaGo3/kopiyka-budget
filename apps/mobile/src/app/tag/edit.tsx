@@ -6,7 +6,7 @@ import { COLORS, convertTagToCategory, createTag, getRow, jsonIds, listRows, rem
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Card, DeleteRow, ModalHeader, Row, SectionHeader, TagPill } from "@/components/ui";
+import { BusyOverlay, Card, DeleteRow, ModalHeader, Row, SectionHeader, TagPill, runBusy } from "@/components/ui";
 import { ALL_TIME } from "@/lib/filters";
 import { C, S } from "@/constants/theme";
 
@@ -17,6 +17,9 @@ export default function TagEdit() {
   const [name, setName] = useState(existing?.name ?? "");
   const [color, setColor] = useState<string | null>(existing?.color ?? null);
   const [scope, setScope] = useState<string[]>(() => (existing ? jsonIds(existing.category_ids) : []));
+  // The write is one synchronous transaction over every transaction carrying the tag, so the screen
+  // cannot render while it runs: the overlay goes up first and the work starts two frames later.
+  const [converting, setConverting] = useState(false);
   const cats = useQuery((d) => new Map(listRows(d, "categories", "deleted=0", [], "sort, name").map((c) => [c.id, c])));
   const uses = useQuery((d) => (existing ? d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions WHERE deleted=0 AND tag_ids LIKE ?`, [`%"${existing.id}"%`])?.n ?? 0 : 0), [existing?.id]);
   const keys = useMemo(() => ({ cats: newPickKey("tcats"), folder: newPickKey("tfolder"), color: newPickKey("tcolor") }), []);
@@ -27,7 +30,11 @@ export default function TagEdit() {
     const parent = folder === "top" ? null : folder;
     Alert.alert(`Turn “${existing.name}” into a category?`, `${uses} transaction${uses === 1 ? "" : "s"} will get the category “${existing.name}”${parent ? ` in ${getRow(db, "categories", parent)?.name ?? "the folder"}` : ""} and lose the tag. The tag is removed.`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Convert", style: "destructive", onPress: () => { mutate((d) => convertTagToCategory(d, existing.id, { parent_id: parent })); router.back(); } },
+      { text: "Convert", style: "destructive", onPress: () => runBusy(
+        () => setConverting(true),
+        () => mutate((d) => convertTagToCategory(d, existing.id, { parent_id: parent })),
+        () => { setConverting(false); router.back(); },
+      ) },
     ]);
   }, [existing, uses]));
   // Jump to this tag's transactions: the Transactions tab itself, filtered to it over all time (see
@@ -86,6 +93,7 @@ export default function TagEdit() {
         ) : null}
         {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label="Delete tag" onPress={del} /></View> : null}
       </ScrollView>
+      {converting ? <BusyOverlay label={`Converting ${uses} transaction${uses === 1 ? "" : "s"}…`} /> : null}
     </View>
   );
 }

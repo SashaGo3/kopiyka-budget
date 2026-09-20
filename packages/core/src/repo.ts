@@ -355,6 +355,79 @@ export function suggestCategoryNear(db: SqlDriver, lat: number, lon: number, rad
 }
 
 /**
+ * Turn a category into a tag — the mirror of `convertTagToCategory`, for a category that turned out
+ * to be a property of a purchase rather than a kind of it ("Lidl" under Food, not a category of its
+ * own).
+ *
+ * Every transaction and rule filed under it gets the new tag and is re-filed under `moveTo` — the
+ * parent folder, usually, which stops being a folder and becomes an ordinary category as soon as
+ * its last child leaves (rule 5) — or under nothing, if that is the answer given. The category is
+ * then deleted, and every id pointing at it is repaired in the same transaction:
+ *
+ * * a **budget** scoped to it alone becomes a budget on the new tag, which is the same intent
+ *   expressed the only other way the schema has. It must not simply lose the id: an empty scope
+ *   means *everything* (rule 5), so a 300 zł grocery budget would silently become a 300 zł budget
+ *   for the whole month. One scoped to several categories just drops this one.
+ * * an **insight** narrows the same way, and one left with nothing to point at is deleted rather
+ *   than widened to everything for the same reason.
+ * * a **tag** offered only for this category follows the transactions to `moveTo`, or — with
+ *   nowhere to follow to — loses the restriction and is offered everywhere, which is the only
+ *   remaining meaning of an empty list.
+ *
+ * A folder is refused: converting it would leave its categories parentless, and the caller is
+ * expected to say so rather than have the shape of the tree changed behind the question.
+ */
+export function convertCategoryToTag(db: SqlDriver, categoryId: string, o: { moveTo: string | null }): Tag {
+  const cat = getRow(db, "categories", categoryId);
+  if (!cat) throw new Error("Category not found");
+  if (folderIds(listRows(db, "categories", "deleted=0")).has(categoryId)) throw new Error("A folder cannot become a tag while it has categories inside it");
+  if (o.moveTo === categoryId) throw new Error("A category cannot be moved into itself");
+  return db.transaction(() => {
+    const tag = createTag(db, { name: cat.name, color: cat.color, category_ids: o.moveTo ? JSON.stringify([o.moveTo]) : "[]" });
+    const withTag = (ids: string[]) => JSON.stringify(ids.includes(tag.id) ? ids : [...ids, tag.id]);
+    for (const t of listRows(db, "transactions", "deleted=0 AND category_id=?", [categoryId])) {
+      save(db, "transactions", { ...t, category_id: o.moveTo, tag_ids: withTag(tagIdsOf(t)) });
+    }
+    for (const r of listRows(db, "recurring_rules", "deleted=0 AND category_id=?", [categoryId])) {
+      save(db, "recurring_rules", { ...r, category_id: o.moveTo, tag_ids: withTag(jsonIds(r.tag_ids)) });
+    }
+    for (const b of listRows(db, "budgets", "deleted=0")) {
+      const ids = budgetCategoryIds(b);
+      if (!ids.includes(categoryId)) continue;
+      const rest = ids.filter((id) => id !== categoryId);
+      // Alone in its scope: the budget was about this spending, and the tag is now what carries it.
+      if (!rest.length) save(db, "budgets", scopedBudget({ ...b, category_ids: "[]", category_id: null, tag_id: b.tag_id ?? tag.id }));
+      else save(db, "budgets", scopedBudget({ ...b, category_ids: JSON.stringify(rest) }));
+    }
+    for (const i of listRows(db, "insights", "deleted=0")) {
+      const params = parseParams(i.params);
+      const ids = Array.isArray(params.category_ids) ? (params.category_ids as string[]) : [];
+      if (!ids.includes(categoryId)) continue;
+      const rest = ids.filter((id) => id !== categoryId);
+      if (rest.length) save(db, "insights", { ...i, params: JSON.stringify({ ...params, category_ids: rest }) });
+      else remove(db, "insights", i.id);
+    }
+    for (const t of listRows(db, "tags", "deleted=0")) {
+      const ids = jsonIds(t.category_ids);
+      if (!ids.includes(categoryId)) continue;
+      const rest = ids.filter((id) => id !== categoryId);
+      const moved = o.moveTo && !rest.includes(o.moveTo) ? [...rest, o.moveTo] : rest;
+      save(db, "tags", { ...t, category_ids: JSON.stringify(moved) });
+    }
+    remove(db, "categories", categoryId);
+    return tag;
+  });
+}
+
+/** An insight's params, or an empty object when the row holds something unreadable. */
+function parseParams(params: string): Record<string, unknown> {
+  try {
+    const p: unknown = JSON.parse(params);
+    return p && typeof p === "object" ? (p as Record<string, unknown>) : {};
+  } catch { return {}; }
+}
+
+/**
  * Turn a tag into a category: every transaction (and rule) carrying the tag gets the new
  * category and loses the tag; the tag is deleted. Returns the new category.
  */

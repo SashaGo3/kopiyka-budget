@@ -2,11 +2,11 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { COLORS, autoIcon, createCategory, getRow, listRows, remove, save, type Category } from "@kopiyka/core";
+import { COLORS, autoIcon, convertCategoryToTag, createCategory, getRow, listRows, remove, save, type Category } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
-import { Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow } from "@/components/ui";
+import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow, runBusy } from "@/components/ui";
 import { ALL_TIME } from "@/lib/filters";
 import { C, S } from "@/constants/theme";
 
@@ -34,7 +34,7 @@ export default function CategoryEdit() {
   /** Folder colour → every category inside it, applied on Save so Cancel still undoes everything. */
   const [recolour, setRecolour] = useState(false);
   const uses = useQuery((d) => (existing ? d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE t.deleted=0 AND (t.category_id=? OR c.parent_id=?)`, [existing.id, existing.id])?.n ?? 0 : 0), [existing?.id]);
-  const keys = useMemo(() => ({ icon: newPickKey("cicon"), color: newPickKey("ccolor"), folder: newPickKey("cfolder") }), []);
+  const keys = useMemo(() => ({ icon: newPickKey("cicon"), color: newPickKey("ccolor"), folder: newPickKey("cfolder"), where: newPickKey("cwhere"), moveTo: newPickKey("cmoveto") }), []);
   usePickResult<string | null>(keys.icon, useCallback((v) => setIcon(v), []));
   usePickResult<string | null>(keys.color, useCallback((v) => setColor(v), []));
   usePickResult<string>(keys.folder, useCallback((v) => setParentId(v), []));
@@ -47,6 +47,42 @@ export default function CategoryEdit() {
     setTimeout(() => router.push({ pathname: "/transactions", params: { category: existing.id, name: existing.name, from: ALL_TIME, nonce: String(Date.now()) } }), 350);
   };
   const parentFolder = parentId ? parents.find((p) => p.id === parentId) ?? null : null;
+
+  // ---- Turn this category into a tag -------------------------------------------------------------
+  // The mirror of the tag editor's "Turn into a category", for a category that turned out to be a
+  // property of a purchase rather than a kind of it: "Lidl" belongs on a Food expense, not beside it.
+  // Where its transactions end up is asked rather than assumed — the folder it is in is the usual
+  // answer, but a shop moved out of "Groceries" may belong anywhere.
+  const [converting, setConverting] = useState(false);
+  const convert = (moveTo: string | null) => {
+    if (!existing) return;
+    const home = moveTo ? getRow(db, "categories", moveTo)?.name ?? "another category" : null;
+    Alert.alert(`Turn “${existing.name}” into a tag?`,
+      `${uses} transaction${uses === 1 ? "" : "s"} will get the tag “${existing.name}” and ${home ? `move to ${home}` : "be left without a category"}. The category is removed.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Convert", style: "destructive", onPress: () => runBusy(
+        () => setConverting(true),
+        () => mutate((d) => convertCategoryToTag(d, existing.id, { moveTo })),
+        () => { setConverting(false); router.back(); },
+      ) },
+    ]);
+  };
+  usePickResult<string>(keys.moveTo, useCallback((id: string) => convert(id || null), [existing?.id, uses])); // eslint-disable-line react-hooks/exhaustive-deps
+  usePickResult<string>(keys.where, useCallback((v: string) => {
+    if (v === "none") { convert(null); return; }
+    if (v !== "pick") { convert(v); return; }
+    // The first sheet is still dismissing; push the picker once it is gone (same as pickDay in Settings).
+    setTimeout(() => router.push({ pathname: "/pick/category", params: { key: keys.moveTo, kind: existing?.kind ?? "expense", selected: "" } }), 450);
+  }, [existing?.id, existing?.kind, keys.moveTo, uses])); // eslint-disable-line react-hooks/exhaustive-deps
+  const askWhere = () => {
+    if (!existing) return;
+    const options = [
+      ...(parentFolder ? [{ value: parentFolder.id, label: parentFolder.name, subtitle: "The folder it is in — which becomes an ordinary category once this is its last one" }] : []),
+      { value: "pick", label: "Another category…", subtitle: "Choose where these transactions belong" },
+      { value: "none", label: "Leave them uncategorised", subtitle: "They keep the tag and nothing else" },
+    ];
+    router.push({ pathname: "/pick/option", params: { key: keys.where, title: `Where do the ${uses} transactions go?`, options: JSON.stringify(options) } });
+  };
   // A category with no colour of its own takes its folder's, so a folder that was given a colour
   // really does colour what is inside it. It is stored on Save, not resolved at display time:
   // every list, chart and widget already reads the category's own colour and none of them knows
@@ -122,10 +158,19 @@ export default function CategoryEdit() {
           <>
             <SectionHeader>Transactions</SectionHeader>
             <Card><Row icon="list.bullet" iconColor="#8E8E93" title={`${uses} transaction${uses === 1 ? "" : "s"}`} subtitle={isFolder ? "In this folder, all time" : "With this category, all time"} onPress={uses ? showTransactions : undefined} /></Card>
+            <SectionHeader>Convert</SectionHeader>
+            <Card>
+              <Row icon="number" iconColor="#5E5CE6" title="Turn into a tag"
+                subtitle={hasChildren
+                  ? "Not while there are categories inside it — move or convert those first"
+                  : `Its ${uses} transaction${uses === 1 ? "" : "s"} keep their history, gain the tag and move where you choose`}
+                onPress={hasChildren ? undefined : askWhere} />
+            </Card>
           </>
         ) : null}
         {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label={isFolder ? "Delete folder" : "Delete category"} onPress={del} /></View> : null}
       </ScrollView>
+      {converting ? <BusyOverlay label={`Converting ${uses} transaction${uses === 1 ? "" : "s"}…`} /> : null}
     </View>
   );
 }
