@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { dueManualRules, formatMinor, getRow, jsonIds, listRows, oneCurrency, remove, save, trimNumber, type Transaction } from "@kopiyka/core";
@@ -10,7 +11,7 @@ import { TransactionList, sortByAmount, useTransactions } from "@/components/Tra
 import { BarButton, BottomBar, LogButton, useScrollHide } from "@/components/BottomBar";
 import { PeriodPill } from "@/components/PeriodPill";
 import { ScopePill } from "@/components/ScopePill";
-import { Money, StatPair } from "@/components/ui";
+import { Empty, Money, StatPair } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
 import { EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
@@ -19,6 +20,10 @@ import { getBaseCurrency, useRates } from "@/lib/rates";
 import { getBudgetScope, getHideIncome, setBudgetScope } from "@/lib/settings";
 import { scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
 import { markBooted } from "@/lib/boot";
+import { isPad } from "@/constants/layout";
+
+/** Two presses of the tab within this are one gesture, not two taps. */
+const DOUBLE_PRESS_MS = 400;
 
 /** A currency → total map as the list `oneCurrency` takes. */
 const perList = (m: Map<string, number>) => [...m].map(([currency, minor]) => ({ currency, minor }));
@@ -53,12 +58,36 @@ export default function TransactionsScreen() {
   const [sortGen, setSortGen] = useState(0);
   useEffect(() => { if (p.nonce) { setFilter(fromParams()); setSort("date"); setSortGen((g) => g + 1); } }, [p.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const navigation = useNavigation();
+  const lastTabPress = useRef(0);
+  // What the tab-press handler needs to read without being re-subscribed on every keystroke.
+  const shown = useRef({ filter, period });
+  shown.current = { filter, period };
   useEffect(() => {
     const tabs = navigation.getParent();
     if (!tabs) return;
+    /** The accounts the screen shows when nothing is filtered: whatever the scope pill says. */
+    const scoped = () => scopeAccountIds(getBudgetScope(), listRows(db, "accounts", "deleted=0"));
     return (tabs as { addListener: (type: string, cb: () => void) => () => void }).addListener("tabPress", () => {
-      if (navigation.isFocused()) return;   // re-tap of the current tab: iOS scrolls to the top, filters stay
-      setFilter({ ...EMPTY_FILTER, accounts: scopeAccountIds(getBudgetScope(), listRows(db, "accounts", "deleted=0")) });
+      if (navigation.isFocused()) {
+        // Re-tap of the tab already on screen: iOS scrolls to the top, and a single press means
+        // nothing else. A second one straight after it clears the filters — the quickest way back
+        // to the whole month from wherever Budgets or a category editor sent you. The period and
+        // the account scope are deliberately left alone: both are shared with Budgets, and both
+        // have a pill of their own right there. The search text stays too, because on the search
+        // tab the field is the truth and clearing one without the other leaves them disagreeing.
+        const now = Date.now();
+        const twice = now - lastTabPress.current < DOUBLE_PRESS_MS;
+        lastTabPress.current = twice ? 0 : now;
+        if (!twice) return;
+        const inScope = scoped();
+        const { filter: f, period: per } = shown.current;
+        if (!activeCount(f, { accounts: inScope, period: per })) return;   // nothing to clear: no jolt, no haptic
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setFilter({ ...EMPTY_FILTER, q: f.q, accounts: inScope });
+        setSort("date"); setSortGen((g) => g + 1);
+        return;
+      }
+      setFilter({ ...EMPTY_FILTER, accounts: scoped() });
       setSort("date"); setSortGen((g) => g + 1);   // the period is shared with Budgets: whatever month is open stays open
     });
   }, [navigation]);
@@ -141,6 +170,29 @@ export default function TransactionsScreen() {
     } : undefined,
   });
   const toggleSort = () => { setSort((s) => (s === "date" ? "amount" : "date")); setSortGen((g) => g + 1); };
+  /**
+   * An empty list that says why it is empty. Every reason is something the screen is doing —
+   * the account scope, the month, the filter sheet — and each of them is a pill or a badge the
+   * eye slides straight past. A device that has just merged another one's data is the case that
+   * made this necessary: it is scoped to the one account it was set up with, every transaction
+   * that arrived belongs to the others, and "No transactions" was the only thing it said.
+   */
+  const narrowing = [
+    scope ? `from ${scopeLabel(scope, accounts)}` : null,
+    custom ? rangeLabel(filter.from, filter.to).toLowerCase() : `in ${period.subtitle ?? period.title}`,
+    n ? `with ${n} filter${n === 1 ? "" : "s"} on` : null,
+  ].filter(Boolean);
+  const showEverything = () => {
+    setBudgetScope("");
+    setFilter({ ...EMPTY_FILTER });
+    setPeriod(currentPeriod());
+    setSort("date"); setSortGen((g) => g + 1);
+  };
+  const emptyList = (
+    <Empty title="No transactions"
+      hint={`Nothing ${narrowing.join(", ")}.`}
+      action={{ label: "Show everything", onPress: showEverything }} />
+  );
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: "Spending from", options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
   // Multi-edit. `selected` is null outside selection mode.
@@ -217,7 +269,7 @@ export default function TransactionsScreen() {
         headerSearchBarOptions: isSearchTab ? { placeholder: "Search notes, categories, amounts", hideWhenScrolling: false, autoFocus: true,
           onChangeText: (e) => { const text = e?.nativeEvent?.text ?? ""; setFilter((f) => (f.q === text ? f : { ...f, q: text })); },
           onCancelButtonPress: () => setFilter((f) => (f.q ? { ...f, q: "" } : f)) } : undefined }} />
-      <TransactionList rows={sorted} flat={sort === "amount"} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} header={
+      <TransactionList rows={sorted} flat={sort === "amount"} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} empty={emptyList} header={
         <>
           {/* Same place as on Budgets: under the large title, so they scroll away with it instead of crowding the compact bar. */}
           {!custom && !selecting ? (
@@ -273,8 +325,12 @@ export default function TransactionsScreen() {
           </>
         ) : (
           <>
-            <BarButton icon="line.3.horizontal.decrease" label={n ? String(n) : undefined} active={n > 0} onPress={() => router.push({ pathname: "/filter", params: { key: keys.filter, value: JSON.stringify(filter) } })} a11y={n ? `Filters, ${n} active` : "Filters"} />
-            <BarButton icon={sort === "date" ? "arrow.up.arrow.down" : "arrow.down.to.line"} active={sort === "amount"} onPress={toggleSort} a11y={sort === "date" ? "Sort by amount" : "Sort by date"} />
+            {/* In the iPad column there is room for the words, and a column of icons alone is a
+                puzzle; on a phone the bar is in the thumb zone and the count is all that fits. */}
+            <BarButton icon="line.3.horizontal.decrease" label={isPad ? (n ? `Filters · ${n}` : "Filter") : n ? String(n) : undefined}
+              active={n > 0} onPress={() => router.push({ pathname: "/filter", params: { key: keys.filter, value: JSON.stringify(filter) } })} a11y={n ? `Filters, ${n} active` : "Filters"} />
+            <BarButton icon={sort === "date" ? "arrow.up.arrow.down" : "arrow.down.to.line"} label={isPad ? (sort === "date" ? "By date" : "By amount") : undefined}
+              active={sort === "amount"} onPress={toggleSort} a11y={sort === "date" ? "Sort by amount" : "Sort by date"} />
             <LogButton />
           </>
         )}

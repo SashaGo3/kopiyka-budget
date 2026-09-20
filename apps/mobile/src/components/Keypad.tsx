@@ -3,7 +3,6 @@ import { Alert, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyl
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr } from "@kopiyka/core";
-import { useT } from "@/i18n";
 import { C, R, S } from "@/constants/theme";
 export { applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr };
 
@@ -34,21 +33,27 @@ const GRID: string[][] = [["7", "8", "9", "⌫"], ["4", "5", "6", "C"], ["1", "2
 const OPS = ["÷", "×", "−", "+"];
 
 export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign }: KeypadProps) {
-  const t = useT();
+  // The decimal point applies to the number being typed — the part after the last operator — so
+  // that tail is what says whether it has been pressed. Lit while decimals are being typed (the
+  // next digit is a cent, not a zloty), and dimmed once both of them are there, because the key
+  // stops doing anything then (`applyKey`: two decimals max).
+  const tail = value.split(/[+−×÷]/).pop() ?? "";
+  const dotOn = tail.includes(".");
+  const dotSpent = (tail.split(".")[1]?.length ?? 0) >= 2;
   const press = useCallback((k: string) => {
     void Haptics.selectionAsync();
     if (k === "±") { onToggleSign?.(); return; }
     if (k === "C") {
       if (!value) return;
-      Alert.alert(t("Clear amount?"), undefined, [{ text: t("Cancel"), style: "cancel" }, { text: t("Clear"), style: "destructive", onPress: () => onChange("") }]);
+      Alert.alert("Clear amount?", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Clear", style: "destructive", onPress: () => onChange("") }]);
       return;
     }
     onChange(applyKey(value, k), k);
-  }, [value, onChange, onToggleSign, t]);
+  }, [value, onChange, onToggleSign]);
   return (
     <View style={styles.wrap}>
       <View style={styles.ops}>
-        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("Divide") : o === "×" ? t("Multiply") : o === "−" ? t("Subtract") : t("Add")} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
+        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? "Divide" : o === "×" ? "Multiply" : o === "−" ? "Subtract" : "Add"} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
       </View>
       {GRID.map((row, i) => (
         <View key={i} style={styles.row}>
@@ -77,12 +82,15 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             const wide = k === "0";
             const fn = k === "⌫" || k === "C" || k === "±";
             if (k === "±" && !allowSign) return <View key={k} style={styles.key} />;
+            const dot = k === ".";
             return (
               <Pressable key={k} onPress={() => press(k)} onLongPress={k === "⌫" ? () => onChange("") : undefined}
-                style={({ pressed }) => [styles.key, wide && styles.wide, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={k === "⌫" ? t("Delete") : k === "C" ? t("Clear") : k === "±" ? t("Change sign") : k}>
+                style={({ pressed }) => [styles.key, wide && styles.wide, dot && dotOn && (dotSpent ? styles.dotSpent : styles.dotKey), pressed && styles.pressed]}
+                accessibilityRole="button" accessibilityLabel={k === "⌫" ? "Delete" : k === "C" ? "Clear" : k === "±" ? "Change sign" : dot ? "Decimal point" : k}
+                accessibilityState={dot ? { selected: dotOn, disabled: dotSpent } : undefined}>
                 {k === "⌫" ? <SymbolView name="delete.left" size={22} tintColor={C.label} />
                   : k === "±" ? <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
-                  : <Text style={[styles.keyText, k === "C" && styles.clear, fn && styles.fnText]} maxFontSizeMultiplier={1.3}>{k}</Text>}
+                  : <Text style={[styles.keyText, k === "C" && styles.clear, fn && styles.fnText, dot && dotOn && !dotSpent && styles.dotText]} maxFontSizeMultiplier={1.3}>{k}</Text>}
               </Pressable>
             );
           })}
@@ -126,6 +134,10 @@ const styles = StyleSheet.create({
   keyText: { fontSize: 27, fontWeight: "500", color: C.label, fontVariant: ["tabular-nums"] },
   fnText: { fontSize: 22 },
   clear: { color: C.orange, fontWeight: "600" },
+  // The same "this key is on" language as the Category and Tags keys below it.
+  dotKey: { backgroundColor: C.tint },
+  dotText: { color: C.onTint, fontWeight: "700" },
+  dotSpent: { opacity: 0.4 },
   extra: { flex: 2.08, flexDirection: "row", borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", gap: 6, paddingHorizontal: 8 },
   extraActive: { backgroundColor: C.tint, borderStyle: "solid" },
   extraText: { fontSize: 14, color: C.tint, fontWeight: "600", flexShrink: 1 },
