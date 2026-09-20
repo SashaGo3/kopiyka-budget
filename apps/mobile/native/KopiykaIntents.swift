@@ -463,7 +463,7 @@ struct LogPaymentIntent: AppIntent {
     // stationery — so it lands pending and marked, and it is asked for last because it is the one
     // question that may cost a round-trip to the app (op "suggest"; the word match is in-process).
     if categoryId == nil, let fix {
-      categoryId = await KPStore.suggestCategoryNear(lat: fix.latitude, lon: fix.longitude, timeout: 1.5)
+      categoryId = await KPStore.suggestCategoryNear(lat: fix.latitude, lon: fix.longitude, place: location?.kpPlaceName, timeout: 1.5)
       guessed = categoryId != nil
     }
     // Where the payment happened: the fix the automation handed over, else what the shop's history

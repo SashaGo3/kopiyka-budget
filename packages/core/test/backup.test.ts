@@ -227,8 +227,10 @@ describe("tags per category and place suggestions", () => {
     setHome(db, { lat: 52.2297, lon: 21.0122, place: "Home" });
     expect(getHome(db)).toEqual({ lat: 52.2297, lon: 21.0122, place: "Home" });
     expect(suggestCategoryNear(db, 52.2298, 21.0123)).toBeNull();
-    // 50 m is the edge: ~120 m away the suggestion is back even with home set.
-    expect(suggestCategoryNear(db, 52.2308, 21.0123)?.category_id).toBe(coffee.id);
+    // 50 m is the edge: with home ~66 m up the road, standing at the cafe is out of the home
+    // circle and still well inside NEAR_RADIUS_M of the rows, so the suggestion is back.
+    setHome(db, { lat: 52.2303, lon: 21.0122, place: "Home" });
+    expect(suggestCategoryNear(db, 52.2297, 21.0122)?.category_id).toBe(coffee.id);
     setHome(db, null);
     expect(getHome(db)).toBeNull();
     expect(suggestCategoryNear(db, 52.2298, 21.0123)?.category_id).toBe(coffee.id);

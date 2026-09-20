@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
-import { createAccount, createCategory, createTag, createTransaction } from "../src/repo";
+import { NEAR_RADIUS_M, createAccount, createCategory, createTag, createTransaction, distanceMeters, setHome, suggestCategoryAt } from "../src/repo";
 import { suggestBudget } from "../src/suggest";
 
 function seed() {
@@ -122,5 +122,81 @@ describe("suggestBudget over a longer history", () => {
     expect(r.all_periods).toBe(1);
     expect(r.all_minor).toBe(9000);
     expect(r.year_minor).toBeNull();          // nothing more to say than the short average
+  });
+});
+
+describe("suggesting a category for where you are", () => {
+  const SHOP = { lat: 52.2297, lon: 21.0122 };
+  /** ~120 m east: a different shop on the same street, well outside the 80 m radius. */
+  const NEXT_DOOR = { lat: 52.2297, lon: 21.0140 };
+
+  function world() {
+    const db = openBunDb();
+    migrate(db);
+    const acc = createAccount(db, { name: "Cash", currency: "PLN" });
+    const food = createCategory(db, { name: "Food" });
+    const fuel = createCategory(db, { name: "Fuel" });
+    const at = (c: { lat: number; lon: number }, category_id: string, place: string | null, date = "2026-09-07T10:00:00+02:00") =>
+      createTransaction(db, { account_id: acc.id, date, amount_minor: -500, category_id, lat: c.lat, lon: c.lon, place });
+    return { db, food, fuel, at };
+  }
+
+  test("the same place by name wins, even when the fix landed down the street", () => {
+    const { db, food, fuel, at } = world();
+    at(SHOP, food.id, "Biedronka");
+    at(NEXT_DOOR, fuel.id, "Orlen");
+    // Standing at the petrol station's coordinates, but the geocoder says Biedronka.
+    const hit = suggestCategoryAt(db, { ...NEXT_DOOR, place: "biedronka" });
+    expect(hit?.category_id).toBe(food.id);
+    expect(hit?.by).toBe("place");
+  });
+
+  test("punctuation and accents do not make it a different place", () => {
+    const { db, food, at } = world();
+    at(SHOP, food.id, "Żabka Nano 3087");
+    expect(suggestCategoryAt(db, { ...SHOP, place: "zabka  nano 3087!" })?.category_id).toBe(food.id);
+  });
+
+  test("the same name far away is a different shop", () => {
+    const { db, food, at } = world();
+    at(SHOP, food.id, "Biedronka");
+    const abroad = { lat: 50.0647, lon: 19.945 };   // Kraków, ~250 km
+    expect(suggestCategoryAt(db, { ...abroad, place: "Biedronka" })).toBeNull();
+  });
+
+  test("with no name it falls back to what is nearby, and the neighbour is not nearby", () => {
+    const { db, food, fuel, at } = world();
+    at(SHOP, food.id, "Biedronka");
+    at(NEXT_DOOR, fuel.id, "Orlen");
+    const hit = suggestCategoryAt(db, { ...SHOP, place: null });
+    expect(hit?.category_id).toBe(food.id);
+    expect(hit?.by).toBe("near");
+    // 150 m used to reach across the street; 80 m does not.
+    expect(distanceMeters(SHOP.lat, SHOP.lon, NEXT_DOOR.lat, NEXT_DOOR.lon)).toBeGreaterThan(NEAR_RADIUS_M);
+  });
+
+  test("a name nobody has filed before falls back rather than giving up", () => {
+    const { db, food, at } = world();
+    at(SHOP, food.id, "Biedronka");
+    expect(suggestCategoryAt(db, { ...SHOP, place: "Somewhere new" })?.by).toBe("near");
+  });
+
+  test("home is still home, whatever it is called", () => {
+    const { db, food, at } = world();
+    at(SHOP, food.id, "Biedronka");
+    setHome(db, { ...SHOP, place: "Home" });
+    expect(suggestCategoryAt(db, { ...SHOP, place: "Biedronka" })).toBeNull();
+  });
+
+  test("most used at the place wins, ties going to the most recent", () => {
+    const { db, food, fuel, at } = world();
+    at(SHOP, fuel.id, "Biedronka", "2026-09-01T10:00:00+02:00");
+    at(SHOP, food.id, "Biedronka", "2026-09-02T10:00:00+02:00");
+    at(SHOP, food.id, "Biedronka", "2026-09-03T10:00:00+02:00");
+    expect(suggestCategoryAt(db, { ...SHOP, place: "Biedronka" })?.category_id).toBe(food.id);
+    const tie = world();
+    tie.at(SHOP, tie.fuel.id, "Biedronka", "2026-09-01T10:00:00+02:00");
+    tie.at(SHOP, tie.food.id, "Biedronka", "2026-09-05T10:00:00+02:00");
+    expect(suggestCategoryAt(tie.db, { ...SHOP, place: "Biedronka" })?.category_id).toBe(tie.food.id);
   });
 });

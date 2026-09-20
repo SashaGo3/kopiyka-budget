@@ -10,7 +10,8 @@ import CoreLocation
 ///  - "state"          → reply { state: <KPWatchState JSON> }
 ///  - "addTransaction" → write into SQLite, reply { ok, state }
 ///  - "delete"         → tombstone a transaction, reply { ok, state }
-///  - "suggest"        → { lat, lon } → reply { category_id? } (core `suggestCategoryNear`)
+///  - "suggest"        → { lat, lon, place? } → reply { category_id? } (core `suggestCategoryAt`).
+///                       The watch sends no place name — it has no geocoder — so it gets the coordinate search.
 /// Phone → watch: the full state as the application context (last value wins).
 final class WatchBridge: NSObject, WCSessionDelegate {
   static let shared = WatchBridge()

@@ -585,21 +585,41 @@ enum KPStore {
 
   /// No category is suggested this close to home (core `HOME_RADIUS_M`).
   static let homeRadiusM: Double = 50
-  /// Port of core `suggestCategoryNear`: the category used most within `radiusM` of a point.
-  /// SQLite half only — nil while JS owns the database; the app target's `suggestCategoryNear`
-  /// (native/KPWrites.swift) then asks JS instead, because the location history is far too big
-  /// for the state file.
-  static func localSuggestCategoryNear(lat: Double, lon: Double, radiusM: Double = 150) -> String? {
-    withDatabase { suggestCategoryNear($0, lat: lat, lon: lon, radiusM: radiusM) }
+  /// "Here", with only a coordinate to go on (core `NEAR_RADIUS_M`). 80 m is roughly a fix's own
+  /// error; the 150 m this used to be reached across the street and suggested the neighbour's category.
+  static let nearRadiusM: Double = 80
+  /// How far a row with the same place name may be and still be the same place (core `SAME_PLACE_RADIUS_M`).
+  static let samePlaceRadiusM: Double = 2000
+
+  /// A place name reduced to what counts as the same place. Mirrors core `placeKey`, which the app
+  /// matches with — the two must agree or the same shop would be two places depending on who asked.
+  static func placeKey(_ place: String) -> String {
+    let folded = place.replacingOccurrences(of: "ł", with: "l").replacingOccurrences(of: "Ł", with: "L")
+      .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    let parts = folded.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+    return parts.joined(separator: " ")
   }
 
-  private static func suggestCategoryNear(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double) -> String? {
-    // At home anything gets bought, so no category is suggested there (meta `home_lat`/`home_lon`, set in Settings).
-    if let h = home(db), distanceMeters(lat, lon, h.lat, h.lon) <= homeRadiusM { return nil }
+  /// Port of core `suggestCategoryAt`: what was filed at this place before, else what is filed
+  /// around here. SQLite half only — nil while JS owns the database; the app target's
+  /// `suggestCategoryNear` (native/KPWrites.swift) then asks JS instead, because the location
+  /// history is far too big for the state file.
+  static func localSuggestCategoryNear(lat: Double, lon: Double, place: String? = nil, radiusM: Double = nearRadiusM) -> String? {
+    withDatabase { db in
+      if let h = home(db), distanceMeters(lat, lon, h.lat, h.lon) <= homeRadiusM { return nil }
+      let key = place.map(placeKey) ?? ""
+      if !key.isEmpty, let named = pickNearby(db, lat: lat, lon: lon, radiusM: samePlaceRadiusM, keep: { placeKey($0 ?? "") == key }) { return named }
+      return pickNearby(db, lat: lat, lon: lon, radiusM: radiusM, keep: { _ in true })
+    }
+  }
+
+  /// The most-used category among rows within `radiusM` that `keep` accepts; ties go to the most
+  /// recent, because the rows arrive newest first and the maximum below is stable.
+  private static func pickNearby(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double, keep: (String?) -> Bool) -> String? {
     let dLat = radiusM / 111_000, dLon = radiusM / (111_000 * max(0.2, cos(lat * .pi / 180)))
     var stmt: OpaquePointer?
     let sql = """
-      SELECT category_id, lat, lon FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
+      SELECT category_id, lat, lon, place FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
       AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? ORDER BY date DESC LIMIT 200
       """
     guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
@@ -611,6 +631,7 @@ enum KPStore {
     while sqlite3_step(stmt) == SQLITE_ROW {
       let rlat = sqlite3_column_double(stmt, 1), rlon = sqlite3_column_double(stmt, 2)
       if distanceMeters(lat, lon, rlat, rlon) > radiusM { continue }
+      if !keep(opt(stmt, 3)) { continue }
       let id = str(stmt, 0)
       if counts[id] == nil { order.append(id) }
       counts[id, default: 0] += 1

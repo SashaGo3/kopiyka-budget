@@ -3,7 +3,7 @@
  * Native code must not touch the database while JS has it open (two SQLite copies in one process
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
-import { createTransaction, fillPending, getRow, payeeHistory, payeeOptions, remove, samePaymentSince, save, suggestCategoryNear, withTripTag } from "@kopiyka/core";
+import { createTransaction, fillPending, getRow, payeeHistory, payeeOptions, remove, samePaymentSince, save, suggestCategoryAt, withTripTag } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
@@ -48,7 +48,9 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
     case "suggest": {
       // Native code can't touch SQLite while JS owns the database (see scratchpad/STATE-CONTRACT), so
       // the watch/Shortcuts location suggestion is forwarded here instead of read from the state file.
-      const hit = suggestCategoryNear(db, Number(w.lat), Number(w.lon));
+      // With a place name (the automation's placemark) this is "what have I filed at this shop
+      // before", falling back to the coordinate search; the watch sends no name and only gets the latter.
+      const hit = suggestCategoryAt(db, { lat: Number(w.lat), lon: Number(w.lon), place: str(w.place) });
       return hit ? { category_id: hit.category_id, place: hit.place } : {};
     }
     case "payee":

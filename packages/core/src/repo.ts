@@ -336,7 +336,72 @@ export function setHome(db: SqlDriver, home: { lat: number; lon: number; place: 
 /** No category is suggested this close to home (anything gets bought there). */
 export const HOME_RADIUS_M = 50;
 
-export function suggestCategoryNear(db: SqlDriver, lat: number, lon: number, radiusM = 150): PlaceSuggestion | null {
+/**
+ * How close counts as "here" when there is only a coordinate to go on.
+ *
+ * It used to be 150 m, which on a high street is four other shops and a petrol station: the
+ * suggestion was as likely to be the neighbour's category as this one's. 80 m is roughly a phone
+ * fix's own error, so it means "this building, give or take" — and when the place has a name, the
+ * name is matched first and the radius never comes into it.
+ */
+export const NEAR_RADIUS_M = 80;
+
+/**
+ * How far away a row with the same place name may be and still be believed. Names repeat — every
+ * town has a Main Street 5, and half of Poland has a Żabka — so the name alone would hand a trip
+ * abroad the categories of home. Two kilometres is "the same shop, however badly the fix landed",
+ * not "the same chain".
+ */
+export const SAME_PLACE_RADIUS_M = 2000;
+
+/** A place name reduced to what should count as the same place: case, accents and punctuation off. */
+export function placeKey(place: string): string {
+  return place.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\u0142/g, "l")
+    .toLowerCase().replace(/[^a-z0-9\u0400-\u04ff]+/g, " ").trim();
+}
+
+/**
+ * The category to offer for where you are standing.
+ *
+ * Two questions, asked in that order. **Have I filed anything at this place before** — matched on
+ * the name the geocoder gives it, which is the shop's own name when it has one, so "Biedronka" is
+ * the same Biedronka however the fix wandered. Only then **what do I usually file around here**,
+ * the old coordinate search, which is all there is offline, on a row logged before place names
+ * were kept, or in the middle of a market with no name to match.
+ *
+ * Ties go to the most recent: the rows arrive newest first and the count is a stable maximum, so
+ * "the one I have used most here, and of those the one I used last" falls out without a second sort.
+ */
+export function suggestCategoryAt(db: SqlDriver, at: { lat: number; lon: number; place?: string | null }, radiusM = NEAR_RADIUS_M): (PlaceSuggestion & { by: "place" | "near" }) | null {
+  const home = getHome(db);
+  if (home && distanceMeters(at.lat, at.lon, home.lat, home.lon) <= HOME_RADIUS_M) return null;
+  const key = at.place ? placeKey(at.place) : "";
+  if (key) {
+    const named = pickNearby(db, at.lat, at.lon, SAME_PLACE_RADIUS_M, (r) => !!r.place && placeKey(r.place) === key);
+    if (named) return { ...named, by: "place" };
+  }
+  const near = pickNearby(db, at.lat, at.lon, radiusM, () => true);
+  return near ? { ...near, by: "near" } : null;
+}
+
+/** Rows within `radiusM` that `keep` accepts, reduced to the most-used category. */
+function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, keep: (r: { place: string | null }) => boolean): PlaceSuggestion | null {
+  const dLat = radiusM / 111_000, dLon = radiusM / (111_000 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const rows = db.all<{ category_id: string; lat: number; lon: number; place: string | null }>(
+    `SELECT category_id, lat, lon, place FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
+     AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? ORDER BY date DESC LIMIT 200`,
+    [lat - dLat, lat + dLat, lon - dLon, lon + dLon]);
+  const counts = new Map<string, PlaceSuggestion>();
+  for (const r of rows) {
+    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r)) continue;
+    const e = counts.get(r.category_id) ?? { category_id: r.category_id, count: 0, place: null };
+    e.count++; e.place ??= r.place; counts.set(r.category_id, e);
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count)[0] ?? null;
+}
+
+/** The coordinate half of `suggestCategoryAt`, kept for the callers that have no name to offer. */
+export function suggestCategoryNear(db: SqlDriver, lat: number, lon: number, radiusM = NEAR_RADIUS_M): PlaceSuggestion | null {
   // At home anything gets bought, so no category is suggested there (meta `home_lat`/`home_lon`, set in Settings).
   const home = getHome(db);
   if (home && distanceMeters(lat, lon, home.lat, home.lon) <= HOME_RADIUS_M) return null;

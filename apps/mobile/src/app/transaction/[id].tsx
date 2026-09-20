@@ -5,13 +5,12 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryNear, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
 import { Chip, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
-import { useT } from "@/i18n";
 import { copyToClipboard } from "@/lib/device";
 import { C, S } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
@@ -42,7 +41,6 @@ type Params = { id: string; account?: string; category?: string; amount?: string
  * typed as money that came *back* and books it against an earlier expense (packages/core/returns.ts).
  */
 export default function TransactionSheet() {
-  const t = useT();
   const p = useLocalSearchParams<Params>();
   const navigation = useNavigation();
   const isNew = p.id === "new";
@@ -167,7 +165,7 @@ export default function TransactionSheet() {
     if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date !== todayLocal()) setDate(dayWithNow(r.date));
     setDefaultMode("expense");
     if (r.currency && r.currency !== currency) {
-      void rateOrFallback(db, r.currency, currency).then((x) => { if (x) apply(r.total * x.rate); else { apply(r.total); Alert.alert(t("Receipt is in {currency}", { currency: r.currency! }), t("No exchange rate available offline; the number was kept as is.")); } }).catch(() => apply(r.total));
+      void rateOrFallback(db, r.currency, currency).then((x) => { if (x) apply(r.total * x.rate); else { apply(r.total); Alert.alert(`Receipt is in ${r.currency!}`, "No exchange rate available offline; the number was kept as is."); } }).catch(() => apply(r.total));
     } else apply(r.total);
   };
   usePickResult<ReceiptParse>(keys.receipt, applyReceipt);
@@ -178,17 +176,17 @@ export default function TransactionSheet() {
     const next = accounts.find((a) => a.id === v), prev = account;
     setAccountId(v);
     if (!next || !prev || next.currency === prev.currency || value === null) return;
-    Alert.alert(t("Convert to {currency}?", { currency: next.currency }),
-      t("The amount is {amount} {from}. {account} is in {to}.", { amount: formatMinor(toMinor(value, prev.currency), prev.currency), from: prev.currency, account: next.name, to: next.currency }), [
-        { text: t("Keep the number"), style: "cancel" },
-        { text: t("Convert to {currency}", { currency: next.currency }), onPress: () => { void rateOrFallback(db, prev.currency, next.currency).then((r) => { if (!r) { Alert.alert(t("No exchange rate available offline")); return; } const converted = Math.round(value * r.rate * 100) / 100; setExpr(kind === "expense" ? `−${converted}` : String(converted)); }).catch(() => Alert.alert(t("No exchange rate available offline"))); } },
+    Alert.alert(`Convert to ${next.currency}?`,
+      `The amount is ${formatMinor(toMinor(value, prev.currency), prev.currency)} ${prev.currency}. ${next.name} is in ${next.currency}.`, [
+        { text: "Keep the number", style: "cancel" },
+        { text: `Convert to ${next.currency}`, onPress: () => { void rateOrFallback(db, prev.currency, next.currency).then((r) => { if (!r) { Alert.alert("No exchange rate available offline"); return; } const converted = Math.round(value * r.rate * 100) / 100; setExpr(kind === "expense" ? `−${converted}` : String(converted)); }).catch(() => Alert.alert("No exchange rate available offline")); } },
       ]);
   });
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
   // Splitting needs a total to share out, so the amount comes first — and the editor is given the
   // entry's own category and tags as the first part, because that part is this entry.
   const openSplit = () => {
-    if (value === null || value <= 0) { Alert.alert(t("Type the total first"), t("A split shares out the amount on the entry, so there has to be one.")); return; }
+    if (value === null || value <= 0) { Alert.alert("Type the total first", "A split shares out the amount on the entry, so there has to be one."); return; }
     router.push({ pathname: "/transaction/split", params: {
       key: keys.split, currency, kind, total: String(toMinor(value, currency)),
       main: JSON.stringify({ category_id: categoryId, tag_ids: tagIds }), parts: JSON.stringify(parts),
@@ -214,10 +212,10 @@ export default function TransactionSheet() {
   // in this account's currency, since converting money back would need a rate and a conversation.
   const returnMinor = value !== null ? toMinor(value, currency) : 0;
   const askForReturn = () => {
-    if (!valid) { Alert.alert(t("Type the amount that came back"), t("Enter how much you were paid back, then choose the entry it belongs to.")); return; }
+    if (!valid) { Alert.alert("Type the amount that came back", "Enter how much you were paid back, then choose the entry it belongs to."); return; }
     router.push({ pathname: "/pick/transaction", params: {
-      key: keys.ret, title: t("What is this money from?"),
-      desc: t("You paid, and {amount} {currency} came back. Choose the entry it belongs to and it shrinks by that much — no new transaction is added.", { amount: formatMinor(returnMinor, currency), currency }),
+      key: keys.ret, title: "What is this money from?",
+      desc: `You paid, and ${formatMinor(returnMinor, currency)} ${currency} came back. Choose the entry it belongs to and it shrinks by that much — no new transaction is added.`,
       returnMinor: String(returnMinor), currency,
     } });
   };
@@ -227,14 +225,14 @@ export default function TransactionSheet() {
     // Towards zero, whichever way the chosen row points: money back on an expense, money returned on income.
     const delta = target.amount_minor < 0 ? returnMinor : -returnMinor;
     const check = checkReturn(db, id, delta);
-    if (!check.ok) { Alert.alert(t("That entry cannot take this return"), returnReason(check.reason, t)); return; }
-    const name = target.notes?.split("\n")[0] || target.payee || t("that entry");
+    if (!check.ok) { Alert.alert("That entry cannot take this return", returnReason(check.reason)); return; }
+    const name = target.notes?.split("\n")[0] || target.payee || "that entry";
     const cur = getRow(db, "accounts", target.account_id)?.currency ?? currency;
-    Alert.alert(t("Book {amount} {currency} back?", { amount: formatMinor(returnMinor, currency), currency }),
-      t("{name}: {before} → {after} {currency}", { name, before: formatMinor(target.amount_minor, cur), after: formatMinor(check.amount_minor, cur), currency: cur }), [
-        { text: t("Cancel"), style: "cancel" },
-        { text: t("Book it"), onPress: () => {
-          try { mutate((d) => applyReturn(d, id, delta)); } catch (e) { Alert.alert(t("Could not book the return"), (e as Error).message); return; }
+    Alert.alert(`Book ${formatMinor(returnMinor, currency)} ${currency} back?`,
+      `${name}: ${formatMinor(target.amount_minor, cur)} → ${formatMinor(check.amount_minor, cur)} ${cur}`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Book it", onPress: () => {
+          try { mutate((d) => applyReturn(d, id, delta)); } catch (e) { Alert.alert("Could not book the return", (e as Error).message); return; }
           setDone(true);
           router.back();
         } },
@@ -242,10 +240,10 @@ export default function TransactionSheet() {
   });
   // On an entry that already has returns: the amount it was paid at, and a way back out of a mistype.
   const refunded = existing?.refunded_minor ?? 0;
-  const undoReturns = () => existing && Alert.alert(t("Forget the returns?"),
-    t("{paid} {currency} goes back on the entry, as if nothing had come back.", { paid: formatMinor(paidAmountMinor(existing), currency), currency }), [
-      { text: t("Cancel"), style: "cancel" },
-      { text: t("Forget them"), style: "destructive", onPress: () => { mutate((d) => clearReturns(d, existing.id)); setDone(true); router.back(); } },
+  const undoReturns = () => existing && Alert.alert("Forget the returns?",
+    `${formatMinor(paidAmountMinor(existing), currency)} ${currency} goes back on the entry, as if nothing had come back.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Forget them", style: "destructive", onPress: () => { mutate((d) => clearReturns(d, existing.id)); setDone(true); router.back(); } },
     ]);
 
   // Tapping the amount copies it, plain and ungrouped so it pastes into anything.
@@ -266,17 +264,41 @@ export default function TransactionSheet() {
   useFocusEffect(useCallback(() => { setStacked(false); }, []));
   const unwrap = () => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpanded((v) => !v); };
 
-  // Coarse location for new entries: attach it, and suggest the category used here before.
+  /** What the category field holds, for the async suggestion below to read without going stale. */
+  const chosenCategory = useRef(categoryId);
+  useEffect(() => { chosenCategory.current = categoryId; }, [categoryId]);
+  /**
+   * Coarse location for new entries: attach it, and suggest the category used here before.
+   *
+   * Twice, deliberately. The coordinate search answers immediately and is what there is to go on
+   * while the geocoder is still thinking — or forever, offline. The name it comes back with is the
+   * better question ("have I filed anything at Biedronka before?" rather than "what do I usually buy
+   * within 80 m?"), so when it lands the suggestion is asked again and upgraded.
+   *
+   * The upgrade only ever replaces a blank or a suggestion of our own: a category picked by hand in
+   * the meantime is an answer, and nothing here is allowed to move it.
+   */
   useEffect(() => {
     if (!isNew) return;
     let alive = true;
+    let offered: string | null = null;
+    const offer = (id: string) => {
+      if (!alive || (chosenCategory.current && chosenCategory.current !== offered)) return;
+      offered = id;
+      chosenCategory.current = id;
+      setCategoryId(id);
+      setSuggested(true);
+    };
     void quickLocation().then(async (c) => {
       if (!c || !alive) return;
       setCoords((cur) => cur ?? c);
-      const s = suggestCategoryNear(db, c.lat, c.lon);
-      if (s && alive) setCategoryId((cur) => { if (cur) return cur; setSuggested(true); return s.category_id; });
-      const name = s?.place ?? (await placeName(c));
-      if (alive && name) setPlace((cur) => cur ?? name);
+      const near = suggestCategoryAt(db, { lat: c.lat, lon: c.lon });
+      if (near) offer(near.category_id);
+      const name = near?.place ?? (await placeName(c));
+      if (!alive || !name) return;
+      setPlace((cur) => cur ?? name);
+      const here = suggestCategoryAt(db, { lat: c.lat, lon: c.lon, place: name });
+      if (here?.by === "place") offer(here.category_id);
     });
     return () => { alive = false; };
   }, [isNew]);
@@ -320,19 +342,19 @@ export default function TransactionSheet() {
   const commit = () => { if (persist()) router.back(); };
   // Closing with an amount typed (swipe, tap outside, back) asks first; the sheet stays until answered.
   usePreventRemove(isNew && !done && !stacked && !!expr, ({ data }) => {
-    Alert.alert(t("Add this transaction?"), valid ? `${formatMinor(toMinor(value!, currency), currency)} ${currency}${category ? ` · ${category.name}` : ""}` : t("The amount is not complete yet."), [
-      { text: t("Discard"), style: "destructive", onPress: () => { setDone(true); navigation.dispatch(data.action); } },
-      { text: t("Keep editing"), style: "cancel" },
-      ...(valid ? [{ text: t("Add"), onPress: () => { if (persist()) navigation.dispatch(data.action); } }] : []),
+    Alert.alert("Add this transaction?", valid ? `${formatMinor(toMinor(value!, currency), currency)} ${currency}${category ? ` · ${category.name}` : ""}` : "The amount is not complete yet.", [
+      { text: "Discard", style: "destructive", onPress: () => { setDone(true); navigation.dispatch(data.action); } },
+      { text: "Keep editing", style: "cancel" },
+      ...(valid ? [{ text: "Add", onPress: () => { if (persist()) navigation.dispatch(data.action); } }] : []),
     ]);
   });
   // The same entry again, ready to edit before it is added: a second coffee, the fare back. The sheet is
   // replaced rather than stacked, so the original closes as the copy opens, and every field travels in
   // the params — the photo excepted, because one photo file belongs to the one row that stored it.
-  const duplicate = () => existing && Alert.alert(t("Duplicate this transaction?"),
-    t("{entry} opens as a new entry. Nothing is added until you confirm it.", { entry: `${signChar}${formatMinor(toMinor(value ?? 0, currency), currency)} ${currency}${category ? ` · ${category.name}` : ""}` }), [
-      { text: t("Cancel"), style: "cancel" },
-      { text: t("Duplicate"), onPress: () => {
+  const duplicate = () => existing && Alert.alert("Duplicate this transaction?",
+    `${signChar}${formatMinor(toMinor(value ?? 0, currency), currency)} ${currency}${category ? ` · ${category.name}` : ""} opens as a new entry. Nothing is added until you confirm it.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Duplicate", onPress: () => {
         setPhoto(null); setShot(null);
         router.replace({ pathname: "/transaction/[id]", params: {
           id: "new", account: accountId, kind, date,
@@ -347,9 +369,9 @@ export default function TransactionSheet() {
         } });
       } },
     ]);
-  const del = () => existing && Alert.alert(t("Delete transaction?"), undefined, [
-    { text: t("Cancel"), style: "cancel" },
-    { text: t("Delete"), style: "destructive", onPress: () => { setDone(true); releasePhoto(existing.photo, existing.id); mutate((d) => remove(d, "transactions", existing.id)); router.back(); } },
+  const del = () => existing && Alert.alert("Delete transaction?", undefined, [
+    { text: "Cancel", style: "cancel" },
+    { text: "Delete", style: "destructive", onPress: () => { setDone(true); releasePhoto(existing.photo, existing.id); mutate((d) => remove(d, "transactions", existing.id)); router.back(); } },
   ]);
   // ± and the segmented control both negate the signed expression; on an empty expression
   // there's nothing to negate, so they just switch the default mode instead.
@@ -360,9 +382,9 @@ export default function TransactionSheet() {
   const changeKind = (k: Kind) => {
     if (k === "transfer") {
       const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", from: accountId, amount: value !== null ? String(value) : "", stacked: "1" } }); };
-      Alert.alert(t("Make this a transfer?"), value !== null ? t("{amount} {currency} will be moved to the transfer.", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("Move money between two accounts."), [
-        { text: t("Cancel"), style: "cancel" },
-        { text: t("Make transfer"), onPress: go },
+      Alert.alert("Make this a transfer?", value !== null ? `${formatMinor(toMinor(value, currency), currency)} ${currency} will be moved to the transfer.` : "Move money between two accounts.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Make transfer", onPress: go },
       ]);
       return;
     }
@@ -392,46 +414,46 @@ export default function TransactionSheet() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          {existing ? <Pressable onPress={duplicate} hitSlop={10} style={styles.corner} accessibilityRole="button" accessibilityLabel={t("Duplicate transaction")}><SymbolView name="plus.square.on.square" size={16} tintColor={C.tint} /></Pressable> : null}
-          {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("Delete transaction")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
+          {existing ? <Pressable onPress={duplicate} hitSlop={10} style={styles.corner} accessibilityRole="button" accessibilityLabel="Duplicate transaction"><SymbolView name="plus.square.on.square" size={16} tintColor={C.tint} /></Pressable> : null}
+          {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel="Delete transaction"><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
           <Pressable onPress={copyAmount} disabled={value === null} style={styles.amountRow} accessibilityRole="button"
-            accessibilityLabel={t("{sign}{amount} {currency}. Tap to copy.", { sign: expr ? signChar : "", amount: shown, currency })}>
+            accessibilityLabel={`${expr ? signChar : ""}${shown} ${currency}. Tap to copy.`}>
             <Text style={[styles.amount, { color: expr ? signColor : C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{expr ? signChar : ""}{shown}</Text>
             <Text style={styles.currency}>{currency}</Text>
           </Pressable>
-          {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("Copied")}</Text> : <CalcLine expr={expr} style={styles.result} />}
+          {copied ? <Text style={[styles.result, { color: C.tint }]}>Copied</Text> : <CalcLine expr={expr} style={styles.result} />}
           <View style={styles.details}>
             {/* The note is the entry's title, so the line shows it whole where it fits and ends in an
                 ellipsis where it does not — four lines is as much as the sheet can spare. */}
-            <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={note ? t("Note: {note}", { note }) : t("Add a note")}>
-              <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !note && styles.placeholder]} numberOfLines={4} ellipsizeMode="tail">{note || t("Add a note")}</Text>
+            <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={note ? `Note: ${note}` : "Add a note"}>
+              <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !note && styles.placeholder]} numberOfLines={4} ellipsizeMode="tail">{note || "Add a note"}</Text>
             </Pressable>
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
                 payment or a scanned receipt names the shop without ever pinning it on the map. */}
             {coords || place || locationOn ? (
-              <Pressable onPress={openLocation} style={styles.line} accessibilityRole="button" accessibilityLabel={place ?? (coords ? t("Location: pinned") : t("Add location"))}>
-                <SymbolView name="mappin.and.ellipse" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !coords && !place && styles.placeholder]} numberOfLines={1}>{place ?? (coords ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` : t("Add location"))}{suggested ? t(" · category suggested") : ""}</Text>
+              <Pressable onPress={openLocation} style={styles.line} accessibilityRole="button" accessibilityLabel={place ?? (coords ? "Location: pinned" : "Add location")}>
+                <SymbolView name="mappin.and.ellipse" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !coords && !place && styles.placeholder]} numberOfLines={1}>{place ?? (coords ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` : "Add location")}{suggested ? " · category suggested" : ""}</Text>
               </Pressable>
             ) : null}
             {parts.length && splitMinors ? (
               <Pressable onPress={openSplit} style={styles.line} accessibilityRole="button"
-                accessibilityLabel={t("Split into {n} entries. Tap to edit.", { n: parts.length + 1 })}>
+                accessibilityLabel={`Split into ${parts.length + 1} entries. Tap to edit.`}>
                 <SymbolView name="square.split.2x1" size={14} tintColor={C.secondary} />
                 <Text style={styles.lineText} numberOfLines={2}>
-                  {splitMinors.map((minor, i) => `${formatMinor(minor, currency)} ${i === 0 ? (category?.name ?? t("this entry")) : (catNames.get(parts[i - 1]!.category_id ?? "") ?? t("no category"))}`).join(" · ")}
+                  {splitMinors.map((minor, i) => `${formatMinor(minor, currency)} ${i === 0 ? (category?.name ?? "this entry") : (catNames.get(parts[i - 1]!.category_id ?? "") ?? "no category")}`).join(" · ")}
                 </Text>
               </Pressable>
             ) : null}
             {refunded ? (
               <Pressable onPress={undoReturns} style={styles.line} accessibilityRole="button"
-                accessibilityLabel={t("{amount} {currency} came back; paid {paid}. Tap to forget the returns.", { amount: formatMinor(Math.abs(refunded), currency), currency, paid: formatMinor(Math.abs(paidAmountMinor(existing!)), currency) })}>
+                accessibilityLabel={`${formatMinor(Math.abs(refunded), currency)} ${currency} came back; paid ${formatMinor(Math.abs(paidAmountMinor(existing!)), currency)}. Tap to forget the returns.`}>
                 <SymbolView name="arrow.uturn.backward" size={14} tintColor={C.green as unknown as string} />
-                <Text style={styles.lineText} numberOfLines={1}>{t("{amount} came back · paid {paid}", { amount: formatMinor(Math.abs(refunded), currency), paid: formatMinor(Math.abs(paidAmountMinor(existing!)), currency) })}</Text>
+                <Text style={styles.lineText} numberOfLines={1}>{`${formatMinor(Math.abs(refunded), currency)} came back · paid ${formatMinor(Math.abs(paidAmountMinor(existing!)), currency)}`}</Text>
               </Pressable>
             ) : null}
             {photoSrc ? (
-              <Pressable onPress={openPhoto} style={styles.line} accessibilityRole="button" accessibilityLabel={t("Photo attached")}>
-                <Image source={{ uri: photoSrc }} style={styles.thumb} contentFit="cover" /><Text style={styles.lineText}>{shot ? t("Photo · not saved yet") : t("Photo")}</Text>
+              <Pressable onPress={openPhoto} style={styles.line} accessibilityRole="button" accessibilityLabel="Photo attached">
+                <Image source={{ uri: photoSrc }} style={styles.thumb} contentFit="cover" /><Text style={styles.lineText}>{shot ? "Photo · not saved yet" : "Photo"}</Text>
               </Pressable>
             ) : null}
             {tags.length ? (
@@ -442,19 +464,19 @@ export default function TransactionSheet() {
             ) : null}
           </View>
           <View style={styles.accountRow}>
-            <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("Account: {name}", { name: account?.name ?? t("none") })}>
+            <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={`Account: ${account?.name ?? "none"}`}>
               <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
-              <Text style={styles.accountText} numberOfLines={1}>{account?.name ?? t("Choose account")}</Text>
+              <Text style={styles.accountText} numberOfLines={1}>{account?.name ?? "Choose account"}</Text>
               <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
             </Pressable>
-            <Pressable onPress={unwrap} hitSlop={8} style={styles.unwrap} accessibilityRole="button" accessibilityLabel={expanded ? t("Hide balance") : t("Show balance")} accessibilityState={{ expanded }}>
+            <Pressable onPress={unwrap} hitSlop={8} style={styles.unwrap} accessibilityRole="button" accessibilityLabel={expanded ? "Hide balance" : "Show balance"} accessibilityState={{ expanded }}>
               <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
-              <Text style={styles.accountBal}>{t("Balance")}</Text>
+              <Text style={styles.accountBal}>Balance</Text>
             </Pressable>
           </View>
           {/* Numbers on their own line so a long account name and both balances all fit; the currency is printed once. */}
           {expanded ? (
-            <View style={styles.balanceLine} accessibilityLabel={valid && after !== balance ? t("Balance {before} {currency}, after {after} {currency}", { before: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("Balance {before} {currency}", { before: formatMinor(balance, currency), currency })}>
+            <View style={styles.balanceLine} accessibilityLabel={valid && after !== balance ? `Balance ${formatMinor(balance, currency)} ${currency}, after ${formatMinor(after, currency)} ${currency}` : `Balance ${formatMinor(balance, currency)} ${currency}`}>
               <Text style={styles.accountBal}>{formatMinor(balance, currency)}</Text>
               {valid && after !== balance ? <><SymbolView name="arrow.right" size={11} tintColor={C.tertiary} /><Text style={[styles.accountBal, { fontWeight: "600", color: after < 0 ? C.red : kind === "income" ? C.green : C.label }]}>{formatMinor(after, currency)}</Text></> : null}
               <Text style={styles.accountBal}>{currency}</Text>
@@ -467,16 +489,16 @@ export default function TransactionSheet() {
           {/* Multiline, so Return writes a line instead of closing the field: Done closes it. The box
               grows with the note up to eight lines or so and scrolls beyond that, with the line that
               does not fit left half-shown so it is plain there is more. */}
-          <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder={t("Note")} placeholderTextColor={C.tertiary} style={styles.noteInput}
+          <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder="Note" placeholderTextColor={C.tertiary} style={styles.noteInput}
             selection={caret} onFocus={() => setTimeout(() => setCaret(undefined), 0)}
-            onBlur={() => setNoteOpen(false)} accessibilityLabel={t("Note")} />
-          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("Done")}><Text style={styles.noteDone}>{t("Done")}</Text></Pressable>
+            onBlur={() => setNoteOpen(false)} accessibilityLabel="Note" />
+          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done"><Text style={styles.noteDone}>Done</Text></Pressable>
         </View>
       ) : (
         <>
           <View style={{ paddingHorizontal: S.md }}>
             {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered. */}
-            <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("Expense") }, { value: "income", label: t("Income"), color: C.green as unknown as string }, ...(isNew && accounts.length > 1 ? [{ value: "transfer" as Kind, label: t("Transfer") }] : [])]} />
+            <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: "Expense" }, { value: "income", label: "Income", color: C.green as unknown as string }, ...(isNew && accounts.length > 1 ? [{ value: "transfer" as Kind, label: "Transfer" }] : [])]} />
           </View>
           {/* Only while the entry is being written: "what was it this time?" is a question about a
               new expense. An entry already saved has its answer, and the row cost the confirm bar
@@ -484,7 +506,7 @@ export default function TransactionSheet() {
           {isNew && options.length > 1 ? (
             <ChipRow>
               {options.map((o) => {
-                const label = [o.category_id ? catNames.get(o.category_id)! : t("No category"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
+                const label = [o.category_id ? catNames.get(o.category_id)! : "No category", ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
                 return <Chip key={o.key} icon="clock.arrow.circlepath" label={label} active={sameAsNow(o)}
                   onPress={() => { setCategoryId(o.category_id); setTagIds(o.tag_ids); setSuggested(false); }} />;
               })}
@@ -493,21 +515,21 @@ export default function TransactionSheet() {
           <ChipRow>
             <Chip icon="calendar" label={dayLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
             <Chip icon="clock" label={timeLabel(date)} compact onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: timeLabel(date) } })} />
-            <Chip icon="text.alignleft" label={t("Note")} active={!!note} onPress={openNote} />
-            <Chip icon="mappin.and.ellipse" label={t("Place")} active={!!coords || !!place} onPress={openLocation} />
-            <Chip icon="hourglass" label={t("Pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
-            <Chip icon="camera" label={t("Photo")} active={!!photoSrc} compact onPress={openPhoto} />
-            <Chip icon="square.split.2x1" label={t("Split")} active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
+            <Chip icon="text.alignleft" label="Note" active={!!note} onPress={openNote} />
+            <Chip icon="mappin.and.ellipse" label="Place" active={!!coords || !!place} onPress={openLocation} />
+            <Chip icon="hourglass" label="Pending" active={pending} compact onPress={() => setPending((v) => !v)} />
+            <Chip icon="camera" label="Photo" active={!!photoSrc} compact onPress={openPhoto} />
+            <Chip icon="square.split.2x1" label="Split" active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
             {/* Not an attribute of this entry but an action on another one: the amount typed goes
                 back onto an earlier expense instead of being added here. */}
-            {isNew ? <Chip icon="arrow.uturn.backward" label={t("Return")} disabled={!valid} onPress={askForReturn} /> : null}
-            {isNew && RECEIPT_SCANNER_ENABLED ? <Chip icon="doc.text.viewfinder" label={t("Receipt")} compact onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
+            {isNew ? <Chip icon="arrow.uturn.backward" label="Return" disabled={!valid} onPress={askForReturn} /> : null}
+            {isNew && RECEIPT_SCANNER_ENABLED ? <Chip icon="doc.text.viewfinder" label="Receipt" compact onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
           </ChipRow>
           <Keypad value={expr} onChange={onKeypadChange} onToggleSign={negate}
-            extra={{ label: category ? category.name : t("Category"), a11y: t("Category: {name}", { name: category ? category.name : t("none") }), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) }}
-            extra2={{ a11y: tags.length ? t("Tags: {names}", { names: tags.map((tag) => tag.name).join(", ") }) : t("Tags"), icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) }} />
+            extra={{ label: category ? category.name : "Category", a11y: `Category: ${category ? category.name : "none"}`, icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) }}
+            extra2={{ a11y: tags.length ? `Tags: ${tags.map((tag) => tag.name).join(", ")}` : "Tags", icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) }} />
           <ConfirmBar amount={`${value !== null ? signChar + formatMinor(toMinor(value, currency), currency) : "0.00"} ${currency}`}
-            label={valid ? (existing ? t("Tap to save") : t("Tap to add")) : t("Enter an amount")} onPress={commit} disabled={!valid} color={pending ? (C.orange as unknown as string) : kind === "income" ? (C.green as unknown as string) : undefined} />
+            label={valid ? (existing ? "Tap to save" : "Tap to add") : "Enter an amount"} onPress={commit} disabled={!valid} color={pending ? (C.orange as unknown as string) : kind === "income" ? (C.green as unknown as string) : undefined} />
         </>
       )}
     />
@@ -551,11 +573,11 @@ function releasePhoto(name: string | null | undefined, exceptId: string): void {
 }
 
 /** Why an entry cannot take the return the user typed, in words rather than in a code. */
-function returnReason(reason: Exclude<ReturnType<typeof checkReturn>, { ok: true }>["reason"], t: (k: string) => string): string {
+function returnReason(reason: Exclude<ReturnType<typeof checkReturn>, { ok: true }>["reason"]): string {
   switch (reason) {
-    case "transfer": return t("A transfer moves money between your own accounts, so there is nothing to come back from.");
-    case "too-much": return t("That is more than is left on the entry. Book the rest against another one, or edit it by hand.");
-    case "wrong-direction": return t("Money can only come back the other way round from how it went out.");
-    default: return t("The entry is no longer there.");
+    case "transfer": return "A transfer moves money between your own accounts, so there is nothing to come back from.";
+    case "too-much": return "That is more than is left on the entry. Book the rest against another one, or edit it by hand.";
+    case "wrong-direction": return "Money can only come back the other way round from how it went out.";
+    default: return "The entry is no longer there.";
   }
 }

@@ -25,7 +25,7 @@ export function setReminderDaysBefore(d: number): void { write("recurring_notify
 /** Remember a coarse location with each logged transaction and suggest categories from it. */
 export function getLocationEnabled(): boolean { return read("location_enabled") === "1"; }
 export function setLocationEnabled(on: boolean): void { write("location_enabled", on ? "1" : "0"); }
-/** Home: no category is suggested near it (core `suggestCategoryNear`; the watch bridge applies the same rule). */
+/** Home: no category is suggested near it (core `suggestCategoryAt`; the watch bridge applies the same rule). */
 export function getHomeLocation(): { lat: number; lon: number; place: string | null } | null { return getHome(db); }
 export function setHomeLocation(home: { lat: number; lon: number; place: string | null } | null): void { setHome(db, home); notifyChange(); }
 
