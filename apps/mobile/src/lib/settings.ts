@@ -9,6 +9,15 @@ import { notifyChange } from "@/store";
 function read(key: string): string | null { return getMeta(db, key); }
 function write(key: string, value: string): void { setMeta(db, key, value); notifyChange(); }
 
+/**
+ * A notification for each payment the Shortcut automation logs. On unless turned off: the
+ * automation writes with the app closed, and a purchase you never hear about is one you find out
+ * about in a list days later. Only one is ever on screen — a new payment replaces the last
+ * (native/KPNotify.swift) — and it does nothing at all until iOS notifications are allowed.
+ */
+export function getShortcutNotify(): boolean { return read("shortcut_notify") !== "0"; }
+export function setShortcutNotify(on: boolean): void { write("shortcut_notify", on ? "1" : "0"); }
+
 /** Default reminder lead time for new recurring rules, in days. */
 export function getReminderDaysBefore(): number { const v = Number(read("recurring_notify_days_before") ?? 1); return Number.isFinite(v) && v >= 0 ? v : 1; }
 export function setReminderDaysBefore(d: number): void { write("recurring_notify_days_before", String(d)); }
@@ -44,13 +53,19 @@ export function setBudgetScope(s: string): void { write("budget_scope", s); }
 export function getCurrentAccount(): string { return read("current_account") ?? ""; }
 export function setCurrentAccount(id: string): void { write("current_account", id); setBudgetScope(id); }
 
-/** How many backups each day keeps: the day's first backup plus the newest ones (see BACKUP_POLICY). */
-export const BACKUP_PER_DAY_OPTIONS = [1, 3, 5, 7, 12, 24] as const;
-export function getBackupPerDay(): number {
-  const v = Number(read("backup_per_day") ?? 7);
-  return (BACKUP_PER_DAY_OPTIONS as readonly number[]).includes(v) ? v : 7;
+/**
+ * How long backups are kept, in days (`keepDays` in BACKUP_POLICY). This is the storage dial: the
+ * container holds up to `perDay` files for each day inside the window and nothing outside it, so
+ * halving the window halves the space in iCloud. It replaced "Backups per day" on 2026-09-18 —
+ * how *finely* a day is covered matters far less than how many days are being paid for.
+ */
+export const BACKUP_KEEP_DAYS_OPTIONS = [3, 7, 14, 30, 90] as const;
+export const DEFAULT_KEEP_DAYS = 30;
+export function getBackupKeepDays(): number {
+  const v = Number(read("backup_keep_days") ?? DEFAULT_KEEP_DAYS);
+  return (BACKUP_KEEP_DAYS_OPTIONS as readonly number[]).includes(v) ? v : DEFAULT_KEEP_DAYS;
 }
-export function setBackupPerDay(n: number): void { write("backup_per_day", String(n)); }
+export function setBackupKeepDays(n: number): void { write("backup_keep_days", String(n)); }
 
 export const REMINDER_OPTIONS = [
   { value: "0", label: "On the day" }, { value: "1", label: "1 day before" }, { value: "2", label: "2 days before" },

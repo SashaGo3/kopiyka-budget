@@ -13,9 +13,9 @@ describe("backup", () => {
   // a phone comes back from a backup with its settings quietly reset.
   test("carries every preference the app stores, and no identity of the device it came from", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
-      "backup_per_day", "base_currency", "budget_scope", "current_account",
-      "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled",
-      "period_start_day", "recurring_notify_days_before", "show_balance",
+      "backup_keep_days", "base_currency", "budget_scope", "current_account",
+      "hide_income", "home_lat", "home_lon", "home_place", "location_enabled",
+      "period_start_day", "recurring_notify_days_before", "shortcut_notify", "show_balance",
     ]);
     // These describe the install, not the data, and must never travel with a backup.
     for (const k of ["device_id", "last_pulled_seq", "onboarded"]) expect(BACKUP_META_KEYS as readonly string[]).not.toContain(k);
@@ -95,13 +95,13 @@ describe("backup", () => {
     setHome(a, { lat: 52.23, lon: 21.01, place: "Home" });
     setMeta(a, "hide_income", "1");
     setMeta(a, "show_balance", "1");
-    setMeta(a, "backup_per_day", "3");
+    setMeta(a, "backup_keep_days", "7");
     const b = fresh();
     importBackup(b, exportBackupJson(a));
     expect(getHome(b)).toEqual({ lat: 52.23, lon: 21.01, place: "Home" });
     expect(getMeta(b, "hide_income")).toBe("1");
     expect(getMeta(b, "show_balance")).toBe("1");
-    expect(getMeta(b, "backup_per_day")).toBe("3");
+    expect(getMeta(b, "backup_keep_days")).toBe("7");
   });
 
   test("round-trips every table, ids and settings", () => {

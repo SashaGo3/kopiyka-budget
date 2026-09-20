@@ -108,6 +108,9 @@ struct KPWatchState: Codable {
   var location_enabled: Bool?
   /// Everything below is written by JS from wave 2 on and absent in older files — hence optional.
   var home: Home? = nil
+  /// Whether the Shortcut automation may say it logged a payment (meta `shortcut_notify`).
+  /// Absent means an older state file, and the preference is on unless turned off — so nil reads as on.
+  var shortcut_notify: Bool? = nil
   /// Newest cached exchange rate per "BASE>QUOTE" pair; the inverse is derived when only one side is stored.
   var rates: [String: Double]? = nil
 
@@ -338,6 +341,8 @@ enum KPStore {
     switch key {
     case "current_account": return s.current_account
     case "location_enabled": return (s.location_enabled ?? false) ? "1" : "0"
+    // Absent from an older state file: the preference is on unless it says otherwise, so nil reads as on.
+    case "shortcut_notify": return (s.shortcut_notify ?? true) ? "1" : "0"
     case "home_lat": return s.home.map { String($0.lat) }
     case "home_lon": return s.home.map { String($0.lon) }
     default: return nil
@@ -345,6 +350,17 @@ enum KPStore {
   }
 
   static func currentAccountId() -> String { meta("current_account") ?? "" }
+
+  /// How many entries are waiting in the Pending queue — the number on the app's badge. nil while JS
+  /// owns the database, where the count comes back in the reply to the write instead.
+  static func pendingCount() -> Int? {
+    withDatabase { db in
+      var stmt: OpaquePointer?
+      guard sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM transactions WHERE deleted=0 AND pending=1", -1, &stmt, nil) == SQLITE_OK else { return nil }
+      defer { sqlite3_finalize(stmt) }
+      return sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : nil
+    }
+  }
 
   /// Travel mode (core `activeTripTagId`): the tag every new expense gets while a trip runs.
   static func activeTripTagId(_ db: OpaquePointer) -> String? {
@@ -553,7 +569,7 @@ enum KPStore {
         accounts: accounts(db).map { .init(id: $0.id, name: $0.name, currency: $0.currency, balance: balances[$0.id] ?? 0) },
         categories: cats, tags: tags, together: together, history: history(db, limit: 50), snapshot: snap,
         location_enabled: meta(db, "location_enabled") == "1",
-        home: home(db))
+        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0")
     }
     if let built { return built }
     // JS owns the database. It writes the state file before every `updateWatch`, so this is current.

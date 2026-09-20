@@ -30,15 +30,15 @@ export const BACKUP_VERSION = 1;
  * the home location went missing until 2026-09-12 — the list also carried `hide_balances`, a key
  * nothing had written since it was renamed. `backup.test.ts` pins the list so the next drift shows
  * up in a diff. A preference that is removed from the app comes off this list too (`handedness`,
- * 2026-09-12): an old backup still carrying the key is simply ignored on import.
+ * 2026-09-12; `backup_per_day`, replaced by `backup_keep_days` on 2026-09-18; `language`, dropped
+ * with the app's language picker on 2026-09-18 — the app is English only): an old backup still
+ * carrying the key is simply ignored on import.
  */
 export const BACKUP_META_KEYS = [
   "period_start_day", "base_currency", "recurring_notify_days_before",
   "location_enabled", "home_lat", "home_lon", "home_place",
-  "current_account", "budget_scope", "hide_income", "show_balance", "backup_per_day",
-  // "" (or absent) means the app follows the phone's own language, so a restore onto a phone set to
-  // another language does the right thing without the backup having to say so.
-  "language",
+  "current_account", "budget_scope", "hide_income", "show_balance", "backup_keep_days",
+  "shortcut_notify",
 ] as const;
 
 /**

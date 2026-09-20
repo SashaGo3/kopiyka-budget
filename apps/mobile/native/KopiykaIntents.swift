@@ -521,7 +521,10 @@ struct LogPaymentIntent: AppIntent {
     if let p = parsed, let day = p.date, KPPaymentText.isPlausibleDay(day) { date = "\(day)T\(p.time ?? "12:00:00")\(KPStore.isoNow().suffix(6))" }
     // The location the automation passed, else the city from the notification and wherever this shop
     // was the last time it was logged (see `lat` / `lon` / `place` above).
-    let saved = await KPWrites.addTransaction(accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
+    // The id is minted here rather than inside `addTransaction`, because the notification below has
+    // to link to this exact row and there is no second way to find it afterwards.
+    let rowId = UUID().uuidString.lowercased()
+    let saved = await KPWrites.addTransaction(id: rowId, accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
                                               note: note.isEmpty ? nil : note, payee: shop, lat: lat, lon: lon,
                                               place: place, pending: pending && !known, date: date,
                                               source: guessed ? "shortcut-guess" : "shortcut",
@@ -529,6 +532,20 @@ struct LogPaymentIntent: AppIntent {
     guard saved.ok else {
       KPParseLog.record(.failed, text: raw, parse: parsed, account: acc.name, note: saved.error ?? "the app refused the write")
       throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.")
+    }
+
+    // Say so, unless the user has turned it off. The automation runs with the app closed and used to
+    // be silent by design; what that actually bought was purchases turning up in a list days later.
+    // One notification, replacing the last one it posted (KPNotify), naming what was filed and how
+    // sure it is — a guess and a pending row are exactly what wants a second pair of eyes.
+    if KPStore.meta("shortcut_notify") != "0" {
+      let name = categoryId.flatMap { id in KPStore.categories().first { $0.id == id }?.name }
+      let marks = [name, guessed ? "guess" : nil, pending && !known ? "pending" : nil].compactMap { $0 }
+      let body = ([KPFormat.money(abs(KPFormat.major(minor, acc.currency)), acc.currency) + " " + acc.currency, acc.name] + marks).joined(separator: " · ")
+      await KPNotify.payment(id: rowId,
+                             title: shop ?? (income ? "Payment received" : "Payment logged"),
+                             body: body,
+                             badge: saved.reply["pending"] as? Int ?? KPStore.pendingCount())
     }
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)

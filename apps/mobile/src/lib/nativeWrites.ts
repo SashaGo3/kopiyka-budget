@@ -9,6 +9,11 @@ import { mutate } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
 import { localIso } from "./dates";
 
+/** Entries waiting in the Pending queue: the app's badge, and what a native write is told after it lands. */
+export function pendingCount(): number {
+  return db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions WHERE deleted=0 AND pending=1`)?.n ?? 0;
+}
+
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
@@ -27,7 +32,9 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
         // expressed at, so the row can be checked rather than taken on trust.
         entered_amount_minor: num(w.entered_amount_minor), entered_currency: str(w.entered_currency), exchange_rate: num(w.exchange_rate),
       }));
-      return {};
+      // What the badge on the app icon should read now. Native code cannot count it for itself
+      // while JS has the database open, and the notification it is about to post carries the number.
+      return { pending: pendingCount() };
     }
     case "delete":
       mutate((d) => remove(d, "transactions", String(w.id)));

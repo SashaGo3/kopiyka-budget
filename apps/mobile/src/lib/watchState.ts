@@ -7,7 +7,7 @@
  */
 import { fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
 import { db } from "@/db";
-import { getCurrentAccount, getLocationEnabled } from "./settings";
+import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
 import type { WidgetSnapshot } from "./widget";
 
 export interface WatchCategory {
@@ -31,6 +31,8 @@ export interface WatchState {
   history: WatchTx[];
   snapshot: WidgetSnapshot;
   location_enabled: boolean;
+  /** Whether the Shortcut automation may post a notification: the intent reads it from here while JS owns the database. */
+  shortcut_notify: boolean;
   home: { lat: number; lon: number } | null;
   /** "BASE>QUOTE" -> rate, newest cached row per pair, both directions as stored. */
   rates: Record<string, number>;
@@ -111,6 +113,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     accounts: snapshot.accounts,
     categories, tags, together, history, snapshot,
     location_enabled: getLocationEnabled(),
+    shortcut_notify: getShortcutNotify(),
     home: home ? { lat: home.lat, lon: home.lon } : null,
     rates,
   };

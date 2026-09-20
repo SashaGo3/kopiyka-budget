@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
-import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
+import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
-import { initLanguage, useT } from "@/i18n";
 import { Brand, C, R, S } from "@/constants/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
@@ -14,12 +13,10 @@ import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
+import { isPad, screenContentStyle } from "@/constants/layout";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
 markAppCodeStart();
-
-// The language, before anything renders a word: the stored choice, or the phone's own (src/i18n).
-initLanguage();
 
 // Persist the last uncaught error to disk before anything else can go wrong. All builds, not just __DEV__.
 installCrashLog();
@@ -30,14 +27,32 @@ installNativeWrites();
 /** A cold-start deep link (widget / watch / Shortcut) mounts `(tabs)` first and pushes the target sheet on top of it, instead of the sheet becoming the only screen. */
 export const unstable_settings = { anchor: "(tabs)" };
 
-const sheet = { presentation: "formSheet" as const, headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: { backgroundColor: C.bgGrouped } };
-/** Entry sheets hug their content: no dead space above the amount. */
+/**
+ * Sheets. On a phone a form sheet is sized by its detents — `fitToContents` measures the content and
+ * the sheet is exactly that tall.
+ *
+ * On an iPad a form sheet is a fixed-size card and UIKit ignores those detents (react-native-screens
+ * only applies sheet configuration to `formSheet`, and iPadOS sizes that presentation itself), so
+ * anything taller than the card had its bottom quietly cut off — on the entry sheet that was the
+ * save bar, which is the one thing the screen exists to reach. A page sheet there is a tall card the
+ * content fits inside, and the content is pinned to its bottom edge so the room that is left over
+ * appears above it, where the design already puts empty space.
+ */
+const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
+const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
+/** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
 const fit = { ...sheet, sheetAllowedDetents: "fitToContents" as const };
 const medium = { ...sheet, sheetAllowedDetents: [0.55, 0.92] };
 /** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
 const picker = { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 };
 /** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
 const modal = { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: C.bgGrouped } };
+/**
+ * A pushed full screen keeps the iPad column (constants/layout.ts). Sheets and modals do not: on a
+ * tablet iOS already sizes those itself, and a column inside a centred card is a card with margins.
+ * `(tabs)` is left out too — the tab bar belongs to the window, not to the content.
+ */
+const pushed = { contentStyle: screenContentStyle };
 
 /** Navigation colours that match iOS grouped backgrounds, so native headers never differ from the content. */
 const lightTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: Brand.bg, card: Brand.bg, primary: Brand.accent, border: Brand.border } };
@@ -46,8 +61,6 @@ const darkTheme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: Bra
 export default function RootLayout() {
   markRootLayoutRender(); // boot trace: first render, not first effect — closer to when the tree starts committing
   const scheme = useColorScheme();
-  // Subscribes the root to the language, so the native header titles below follow a change made in Settings.
-  const t = useT();
   // `+native-intent` navigates warm deep links itself, and needs the navigation state to do it.
   registerNavigationRef(useNavigationContainerRef());
   useEffect(() => {
@@ -63,13 +76,18 @@ export default function RootLayout() {
         installBackupTriggers();
         writeWidgetSnapshot();
         void notifications.runAutoPosting().then(() => notifications.rescheduleRecurringNotifications());
+        void notifications.syncBadge();
       });
     });
     // Coming back to the foreground: post anything that fell due, and re-read the database. A
     // Shortcut automation writes card payments straight into it while the app is suspended, and
     // nothing in JS ever hears about those — without this the entry only appears on a cold start.
-    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); } });
-    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); });
+    // A Shortcut automation sets the badge itself while the app is away; coming back re-reads it
+    // from the database, so a queue approved on another device does not leave a number behind.
+    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); void notifications.syncBadge(); } });
+    // The badge is derived, never incremented: approving the queue here, on the watch or on another
+    // phone all end at the same recount.
+    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); void notifications.syncBadge(); });
     // A tapped reminder goes where it is about: this debt, this recurring occurrence. The same
     // response can arrive twice — once cached from the cold launch that the tap caused, once live —
     // so each notification is followed only once.
@@ -93,8 +111,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="accounts/[id]" options={{ title: "", headerBackTitle: t("Back") }} />
-          <Stack.Screen name="pending" options={{ title: t("Pending"), headerBackTitle: t("Back") }} />
+          <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: "Back" }} />
+          <Stack.Screen name="pending" options={{ ...pushed, title: "Pending", headerBackTitle: "Back" }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
           <Stack.Screen name="transaction/split" options={modal} />
           <Stack.Screen name="transfer/[id]" options={fit} />
@@ -110,7 +128,7 @@ export default function RootLayout() {
           <Stack.Screen name="photo/view" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="recurring/[id]" options={modal} />
           <Stack.Screen name="recurring/confirm" options={fit} />
-          <Stack.Screen name="recurring/due" options={{ title: t("Recurring due"), headerBackTitle: t("Back") }} />
+          <Stack.Screen name="recurring/due" options={{ ...pushed, title: "Recurring due", headerBackTitle: "Back" }} />
           <Stack.Screen name="pick/category" options={picker} />
           <Stack.Screen name="pick/icon" options={picker} />
           <Stack.Screen name="pick/color" options={picker} />
@@ -145,14 +163,13 @@ export const links = {
 
 /** expo-router renders this per route on an uncaught render error. Logs through the same writer as `installCrashLog`, then offers a retry instead of the native red/white crash screen. */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
-  const t = useT();
   useEffect(() => { recordCrash(error, false); }, [error]);
   return (
     <View style={errorStyles.screen}>
-      <Text style={errorStyles.title}>{t("Something went wrong")}</Text>
+      <Text style={errorStyles.title}>Something went wrong</Text>
       <Text style={errorStyles.message}>{error.message}</Text>
-      <Pressable onPress={() => void retry()} accessibilityRole="button" accessibilityLabel={t("Try again")} style={({ pressed }) => [errorStyles.button, pressed && { opacity: 0.7 }]}>
-        <Text style={errorStyles.buttonText}>{t("Try again")}</Text>
+      <Pressable onPress={() => void retry()} accessibilityRole="button" accessibilityLabel="Try again" style={({ pressed }) => [errorStyles.button, pressed && { opacity: 0.7 }]}>
+        <Text style={errorStyles.buttonText}>Try again</Text>
       </Pressable>
     </View>
   );

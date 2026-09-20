@@ -1,12 +1,32 @@
 import * as Notifications from "expo-notifications";
 import { listRows, listDebts, plannedNotifications, plannedDebtNotifications, postDueRecurring, formatMinor, DEFAULT_DEBT_NOTIFY_TIME, type RecurringRule } from "@kopiyka/core";
 import { mutate } from "@/store";
+import { pendingCount } from "./nativeWrites";
 import { db } from "@/db";
 import { humanDayTime, todayLocal } from "./dates";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
+  handleNotification: async () => ({ shouldPlaySound: false, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true }),
 });
+
+/**
+ * The number on the app icon: entries waiting in the Pending queue, and nothing else.
+ *
+ * It is what a Shortcut-logged payment is about, and the one number on this phone that means
+ * "something here still needs you". Recomputed after every write rather than incremented, so a
+ * queue emptied on the watch or on another device settles to the truth by itself. The automation
+ * sets it too, from the reply to its own write (native/KPNotify.swift), because with the app closed
+ * this code is not running at all.
+ *
+ * Silently does nothing when badges were not allowed — an install that granted notifications before
+ * badges were ever asked for keeps its permission as it was, and only iOS Settings can widen it.
+ */
+export async function syncBadge(): Promise<void> {
+  try {
+    if (!(await Notifications.getPermissionsAsync()).granted) return;
+    await Notifications.setBadgeCountAsync(pendingCount());
+  } catch { /* a badge is not worth a crash */ }
+}
 
 /**
  * Local-only notifications for the phone's whole reminder budget: recurring transactions and
@@ -80,7 +100,7 @@ export async function notificationStatus(): Promise<"granted" | "denied" | "unde
 export async function ensureNotificationPermission(): Promise<boolean> {
   const cur = await Notifications.getPermissionsAsync();
   if (cur.granted) return true;
-  const r = await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: false } });
+  const r = await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: true } });
   return r.granted;
 }
 

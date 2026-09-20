@@ -1,7 +1,9 @@
 import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import { Card, Row, SectionHeader } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
+import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED, IOS_VERSION } from "@/constants/features";
 
 /** Setup steps, worded as what you actually tap, in the order the Shortcuts app puts them in. */
 const STEPS: { title: string; subtitle: string }[] = [
@@ -34,6 +36,15 @@ export default function ShortcutScreen() {
           Your bank already tells you about the payment. This sets up an automation that hands the whole notification to Kopiyka, which reads the amount, the shop or the sender, the card and the time out of its text. Six steps, once — and a seventh if you want the entry to remember where you paid.
         </Text>
 
+        <View style={[styles.need, !AUTOMATION_SUPPORTED && styles.needStrong]}>
+          <SymbolView name={AUTOMATION_SUPPORTED ? "info.circle" : "exclamationmark.triangle.fill"} size={18} tintColor={AUTOMATION_SUPPORTED ? C.secondary : C.orange} />
+          <Text style={[styles.needText, !AUTOMATION_SUPPORTED && { color: C.label }]}>
+            {AUTOMATION_SUPPORTED
+              ? `Needs iOS ${AUTOMATION_MIN_IOS} or later: the “When I receive a notification” trigger does not exist in earlier versions of Shortcuts.`
+              : `This needs iOS ${AUTOMATION_MIN_IOS} or later. ${IOS_VERSION ? `This device runs iOS ${IOS_VERSION}` : "This device is older"}, so Shortcuts has no “When I receive a notification” trigger and the automation cannot be created yet. Everything else in Kopiyka works as it is.`}
+          </Text>
+        </View>
+
         <SectionHeader>Set it up once</SectionHeader>
         <Card>
           {STEPS.map((s, i) => (
@@ -51,16 +62,16 @@ export default function ShortcutScreen() {
           <Row icon="arrow.up.forward.app" title="Open Shortcuts" onPress={openShortcuts} />
         </Card>
 
-        <SectionHeader>When it gets one wrong</SectionHeader>
+        <SectionHeader>Once it is running</SectionHeader>
         <Card>
-          <Row icon="doc.text.magnifyingglass" iconColor="#0A84FF" title="Notification log"
-            subtitle="The notifications it could not turn into a transaction, kept so a bank it reads wrong can be fixed. Exports as CSV."
-            onPress={() => router.push("/settings/parselog")} />
+          <Row icon="slider.horizontal.3" iconColor="#5E5CE6" title="Shortcut settings"
+            subtitle="Whether it tells you about each payment, and the notifications it could not read."
+            onPress={() => router.push("/settings/automation")} />
         </Card>
 
         <SectionHeader>What to expect</SectionHeader>
         <Card>
-          <Row icon="speaker.slash" iconColor="#8E8E93" title="You never hear from it" subtitle="No banner, no confirmation: it must not interrupt a payment to say it worked. It writes down what it saw instead — the log above — and speaks up only when a notification names money it could not read." />
+          <Row icon="bell.badge" iconColor="#FF9F0A" title="It tells you what it filed" subtitle="One notification per payment, and the next payment replaces it rather than stacking up. Tapping opens the entry. Turn it off in Shortcut settings and it works exactly as before, silently." />
           <Row icon="hourglass" iconColor="#FF9F0A" title="Everything new waits in Pending" subtitle="Approve from the Pending row on Transactions. A category may be guessed from the shop's name — or, with the optional step above, from the one you usually pick where you are — to save you a tap. The queue marks it “guess” and it never approves itself." style={styles.divider} />
           <Row icon="wand.and.stars" iconColor="#30D158" title="A payment you have filed before fills itself in" subtitle="Same shop or sender, filed by hand once: its category, tags and place are copied on and it skips Pending." style={styles.divider} />
           <Row icon="arrow.triangle.branch" iconColor="#FF9F0A" title="A shop you file two ways still asks" subtitle="Fuel one week, a hot dog the next: the entry waits in Pending, and its sheet offers every pairing of category and tags you have used there — one tap each." style={styles.divider} />
@@ -78,6 +89,9 @@ export default function ShortcutScreen() {
 
 const styles = StyleSheet.create({
   intro: { color: C.secondary, fontSize: 15, lineHeight: 21, paddingHorizontal: S.xl, marginTop: S.md },
+  need: { flexDirection: "row", alignItems: "flex-start", gap: S.sm, marginHorizontal: S.lg, marginTop: S.md, padding: S.md, borderRadius: R.card, backgroundColor: C.card },
+  needStrong: { backgroundColor: "rgba(255,159,10,0.16)" },
+  needText: { flex: 1, color: C.secondary, fontSize: 14, lineHeight: 19 },
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.lg },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   step: { flexDirection: "row", alignItems: "flex-start", gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md },
