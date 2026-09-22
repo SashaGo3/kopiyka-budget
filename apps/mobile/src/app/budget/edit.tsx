@@ -19,6 +19,10 @@ export default function BudgetEdit() {
   const accountName = useQuery((d) => (accountId ? getRow(d, "accounts", accountId)?.name ?? null : null), [accountId]);
   const [categoryIds, setCategoryIds] = useState<string[]>(() => (existing ? budgetCategoryIds(existing) : []));
   const [tagId, setTagId] = useState<string | null>(existing?.tag_id ?? null);
+  // A name of its own, for the budget whose categories do not explain it. Empty falls back to the
+  // scope, which is what every budget was called before this existed.
+  const [name, setName] = useState(existing?.name ?? "");
+  const [counted, setCounted] = useState(existing ? existing.in_planned !== 0 : true);
   const tag = useQuery((d) => (tagId ? getRow(d, "tags", tagId) : null), [tagId]);
   const currency = existing?.currency ?? getBaseCurrency();
   const [expr, setExpr] = useState(existing ? String(fromMinor(existing.amount_minor, existing.currency)) : "");
@@ -36,6 +40,8 @@ export default function BudgetEdit() {
   );
   const key = useMemo(() => newPickKey("bcat"), []);
   const tagKey = useMemo(() => newPickKey("btag"), []);
+  const nameKey = useMemo(() => newPickKey("bname"), []);
+  usePickResult<string>(nameKey, (v: string) => setName(v.trim()));
   usePickResult<string[]>(key, (v: string[]) => { setCategoryIds(v); if (v.length) setTagId(null); });
   usePickResult<string>(tagKey, (v: string) => { setTagId(v); setCategoryIds([]); });
   const pickTag = () => {
@@ -48,7 +54,7 @@ export default function BudgetEdit() {
   const commit = () => {
     if (!valid) return;
     mutate((d) => {
-      const base = { category_ids: JSON.stringify(categoryIds), tag_id: tagId, currency, amount_minor: toMinor(value!, currency), starts: monthBounds(todayLocal()).start, start_day: startDay, account_id: accountId } as const;
+      const base = { category_ids: JSON.stringify(categoryIds), tag_id: tagId, currency, amount_minor: toMinor(value!, currency), starts: monthBounds(todayLocal()).start, start_day: startDay, account_id: accountId, name: name.trim() || null, in_planned: counted ? 1 : 0 } as const;
       // `scopedBudget` keeps `category_id` in step with the set; `createBudget` does it itself.
       if (existing) save(d, "budgets", scopedBudget({ ...existing, ...base }) as Budget); else createBudget(d, base);
     });
@@ -62,8 +68,8 @@ export default function BudgetEdit() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title numberOfLines={2}>{tag ? `#${tag.name}` : scopeLabel ?? "Everything"}</Title>
-          <Subtle>Monthly limit in {currency}{startDay > 1 ? ` · periods start on the ${startDay}th` : ""}{accountName ? ` · only for ${accountName}` : ""}</Subtle>
+          <Title numberOfLines={2}>{name.trim() || (tag ? `#${tag.name}` : scopeLabel ?? "Everything")}</Title>
+          <Subtle>{name.trim() ? `${tag ? `#${tag.name}` : scopeLabel ?? "Everything"} · ` : ""}Monthly limit in {currency}{startDay > 1 ? ` · periods start on the ${startDay}th` : ""}{accountName ? ` · only for ${accountName}` : ""}{counted ? "" : " · not counted in Planned"}</Subtle>
           {suggestion ? (
             <View style={styles.suggest}>
               <Subtle>Suggested</Subtle>
@@ -93,6 +99,13 @@ export default function BudgetEdit() {
               onPress={() => router.push({ pathname: "/pick/categories", params: { key, selected: categoryIds.join(","), title: "Budget for" } })} />
             <Chip icon="number" label={tag?.name ?? "Tag"} active={!!tag} onPress={pickTag} />
             <Chip icon="asterisk" label="All spending" active={!categoryIds.length && !tag} onPress={() => { setCategoryIds([]); setTagId(null); }} />
+          </ChipRow>
+          <ChipRow>
+            <Chip icon="textformat" label={name.trim() || "Name"} active={!!name.trim()}
+              onPress={() => router.push({ pathname: "/pick/text", params: { key: nameKey, title: "Budget name", value: name } })} />
+            {/* A limit you keep as a yardstick still shows its own bar; it just stays out of the two
+                numbers at the top, where it would otherwise read as money set aside. */}
+            <Chip icon={counted ? "sum" : "eye.slash"} label={counted ? "In Planned" : "Not in Planned"} active={counted} onPress={() => setCounted((v) => !v)} />
           </ChipRow>
           <Keypad value={expr} onChange={setExpr} allowSign={false} />
           <ConfirmBar amount={`${expr || "0"} ${currency}`} label={existing ? "Tap to save" : "Tap to add budget"} onPress={commit} disabled={!valid} />

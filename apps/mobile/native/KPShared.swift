@@ -85,10 +85,17 @@ struct KPWatchState: Codable {
     let uses: Int
     /// The user's own hint ("groceries, bakery"), what the receipt reader matches merchants against.
     var description: String? = nil
+    /// Retired in the app: still named on the history rows that carry it, never offered for
+    /// anything new (`KPRank.categories`). Absent in a state file written before archiving existed.
+    var archived: Bool? = nil
   }
   /// The home the app knows (meta `home_lat`/`home_lon`); no category is suggested near it.
   struct Home: Codable, Hashable { let lat: Double; let lon: Double }
-  struct Tag: Codable, Identifiable, Hashable { let id: String; let name: String; let color: String?; let category_ids: [String]; let uses: Int }
+  struct Tag: Codable, Identifiable, Hashable {
+    let id: String; let name: String; let color: String?; let category_ids: [String]; let uses: Int
+    /// Retired: shown on the transactions that already carry it, never offered for a new one.
+    var archived: Bool? = nil
+  }
   struct Tx: Codable, Identifiable, Hashable {
     let id: String; let date: String; let title: String; let sub: String; let amount: Double; let currency: String
     let account_id: String; let category_id: String?; let tag_ids: [String]; let pending: Bool; let transfer: Bool
@@ -157,12 +164,22 @@ enum KPRank {
   /// included, which is to say: not offered at all. A folder is how the list is divided, never a
   /// place to file money (core `folderIds`), and an intent that offered one would file transactions
   /// where the app itself cannot. A top-level category with nothing inside it is not a folder.
+  ///
+  /// Archived categories are left out for the same reason, and so is everything inside an archived
+  /// folder (core `archivedCategoryIds`): what the app will not offer, nothing here may offer either
+  /// — an intent that filed a payment under a retired category would put it somewhere the app itself
+  /// no longer shows. They stay in the state file, so history rows keep their names.
   static func categories(_ all: [KPWatchState.Category], kind: String) -> [KPWatchState.Category] {
     let wanted = kind == "income" ? "income" : "expense"
     let byId = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
     let folders = Set(all.compactMap(\.parent_id))
+    func retired(_ c: KPWatchState.Category) -> Bool {
+      if c.archived ?? false { return true }
+      if let p = c.parent_id, byId[p]?.archived ?? false { return true }
+      return false
+    }
     return all
-      .filter { c in !folders.contains(c.id) && (c.kind == wanted || (c.parent_id.flatMap { byId[$0] }?.kind == wanted)) }
+      .filter { c in !folders.contains(c.id) && !retired(c) && (c.kind == wanted || (c.parent_id.flatMap { byId[$0] }?.kind == wanted)) }
       .sorted { a, b in a.uses != b.uses ? a.uses > b.uses : a.name.localizedCompare(b.name) == .orderedAscending }
   }
 
@@ -185,7 +202,8 @@ enum KPRank {
       return (!ids.isEmpty || withCat[t.id] != nil) ? 0 : 1
     }
     return all.map { RankedTag(tag: $0, rank: rank($0), together: withCat[$0.id] ?? 0) }
-      .filter { $0.rank < 2 || selected.contains($0.tag.id) }
+      // A retired tag is not offered, but one already ticked stays so it can be seen and taken off.
+      .filter { ($0.rank < 2 && !($0.tag.archived ?? false)) || selected.contains($0.tag.id) }
       .sorted { a, b in
         if a.rank != b.rank { return a.rank < b.rank }
         if a.together != b.together { return a.together > b.together }

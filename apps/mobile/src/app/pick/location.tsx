@@ -4,7 +4,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
 import { ModalHeader } from "@/components/ui";
-import { useT } from "@/i18n";
 import { C, S } from "@/constants/theme";
 import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
 import { PLACE_SEARCH_AVAILABLE, searchPlaces, type PlaceHit } from "@/lib/device";
@@ -27,7 +26,6 @@ const SEARCH_DEBOUNCE_MS = 350;
 export default function PickLocation() {
   // expo-maps is a heavy import (MapKit bridging) other routes never need; deferred until this screen actually mounts.
   const { AppleMaps } = require("expo-maps") as typeof import("expo-maps"); // eslint-disable-line @typescript-eslint/no-require-imports
-  const t = useT();
   const { key, lat, lon } = useLocalSearchParams<{ key: string; lat?: string; lon?: string }>();
   const initial = lat && lon ? { lat: Number(lat), lon: Number(lon) } : null;
   const [coords, setCoords] = useState<Coords | null>(initial);
@@ -100,12 +98,12 @@ export default function PickLocation() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={t("Location")} left={{ label: t("Cancel"), onPress: () => router.back() }} right={{ label: t("Done"), onPress: done }} />
+      <ModalHeader title="Location" left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Done", onPress: done }} />
       {PLACE_SEARCH_AVAILABLE ? (
         <View style={styles.search}>
           <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-          <TextInput value={query} onChangeText={type} placeholder={t("Search for a place")} placeholderTextColor={C.tertiary} style={styles.input}
-            autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing" accessibilityLabel={t("Search for a place")} />
+          <TextInput value={query} onChangeText={type} placeholder="Search for a place" placeholderTextColor={C.tertiary} style={styles.input}
+            autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing" accessibilityLabel="Search for a place" />
           {searching ? <ActivityIndicator size="small" color={C.tertiary} /> : null}
         </View>
       ) : null}
@@ -113,7 +111,7 @@ export default function PickLocation() {
         <AppleMaps.View
           style={{ flex: 1 }}
           cameraPosition={{ coordinates: { latitude: camera.lat, longitude: camera.lon }, zoom }}
-          markers={coords ? [{ coordinates: { latitude: coords.lat, longitude: coords.lon }, title: place ?? t("Here"), tintColor: "#FF375F" }] : []}
+          markers={coords ? [{ coordinates: { latitude: coords.lat, longitude: coords.lon }, title: place ?? "Here", tintColor: "#FF375F" }] : []}
           uiSettings={{ myLocationButtonEnabled: false, compassEnabled: false }}
           properties={{ isMyLocationEnabled: true }}
           onMapClick={(e) => { if (e.coordinates.latitude != null && e.coordinates.longitude != null) tapMap({ lat: e.coordinates.latitude, lon: e.coordinates.longitude }); }}
@@ -135,15 +133,15 @@ export default function PickLocation() {
           </View>
         ) : null}
         {long && !searching && !hits.length ? (
-          <View style={styles.results}><Text style={styles.none}>{t("No places found.")}</Text></View>
+          <View style={styles.results}><Text style={styles.none}>No places found.</Text></View>
         ) : null}
       </View>
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, S.md) }]}>
-        <Text style={styles.place} numberOfLines={1}>{coords ? `📍 ${place ?? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`}` : t("Tap the map to place the pin")}</Text>
+        <Text style={styles.place} numberOfLines={1}>{coords ? `📍 ${place ?? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`}` : "Tap the map to place the pin"}</Text>
         <View style={styles.row}>
-          <Pressable onPress={() => void here()} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("Use current location")}><SymbolView name="location.fill" size={16} tintColor={C.tint} /><Text style={styles.btnText}>{t("Current")}</Text></Pressable>
-          {coords ? <Pressable onPress={() => { setChosen(null); setCoords(null); }} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("Remove location")}><SymbolView name="xmark" size={14} tintColor={C.red} /><Text style={[styles.btnText, { color: C.red }]}>{t("Remove")}</Text></Pressable> : null}
-          <Pressable onPress={done} style={[styles.btn, styles.primary]} accessibilityRole="button" accessibilityLabel={t("Use this location")}><Text style={[styles.btnText, { color: C.onTint }]}>{t("Use this location")}</Text></Pressable>
+          <Pressable onPress={() => void here()} style={styles.btn} accessibilityRole="button" accessibilityLabel="Use current location"><SymbolView name="location.fill" size={16} tintColor={C.tint} /><Text style={styles.btnText}>Current</Text></Pressable>
+          {coords ? <Pressable onPress={() => { setChosen(null); setCoords(null); }} style={styles.btn} accessibilityRole="button" accessibilityLabel="Remove location"><SymbolView name="xmark" size={14} tintColor={C.red} /><Text style={[styles.btnText, { color: C.red }]}>Remove</Text></Pressable> : null}
+          <Pressable onPress={done} style={[styles.btn, styles.primary]} accessibilityRole="button" accessibilityLabel="Use this location"><Text style={[styles.btnText, { color: C.onTint }]}>Use this location</Text></Pressable>
         </View>
       </View>
     </View>

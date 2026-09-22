@@ -4,6 +4,7 @@ import { mutate } from "@/store";
 import { pendingCount } from "./nativeWrites";
 import { db } from "@/db";
 import { humanDayTime, todayLocal } from "./dates";
+import { waitDefaultDays } from "./settings";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: false, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true }),
@@ -48,7 +49,7 @@ export async function rescheduleRecurringNotifications(): Promise<number> {
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
   await Notifications.cancelAllScheduledNotificationsAsync();
   const today = todayLocal();
-  const plan = plannedNotifications(rules, today, 60).slice(0, 48); // iOS caps pending at 64; debts share the rest of the budget
+  const plan = plannedNotifications(rules, today, 60, waitDefaultDays()).slice(0, 48); // iOS caps pending at 64; debts share the rest of the budget
   let n = 0;
   for (const p of plan) {
     const rule = rules.find((r) => r.id === p.rule_id)!;
@@ -61,12 +62,19 @@ export async function rescheduleRecurringNotifications(): Promise<number> {
     const fireAt = new Date(y, m - 1, d, hh, mm, 0);
     if (fireAt.getTime() < Date.now()) continue;
     const when = rule.notify_days_before === 1 ? "tomorrow" : `on ${humanDayTime(p.occurrence)}`;
+    // A waiting rule has nothing to announce on the day, so its second notification fires once the
+    // window has closed and says what is actually news: the charge never turned up. An automatic
+    // rule has posted the rule's own amount by then (`runAutoPosting`); a manual one is asking.
+    const late = `No charge for this arrived since ${humanDayTime(p.occurrence)}`;
     const body = p.kind === "reminder"
       ? (rule.auto_post ? `${amount} will be posted ${when}.` : `${amount} is due ${when}.`)
-      : (rule.auto_post ? `${amount} was posted to ${acc?.name ?? "your account"}.` : `${amount} is due today. Tap to confirm.`);
-    const url = p.kind === "due" && !rule.auto_post ? `kopiyka://recurring/confirm?id=${rule.id}&occurrence=${p.occurrence}` : rule.auto_post && p.kind === "due" ? "kopiyka://transactions" : "kopiyka://settings/recurring";
+      : p.kind === "late"
+        ? (rule.auto_post ? `${late}, so ${amount} was added from the rule.` : `${late}. Tap to post it or skip it.`)
+        : (rule.auto_post ? `${amount} was posted to ${acc?.name ?? "your account"}.` : `${amount} is due today. Tap to confirm.`);
+    const settled = p.kind === "due" || p.kind === "late";
+    const url = settled && !rule.auto_post ? `kopiyka://recurring/confirm?id=${rule.id}&occurrence=${p.occurrence}` : settled ? "kopiyka://transactions" : "kopiyka://settings/recurring";
     await Notifications.scheduleNotificationAsync({
-      content: { title: p.kind === "reminder" ? `Upcoming: ${title}` : rule.auto_post ? `Posted: ${title}` : `Due: ${title}`, body, data: { url } },
+      content: { title: p.kind === "reminder" ? `Upcoming: ${title}` : p.kind === "late" ? `Not seen: ${title}` : rule.auto_post ? `Posted: ${title}` : `Due: ${title}`, body, data: { url } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
     });
     n++;
@@ -107,17 +115,26 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 /**
  * Post due automatic rules. Occurrences for today are announced by the scheduled
  * "posted" notification; only missed (earlier) days get an immediate catch-up note.
+ *
+ * A rule that waits for the bank is always posted late by definition — the window has to close
+ * first — and every one of those is news: nothing was seen leaving the account, so the rule's own
+ * amount was written instead. So a waited posting is always announced, whatever day it lands on.
  */
 export async function runAutoPosting(): Promise<number> {
   const today = todayLocal();
-  const posted = mutate((d) => postDueRecurring(d, today));
+  const posted = mutate((d) => postDueRecurring(d, today, waitDefaultDays()));
   const n = posted.reduce((a, p) => a + p.days.length, 0);
-  const missed = posted.map((p) => ({ ...p, days: p.days.filter((day) => day < today) })).filter((p) => p.days.length);
+  const missed = posted.map((p) => ({ ...p, days: p.waited ? p.days : p.days.filter((day) => day < today) })).filter((p) => p.days.length);
   const m = missed.reduce((a, p) => a + p.days.length, 0);
   if (m && (await Notifications.getPermissionsAsync()).granted) {
     const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a]));
     const lines = missed.map((p) => { const a = accounts.get(p.rule.account_id); return `${p.rule.payee ?? "Recurring"} ${a ? formatMinor(Math.abs(p.rule.amount_minor), a.currency) + " " + a.currency : ""}${p.days.length > 1 ? ` ×${p.days.length}` : ""}`; });
-    await Notifications.scheduleNotificationAsync({ content: { title: m === 1 ? "Posted a missed recurring transaction" : `Posted ${m} missed recurring transactions`, body: lines.join(", "), data: { url: "kopiyka://transactions" } }, trigger: null });
+    const waited = missed.every((p) => p.waited);
+    const title = waited
+      ? (m === 1 ? "A recurring payment never arrived" : `${m} recurring payments never arrived`)
+      : (m === 1 ? "Posted a missed recurring transaction" : `Posted ${m} missed recurring transactions`);
+    const body = waited ? `Nothing was charged in time, so the rule was used instead: ${lines.join(", ")}` : lines.join(", ");
+    await Notifications.scheduleNotificationAsync({ content: { title, body, data: { url: "kopiyka://transactions" } }, trigger: null });
   }
   return n;
 }

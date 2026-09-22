@@ -9,13 +9,13 @@ import { SYNCED_TABLES } from "./models";
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor"],
-  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description"],
-  tags: ["name", "color", "category_ids"],
+  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance"],
+  tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
     "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
-    "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day"],
-  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended"],
+    "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee"],
+  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned"],
   insights: ["kind", "params", "sort"],
   debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
 };
@@ -98,11 +98,11 @@ export function createAccount(db: SqlDriver, a: Partial<Account> & Pick<Account,
 }
 
 export function createCategory(db: SqlDriver, c: Partial<Category> & Pick<Category, "name">): Category {
-  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, ...c } as Category);
+  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, ...c } as Category);
 }
 
 export function createTag(db: SqlDriver, t: Partial<Tag> & Pick<Tag, "name">): Tag {
-  return save(db, "tags", { color: null, category_ids: "[]", ...t } as Tag);
+  return save(db, "tags", { color: null, category_ids: "[]", archived: 0, ...t } as Tag);
 }
 
 export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<Transaction, "account_id" | "date" | "amount_minor">): Transaction {
@@ -127,12 +127,12 @@ export function photoInUse(db: SqlDriver, name: string, except?: string): boolea
 export function createRecurring(db: SqlDriver, r: Partial<RecurringRule> & Pick<RecurringRule, "account_id" | "amount_minor" | "frequency" | "start_date">): RecurringRule {
   return save(db, "recurring_rules", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", interval: 1, end_date: null,
-    next_date: r.start_date, notify: 1, notify_days_before: 1, auto_post: 0, active: 1, time_of_day: "09:00", ...r,
+    next_date: r.start_date, notify: 1, notify_days_before: 1, auto_post: 0, active: 1, time_of_day: "09:00", wait_days: null, match_payee: null, ...r,
   } as RecurringRule);
 }
 
 export function createBudget(db: SqlDriver, b: Partial<Budget> & Pick<Budget, "currency" | "amount_minor" | "starts">): Budget {
-  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, ...b } as Budget));
+  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, name: null, sort: 0, in_planned: 1, ...b } as Budget));
 }
 
 /**
@@ -229,6 +229,32 @@ export function folderIds(cats: { id: string; parent_id: string | null }[]): Set
   return new Set(cats.flatMap((c) => (c.parent_id ? [c.parent_id] : [])));
 }
 
+/**
+ * Which of these categories may no longer be filed into: the archived ones, and everything inside an
+ * archived folder. Archiving a folder retires what is in it — a category you cannot reach through
+ * the list is not one you can pick — so the two are one question and every caller asks it this way
+ * rather than testing `archived` and forgetting the folder.
+ *
+ * Everything already filed under them stays exactly as it is: this answers "what may I choose now",
+ * never "what counts".
+ */
+export function archivedCategoryIds(cats: { id: string; parent_id: string | null; archived: 0 | 1 }[]): Set<string> {
+  const out = new Set(cats.filter((c) => c.archived).map((c) => c.id));
+  // One pass down is enough today (a folder holds categories, not folders); the loop costs nothing
+  // and means a deeper tree would not quietly leak a pickable category.
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const c of cats) if (c.parent_id && out.has(c.parent_id) && !out.has(c.id)) { out.add(c.id); changed = true; }
+  }
+  return out;
+}
+
+/** The categories that may be filed into right now: live, not archived, not inside an archived folder. */
+export function pickableCategories<T extends { id: string; parent_id: string | null; archived: 0 | 1 }>(cats: T[]): T[] {
+  const gone = archivedCategoryIds(cats);
+  return cats.filter((c) => !gone.has(c.id));
+}
+
 export interface CategorySpend { category_id: string | null; currency: string; spent_minor: number }
 
 /** Spend per category per currency between two ISO dates (inclusive start, exclusive end). Transfers excluded; optionally limited to some accounts. */
@@ -300,7 +326,7 @@ export function jsonIds(raw: string | null | undefined): string[] {
  * category or its folder. Tags for other categories are left out. With no category, every tag.
  */
 export function tagsForCategory(db: SqlDriver, categoryId: string | null): Tag[] {
-  const tags = listRows(db, "tags", "deleted=0", [], "name");
+  const tags = listRows(db, "tags", "deleted=0 AND archived=0", [], "name");
   if (!categoryId) return tags;
   const cat = getRow(db, "categories", categoryId);
   const scope = new Set([categoryId, cat?.parent_id ?? ""]);
@@ -384,8 +410,13 @@ export function suggestCategoryAt(db: SqlDriver, at: { lat: number; lon: number;
   return near ? { ...near, by: "near" } : null;
 }
 
-/** Rows within `radiusM` that `keep` accepts, reduced to the most-used category. */
+/**
+ * Rows within `radiusM` that `keep` accepts, reduced to the most-used category. An archived category
+ * is skipped rather than being the answer: it is where this shop *used* to be filed, and suggesting
+ * it would put a new entry somewhere the picker will not even offer.
+ */
 function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, keep: (r: { place: string | null }) => boolean): PlaceSuggestion | null {
+  const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
   const dLat = radiusM / 111_000, dLon = radiusM / (111_000 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
   const rows = db.all<{ category_id: string; lat: number; lon: number; place: string | null }>(
     `SELECT category_id, lat, lon, place FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
@@ -393,7 +424,7 @@ function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, ke
     [lat - dLat, lat + dLat, lon - dLon, lon + dLon]);
   const counts = new Map<string, PlaceSuggestion>();
   for (const r of rows) {
-    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r)) continue;
+    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r) || gone.has(r.category_id)) continue;
     const e = counts.get(r.category_id) ?? { category_id: r.category_id, count: 0, place: null };
     e.count++; e.place ??= r.place; counts.set(r.category_id, e);
   }

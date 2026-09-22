@@ -18,6 +18,12 @@ export function applyKey(expr: string, key: string): string {
   }
   const tail = expr.split(/[+−×÷]/).pop() ?? "";
   if (key === ".") {
+    // Pressing it again changes nothing about the number. The key is a switch between the two
+    // halves of what is being typed — cents while it is lit, whole units while it is not — and the
+    // keypad, which is the only thing that knows which half it is pointing at, answers the second
+    // press by moving that focus (`applyDigitWhole`). It used to delete the decimals instead, on
+    // the grounds that a switch has to switch off; but the decimals are usually the part that was
+    // right, and there is a backspace for the part that was not.
     if (tail.includes(".")) return expr;
     if (tail === "") return expr + "0.";
     return expr + ".";
@@ -28,6 +34,28 @@ export function applyKey(expr: string, key: string): string {
   if (dec && dec.length >= 2) return expr; // money: two decimals max
   if (tail.replace(".", "").length >= 12) return expr;
   return expr + key;
+}
+
+/**
+ * A digit typed into the *whole* part of the number being written, the point staying where it is:
+ * "12.34" and 5 make "125.34". This is the second press of the decimal point — it aims the next
+ * digits in front of the point instead of after it, rather than throwing the cents away.
+ *
+ * Only the number being typed is touched, as everywhere else here: what came before the last
+ * operator is left alone. A lone leading zero is replaced rather than kept ("0.34" → "5.34"), the
+ * same way `applyKey` treats a whole part of "0", and the twelve-digit ceiling is the same one.
+ * Anything that is not a digit, or a number with no point to type in front of, falls through to
+ * `applyKey`, so a caller can send every key here and get the ordinary behaviour back.
+ */
+export function applyDigitWhole(expr: string, key: string): string {
+  if (!/^\d$/.test(key)) return applyKey(expr, key);
+  const tail = expr.split(/[+−×÷]/).pop() ?? "";
+  const at = tail.indexOf(".");
+  if (at < 0) return applyKey(expr, key);
+  if (tail.replace(".", "").length >= 12) return expr;
+  const head = expr.slice(0, expr.length - tail.length);
+  const whole = tail.slice(0, at);
+  return head + (whole === "0" ? key : whole + key) + tail.slice(at);
 }
 
 /** Evaluate a keypad expression to a number rounded to cents, or null. */

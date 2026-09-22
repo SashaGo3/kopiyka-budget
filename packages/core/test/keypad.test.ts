@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr } from "../src/keypad";
+import { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr } from "../src/keypad";
 
 function type(keys: string, start = ""): string { return [...keys].reduce((e, k) => applyKey(e, k), start); }
 function typeSigned(keys: string, negativeDefault: boolean): string {
@@ -11,6 +11,8 @@ describe("keypad", () => {
     expect(type("1234")).toBe("1234");
     expect(type("0005")).toBe("5");
     expect(type(".5")).toBe("0.5");
+    // The second point leaves the number alone — what it moves is where the next digit goes, and
+    // only the keypad knows that (`applyDigitWhole`). So typed blindly it is simply ignored.
     expect(type("1.2.3")).toBe("1.23");
     expect(type("1.999")).toBe("1.99");
   });
@@ -81,5 +83,38 @@ describe("keypad", () => {
     expect(exprSign("50−50")).toBe(0);
     expect(exprSign("")).toBeNull();
     expect(exprSign("12+")).toBeNull();
+  });
+});
+
+describe("the decimal point aims the next digit, and never deletes", () => {
+  test("pressing it again leaves the number exactly as it was", () => {
+    expect(applyKey("12.34", ".")).toBe("12.34");
+    expect(applyKey("12.", ".")).toBe("12.");
+    expect(applyKey("10+2.5", ".")).toBe("10+2.5");
+    expect(applyKey("−7.5", ".")).toBe("−7.5");
+  });
+  test("a point typed into nothing still borrows its leading zero", () => {
+    expect(applyKey("", ".")).toBe("0.");
+    expect(applyKey("0.", ".")).toBe("0.");
+  });
+  test("a digit then goes in front of the point, cents untouched", () => {
+    expect(applyDigitWhole("12.34", "5")).toBe("125.34");
+    expect(applyDigitWhole(applyDigitWhole("1.50", "2"), "3")).toBe("123.50");
+    expect(applyDigitWhole("12.", "5")).toBe("125.");
+    // A lone leading zero is replaced, not built on — "0.34" is a number that starts at the cents.
+    expect(applyDigitWhole("0.34", "5")).toBe("5.34");
+    // Only the number being typed: what came before the operator stays as it was.
+    expect(applyDigitWhole("10+2.5", "3")).toBe("10+23.5");
+    expect(applyDigitWhole("−7.5", "1")).toBe("−71.5");   // a digit lands at the end of the whole part, as digits do
+  });
+  test("with no point to aim at, or a key that is not a digit, it is the ordinary keypad", () => {
+    expect(applyDigitWhole("12", "5")).toBe("125");
+    expect(applyDigitWhole("", "5")).toBe("5");
+    expect(applyDigitWhole("12.34", ".")).toBe("12.34");
+    expect(applyDigitWhole("12.34", "⌫")).toBe("12.3");
+    expect(applyDigitWhole("12.34", "+")).toBe("12.34+");
+  });
+  test("the twelve-digit ceiling is the same one", () => {
+    expect(applyDigitWhole("123456789012.34", "5")).toBe("123456789012.34");
   });
 });

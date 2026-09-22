@@ -80,6 +80,12 @@ folder back to the folder's own id, so the budget keeps meaning "this folder, in
 added to it later". Any new caller has to decide which of the two it is: does the answer end up on a
 transaction (folders out) or on a budget/insight/tag scope (folders in)?
 
+A budget also carries a `name` of its own (NULL = name it after what it covers), a `sort` for the
+order on the screen, and `in_planned`: 0 leaves it on the screen with its own bar but out of Planned,
+Available and `freeMoney` — a limit kept as a yardstick rather than money set aside. It is left out
+of `freeMoney`'s "is there an overall budget in this currency" question too, or switching an overall
+budget off would silently suppress every category budget beside it and show nothing at all.
+
 A budget's scope is a **set**, not one category: `budgets.category_ids` (JSON, `"[]"` = everything),
 read through `budgetCategoryIds` and matched with `inBudgetScope` — never by hand, because a budget
 written before v12, or restored from a backup of that time, carries its single category in the older
@@ -106,8 +112,9 @@ is silently lost on restore — which is exactly what happened to `hide_income`,
 the same breath (on 2026-09-18 `backup_per_day` became `backup_keep_days`, and `language` went with
 the language picker — the app is English only); an old backup still carrying the key is ignored on
 import, and on 2026-09-20 `shortcut_notify` joined the list, so a restored phone keeps the answer
-the old one gave about hearing from the automation. `backup.test.ts` pins the list so the next drift
-shows up in a diff.
+the old one gave about hearing from the automation; `recurring_wait` and `recurring_wait_days`
+joined it on 2026-09-21 with rule 13. `backup.test.ts` pins the list so the next drift shows up in a
+diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
 `device_id`, `last_pulled_seq`, `onboarded`, and auto-sync's own bookkeeping (`icloud_sync`,
@@ -185,6 +192,93 @@ And one thing it cannot do: `replace` is local. A replace deletes rows outright 
 tombstoning them (rule 2), so the other device's next backup will hand them straight back. Replace on
 each device, or turn merging off while you do it.
 
+## 13. A rule can wait for the bank instead of writing the payment itself
+
+With the notification automation running, a subscription is written twice: once by the recurring rule
+on the day it was arranged for, once by the bank's own message when the money actually moves. Waiting
+turns that around, and it is off by default — with `recurring_wait` off nothing waits and every rule
+behaves exactly as it did before.
+
+On, the rule posts nothing on its day. The charge that arrives claims the occurrence
+(`claimRecurring`, `packages/core/src/claim.ts`): it takes the rule's id in `recurring_id`, the
+category and tags the rule already decided — only into fields the row leaves empty, the same rule
+`fillPending` follows — and moves `next_date` on. The row that survives carries the **bank's** amount
+and the **bank's** day, which is what makes a subscription that went up in price file itself
+correctly. Only when the window closes with nothing to claim does the rule act: `auto_post` rules
+post their own amount, manual ones reach the confirm queue, both later than before and only when it
+is actually needed.
+
+Three things are load-bearing:
+
+- **Only the earliest unposted occurrence is claimable.** A rule several periods behind has that
+  backlog in the queue; letting one charge jump to the newest occurrence would settle the arrears by
+  forgetting them.
+- **The window has two ends.** From `CLAIM_LEAD_DAYS` before the occurrence (a standing order taken
+  on the Friday before the 1st) to `wait_days` after it. `wait_days` is NULL for "whatever the
+  app-wide default says" and at least 1 otherwise — there is no per-rule 0, because the setting that
+  turns waiting on is the switch, and a stored 0 falls back to the default rather than quietly
+  opting one rule out.
+- **A name beats an amount.** `recurring_rules.match_payee` is the shop as the *bank* prints it
+  ("NETFLIX.COM AMSTERDAM" for a rule you called "Netflix"), set by pointing the rule at a payment
+  that already happened and learned from the first charge that claims an occurrence. With a name the
+  charge is recognised whatever it costs this time; without one only the exact amount identifies it.
+
+## 14. Archived is not deleted
+
+A category or a tag can be retired (`archived=1`) instead of deleted, because what was filed under it
+is the reason not to delete it. Nothing already written changes, and nothing stops being counted:
+budgets, charts and every total read the same numbers as before. What changes is that it is no longer
+*offered*.
+
+Archiving a folder retires the categories inside it, so "may I file into this" is one question and
+every caller asks it through `archivedCategoryIds` (`packages/core/src/repo.ts`) rather than testing
+`archived` and forgetting the folder.
+
+Where it is enforced: both category pickers and the tag picker (each keeping whatever the row already
+carries, or the sheet would claim a transaction has no category at all), `tagsForCategory`,
+`suggestCategoryAt` — and, deliberately, `payeeHistory`. A shop whose category has since been
+archived comes back with **no** category and no `match`, so the payment the automation writes lands in
+the Pending queue for you to file under whatever replaced it, rather than being filed silently
+somewhere the app will not even offer. The watch, the App Intents and the receipt reader are sent
+archived rows *with a flag* — a history row still has to print the name it was filed under — and the
+filtering happens in one place on the other side, `KPRank.categories` / `KPRank.tags`.
+
+Two things are refused rather than discovered later: a tag that travel mode is using right now (the
+trip is applying it to everything you log — end the trip first), and nothing else. Recurring rules
+carrying the tag are named in the confirmation instead of blocked; they go on writing it, which is
+odd but not wrong.
+
+## 15. A folder answers for its categories
+
+`categories.importance` — 0 unset, 1 low, 2 medium, 3 high (v16) — is how much a category matters,
+which only a person can say and nothing can be derived from. A category left at **0 inherits its
+folder's mark**, and that inheritance is the point: mark "Subscriptions" once and the twelfth thing
+added to it next year is already answered.
+
+So it is read through **one** function, `categoryImportance` (`packages/core/src/importance.ts`),
+never off the column — the same arrangement as `archivedCategoryIds` (rule 14), and for the same
+reason: a folder-level mark honoured by three callers and ignored by the fourth is worse than no
+mark at all.
+
+The flow that sets it (`app/category/importance.tsx`) asks two questions — what you could not live
+without, then, of what is left, what you could stop tomorrow — and everything neither answer claimed
+is Medium. Medium is deliberately not askable: as a third question it is where everything you did
+not want to think about goes, and by elimination it honestly means "the things in between". It also
+makes High-and-Low-at-once unreachable rather than a contradiction settled by some arbitrary rule.
+
+Two things the writer must keep doing:
+
+- **A level that covers a whole folder is written on the folder, and its categories cleared to 0.**
+  Stamping the children instead would freeze them against the folder ever changing its mind. A
+  folder whose categories disagree keeps no mark, so the next one added to it lands in the "not
+  marked" count rather than quietly taking a side.
+- **Rows the marking would not change are not written** (`importanceAffected`). Forty categories
+  marked at once on one of two phones is the exact shape of the bug in rule 2: an untouched row with
+  a fresh `updated_at` wins a merge it should have lost.
+
+Like `archived`, importance is a fact about the category and not about the money: it filters
+nothing, hides nothing and changes no total.
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import
@@ -195,6 +289,9 @@ back. What to tell it:
    category with children (rule 5).
 3. Do not touch `rates`, `settings`, or any `photo` field (rules 3, 4, 7).
 4. Leave `amount_minor` and every transaction alone unless the point of the pass is the transactions.
+   Leave `importance` alone too, or say nothing about it: a column the file omits keeps whatever the
+   phone already had, but an `importance: 0` written over a marked category erases an answer only a
+   person could give (rule 15).
 5. Import with **Replace everything**, not Merge — otherwise the categories it removed survive
    (rule 2), and `updated_at` would have to be raised on every edited row for merge to take them.
 6. The safety copy is written automatically; its name is in the result. Keep it until you are happy.

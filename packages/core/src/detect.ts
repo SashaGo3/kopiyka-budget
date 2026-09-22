@@ -29,6 +29,8 @@ export interface RecurringCandidate {
   tag_ids: string;
   /** Future-dated placeholder transaction this rule would replace. */
   planned_tx_id: string | null;
+  /** The shop exactly as it is written on the occurrence this was built from, for `match_payee`. */
+  match_payee: string | null;
   /** HH:MM taken from the planned row or the latest occurrence. */
   time_of_day: string;
   source: "planned" | "history";
@@ -50,6 +52,8 @@ export function normTitle(s: string | null | undefined): string {
   return (s ?? "").split("\n")[0]!.toLowerCase().replace(/\s+/g, " ").replace(/[^\p{L}\p{N} +]/gu, "").trim();
 }
 function titleOf(t: Tx): string | null { return t.payee?.trim() || t.notes?.split("\n")[0]?.trim() || null; }
+/** The shop as it was written on this row — the payee only: a note is a sentence, not a name. */
+function matchName(t: Tx): string | null { return t.payee?.trim() || null; }
 function groupKey(t: Tx): string {
   const title = normTitle(t.payee) || normTitle(t.notes);
   return title ? `${t.account_id}|t:${title}` : `${t.account_id}|c:${t.category_id ?? "-"}|${t.amount_minor}`;
@@ -145,6 +149,7 @@ export function detectRecurring(db: SqlDriver, opts: DetectOptions): RecurringCa
         currency: p.currency, frequency: period.frequency, interval: period.interval, occurrences: (series.length || (prev ? 1 : 0)) + planned.length,
         last_date: prev?.date.slice(0, 10) ?? null, next_date: p.date.slice(0, 10),
         confidence: best ? 1 : series.length ? 0.8 : prev ? (periodFromName(p.category_name) ? 0.7 : 0.6) : periodFromName(p.category_name) ? 0.7 : 0.5, tag_ids: p.tag_ids, planned_tx_id: p.id, source: "planned",
+        match_payee: matchName(prev ?? p),
         time_of_day: p.date.slice(11, 16),
       });
       done.add(key);
@@ -162,6 +167,7 @@ export function detectRecurring(db: SqlDriver, opts: DetectOptions): RecurringCa
       key, account_id: last.account_id, category_id: last.category_id, category_name: last.category_name, title: titleOf(last), amount_minor: last.amount_minor,
       currency: last.currency, frequency: best.frequency, interval: best.interval, occurrences: series.length, last_date: last.date.slice(0, 10), next_date: next,
       confidence: best.score, tag_ids: last.tag_ids, planned_tx_id: null, source: "history", time_of_day: last.date.slice(11, 16),
+      match_payee: matchName(last),
     });
   }
   return out.sort((a, b) => (a.source === b.source ? 0 : a.source === "planned" ? -1 : 1) || a.next_date.localeCompare(b.next_date));
@@ -176,7 +182,7 @@ export function adoptCandidate(db: SqlDriver, c: RecurringCandidate, opts: { not
   const auto = opts.auto_post ?? c.source === "planned";
   return db.transaction(() => {
     const rule = createRecurring(db, {
-      account_id: c.account_id, amount_minor: c.amount_minor, category_id: c.category_id, payee: c.title, notes: null, tag_ids: c.tag_ids,
+      account_id: c.account_id, amount_minor: c.amount_minor, category_id: c.category_id, payee: c.title, notes: null, tag_ids: c.tag_ids, match_payee: c.match_payee,
       frequency: c.frequency, interval: c.interval, start_date: c.next_date, next_date: c.next_date, time_of_day: c.time_of_day,
       notify: opts.notify === false ? 0 : 1, notify_days_before: opts.notify_days_before ?? 1, auto_post: auto ? 1 : 0,
     });
@@ -194,12 +200,14 @@ export function candidateFromTransaction(db: SqlDriver, txId: string, today: str
   if (!t) return null;
   const key = groupKey(t);
   const found = detectRecurring(db, { today, skipExisting: false }).find((c) => c.key === key);
-  if (found) return found;
+  // The row the user pointed at is the better example of how this charge is written, whatever
+  // occurrence the series happened to be summarised from.
+  if (found) return { ...found, match_payee: matchName(t) ?? found.match_payee };
   let next = t.date.slice(0, 10);
   while (next < today) next = addPeriod(next, "monthly", 1);
   return {
     key, account_id: t.account_id, category_id: t.category_id, category_name: t.category_name, title: titleOf(t), amount_minor: t.amount_minor, currency: t.currency,
     frequency: "monthly", interval: 1, occurrences: 1, last_date: t.date.slice(0, 10), next_date: next, confidence: 0.3, tag_ids: t.tag_ids, planned_tx_id: null,
-    time_of_day: t.date.slice(11, 16), source: "history",
+    time_of_day: t.date.slice(11, 16), source: "history", match_payee: matchName(t),
   };
 }

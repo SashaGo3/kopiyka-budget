@@ -8,7 +8,7 @@ import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { getPeriodStartDay, setPeriodStartDay } from "@/lib/period";
 import { notifyChange } from "@/store";
 import { C, S } from "@/constants/theme";
-import { APP_VERSION } from "@/constants/app";
+import { APP_MARKETING_VERSION, APP_VERSION } from "@/constants/app";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED } from "@/constants/features";
 import { lastBackupLine, useBackupState } from "@/lib/backup";
 import { getHideIncome, getHomeLocation, getLocationEnabled, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setShowBalance } from "@/lib/settings";
@@ -181,6 +181,8 @@ export default function SettingsScreen() {
             subtitle={missedNotifications ? `${missedNotifications} notification${missedNotifications === 1 ? "" : "s"} it could not read` : "What it tells you, and what it could not read"}
             subtitleColor={missedNotifications ? C.orange : undefined}
             onPress={() => router.push("/settings/automation")} style={styles.divider} />
+          {/* The notes show themselves once after an update; this is how you find them again. */}
+          <Row icon="sparkles" iconColor="#8E8E93" title="What's new" subtitle={`The changes in version ${APP_MARKETING_VERSION}`} onPress={() => router.push("/whats-new")} style={styles.divider} />
           {/* Boot trace and the last JS crash: useful while developing, noise in a shipped build. The version lives in the footer instead. */}
           {__DEV__ ? <Row icon="stethoscope" iconColor="#8E8E93" title="Diagnostics" subtitle="Boot trace and the last recorded crash" onPress={() => router.push("/settings/diagnostics")} style={styles.divider} /> : null}
         </Card>

@@ -22,7 +22,10 @@ export default function PickTags() {
   const [q, setQ] = useState("");
   const [created, setCreated] = useState<string[]>([]);   // ids made in this sheet, oldest first
   const tags = useQuery((db) => {
-    const rows = listRows(db, "tags", "deleted=0", [], "name");
+    // A retired tag is not offered, but one already on this transaction stays in the list so it can
+    // still be seen — and taken off, which is the only thing left to do with it.
+    const keep = new Set(selected ? selected.split(",").filter(Boolean) : []);
+    const rows = listRows(db, "tags", "deleted=0", [], "name").filter((t) => !t.archived || keep.has(t.id));
     const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
     const recent = db.all<{ tag_ids: string }>(`SELECT tag_ids FROM transactions WHERE deleted=0 AND date>=? AND tag_ids<>'[]'`, [since]);
     const usage = new Map<string, number>();

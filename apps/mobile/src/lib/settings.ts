@@ -2,7 +2,7 @@
  * Local preferences (not synced): stored in the meta table so they survive reinstalls
  * of the dev client and are included in the full data export.
  */
-import { getHome, getMeta, setHome, setMeta } from "@kopiyka/core";
+import { DEFAULT_WAIT_DAYS, getHome, getMeta, setHome, setMeta } from "@kopiyka/core";
 import { db } from "@/db";
 import { notifyChange } from "@/store";
 
@@ -17,6 +17,33 @@ function write(key: string, value: string): void { setMeta(db, key, value); noti
  */
 export function getShortcutNotify(): boolean { return read("shortcut_notify") !== "0"; }
 export function setShortcutNotify(on: boolean): void { write("shortcut_notify", on ? "1" : "0"); }
+
+/**
+ * Wait for the bank's own charge before a recurring rule acts on its own.
+ *
+ * Off by default, and off is exactly what the app did before: rules post (or ask) on the day they
+ * name. On, a rule keeps quiet on the day and the charge the notification automation logs claims the
+ * occurrence instead (`claimRecurring`), so a subscription is not written once by the rule and once
+ * by the bank. Only when the window closes with no charge does the rule act — automatic ones post,
+ * manual ones ask, exactly as they always did, only later and only when it is actually needed.
+ */
+export function getRecurringWait(): boolean { return read("recurring_wait") === "1"; }
+export function setRecurringWait(on: boolean): void { write("recurring_wait", on ? "1" : "0"); }
+
+export const WAIT_DAYS_OPTIONS = [1, 2, 3, 5, 7, 10, 14, 21, 30] as const;
+
+/** How long rules wait by default, in days. At least a day; a rule may name its own window instead. */
+export function getRecurringWaitDays(): number {
+  const v = Math.floor(Number(read("recurring_wait_days") ?? DEFAULT_WAIT_DAYS));
+  return Number.isFinite(v) && v >= 1 ? v : DEFAULT_WAIT_DAYS;
+}
+export function setRecurringWaitDays(d: number): void { write("recurring_wait_days", String(Math.max(1, Math.floor(d)))); }
+
+/**
+ * The window every core call takes: the default in days, or 0 when waiting is off — the one place
+ * the switch is turned into a number, so no screen has to remember to check both.
+ */
+export function waitDefaultDays(): number { return getRecurringWait() ? getRecurringWaitDays() : 0; }
 
 /** Default reminder lead time for new recurring rules, in days. */
 export function getReminderDaysBefore(): number { const v = Number(read("recurring_notify_days_before") ?? 1); return Number.isFinite(v) && v >= 0 ? v : 1; }

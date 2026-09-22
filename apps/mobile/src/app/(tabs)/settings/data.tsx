@@ -9,11 +9,11 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
-import { BACKUP_POLICY, backupNow, lastBackupLine, mirrorPhotos, photoBackupState, setBackupEnabled, useBackupState, type PhotoBackupState } from "@/lib/backup";
+import { BACKUP_POLICY, applyRetention, backupNow, lastBackupLine, mirrorPhotos, photoBackupState, pullFromCloud, setBackupEnabled, setSyncEnabled, useBackupState, type PhotoBackupState } from "@/lib/backup";
 import { bundleFile, importBundle } from "@/lib/bundle";
 import * as DocumentPicker from "expo-document-picker";
 import type { ImportMode } from "@kopiyka/core";
-import { BACKUP_PER_DAY_OPTIONS, getBackupPerDay, setBackupPerDay } from "@/lib/settings";
+import { BACKUP_KEEP_DAYS_OPTIONS, getBackupKeepDays, setBackupKeepDays } from "@/lib/settings";
 import { pickAndImport } from "@/lib/importers";
 
 type ExportKind = "backup" | "generic";
@@ -35,16 +35,38 @@ export default function DataScreen() {
     if (f) Alert.alert("Backed up", `${f.name}\n${(f.size / 1024).toFixed(0)} KB${backup.icloud ? " · uploading to iCloud Drive" : " · saved on this phone"}`);
     else if (!backup.supported) Alert.alert("Backups need the native build");
   };
+  /**
+   * Auto-sync reads the same container the backups go to, so it can only say something useful once
+   * it has looked: "checked, nothing new" is the answer on almost every poll and is the one that
+   * needs saying, because silence here looks exactly like a feature that is not working.
+   */
+  const syncSubtitle = !backup.supported ? "Needs the native build"
+    : !backup.sync ? "Off · backups from your other devices are ignored"
+    : !backup.icloud ? "iCloud is off on this phone, so there is nothing to merge"
+    : backup.syncing ? "Merging…"
+    : backup.lastSync
+      ? `${backup.lastSync.rows ? `${backup.lastSync.rows} row${backup.lastSync.rows === 1 ? "" : "s"} merged` : "Nothing new"} · checked ${lastBackupLine(backup.lastSync.at).replace("Last backup ", "")}`
+      : "Checked when you open the app and every few minutes";
+  const checkNow = async () => {
+    const rows = await pullFromCloud("manual");
+    Alert.alert(rows ? "Merged" : "Nothing new", rows
+      ? `${rows} row${rows === 1 ? "" : "s"} came in from another device. Nothing was deleted: rows already newer here were kept.`
+      : "No backup in iCloud that this phone has not already taken in.");
+  };
+
   const counts = useQuery((d) => ({
     tx: d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions WHERE deleted=0`)?.n ?? 0,
     accounts: listRows(d, "accounts").length,
   }));
 
-  const perDay = useQuery(() => getBackupPerDay());
-  const perDayKey = useMemo(() => newPickKey("backupperday"), []);
-  usePickResult<string>(perDayKey, useCallback((v: string) => setBackupPerDay(Number(v)), []));
-  const pickPerDay = () => router.push({ pathname: "/pick/option", params: { key: perDayKey, title: "Backups per day", selected: String(perDay),
-    options: JSON.stringify(BACKUP_PER_DAY_OPTIONS.map((n) => ({ value: String(n), label: `${n} a day` }))) } });
+  // The storage dial. Shortening the window deletes what now falls outside it immediately: the
+  // reason for shortening it is to get the space back, and waiting for the next backup to do it
+  // would leave the screen claiming a number of files that is not what iCloud is holding.
+  const keepDays = useQuery(() => getBackupKeepDays());
+  const keepKey = useMemo(() => newPickKey("backupkeepdays"), []);
+  usePickResult<string>(keepKey, useCallback((v: string) => { setBackupKeepDays(Number(v)); void applyRetention(); }, []));
+  const pickKeepDays = () => router.push({ pathname: "/pick/option", params: { key: keepKey, title: "Keep backups for", selected: String(keepDays),
+    options: JSON.stringify(BACKUP_KEEP_DAYS_OPTIONS.map((n) => ({ value: String(n), label: n >= 30 && n % 30 === 0 ? `${n} days · ${n / 30} month${n === 30 ? "" : "s"}` : `${n} days` }))) } });
 
   const [dbSize, setDbSize] = useState(() => databaseFileSize());
   // Photos do not travel inside a backup — they are mirrored beside it, a few after each one — so the
@@ -156,12 +178,17 @@ export default function DataScreen() {
         <Card>
           <ToggleRow icon="icloud" iconColor="#0A84FF" title="Back up to iCloud" subtitle={backupSubtitle} value={backup.enabled && backup.supported} onChange={setBackupEnabled} />
           <Row icon="arrow.clockwise.icloud" iconColor="#0A84FF" title={backup.busy ? "Backing up…" : "Back up now"} onPress={backup.busy || !backup.supported ? undefined : () => void runBackup()} style={styles.divider} />
+          <ToggleRow icon="arrow.triangle.2.circlepath" iconColor="#5E5CE6" title="Merge from other devices" subtitle={syncSubtitle} value={backup.sync && backup.supported} onChange={setSyncEnabled} style={styles.divider} />
+          {backup.sync && backup.supported ? (
+            <Row icon="icloud.and.arrow.down" iconColor="#5E5CE6" title={backup.syncing ? "Merging…" : "Check iCloud now"} onPress={backup.syncing ? undefined : () => void checkNow()} style={styles.divider} />
+          ) : null}
           <Row icon="clock.arrow.circlepath" iconColor="#30D158" title="Restore from a backup" subtitle={backup.count ? `${backup.count} backup${backup.count === 1 ? "" : "s"}, ${backup.today} today` : "Nothing to restore yet"} onPress={() => router.push("/settings/backups")} style={styles.divider} />
           <Row icon="photo.on.rectangle" iconColor="#FF9F0A" title="Receipt photos" subtitle={photoLine}
             onPress={!photos?.pending || !photos.icloud || backup.busy ? undefined : () => { void mirrorPhotos(500).then(refreshPhotos); }} style={styles.divider} />
-          <Row icon="square.stack.3d.up" iconColor="#0A84FF" title="Backups per day" subtitle={`${perDay} · the day's first backup plus the newest ones`} onPress={pickPerDay} style={styles.divider} />
+          <Row icon="square.stack.3d.up" iconColor="#0A84FF" title="Keep backups for" subtitle={`${keepDays} days · ${backup.count} file${backup.count === 1 ? "" : "s"} in iCloud now`} onPress={pickKeepDays} style={styles.divider} />
         </Card>
-        <Text style={styles.hint}>A backup is written shortly after each change and at least once a day. Each day keeps its first backup plus the newest ones, {perDay} in all, for {BACKUP_POLICY.keepDays} days. Files live in Files → iCloud Drive → Kopiyka → Backups and open on any of your devices.</Text>
+        <Text style={styles.hint}>A backup is written shortly after each change and at least once a day. Each day keeps its first backup plus the newest ones, up to {BACKUP_POLICY.perDay} in all, and days outside the window above are deleted — that window is what decides how much of your iCloud storage this uses. Files live in Files → iCloud Drive → Kopiyka → Backups and open on any of your devices.</Text>
+        <Text style={styles.hint}>Your other devices back up to the same place, so merging is how an iPhone and an iPad stay level: each takes in what the other wrote, in the background, while you carry on. Nothing is ever deleted by it — where both changed the same thing, the newer edit wins — and a backup you have not merged is never deleted to make room. One exception to know about: “Replace everything” below is local, so rows it removes can come back from another device’s next backup. Replace on each device, or turn merging off while you do it.</Text>
 
         <SectionHeader>Export</SectionHeader>
         <Card>

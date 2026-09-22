@@ -1,18 +1,20 @@
 import { useCallback, useMemo, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { REMINDER_OPTIONS, getReminderDaysBefore, setReminderDaysBefore } from "@/lib/settings";
+import { REMINDER_OPTIONS, WAIT_DAYS_OPTIONS, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
 import { Stack, router } from "expo-router";
-import { listRows, dueOccurrences, detectRecurring, adoptCandidate, sumInBase, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
+import { listRows, dueOccurrences, detectRecurring, adoptCandidate, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission } from "@/lib/notifications";
-import { AmountPill, Card, Chip, Empty, Row, ScreenNote, SectionHeader, StatPair } from "@/components/ui";
+import { AmountPill, Card, Chip, Empty, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
 import { BarButton, BottomBar } from "@/components/BottomBar";
 import { C, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 
-type RuleRowData = RecurringRule & { account?: { name: string; currency: string }; category?: { name: string }; due: number };
+type RuleRowData = RecurringRule & { account?: { name: string; currency: string }; category?: { name: string }; due: number; waitingSince: string | null; wait: number };
+
+const dayCount = (d: number) => (d === 1 ? "1 day" : `${d} days`);
 
 /** Where the amount and cadence come from, asked after the posting question. */
 const SOURCE_CHOICE = [
@@ -35,13 +37,18 @@ export default function RecurringList() {
     const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a]));
     const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
     const today = todayLocal();
+    const waitDefault = waitDefaultDays();
     return (listRows(db, "recurring_rules", "deleted=0", [], "next_date") as RecurringRule[]).map((r): RuleRowData => ({
       ...r, account: accounts.get(r.account_id), category: r.category_id ? cats.get(r.category_id) : undefined, due: dueOccurrences(r, today).length,
+      waitingSince: waitingOccurrences(r, today, waitDefault)[0] ?? null, wait: ruleWaitDays(r, waitDefault),
     }));
   });
-  const due = rules.filter((r) => r.due > 0 && !r.auto_post && r.active);
-  const auto = rules.filter((r) => r.auto_post && r.active);
-  const manual = rules.filter((r) => !r.auto_post && r.active && r.due === 0);
+  // A rule whose day has come while it waits for the bank is neither due nor idle, and it is the one
+  // state a glance at this screen should explain: nothing is owed yet, the charge is simply not here.
+  const expecting = rules.filter((r) => r.active && r.waitingSince);
+  const due = rules.filter((r) => r.due > 0 && !r.auto_post && r.active && !r.waitingSince);
+  const auto = rules.filter((r) => r.auto_post && r.active && !r.waitingSince);
+  const manual = rules.filter((r) => !r.auto_post && r.active && r.due === 0 && !r.waitingSince);
   const paused = rules.filter((r) => !r.active);
   // What the active rules commit you to, every cadence normalised to a year and converted to the
   // base currency. Paused rules are excluded: they cost nothing until you switch them back on.
@@ -52,7 +59,12 @@ export default function RecurringList() {
   const yearly = sumInBase(perCurrency, base, rateFor);
   const suggestions = useQuery((db) => detectRecurring(db, { today: todayLocal() }));
   const remind = useQuery(() => getReminderDaysBefore());
+  const wait = useQuery(() => getRecurringWait());
+  const waitDays = useQuery(() => getRecurringWaitDays());
   const remindKey = useMemo(() => newPickKey("remind"), []);
+  const waitKey = useMemo(() => newPickKey("wait"), []);
+  usePickResult<string>(waitKey, useCallback((v: string) => setRecurringWaitDays(Number(v)), []));
+  const pickWait = () => router.push({ pathname: "/pick/option", params: { key: waitKey, title: "Wait for the charge", selected: String(waitDays), options: JSON.stringify(WAIT_DAYS_OPTIONS.map((d) => ({ value: String(d), label: dayCount(d) }))) } });
   // Adding a rule: pick where it comes from, enter the amount, then the rule screen for the rest.
   const w = useMemo(() => ({ post: newPickKey("wpost"), src: newPickKey("wsrc"), tx: newPickKey("wtx"), amount: newPickKey("wamt"), name: newPickKey("wname") }), []);
   const newAmount = useRef(0);
@@ -99,9 +111,21 @@ export default function RecurringList() {
         {yearly.missing.length ? <Text style={styles.warn}>No rate yet for {yearly.missing.join(", ")} — those rules are not counted.</Text> : null}
         <Card style={{ marginTop: S.sm }}>
           <Row icon="bell" iconColor="#FF375F" title="Default reminder" subtitle={REMINDER_OPTIONS.find((o) => o.value === String(remind))?.label ?? `${remind} days before`} onPress={pickRemind} />
+          <ToggleRow icon="hourglass" iconColor="#64D2FF" title="Wait for the charge" style={styles.divider}
+            subtitle="Let the real payment arrive and settle the rule, instead of adding one on the day"
+            value={wait} onChange={setRecurringWait} />
+          {wait ? <Row icon="clock.badge.exclamationmark" iconColor="#FF9F0A" title="Wait up to" subtitle={dayCount(waitDays)} onPress={pickWait} style={styles.divider} /> : null}
         </Card>
-        <ScreenNote>A rule for money that comes back: rent, subscriptions, salary. An automatic rule posts itself on the day and tells you it did; a manual one waits and asks first, for a payment whose day or amount moves around. Kopiyka also spots repeats in what you have already logged and offers them below.</ScreenNote>
+        <ScreenNote>
+          A rule for money that comes back: rent, subscriptions, salary.{" "}
+          {wait
+            ? "With waiting on, a rule keeps quiet on its day: the payment your bank notifies — or one you log yourself — is taken as that month's, with the rule's category and the amount actually charged. Only if nothing turns up within the window does the rule act: automatic ones post their own amount, manual ones ask. Individual rules can wait longer or less."
+            : "An automatic rule posts itself on the day and tells you it did; a manual one waits and asks first, for a payment whose day or amount moves around. If the Shortcut automation already logs these payments, turn on waiting above so they are not added twice."}
+          {" "}Kopiyka also spots repeats in what you have already logged and offers them below.
+        </ScreenNote>
         {rules.length === 0 && suggestions.length === 0 ? <Empty title="No recurring transactions" hint="Tap Add to make one." /> : null}
+        {expecting.length ? <SectionHeader>Waiting for the charge</SectionHeader> : null}
+        {expecting.length ? <Card>{expecting.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
         {due.length ? <SectionHeader>Due now · confirm</SectionHeader> : null}
         {due.length ? <Card>{due.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} confirm />)}</Card> : null}
         {manual.length ? <SectionHeader>Manual · asks before posting</SectionHeader> : null}
@@ -123,7 +147,7 @@ export default function RecurringList() {
             ))}
           </Card>
         ) : null}
-        <Text style={styles.foot}>Totals cover active rules only, every cadence normalised to a year. Reminders are local notifications on this phone; automatic rules post on the day, manual ones wait for your tap.</Text>
+        <Text style={styles.foot}>Totals cover active rules only, every cadence normalised to a year. Reminders are local notifications on this phone; {wait ? "a rule acts only once its window has closed without a charge." : "automatic rules post on the day, manual ones wait for your tap."}</Text>
       </ScrollView>
       <BottomBar><BarButton icon="plus" label="Add" onPress={addRule} a11y="Add a recurring rule" /></BottomBar>
     </>
@@ -137,9 +161,12 @@ export function freqLabel(f: string, interval: number): string {
 
 function RuleRow({ r, first, confirm }: { r: RuleRowData; first: boolean; confirm?: boolean }) {
   const title = r.payee || r.category?.name || "Recurring";
+  const sub = r.waitingSince
+    ? `Expected ${humanDayTime(r.waitingSince)} · ${r.auto_post ? "posts" : "asks"} if nothing arrives within ${dayCount(r.wait)}`
+    : `${freqLabel(r.frequency, r.interval)} · ${r.account?.name ?? ""}${r.category && r.payee ? ` · ${r.category.name}` : ""}`;
   return (
     <Row title={title}
-      subtitle={`${freqLabel(r.frequency, r.interval)} · ${r.account?.name ?? ""}${r.category && r.payee ? ` · ${r.category.name}` : ""}`}
+      subtitle={sub}
       right={<View style={styles.right}><Text style={styles.when}>{humanDayTime(r.next_date, r.time_of_day, todayLocal(), r.frequency === "yearly")}</Text><AmountPill minor={r.amount_minor} currency={r.account?.currency ?? ""} /></View>}
       onPress={() => router.push(confirm ? { pathname: "/recurring/confirm", params: { id: r.id } } : { pathname: "/recurring/[id]", params: { id: r.id } })}
       style={[!first && styles.divider, !r.active && { opacity: 0.5 }]} />

@@ -1,5 +1,6 @@
 import { AppState } from "react-native";
 import { router, type useNavigationContainerRef } from "expo-router";
+import { markLaunchTarget } from "@/lib/boot";
 
 /**
  * Where deep links that arrive while the app is already running are turned into navigation.
@@ -97,6 +98,9 @@ export function parseQuery(query: string): Params {
 export function openDeepLink(url: string) {
   const { name, params } = parseLink(url);
   if (!name) return;
+  // A cold launch from a tapped notification never passes through `+native-intent`, so the release
+  // notes are called off here too: whatever the tap was about is what the user asked to see.
+  markLaunchTarget();
   if (name === "log" || name === "transaction/new") { openEntrySheet(params); return; }
   whenActive(() => {
     const routes = rootStackRoutes();

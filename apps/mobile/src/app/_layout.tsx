@@ -13,6 +13,7 @@ import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
+import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { isPad, screenContentStyle } from "@/constants/layout";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
@@ -75,6 +76,7 @@ export default function RootLayout() {
       InteractionManager.runAfterInteractions(() => {
         installBackupTriggers();
         writeWidgetSnapshot();
+        maybeShowWhatsNew();
         void notifications.runAutoPosting().then(() => notifications.rescheduleRecurringNotifications());
         void notifications.syncBadge();
       });
@@ -111,6 +113,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+          {/* A short read of variable length: a half sheet that can be dragged up, not a full card. */}
+          <Stack.Screen name="whats-new" options={medium} />
           <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: "Back" }} />
           <Stack.Screen name="pending" options={{ ...pushed, title: "Pending", headerBackTitle: "Back" }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
@@ -120,8 +124,14 @@ export default function RootLayout() {
           <Stack.Screen name="transfer/[id]" options={fit} />
           <Stack.Screen name="account/edit" options={fit} />
           <Stack.Screen name="category/edit" options={modal} />
+          {/* Two questions and a list to read before agreeing to it, so a full card rather than a sheet. */}
+          <Stack.Screen name="category/importance" options={modal} />
           <Stack.Screen name="tag/edit" options={modal} />
           <Stack.Screen name="budget/edit" options={fit} />
+          {/* The one screen with a drag: the sheet's own swipe-to-dismiss would be pulling against
+              every downward drag of a row, and it has Cancel and Done of its own. */}
+          <Stack.Screen name="budget/reorder" options={{ ...modal, gestureEnabled: false }} />
+          <Stack.Screen name="budget/planned" options={modal} />
           <Stack.Screen name="debt/edit" options={fit} />
           <Stack.Screen name="travel/start" options={fit} />
           <Stack.Screen name="travel/backfill" options={modal} />

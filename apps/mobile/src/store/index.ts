@@ -19,9 +19,19 @@ const SIDE_EFFECT_DELAY_MS = 300;
  * side effects (widgets, watch, notifications, sync) once the dismissal animation is over. Bursts of writes coalesce.
  */
 export function notifyChange(): void {
+  refreshQueries();
+  if (!sideScheduled) { sideScheduled = true; setTimeout(() => { sideScheduled = false; for (const f of afterWrite) f(); }, SIDE_EFFECT_DELAY_MS); }
+}
+
+/**
+ * Re-read the database without claiming anything was written: the queries run again, and the
+ * after-write side effects do not. For a reader that may have missed a write it did not cause —
+ * pull to refresh — where `notifyChange` would mark the database dirty and have the phone write a
+ * backup about nothing.
+ */
+export function refreshQueries(): void {
   version++;
   if (!uiScheduled) { uiScheduled = true; setTimeout(() => { uiScheduled = false; for (const l of listeners) l(); }, 0); }
-  if (!sideScheduled) { sideScheduled = true; setTimeout(() => { sideScheduled = false; for (const f of afterWrite) f(); }, SIDE_EFFECT_DELAY_MS); }
 }
 
 /** Run a write and notify subscribers. Nested calls only notify once. */

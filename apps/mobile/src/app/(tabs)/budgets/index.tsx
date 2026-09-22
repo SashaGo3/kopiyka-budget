@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, LayoutAnimation, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { budgetCategoryIds, budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, remove, sumInBase, tagColor, tripStats, type Budget } from "@kopiyka/core";
@@ -14,6 +14,7 @@ import { C, R, S } from "@/constants/theme";
 import { periodLabel } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
 import { getBaseCurrency, useRates } from "@/lib/rates";
+import { useCloudRefresh } from "@/lib/backup";
 import { getBudgetScope, setBudgetScope } from "@/lib/settings";
 import { scopeAccount, scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
 
@@ -39,6 +40,9 @@ export default function BudgetsScreen() {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: "Spending from", options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
+  // The same gesture as on Transactions, and the same hook behind it: re-read the database and look
+  // in iCloud for what another device has backed up.
+  const { refreshing, onRefresh } = useCloudRefresh();
   const trips = useQuery((db) => listTrips(db));
   const activeTrips = trips.filter((t) => !t.ended), pastTrips = trips.filter((t) => t.ended);
   const [pastOpen, setPastOpen] = useState(false);
@@ -73,7 +77,7 @@ export default function BudgetsScreen() {
         const sc = cid === "none" ? undefined : cats.get(cid);
         return { name: sc?.name ?? "Uncategorized", icon: sc?.icon ?? null, color: sc?.color ?? null };
       });
-      return { id: b.id, name: tag ? tag.name : scopeName || "Everything",
+      return { id: b.id, name: b.name?.trim() || (tag ? tag.name : scopeName || "Everything"), named: !!b.name?.trim(), counted: b.in_planned !== 0, tag: tag?.id ?? null,
         // The folder above it places a single category; several of them place themselves.
         parent: tag ? "Tag" : one?.parent_id ? cats.get(one.parent_id)?.name ?? null : null,
         currency: b.currency, limit: b.amount_minor, spent: r.spent_minor,
@@ -95,14 +99,22 @@ export default function BudgetsScreen() {
   }, [start, end, scopeIds.join(","), budgetAccount]);
 
   const { rateFor } = useRates([...new Set([...data.rows, ...data.spending].map((r) => r.currency))], base);
-  const planned = sumInBase(data.rows.map((r) => ({ currency: r.currency, minor: r.limit })), base, rateFor);
-  const available = sumInBase(data.rows.map((r) => ({ currency: r.currency, minor: r.limit - r.spent })), base, rateFor);
+  // A budget switched out of the totals keeps its bar below but stays out of these two numbers, so
+  // a limit kept as a yardstick does not read as money set aside (`/budget/planned` is the switch).
+  const counted = data.rows.filter((r) => r.counted);
+  const planned = sumInBase(counted.map((r) => ({ currency: r.currency, minor: r.limit })), base, rateFor);
+  const available = sumInBase(counted.map((r) => ({ currency: r.currency, minor: r.limit - r.spent })), base, rateFor);
   const exceeded = data.rows.filter((r) => r.spent > r.limit).length;
   // What the categories below add up to. Spending is grouped per currency, so a month with a foreign
   // card in it lists the same category twice and there was no one number to read off the section at
   // all; `oneCurrency` keeps a single-currency month exact and only converts a genuinely mixed one.
   const spendingTotal = oneCurrency([data.spending.map((g) => ({ currency: g.currency, minor: -g.spent }))], base, rateFor);
-  const openCategory = (id: string | null, name: string) => router.push({ pathname: "/transactions", params: { category: id ?? "none", name, from: start, to: end, accounts: scopeIds.join(","), nonce: String(Date.now()) } });
+  /**
+   * The transactions a line is made of. Both filters travel, not just the category: a line under a
+   * tag budget is what that category cost *while carrying the tag*, so opening it on the category
+   * alone would show more money than the line says — every other Shopping row of the month included.
+   */
+  const openCategory = (id: string | null, name: string, tag?: string | null) => router.push({ pathname: "/transactions", params: { category: id ?? "none", name, ...(tag ? { tag } : {}), from: start, to: end, accounts: scopeIds.join(","), nonce: String(Date.now()) } });
   const toggle = (key: string) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
   const removeTrip = (t: Budget) => {
     const s = tripStats(db, t);
@@ -115,7 +127,8 @@ export default function BudgetsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Budgets", headerLargeTitle: true }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Period and scope live in the content, not the native header: once scrolled they leave with the large title instead of crowding the compact "Budgets" bar. */}
         <View style={styles.pills}>
           <PeriodPill period={period} onPrev={() => setPeriod(shiftPeriod(period, -1))} onNext={() => setPeriod(shiftPeriod(period, 1))} onReset={() => setPeriod(currentPeriod())}
@@ -126,32 +139,37 @@ export default function BudgetsScreen() {
         {activeTrips.map((t) => <FadeIn key={t.id}><TripCard budget={t} /></FadeIn>)}
         {data.rows.length ? (
           <StatPair stats={[
-            { label: "Planned", minor: planned.minor, currency: base, color: C.green },
-            { label: "Available", minor: available.minor, currency: base, color: available.minor < 0 ? C.red : undefined },
+            { label: data.rows.length > counted.length ? `Planned · ${counted.length} of ${data.rows.length}` : "Planned", minor: planned.minor, currency: base, color: C.green, onPress: () => router.push("/budget/planned") },
+            { label: "Available", minor: available.minor, currency: base, color: available.minor < 0 ? C.red : undefined, onPress: () => router.push("/budget/planned") },
           ]} />
         ) : null}
         {exceeded ? <View style={styles.note}><Text style={styles.noteText}>You have exceeded {exceeded} budget{exceeded > 1 ? "s" : ""} 😢</Text></View> : null}
         {data.rows.length === 0 ? <Empty title={budgetAccount ? `No budgets for ${scopeName} yet` : "No budgets yet"} hint="Set a limit for a category or for everything; it renews every period." /> : null}
-        {data.rows.length ? <SectionHeader>Monthly · {period.subtitle ?? period.title}{scope ? ` · ${scopeName}` : ""}</SectionHeader> : null}
+        {data.rows.length ? (
+          <SectionHeader right={data.rows.length > 1
+            ? <Pressable onPress={() => router.push("/budget/reorder")} hitSlop={8} accessibilityRole="button" accessibilityLabel="Reorder budgets"><Text style={styles.addText}>Reorder</Text></Pressable>
+            : undefined}>Monthly · {period.subtitle ?? period.title}{scope ? ` · ${scopeName}` : ""}</SectionHeader>
+        ) : null}
         {data.rows.map((b, bi) => {
           const ratio = b.limit > 0 ? Math.min(1, b.spent / b.limit) : 0;
           const over = b.spent > b.limit;
           return (
             <FadeIn key={b.id} delay={bi * 40} style={styles.budget}>
-              <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: b.id } })} style={styles.budgetHead} accessibilityRole="button" accessibilityLabel={`Edit budget ${b.name}`}>
+              <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: b.id } })} onLongPress={data.rows.length > 1 ? () => router.push("/budget/reorder") : undefined}
+                style={styles.budgetHead} accessibilityRole="button" accessibilityLabel={`Edit budget ${b.name}`} accessibilityHint={data.rows.length > 1 ? "Long press to reorder the budgets" : undefined}>
                 {b.icons.length > 1
                   ? <CategoryIconStack items={b.icons} size={34} />
                   : <CategoryIcon name={b.name} icon={b.icon} color={b.color} size={34} />}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.budgetName} numberOfLines={2}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
-                  <Text style={styles.budgetSub}>{periodLabel(start, end)} · {over ? "Exceeded" : "Available"}</Text>
+                  <Text style={styles.budgetSub}>{periodLabel(start, end)} · {over ? "Exceeded" : "Available"}{b.counted ? "" : " · not in Planned"}</Text>
                 </View>
                 <AmountPill minor={b.limit - b.spent} currency={b.currency} />
               </Pressable>
               <ProgressBar ratio={ratio} color={over ? C.red : ratio > 0.85 ? C.orange : C.green} />
               <Text style={styles.budgetSub}>{fmt(b.spent)} of {fmt(b.limit)} {b.currency}</Text>
               {b.children.map((ch) => (
-                <Pressable key={ch.id ?? "none"} onPress={() => openCategory(ch.id, ch.name)} style={styles.child} accessibilityRole="button" accessibilityLabel={`${ch.name} transactions`}>
+                <Pressable key={ch.id ?? "none"} onPress={() => openCategory(ch.id, b.tag ? `${b.name} · ${ch.name}` : ch.name, b.tag)} style={styles.child} accessibilityRole="button" accessibilityLabel={`${ch.name} transactions${b.tag ? ` tagged ${b.name}` : ""}`}>
                   <CategoryIcon name={ch.name} icon={ch.icon} color={ch.color} size={24} />
                   <Text style={styles.childName}>{ch.name}</Text>
                   <Money minor={-ch.spent} currency={b.currency} style={styles.childAmt} />

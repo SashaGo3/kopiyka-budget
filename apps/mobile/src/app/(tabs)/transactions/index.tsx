@@ -3,7 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, jsonIds, listRows, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, formatMinor, waitingRules, jsonIds, listRows, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -17,9 +17,10 @@ import { EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type 
 import { todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
 import { getBaseCurrency, useRates } from "@/lib/rates";
-import { getBudgetScope, getHideIncome, setBudgetScope } from "@/lib/settings";
+import { getBudgetScope, getHideIncome, setBudgetScope, waitDefaultDays } from "@/lib/settings";
 import { scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
 import { markBooted } from "@/lib/boot";
+import { DISMISS_MS } from "@/lib/nav";
 import { isPad } from "@/constants/layout";
 
 /** Two presses of the tab within this are one gesture, not two taps. */
@@ -65,6 +66,45 @@ export default function TransactionsScreen() {
   // written in an effect, not during render, because the React Compiler is on.
   const shown = useRef({ filter, period });
   useEffect(() => { shown.current = { filter, period }; }, [filter, period]);
+  /** Everything back to the defaults: no filters, no account scope, this month, by date. */
+  const showEverything = useCallback(() => {
+    setBudgetScope("");
+    setFilter({ ...EMPTY_FILTER });
+    setPeriod(currentPeriod());
+    setSort("date"); setSortGen((g) => g + 1);
+  }, [setPeriod]);
+  /** The filter sheet's answers only: the search text, the month and the account scope stay. */
+  const clearFilters = useCallback((inScope: string[]) => {
+    setFilter((f) => ({ ...EMPTY_FILTER, q: f.q, accounts: inScope }));
+    setSort("date"); setSortGen((g) => g + 1);
+  }, []);
+  /**
+   * Clearing the screen asks first, and says what it is about to clear.
+   *
+   * Three things narrow this list and only one of them is the filter sheet — the account scope and
+   * the month are shared with Budgets and have pills of their own — so "reset" is two different
+   * answers and the alert offers whichever apply. It used to just happen, silently, on a gesture
+   * nobody could see: a double tap that threw away a filter set up a minute ago and said nothing
+   * about it. Returns false when there is nothing on, so a caller can stay quiet rather than
+   * buzzing and opening an alert about nothing.
+   *
+   * Read through `shown` rather than the render's own values: the tab listener below is subscribed
+   * once and would otherwise be asking about the screen as it was when the tab was first opened.
+   */
+  const askReset = useCallback(() => {
+    const inScope = scopeAccountIds(getBudgetScope(), listRows(db, "accounts", "deleted=0"));
+    const { filter: f, period: per } = shown.current;
+    const count = activeCount(f, { accounts: inScope, period: per });
+    const scoped = !!getBudgetScope(), month = per.start !== currentPeriod().start;
+    if (!count && !scoped && !month) return false;
+    const on = [count ? `${count} filter${count === 1 ? "" : "s"}` : "", scoped ? "an account scope" : "", month ? (per.subtitle ?? per.title) : ""].filter(Boolean);
+    Alert.alert("Reset the list?", `Showing ${on.join(", ")}.`, [
+      { text: "Cancel", style: "cancel" },
+      ...(count ? [{ text: count === 1 ? "Clear the filter" : "Clear the filters", onPress: () => clearFilters(inScope) }] : []),
+      ...(scoped || month ? [{ text: "Back to defaults", onPress: showEverything }] : []),
+    ]);
+    return true;
+  }, [clearFilters, showEverything]);
   useEffect(() => {
     const tabs = navigation.getParent();
     if (!tabs) return;
@@ -73,27 +113,21 @@ export default function TransactionsScreen() {
     return (tabs as { addListener: (type: string, cb: () => void) => () => void }).addListener("tabPress", () => {
       if (navigation.isFocused()) {
         // Re-tap of the tab already on screen: iOS scrolls to the top, and a single press means
-        // nothing else. A second one straight after it clears the filters — the quickest way back
-        // to the whole month from wherever Budgets or a category editor sent you. The period and
-        // the account scope are deliberately left alone: both are shared with Budgets, and both
-        // have a pill of their own right there. The search text stays too, because on the search
-        // tab the field is the truth and clearing one without the other leaves them disagreeing.
+        // nothing else. A second one straight after it offers the way back to the whole month from
+        // wherever Budgets or a category editor sent you — the same question the Filter button
+        // asks when it is held, because a native tab bar reports nothing but a press and a hidden
+        // gesture cannot be the only way to reach something.
         const now = Date.now();
         const twice = now - lastTabPress.current < DOUBLE_PRESS_MS;
         lastTabPress.current = twice ? 0 : now;
         if (!twice) return;
-        const inScope = scoped();
-        const { filter: f, period: per } = shown.current;
-        if (!activeCount(f, { accounts: inScope, period: per })) return;   // nothing to clear: no jolt, no haptic
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setFilter({ ...EMPTY_FILTER, q: f.q, accounts: inScope });
-        setSort("date"); setSortGen((g) => g + 1);
+        if (askReset()) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);   // nothing on: no jolt, no alert
         return;
       }
       setFilter({ ...EMPTY_FILTER, accounts: scoped() });
       setSort("date"); setSortGen((g) => g + 1);   // the period is shared with Budgets: whatever month is open stays open
     });
-  }, [navigation]);
+  }, [navigation, askReset]);
   const keys = useMemo(() => ({ filter: newPickKey("filter"), month: newPickKey("month"), scope: newPickKey("scope"), cat: newPickKey("mcat"), tags: newPickKey("mtags"), date: newPickKey("mdate"), note: newPickKey("mnote"), bulk: newPickKey("mbulk") }), []);
   usePickResult<TxFilter>(keys.filter, useCallback((f: TxFilter) => setFilter(f), []));
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
@@ -117,14 +151,18 @@ export default function TransactionsScreen() {
   // a count and an amount that disagree are worse than either on its own, and money held in another
   // currency used to be dropped from all three of them without a word.
   const dueRecurring = useQuery((d) => {
-    const due = dueManualRules(d, todayLocal());
+    const today = todayLocal(), waitDefault = waitDefaultDays();
+    const due = dueManualRules(d, today, waitDefault);
     const accounts = new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a]));
     const per = new Map<string, number>();
     for (const { rule, days } of due) {
       const currency = accounts.get(rule.account_id)?.currency;
       if (currency) per.set(currency, (per.get(currency) ?? 0) + rule.amount_minor * days.length);
     }
-    return { n: due.length, per: perList(per) };
+    // Rules whose day has come while they wait for the bank owe nothing yet, so they are counted
+    // apart from the dues and never added to the sum: nothing has left the account, and a number
+    // that says otherwise is the whole problem this feature exists to stop.
+    return { n: due.length, per: perList(per), waiting: waitingRules(d, today, waitDefault).length };
   }, []);
   const pending = useQuery((d) => {
     const groups = d.all<{ currency: string; minor: number; n: number }>(
@@ -185,12 +223,6 @@ export default function TransactionsScreen() {
     custom ? rangeLabel(filter.from, filter.to).toLowerCase() : `in ${period.subtitle ?? period.title}`,
     n ? `with ${n} filter${n === 1 ? "" : "s"} on` : null,
   ].filter(Boolean);
-  const showEverything = () => {
-    setBudgetScope("");
-    setFilter({ ...EMPTY_FILTER });
-    setPeriod(currentPeriod());
-    setSort("date"); setSortGen((g) => g + 1);
-  };
   const emptyList = (
     <Empty title="No transactions"
       hint={`Nothing ${narrowing.join(", ")}.`}
@@ -212,10 +244,27 @@ export default function TransactionsScreen() {
    * leaves no trace to read afterwards, so every multi-edit goes through the preview first, which
    * lists what each row says now and would say after, and writes only when it is confirmed
    * (`/transaction/bulk`). Selection mode ends when it reports back, and stays put on Cancel.
+   *
+   * Only for a change that needs no picker — Confirm. Everything else answers through one, and a
+   * picker hands its answer back a line before its own `router.back()`: both act on the same stack
+   * in the same tick, so the preview pushed from the handler is exactly what that `back()` pops.
+   * The sheet stays open on the category it opened with, the tick never moves, and changing the
+   * category of a selection looks like it does nothing at all. `reviewAfterPick` is the way in
+   * from there.
    */
   const review = (change: BulkChange) => {
     if (!chosen.length) return;
     router.push({ pathname: "/transaction/bulk", params: { key: keys.bulk, ids: chosenIds().join(","), change: JSON.stringify(change) } });
+  };
+  /**
+   * The same preview, from a picker's answer: the rows are read now — the selection is what it was
+   * when the question was asked — and the push waits for the sheet to be gone, because pushing into
+   * an iOS dismissal is dropped outright (`DISMISS_MS`, see lib/nav.ts).
+   */
+  const reviewAfterPick = (change: BulkChange) => {
+    if (!chosen.length) return;
+    const ids = chosenIds().join(",");
+    setTimeout(() => router.push({ pathname: "/transaction/bulk", params: { key: keys.bulk, ids, change: JSON.stringify(change) } }), DISMISS_MS);
   };
   usePickResult<number>(keys.bulk, useCallback(() => setSelected(null), []));
   // Move every chosen row to another day; each keeps its own time of day.
@@ -224,7 +273,7 @@ export default function TransactionsScreen() {
     const same = chosen.every((t) => t.date.slice(0, 10) === chosen[0]!.date.slice(0, 10)) ? chosen[0]!.date.slice(0, 10) : todayLocal();
     router.push({ pathname: "/pick/date", params: { key: keys.date, selected: same } });
   };
-  usePickResult<string>(keys.date, useCallback((day: string) => review({ kind: "date", day }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
+  usePickResult<string>(keys.date, useCallback((day: string) => reviewAfterPick({ kind: "date", day }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const deleteChosen = () => {
     if (!chosen.length) return;
     const transfers = chosen.filter((t) => t.transfer_id).length;
@@ -240,7 +289,7 @@ export default function TransactionsScreen() {
     const same = chosen.every((t) => t.category_id === chosen[0]!.category_id) ? chosen[0]!.category_id ?? "" : "-";
     router.push({ pathname: "/pick/category", params: { key: keys.cat, kind, selected: same } });
   };
-  usePickResult<string | null>(keys.cat, useCallback((v: string | null) => review({ kind: "category", category_id: v }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
+  usePickResult<string | null>(keys.cat, useCallback((v: string | null) => reviewAfterPick({ kind: "category", category_id: v }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   // Tags: the picker starts with the tags every chosen row already has. Ticking adds a tag to
   // all of them, unticking one of the shared tags removes it from all; other tags are untouched.
   const shared = useMemo(() => chosen.length ? chosen.map((t) => jsonIds(t.tag_ids)).reduce((acc, ids) => acc.filter((id) => ids.includes(id))) : [], [chosen]);
@@ -252,7 +301,7 @@ export default function TransactionsScreen() {
   usePickResult<string[]>(keys.tags, useCallback((picked: string[]) => {
     const add = picked.filter((id) => !shared.includes(id)), drop = shared.filter((id) => !picked.includes(id));
     if (!add.length && !drop.length) { setSelected(null); return; }
-    review({ kind: "tags", add, drop });
+    reviewAfterPick({ kind: "tags", add, drop });
   }, [chosen, shared])); // eslint-disable-line react-hooks/exhaustive-deps
   // The note every chosen row gets. Whether it replaces what is there or is added as a line is
   // asked on the preview screen, where the difference can be seen row by row.
@@ -261,7 +310,7 @@ export default function TransactionsScreen() {
     const same = chosen.every((t) => (t.notes ?? "") === (chosen[0]!.notes ?? "")) ? chosen[0]!.notes ?? "" : "";
     router.push({ pathname: "/pick/text", params: { key: keys.note, title: "Note", value: same, multiline: "1" } });
   };
-  usePickResult<string>(keys.note, useCallback((text: string) => review({ kind: "note", text, mode: "replace" }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
+  usePickResult<string>(keys.note, useCallback((text: string) => reviewAfterPick({ kind: "note", text, mode: "replace" }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const headerButton = (label: string, onPress: () => void, bold = false) => (
     <Pressable onPress={onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={label}><Text style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</Text></Pressable>
   );
@@ -300,15 +349,22 @@ export default function TransactionsScreen() {
           {missingRates.length ? (
             <Text style={styles.ratesWarn}>{fetchingRates ? `Fetching ${missingRates.join(", ")} rate…` : `No rate yet for ${missingRates.join(", ")}, so it is left out. Connect to the internet once.`}</Text>
           ) : null}
-          {dueRecurring.n > 0 ? (
-            <Pressable onPress={() => router.push("/recurring/due")} accessibilityRole="button" accessibilityLabel={`${dueRecurring.n} recurring payments due, review them`}
+          {dueRecurring.n > 0 || dueRecurring.waiting > 0 ? (
+            <Pressable onPress={() => router.push("/recurring/due")} accessibilityRole="button"
+              accessibilityLabel={dueRecurring.n ? `${dueRecurring.n} recurring payments due, review them` : `${dueRecurring.waiting} recurring payments expected, see them`}
               style={({ pressed }) => [styles.due, pressed && { opacity: 0.7 }]}>
-              <SymbolView name="repeat.circle.fill" size={20} tintColor={C.red} />
+              <SymbolView name={dueRecurring.n ? "repeat.circle.fill" : "hourglass.circle.fill"} size={20} tintColor={dueRecurring.n ? C.red : C.secondary} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.pendingTitle}>{dueRecurring.n === 1 ? "1 recurring payment due" : `${dueRecurring.n} recurring payments due`}</Text>
-                <Text style={styles.pendingSub}>Tap to post or skip</Text>
+                <Text style={styles.pendingTitle}>
+                  {dueRecurring.n === 0 ? (dueRecurring.waiting === 1 ? "1 recurring payment expected" : `${dueRecurring.waiting} recurring payments expected`)
+                    : dueRecurring.n === 1 ? "1 recurring payment due" : `${dueRecurring.n} recurring payments due`}
+                </Text>
+                <Text style={styles.pendingSub}>
+                  {dueRecurring.n === 0 ? "Waiting for the charge to arrive"
+                    : dueRecurring.waiting ? `Tap to post or skip · ${dueRecurring.waiting} more expected` : "Tap to post or skip"}
+                </Text>
               </View>
-              {dueSum.totals[0]!.minor ? <Money minor={dueSum.totals[0]!.minor} currency={dueSum.currency} approx={dueSum.totals[0]!.approx} style={styles.dueSum} /> : null}
+              {dueRecurring.n && dueSum.totals[0]!.minor ? <Money minor={dueSum.totals[0]!.minor} currency={dueSum.currency} approx={dueSum.totals[0]!.approx} style={styles.dueSum} /> : null}
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}
@@ -327,12 +383,22 @@ export default function TransactionsScreen() {
         </>
       } />
       <BottomBar visible={visible || selecting}>
-        {selecting ? (
+        {/* Nothing chosen yet: the actions are not offered at all. A `BarButton` that is merely
+            inactive looks exactly like a working one — `active` only bolds its label — so a row of
+            them above an empty selection reads as five buttons that do nothing when tapped, which
+            is how "the category picker does not open" was reported. One line of instruction
+            instead, and the buttons appear with the first tick. */}
+        {selecting && chosen.length === 0 ? (
+          <View style={styles.selectHint} accessibilityRole="text">
+            <SymbolView name="hand.tap" size={16} tintColor={C.secondary} />
+            <Text style={styles.selectHintText} numberOfLines={2}>Tap the transactions to change{rows.length > 1 ? ", or Select all" : ""}</Text>
+          </View>
+        ) : selecting ? (
           <>
-            <BarButton icon="folder" label="Category" active={chosen.length > 0} onPress={pickCategory} a11y={`Set category of ${chosen.length} selected`} />
-            <BarButton icon="number" active={chosen.length > 0} onPress={pickTags} a11y={`Edit tags of ${chosen.length} selected`} />
-            <BarButton icon="calendar" active={chosen.length > 0} onPress={pickDate} a11y={`Change date of ${chosen.length} selected`} />
-            <BarButton icon="text.alignleft" active={chosen.length > 0} onPress={pickNote} a11y={`Edit the note of ${chosen.length} selected`} />
+            <BarButton icon="folder" label="Category" active onPress={pickCategory} a11y={`Set category of ${chosen.length} selected`} />
+            <BarButton icon="number" active onPress={pickTags} a11y={`Edit tags of ${chosen.length} selected`} />
+            <BarButton icon="calendar" active onPress={pickDate} a11y={`Change date of ${chosen.length} selected`} />
+            <BarButton icon="text.alignleft" active onPress={pickNote} a11y={`Edit the note of ${chosen.length} selected`} />
             {chosen.some((t) => t.pending) ? <BarButton icon="checkmark.circle" label="Confirm" active onPress={() => review({ kind: "confirm" })} a11y={`Confirm ${chosen.filter((t) => t.pending).length} pending`} /> : null}
             <BarButton icon="trash" color={C.red} onPress={deleteChosen} a11y={`Delete ${chosen.length} selected`} />
           </>
@@ -341,7 +407,8 @@ export default function TransactionsScreen() {
             {/* In the iPad column there is room for the words, and a column of icons alone is a
                 puzzle; on a phone the bar is in the thumb zone and the count is all that fits. */}
             <BarButton icon="line.3.horizontal.decrease" label={isPad ? (n ? `Filters · ${n}` : "Filter") : n ? String(n) : undefined}
-              active={n > 0} onPress={() => router.push({ pathname: "/filter", params: { key: keys.filter, value: JSON.stringify(filter) } })} a11y={n ? `Filters, ${n} active` : "Filters"} />
+              active={n > 0} onPress={() => router.push({ pathname: "/filter", params: { key: keys.filter, value: JSON.stringify(filter) } })}
+              onLongPress={askReset} a11y={n ? `Filters, ${n} active` : "Filters"} a11yHint="Hold to clear what the list is narrowed to" />
             <BarButton icon={sort === "date" ? "arrow.up.arrow.down" : "arrow.down.to.line"} label={isPad ? (sort === "date" ? "By date" : "By amount") : undefined}
               active={sort === "amount"} onPress={toggleSort} a11y={sort === "date" ? "Sort by amount" : "Sort by date"} />
             <LogButton />
@@ -353,6 +420,8 @@ export default function TransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
+  selectHint: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.pill, backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, maxWidth: 320 },
+  selectHintText: { color: C.secondary, fontSize: 14, flexShrink: 1 },
   pills: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs },
   pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: "rgba(255,149,0,0.14)" },
   due: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: "rgba(255,59,48,0.14)" },

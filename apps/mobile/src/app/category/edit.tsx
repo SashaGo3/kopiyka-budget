@@ -8,6 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow, runBusy } from "@/components/ui";
 import { ALL_TIME } from "@/lib/filters";
+import { dismissTo } from "@/lib/nav";
 import { C, S } from "@/constants/theme";
 
 /**
@@ -40,11 +41,11 @@ export default function CategoryEdit() {
   usePickResult<string>(keys.folder, useCallback((v) => setParentId(v), []));
   // Jump to this category's transactions: the Transactions tab itself, filtered to it over all time,
   // rather than a second list of its own — one screen shows transactions, and everything there
-  // (sorting, the filter sheet, multi-select) then works on this list too.
+  // (sorting, the filter sheet, multi-select) then works on this list too. One navigation rather
+  // than a dismissal and a timer — see `lib/nav.ts` for what the timer cost.
   const showTransactions = () => {
     if (!existing) return;
-    router.back();
-    setTimeout(() => router.push({ pathname: "/transactions", params: { category: existing.id, name: existing.name, from: ALL_TIME, nonce: String(Date.now()) } }), 350);
+    dismissTo({ pathname: "/transactions", params: { category: existing.id, name: existing.name, from: ALL_TIME, nonce: String(Date.now()) } });
   };
   const parentFolder = parentId ? parents.find((p) => p.id === parentId) ?? null : null;
 
@@ -106,6 +107,29 @@ export default function CategoryEdit() {
     if (pickKey) resolvePick(pickKey, c.id);
     router.back();
   };
+  /**
+   * Retire this category instead of deleting it. Nothing filed under it changes — that history is
+   * exactly why it should not be deleted — it simply stops being offered: not in the pickers, not
+   * from a shop's history (`payeeHistory`), not from where you are standing (`suggestCategoryAt`).
+   * A payment the automation would have filed here lands in the Pending queue instead, with no
+   * category, which is the whole point: it asks rather than guessing at something retired.
+   *
+   * Archiving a folder retires what is inside it too, so that is spelled out before it happens.
+   */
+  const archived = existing?.archived === 1;
+  const archive = () => {
+    if (!existing) return;
+    if (archived) { mutate((d) => save(d, "categories", { ...existing, archived: 0 } as Category)); router.back(); return; }
+    const what = isFolder ? "folder" : "category";
+    Alert.alert(`Archive this ${what}?`,
+      [`Its ${uses} transaction${uses === 1 ? "" : "s"} keep it and still count everywhere.`,
+       hasChildren ? `The ${hasChildren} categories inside go with it.` : "",
+       "It stops being offered for anything new, including to the Shortcut automation, which will leave those payments in Pending for you to file.",
+      ].filter(Boolean).join(" "), [
+      { text: "Cancel", style: "cancel" },
+      { text: "Archive", onPress: () => { mutate((d) => save(d, "categories", { ...existing, archived: 1 } as Category)); router.back(); } },
+    ]);
+  };
   const del = () => existing && Alert.alert(isFolder ? "Delete folder?" : "Delete category?", hasChildren ? `Its ${hasChildren} categories become top-level folders. Transactions keep their data.` : "Transactions keep their data but become uncategorized.", [
     { text: "Cancel", style: "cancel" },
     { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "categories", existing.id)); router.back(); } },
@@ -165,6 +189,17 @@ export default function CategoryEdit() {
                   ? "Not while there are categories inside it — move or convert those first"
                   : `Its ${uses} transaction${uses === 1 ? "" : "s"} keep their history, gain the tag and move where you choose`}
                 onPress={hasChildren ? undefined : askWhere} />
+            </Card>
+          </>
+        ) : null}
+        {existing ? (
+          <>
+            <SectionHeader>Archive</SectionHeader>
+            <Card>
+              <Row icon={archived ? "tray.and.arrow.up" : "archivebox"} iconColor="#FF9F0A"
+                title={archived ? `Bring this ${isFolder ? "folder" : "category"} back` : `Archive this ${isFolder ? "folder" : "category"}`}
+                subtitle={archived ? "Offered again everywhere it used to be" : "Keeps every transaction and every number; just stops being offered"}
+                onPress={archive} />
             </Card>
           </>
         ) : null}

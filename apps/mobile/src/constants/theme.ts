@@ -24,6 +24,35 @@ export const C = {
   orange: Platform.OS === "ios" ? PlatformColor("systemOrange") : "#ff9500",
 } satisfies Record<string, ColorValue>;
 
+/**
+ * The ordinal ramp for the importance split: one hue — the brand graphite — at three lightness
+ * steps, because the levels are *ordered* (essential → in between → could stop) rather than a set
+ * of unrelated things. A ramp is the right encoding for ordered tiers; hues would imply they are
+ * different kinds of thing rather than degrees of one.
+ *
+ * Deliberately not green/orange. Those are status colours, and reusing them here would make the
+ * card a verdict: "could stop tomorrow" is a fact about a category, not a criticism of it
+ * (DATA.md rule 15). `0` is not part of the ramp at all — it is the palest fill on the card,
+ * because "nobody has marked this" is an absence, not a fourth level.
+ *
+ * Dark steps are chosen against the dark card rather than flipped. Both sets validated: monotone
+ * lightness, adjacent ΔL ≥ 0.06, single hue, light end clear of the surface.
+ */
+export const ValueRamp = {
+  3: dyn("#2B2B2E", "#F4F4F1"),
+  2: dyn("#6E6E73", "#A0A09C"),
+  1: dyn("#B4B4B8", "#5C5C58"),
+  0: Platform.OS === "ios" ? PlatformColor("tertiarySystemFill") : "#eee",
+} satisfies Record<0 | 1 | 2 | 3, ColorValue>;
+
+/** What each step of `ValueRamp` is called, wherever the split is shown. */
+export const VALUE_LABEL = {
+  3: "Could not live without",
+  2: "In between",
+  1: "Could stop tomorrow",
+  0: "Not marked yet",
+} as const;
+
 export const S = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 /** `card` is the one radius every content card uses; `pill` is "fully round" for anything pill-shaped. */
 export const R = { sm: 8, md: 12, card: 14, lg: 18, xl: 26, pill: 999 } as const;

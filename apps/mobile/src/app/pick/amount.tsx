@@ -7,7 +7,6 @@ import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { Keypad, ConfirmBar, evalExpr } from "@/components/Keypad";
 import { C, S } from "@/constants/theme";
-import { useT } from "@/i18n";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** What comes back when the screen was opened with `kind`, i.e. with the Category and Tags keys on. */
@@ -29,7 +28,6 @@ export interface AmountPick { minor: number; category_id: string | null; tag_ids
  * small entry, and asking "how much" and "what of" on one screen is one screen instead of three.
  */
 export default function PickAmount() {
-  const t = useT();
   const p = useLocalSearchParams<{ key: string; title?: string; currency?: string; value?: string; max?: string; available?: string; kind?: string; category?: string; tags?: string }>();
   const cur = p.currency ?? "EUR";
   const [expr, setExpr] = useState(p.value && Number(p.value) ? String(Number(p.value) / 100) : "");
@@ -57,13 +55,13 @@ export default function PickAmount() {
 
   return (
     <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.xl, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
-      <Text style={styles.title}>{p.title ?? t("Amount")}</Text>
+      <Text style={styles.title}>{p.title ?? "Amount"}</Text>
       <Text style={[styles.amount, tooMuch && { color: C.red }]}>{abs !== null ? formatMinor(toMinor(abs, cur), cur) : expr || "0"} <Text style={styles.cur}>{cur}</Text></Text>
-      {shown !== null ? <Text style={[styles.limit, tooMuch && { color: C.red }]}>{tooMuch ? t("That is more than there is to give") : t("{amount} {currency} available", { amount: formatMinor(shown, cur), currency: cur })}</Text> : null}
+      {shown !== null ? <Text style={[styles.limit, tooMuch && { color: C.red }]}>{tooMuch ? "That is more than there is to give" : `${formatMinor(shown, cur)} ${cur} available`}</Text> : null}
       <Keypad value={expr} onChange={setExpr} allowSign={false}
-        extra={p.kind ? { label: category ? category.name : t("Category"), a11y: t("Category: {name}", { name: category ? category.name : t("none") }), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: p.kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) } : undefined}
-        extra2={p.kind ? { a11y: tags.length ? t("Tags: {names}", { names: tags.map((tag) => tag.name).join(", ") }) : t("Tags"), icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) } : undefined} />
-      <ConfirmBar amount={`${abs !== null ? formatMinor(toMinor(abs, cur), cur) : "0"} ${cur}`} label={t("Use this amount")}
+        extra={p.kind ? { label: category ? category.name : "Category", a11y: `Category: ${category ? category.name : "none"}`, icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: p.kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) } : undefined}
+        extra2={p.kind ? { a11y: tags.length ? `Tags: ${tags.map((tag) => tag.name).join(", ")}` : "Tags", icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) } : undefined} />
+      <ConfirmBar amount={`${abs !== null ? formatMinor(toMinor(abs, cur), cur) : "0"} ${cur}`} label="Use this amount"
         disabled={abs === null || abs === 0 || tooMuch} onPress={use} />
     </View>
   );

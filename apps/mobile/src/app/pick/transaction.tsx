@@ -6,7 +6,6 @@ import { formatMinor } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { useTransactions } from "@/components/TransactionList";
 import { AmountPill, CategoryIcon } from "@/components/ui";
-import { useT } from "@/i18n";
 import { C, S } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
 
@@ -20,7 +19,6 @@ import { humanDayTime } from "@/lib/dates";
  * the result on each row: 90.00 → 60.00, before the row is even tapped.
  */
 export default function PickTransaction() {
-  const t = useT();
   const { key, title, desc, returnMinor, currency } = useLocalSearchParams<{ key: string; title?: string; desc?: string; returnMinor?: string; currency?: string }>();
   const [q, setQ] = useState("");
   const like = `%${q.trim()}%`;
@@ -38,23 +36,23 @@ export default function PickTransaction() {
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={rows} keyExtractor={(tx) => tx.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
         <View>
-          <Text style={styles.title}>{title ?? t("Choose a transaction")}</Text>
+          <Text style={styles.title}>{title ?? "Choose a transaction"}</Text>
           {desc ? <Text style={styles.desc}>{desc}</Text> : null}
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder={t("Search notes, categories")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("Search transactions")} />
+            <TextInput value={q} onChangeText={setQ} placeholder="Search notes, categories" placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel="Search transactions" />
           </View>
         </View>
       }
       renderItem={({ item: tx }) => {
-        const name = tx.notes?.split("\n")[0] || tx.payee || tx.category_name || tx.parent_name || t("Uncategorized");
+        const name = tx.notes?.split("\n")[0] || tx.payee || tx.category_name || tx.parent_name || "Uncategorized";
         // Towards zero, whichever way the row points, exactly as the entry sheet books it.
         const after = forReturn ? tx.amount_minor + (tx.amount_minor < 0 ? back : -back) : null;
         return (
           <Pressable onPress={() => { resolvePick(key, tx.id); router.back(); }} style={styles.row} accessibilityRole="button"
             accessibilityLabel={after !== null
-              ? t("{name}, {before} {currency} becomes {after} {currency}, {when}", { name, before: formatMinor(tx.amount_minor, tx.currency), after: formatMinor(after, tx.currency), currency: tx.currency, when: humanDayTime(tx.date.slice(0, 10)) })
-              : t("{name}, {amount} {currency}, {when}", { name, amount: formatMinor(tx.amount_minor, tx.currency), currency: tx.currency, when: humanDayTime(tx.date.slice(0, 10)) })}>
+              ? `${name}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency} becomes ${formatMinor(after, tx.currency)} ${tx.currency}, ${humanDayTime(tx.date.slice(0, 10))}`
+              : `${name}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}, ${humanDayTime(tx.date.slice(0, 10))}`}>
             <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={30} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.name} numberOfLines={1}>{name}</Text>
@@ -70,7 +68,7 @@ export default function PickTransaction() {
           </Pressable>
         );
       }}
-      ListEmptyComponent={<Text style={styles.empty}>{forReturn ? t("Nothing here is big enough to take this back. Try a smaller amount.") : t("Nothing matches.")}</Text>} />
+      ListEmptyComponent={<Text style={styles.empty}>{forReturn ? "Nothing here is big enough to take this back. Try a smaller amount." : "Nothing matches."}</Text>} />
   );
 }
 

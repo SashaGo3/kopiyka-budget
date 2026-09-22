@@ -10,7 +10,6 @@ import { ConfirmBar } from "@/components/Keypad";
 import type { AmountPick } from "@/app/pick/amount";
 import { ModalHeader, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
-import { useT } from "@/i18n";
 
 /** A part as the editor holds it: the payload plus a key React and the pickers can address it by. */
 type Row = SplitPart & { key: string };
@@ -31,7 +30,6 @@ export interface SplitResult {
  * it was.
  */
 export default function SplitEditor() {
-  const t = useT();
   const insets = useSafeAreaInsets();
   const p = useLocalSearchParams<{ key: string; currency: string; total: string; kind: string; main: string; parts: string }>();
   const currency = p.currency ?? "EUR";
@@ -78,9 +76,9 @@ export default function SplitEditor() {
   const rest = amounts?.[0] ?? total - rows.reduce((a, r) => a + r.amount_minor, 0);
   const uncategorised = !main.category_id || rows.some((r) => !r.category_id);
   const ready = !!amounts && !uncategorised;
-  const hint = !rows.length ? t("Add a part to split this entry")
-    : !amounts ? (rows.some((r) => !r.amount_minor) ? t("Every part needs an amount") : t("The parts come to more than the entry"))
-      : t("Every part needs a category");
+  const hint = !rows.length ? "Add a part to split this entry"
+    : !amounts ? (rows.some((r) => !r.amount_minor) ? "Every part needs an amount" : "The parts come to more than the entry")
+      : "Every part needs a category";
   const done = () => { resolvePick(p.key, { main, parts: rows.map(({ key: _k, ...part }) => part) } satisfies SplitResult); router.back(); };
 
   // A part can only ever be worth what the entry still has: the rest of it, plus whatever this part
@@ -91,7 +89,7 @@ export default function SplitEditor() {
     editing.current = row.key;
     const available = Math.max(rest + row.amount_minor, 0);
     router.push({ pathname: "/pick/amount", params: {
-      key: keys.amt, title: t("How much of it?"), currency, value: String(row.amount_minor),
+      key: keys.amt, title: "How much of it?", currency, value: String(row.amount_minor),
       available: String(available), max: String(Math.max(available - 1, 0)),
       kind: kindIsIncome ? "income" : "expense", category: row.category_id ?? "", tags: row.tag_ids.join(","),
     } });
@@ -110,19 +108,19 @@ export default function SplitEditor() {
     return (
       <>
         <Pressable onPress={() => openCat(key, categoryId)} style={styles.catRow} accessibilityRole="button"
-          accessibilityLabel={cat ? t("Category: {name}", { name: cat.name }) : t("Choose a category")}>
+          accessibilityLabel={cat ? `Category: ${cat.name}` : "Choose a category"}>
           <View style={[styles.catIcon, { backgroundColor: icon?.color ?? (C.fill as unknown as string) }]}>
             <SymbolView name={(icon?.icon as SFSymbol) ?? "folder.badge.plus"} size={14} tintColor={icon ? "white" : C.secondary} />
           </View>
-          <Text style={[styles.catText, !cat && styles.missing]} numberOfLines={1}>{cat?.name ?? t("Choose a category")}</Text>
+          <Text style={[styles.catText, !cat && styles.missing]} numberOfLines={1}>{cat?.name ?? "Choose a category"}</Text>
           <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
         </Pressable>
         <Pressable onPress={() => openTags(key, tagIds, categoryId)} style={styles.tagRow} accessibilityRole="button"
-          accessibilityLabel={tagIds.length ? t("Tags: {names}", { names: tagIds.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ") }) : t("Tags")}>
+          accessibilityLabel={tagIds.length ? `Tags: ${tagIds.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ")}` : "Tags"}>
           <SymbolView name="number" size={12} tintColor={C.tertiary} />
           {tagIds.length
             ? tagIds.map((x) => { const tag = tagRows.get(x); return tag ? <TagPill key={x} name={tag.name} color={tag.color} /> : null; })
-            : <Text style={styles.tagHint}>{t("Add tags")}</Text>}
+            : <Text style={styles.tagHint}>Add tags</Text>}
         </Pressable>
       </>
     );
@@ -130,16 +128,16 @@ export default function SplitEditor() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={t("Split the entry")} left={{ label: t("Cancel"), onPress: () => router.back() }}
-        right={{ label: t("Done"), onPress: done, disabled: !ready }} />
+      <ModalHeader title="Split the entry" left={{ label: "Cancel", onPress: () => router.back() }}
+        right={{ label: "Done", onPress: done, disabled: !ready }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.intro}>
-          {t("One shop, several things. Give each part its own category — what is left stays on the entry itself.")}
+          One shop, several things. Give each part its own category — what is left stays on the entry itself.
         </Text>
 
         <View style={styles.card}>
           <View style={styles.head}>
-            <Text style={styles.headLabel}>{t("The rest of it")}</Text>
+            <Text style={styles.headLabel}>The rest of it</Text>
             <Text style={[styles.amount, rest <= 0 && { color: C.red }]}>{formatMinor(rest, currency)} <Text style={styles.cur}>{currency}</Text></Text>
           </View>
           {line(main.category_id, main.tag_ids, null)}
@@ -148,14 +146,14 @@ export default function SplitEditor() {
         {rows.map((r, i) => (
           <View key={r.key} style={styles.card}>
             <View style={styles.head}>
-              <Pressable onPress={() => openAmount(r)} hitSlop={6} accessibilityRole="button" accessibilityLabel={t("Amount of part {n}", { n: i + 2 })}>
-                <Text style={styles.headLabel}>{t("Part {n}", { n: i + 2 })}</Text>
+              <Pressable onPress={() => openAmount(r)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Amount of part ${i + 2}`}>
+                <Text style={styles.headLabel}>{`Part ${i + 2}`}</Text>
                 <Text style={[styles.amount, !r.amount_minor && styles.missing]}>
                   {formatMinor(r.amount_minor, currency)} <Text style={styles.cur}>{currency}</Text>
                 </Text>
               </Pressable>
               <Pressable onPress={() => setRows((list) => list.filter((x) => x.key !== r.key))} hitSlop={10}
-                accessibilityRole="button" accessibilityLabel={t("Remove part {n}", { n: i + 2 })} style={styles.remove}>
+                accessibilityRole="button" accessibilityLabel={`Remove part ${i + 2}`} style={styles.remove}>
                 <SymbolView name="minus.circle.fill" size={20} tintColor={C.tertiary} />
               </Pressable>
             </View>
@@ -163,19 +161,19 @@ export default function SplitEditor() {
           </View>
         ))}
 
-        <Pressable onPress={add} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("Add a part")}>
+        <Pressable onPress={add} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Add a part">
           <SymbolView name="plus.circle" size={16} tintColor={C.tint} />
-          <Text style={styles.addText}>{t("Add a part")}</Text>
+          <Text style={styles.addText}>Add a part</Text>
         </Pressable>
 
         <Text style={styles.foot}>
-          {ready ? t("{n} entries will be added, all with the same date, note, place and photo.", { n: rows.length + 1 }) : hint}
+          {ready ? `${rows.length + 1} entries will be added, all with the same date, note, place and photo.` : hint}
         </Text>
       </ScrollView>
       <View style={{ paddingBottom: Math.max(insets.bottom, S.md), paddingTop: S.sm, backgroundColor: C.bgGrouped }}>
         <ConfirmBar
-          amount={amounts ? t("{n} entries", { n: amounts.length }) : t("Not a split yet")}
-          label={ready ? t("Tap to keep the split") : hint}
+          amount={amounts ? `${amounts.length} entries` : "Not a split yet"}
+          label={ready ? "Tap to keep the split" : hint}
           disabled={!ready} onPress={done} />
       </View>
     </View>

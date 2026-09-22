@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { listRows, type Category } from "@kopiyka/core";
+import { archivedCategoryIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon } from "@/components/ui";
@@ -24,7 +24,11 @@ type Item = { kind: "none" } | { kind: "folder"; c: Category; kids: Category[] }
 export default function PickCategories() {
   const { key, selected, title } = useLocalSearchParams<{ key: string; selected?: string; title?: string }>();
   const groups = useQuery((db) => {
-    const all = listRows(db, "categories", "deleted=0", [], "sort, name");
+    // Retired categories are not offered here either. One already in the selection stays visible, so
+    // an existing budget or tag scope can be read and edited rather than silently losing a member.
+    const keep = new Set((selected ?? "").split(",").filter(Boolean));
+    const retired = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
+    const all = listRows(db, "categories", "deleted=0", [], "sort, name").filter((c) => keep.has(c.id) || !retired.has(c.id));
     return all.filter((c) => !c.parent_id).map((p) => ({ p, kids: all.filter((c) => c.parent_id === p.id) }));
   });
   const [chosen, setChosen] = useState<Set<string>>(() => {

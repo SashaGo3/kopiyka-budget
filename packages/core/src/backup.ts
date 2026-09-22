@@ -24,6 +24,9 @@ export const BACKUP_VERSION = 1;
  *   writes them anymore, but an old backup might still carry them, and restoring either onto another
  *   phone would be nonsensical, so they stay excluded.
  * - `onboarded` — whether this install has been set up, which the restore itself decides.
+ * - `whats_new_seen` — which version's release notes this phone has been shown. Carrying it would
+ *   tell a phone that has not been updated yet that it has already read the notes for a version it
+ *   is not running.
  *
  * Anything else a preference getter reads belongs here. A key that is written but missing from this
  * list is silently lost on restore, which is how `hide_income`, `show_balance`, `backup_per_day` and
@@ -38,7 +41,7 @@ export const BACKUP_META_KEYS = [
   "period_start_day", "base_currency", "recurring_notify_days_before",
   "location_enabled", "home_lat", "home_lon", "home_place",
   "current_account", "budget_scope", "hide_income", "show_balance", "backup_keep_days",
-  "shortcut_notify",
+  "shortcut_notify", "recurring_wait", "recurring_wait_days",
 ] as const;
 
 /**

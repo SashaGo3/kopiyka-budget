@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, claimRecurring, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -15,7 +15,7 @@ import { copyToClipboard } from "@/lib/device";
 import { C, S } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
 import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
-import { getCurrentAccount, getLocationEnabled, getShowBalance, setLocationEnabled } from "@/lib/settings";
+import { getCurrentAccount, getLocationEnabled, getShowBalance, setLocationEnabled, waitDefaultDays } from "@/lib/settings";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { markSheetPainted } from "@/lib/boot";
 import { deletePhoto, keepPhoto, photoUri } from "@/lib/photos";
@@ -313,8 +313,10 @@ export default function TransactionSheet() {
     mutate((d) => {
       const base = { account_id: account.id, date, amount_minor: minor, category_id: categoryId, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagIds), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
       if (!parts.length || !splitMinors) {
-        if (existing) save(d, "transactions", { ...existing, ...base } as Transaction);
-        else createTransaction(d, base);
+        if (existing) { save(d, "transactions", { ...existing, ...base } as Transaction); return; }
+        // A payment typed in by hand can be the charge a recurring rule is waiting for just as much
+        // as one the automation logged — the rule takes it and stops expecting a second.
+        claimRecurring(d, createTransaction(d, base), { today: todayLocal(), waitDefault: waitDefaultDays() });
         return;
       }
       // A split is several ordinary entries: the one being edited keeps its id and what the parts

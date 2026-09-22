@@ -7,7 +7,7 @@
  */
 import type { SqlDriver, Row } from "./db";
 import type { Transaction } from "./models";
-import { getRow, jsonIds, save } from "./repo";
+import { archivedCategoryIds, getRow, jsonIds, listRows, save } from "./repo";
 
 /**
  * How sure the match is.
@@ -123,16 +123,29 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
   // Category and tags come from whichever single row matches, so they always describe one past
   // decision; a row with tags but no category still counts.
   const filed = newest("category_id, tag_ids", FILED);
+  // A category that has since been archived is not an answer. Returning it would have the automation
+  // file a new payment somewhere the app no longer offers, and quietly — so the category is dropped
+  // and the match with it, which leaves the entry uncategorised and therefore in the Pending queue,
+  // where the shop can be given the category that replaced the old one.
+  const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
+  const filedCategory = (filed?.row.category_id as string | null) ?? null;
+  const archived = !!filedCategory && gone.has(filedCategory);
+  // Archived *tags* are simply left off; unlike the category they are not what decides whether the
+  // entry needs looking at, so dropping them silently costs nothing. Only tags that exist and are
+  // archived are dropped: an id with no row behind it is left alone, the way it always was.
+  const retiredTags = new Set(listRows(db, "tags", "deleted=0 AND archived=1").map((t) => t.id));
   // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
   // whether or not that is the entry the category came from.
   const seen = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)");
   return {
-    category_id: (filed?.row.category_id as string | null) ?? null,
-    tag_ids: jsonIds((filed?.row.tag_ids as string | null) ?? null),
+    category_id: archived ? null : filedCategory,
+    tag_ids: jsonIds((filed?.row.tag_ids as string | null) ?? null).filter((id) => !retiredTags.has(id)),
     place: (seen?.row.place as string | null) || null,
     lat: (seen?.row.lat as number | null) ?? null,
     lon: (seen?.row.lon as number | null) ?? null,
-    match: filed?.match ?? null,
+    // No category means nothing was recognised, however well the name matched: `isTrustedFiling`
+    // reads this, and a "trusted" match with nothing to file under would skip the queue for nothing.
+    match: archived ? null : filed?.match ?? null,
   };
 }
 
@@ -161,9 +174,14 @@ export function payeeOptions(db: SqlDriver, payee: string | null | undefined, no
       `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${FILED} AND ${t.where} ORDER BY date DESC LIMIT 200`, t.binds);
     if (!rows.length) continue;
     const out = new Map<string, PayeeOption>();
+    const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
     for (const r of rows) {
       const tag_ids = jsonIds((r.tag_ids as string | null) ?? null);
       const category_id = (r.category_id as string | null) ?? null;
+      // The sheet offers these as answers, so a retired category is not among them. The count of
+      // *ways* this shop was filed is what tells the automation whether it may pick for you
+      // (`variants` in nativeWrites), and a way you can no longer choose is not a way.
+      if (category_id && gone.has(category_id)) continue;
       // Tags sorted only for the key: two rows with the same tags in another order are one option.
       const key = `${category_id ?? ""}|${[...tag_ids].sort().join(",")}`;
       const seen = out.get(key);

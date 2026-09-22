@@ -30,7 +30,7 @@ export default function InsightEdit() {
   const meta = INSIGHT_KINDS.find((k) => k.kind === kind);
   const account = p.account_id ? names.accounts.get(p.account_id) : undefined;
   const currency = account?.currency ?? "EUR";
-  const needsAccount = kind === "savings_goal" || kind === "account_balance";
+  const needsAccount = kind === "savings_goal" || kind === "account_balance" || kind === "safety_buffer";
   const needsTarget = kind === "savings_goal";
   const valid = !!kind && (!needsAccount || !!p.account_id);
   const commit = (k: InsightKind | null = kind, params: InsightParams = p) => {
@@ -62,6 +62,17 @@ export default function InsightEdit() {
               {kind === "checklist" || kind === "regular" ? <Row icon="folder" iconColor="#FF9F0A" title="Categories" subtitle={catList || "Choose"} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cats, selected: (p.category_ids ?? []).join(","), title: "Categories" } })} style={styles.divider} /> : null}
             </Card>
             {kind === "regular" ? <View style={{ paddingHorizontal: S.lg, marginTop: S.md }}><Segmented<"weekly" | "monthly"> value={p.frequency ?? "monthly"} onChange={(v) => setP((s) => ({ ...s, frequency: v }))} options={[{ value: "weekly", label: "Per week" }, { value: "monthly", label: "Per month" }]} /></View> : null}
+            {/* How long you want to be able to go on paying for the essentials. The amount is not
+                asked for: the whole point of this card is that the target is computed. */}
+            {kind === "safety_buffer" ? (
+              <>
+                <SectionHeader>Months to cover</SectionHeader>
+                <View style={{ paddingHorizontal: S.lg }}>
+                  <Segmented<"3" | "6" | "12"> value={String(p.months ?? 3) as "3" | "6" | "12"} onChange={(v) => setP((s) => ({ ...s, months: Number(v) }))}
+                    options={[{ value: "3", label: "3 months" }, { value: "6", label: "6 months" }, { value: "12", label: "12 months" }]} />
+                </View>
+              </>
+            ) : null}
             {kind === "subscriptions" ? (
               <>
                 <SectionHeader>Included rules</SectionHeader>

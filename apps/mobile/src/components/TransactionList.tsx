@@ -1,11 +1,11 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { formatMinor, jsonIds, paidAmountMinor, type Transaction } from "@kopiyka/core";
-import { notifyChange, useQuery } from "@/store";
+import { useQuery } from "@/store";
+import { useCloudRefresh } from "@/lib/backup";
 import { AmountPill, CategoryIcon, Empty, Money, TagPill } from "@/components/ui";
-import { t } from "@/i18n";
 import { C, S } from "@/constants/theme";
 import { dayLabel, humanDayTime, timeLabel } from "@/lib/dates";
 
@@ -40,21 +40,16 @@ export function sortByAmount(rows: TxRow[]): TxRow[] {
  * `resetKey` remounts the list so it starts from the very top again (with the large title expanded).
  * With `selected` set the list is in selection mode: rows show a check circle and tapping toggles them.
  */
-export function TransactionList({ rows, header, showAccount = true, resetKey, flat, onScroll, selected, onToggle }: {
-  rows: TxRow[]; header?: React.ReactElement; showAccount?: boolean; resetKey?: string; flat?: boolean; onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+export function TransactionList({ rows, header, empty, showAccount = true, resetKey, flat, onScroll, selected, onToggle }: {
+  rows: TxRow[]; header?: React.ReactElement; empty?: React.ReactElement; showAccount?: boolean; resetKey?: string; flat?: boolean; onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   selected?: Set<string>; onToggle?: (id: string) => void;
 }) {
   const sections = flat ? [{ title: "", day: "", data: rows, total: 0, currency: "" }] : groupByDay(rows);
   const selecting = !!selected;
-  // Pull to refresh: a Shortcut automation writes card payments into the database directly while the
-  // app is in the background, and nothing tells JS about it. There is nothing to fetch — the query
-  // just runs again — so the spinner only stays long enough to be seen.
-  const [refreshing, setRefreshing] = useState(false);
-  const refresh = useCallback(() => {
-    setRefreshing(true);
-    notifyChange();
-    setTimeout(() => setRefreshing(false), 350);
-  }, []);
+  // Pull to refresh: re-read the database (a Shortcut automation or the watch writes into it while
+  // the app is in the background, and nothing tells JS about that) and look in iCloud for what
+  // another device has backed up. Budgets pulls on the same hook, so the gesture means one thing.
+  const { refreshing, onRefresh } = useCloudRefresh();
   // Tags loaded once; resolved per row into a stable Map so the tags array a row gets doesn't
   // change reference (and TxItem doesn't re-render) unless that row's tags or the tags table did.
   const tagsById = useQuery((db) => new Map(db.all<{ id: string; name: string; color: string | null }>(
@@ -72,17 +67,18 @@ export function TransactionList({ rows, header, showAccount = true, resetKey, fl
       contentInsetAdjustmentBehavior="automatic"
       onScroll={onScroll}
       scrollEventThrottle={16}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       contentContainerStyle={{ paddingBottom: 220 }}
       ListHeaderComponent={header}
-      ListEmptyComponent={<Empty title={t("No transactions")} hint={t("Tap Log to add one.")} />}
+      // The caller knows what it filtered by, so it can say why there is nothing here.
+      ListEmptyComponent={empty ?? <Empty title="No transactions" hint="Tap Log to add one." />}
       stickySectionHeadersEnabled={false}
       // Fewer rows mounted off-screen: switching selection mode re-renders every mounted row.
       windowSize={7}
       initialNumToRender={14}
       maxToRenderPerBatch={14}
       renderSectionHeader={({ section }) => section.title ? <Text style={styles.sh}>{section.title}</Text> : <View style={{ height: S.sm }} />}
-      renderSectionFooter={({ section }) => section.total !== 0 ? <Text style={styles.sum}>{t("Sum:")} <Money minor={section.total} currency={section.currency} style={[styles.sumVal, { color: section.total < 0 ? C.red : C.green }]} /></Text> : <View style={{ height: S.sm }} />}
+      renderSectionFooter={({ section }) => section.total !== 0 ? <Text style={styles.sum}>Sum: <Money minor={section.total} currency={section.currency} style={[styles.sumVal, { color: section.total < 0 ? C.red : C.green }]} /></Text> : <View style={{ height: S.sm }} />}
       renderItem={({ item: tx, index, section }) => (
         <TxItem tx={tx} tags={tagsFor.get(tx.id) ?? EMPTY_TAGS} flat={!!flat} showAccount={showAccount} first={index === 0} last={index === section.data.length - 1}
           selecting={selecting} on={selected?.has(tx.id) ?? false} onToggle={onToggle} />
@@ -99,18 +95,17 @@ const TxItem = memo(function TxItem({ tx, tags, flat, showAccount, first, last, 
 }) {
   const noteLines = tx.notes ? tx.notes.split("\n") : [];
   const note = noteLines[0] || null;
-  const title = tx.transfer_id ? (note ? `${t("Transfer")} · ${note}` : t("Transfer")) : note || tx.payee || tx.category_name || tx.parent_name || t("Uncategorized");
+  const title = tx.transfer_id ? (note ? `Transfer · ${note}` : "Transfer") : note || tx.payee || tx.category_name || tx.parent_name || "Uncategorized";
   const restLines = note ? noteLines.slice(1, 3) : []; // at most 2 more lines of the note, under the title
   const category = tx.category_name ? (tx.parent_name ? `${tx.parent_name} › ${tx.category_name}` : tx.category_name) : tx.parent_name;
   const sub = [showAccount ? tx.account_name : null, category].filter(Boolean).join(" · ");
   const payeeLine = tx.payee && tx.payee !== title ? tx.payee : null;
   const crossCurrency = tx.entered_currency && tx.entered_currency !== tx.currency && tx.entered_amount_minor != null
-    ? t("entered {amount} {currency}", { amount: (Math.abs(tx.entered_amount_minor) / 100).toFixed(2), currency: tx.entered_currency }) + (tx.exchange_rate ? ` @ ${tx.exchange_rate.toFixed(2)}` : "") : null;
+    ? `entered ${(Math.abs(tx.entered_amount_minor) / 100).toFixed(2)} ${tx.entered_currency}` + (tx.exchange_rate ? ` @ ${tx.exchange_rate.toFixed(2)}` : "") : null;
   // Part of this came back (packages/core/returns.ts): the row shows what it ended up costing, with
   // what was paid struck through next to it, so a shrunken amount is never a mystery.
-  const returned = tx.refunded_minor ? t("paid {paid}, {back} came back", {
-    paid: formatMinor(Math.abs(paidAmountMinor(tx)), tx.currency), back: formatMinor(Math.abs(tx.refunded_minor), tx.currency) }) : null;
-  const a11yBits = [sub, tags.length ? t("tags {names}", { names: tags.map((x) => x.name).join(", ") }) : null, tx.pending ? t("pending") : null].filter(Boolean).join(", ");
+  const returned = tx.refunded_minor ? `paid ${formatMinor(Math.abs(paidAmountMinor(tx)), tx.currency)}, ${formatMinor(Math.abs(tx.refunded_minor), tx.currency)} came back` : null;
+  const a11yBits = [sub, tags.length ? `tags ${tags.map((x) => x.name).join(", ")}` : null, tx.pending ? "pending" : null].filter(Boolean).join(", ");
   return (
     <Pressable
       onPress={() => selecting ? onToggle?.(tx.id) : router.push(tx.transfer_id ? { pathname: "/transfer/[id]", params: { id: tx.transfer_id } } : { pathname: "/transaction/[id]", params: { id: tx.id } })}
@@ -134,7 +129,7 @@ const TxItem = memo(function TxItem({ tx, tags, flat, showAccount, first, last, 
         <View style={styles.metaRow}>
           {tx.recurring_id ? <SymbolView name="repeat" size={12} tintColor={C.secondary} /> : null}
           {tx.photo ? <SymbolView name="camera" size={12} tintColor={C.secondary} /> : null}
-          {tx.pending ? <View style={styles.pendingRow}><SymbolView name="clock" size={12} tintColor={C.orange} /><Text style={styles.pendingText}>{t("Pending")}</Text></View> : null}
+          {tx.pending ? <View style={styles.pendingRow}><SymbolView name="clock" size={12} tintColor={C.orange} /><Text style={styles.pendingText}>Pending</Text></View> : null}
           <Text style={styles.time}>{flat ? humanDayTime(tx.date.slice(0, 10)) : timeLabel(tx.date)}</Text>
         </View>
         <AmountPill minor={tx.amount_minor} currency={tx.currency} neutral={!!tx.transfer_id} />
