@@ -51,13 +51,16 @@ export default function PickTags() {
   }, [tags, created]);
   const filtered = q ? ordered.filter((t) => t.name.toLowerCase().includes(q.toLowerCase())) : ordered;
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
-  const done = () => { resolvePick(key, chosen); router.back(); };
+  const canCreate = !!q.trim() && !tags.some((t) => t.name.toLowerCase() === q.trim().toLowerCase());
+  const make = () => mutate((db) => createTag(db, { name: q.trim(), ...(category ? { category_ids: JSON.stringify([category]) } : null) }));
   const create = () => {
-    const name = q.trim(); if (!name) return;
-    const t = mutate((db) => createTag(db, { name, ...(category ? { category_ids: JSON.stringify([category]) } : null) }));
+    if (!q.trim()) return;
+    const t = make();
     setChosen((c) => [...c, t.id]); setCreated((c) => [...c, t.id]); setQ("");
   };
-  const canCreate = !!q.trim() && !tags.some((t) => t.name.toLowerCase() === q.trim().toLowerCase());
+  // A name typed that matches nothing is the tag being asked for: Done makes it rather than leaving
+  // it behind in the search field, where it would be thrown away with the sheet.
+  const done = () => { resolvePick(key, canCreate ? [...chosen, make().id] : chosen); router.back(); };
   return (
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={filtered} keyExtractor={(t) => t.id} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets stickyHeaderIndices={[0]}
       ListHeaderComponent={
@@ -65,7 +68,7 @@ export default function PickTags() {
           <View style={styles.head}>
             <View style={styles.side} />
             <Text style={styles.title}>Tags</Text>
-            <View style={[styles.side, { alignItems: "flex-end" }]}><Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done" style={styles.doneBtn}><Text style={styles.done}>Done{chosen.length ? ` (${chosen.length})` : ""}</Text></Pressable></View>
+            <View style={[styles.side, { alignItems: "flex-end" }]}><Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done" style={styles.doneBtn}><Text style={styles.done}>Done{chosen.length + (canCreate ? 1 : 0) ? ` (${chosen.length + (canCreate ? 1 : 0)})` : ""}</Text></Pressable></View>
           </View>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
