@@ -7,13 +7,12 @@ import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED, IOS_VERSION } from "@/constan
 
 /** Setup steps, worded as what you actually tap, in the order the Shortcuts app puts them in. */
 const STEPS: { title: string; subtitle: string }[] = [
-  { title: "Open Shortcuts → Automation", subtitle: "The Automation tab at the bottom, then + in the top right." },
-  { title: "Choose “When I receive a notification”", subtitle: "It is in the list of triggers, near the top." },
-  { title: "Pick the app that tells you about payments", subtitle: "Your bank’s app, which covers every card payment and every transfer. If it sends no push notifications, pick Wallet instead — that covers Apple Pay. Adding both is fine." },
-  { title: "Add a filter, then Run Immediately", subtitle: "iOS will not save the automation without a filter. Use a word every payment notification contains, such as “Amount”. Run Immediately means nothing to confirm after you pay; turn “Notify When Run” off as well and it stays out of your way entirely." },
-  { title: "Add action → “Log payment from an app notification”", subtitle: "Search for it by name; it is listed under Kopiyka Budget. The action reads “Log the payment in …” with one empty field." },
-  { title: "Put the Notification into that field", subtitle: "Tap the empty field, then Select Variable → Notification. That one variable carries the whole thing — the amount, the shop or sender, the card, the time — and Kopiyka reads what it needs out of it." },
-  { title: "Optional: remember where you paid", subtitle: "Add “Get Current Location” above the Kopiyka action, then open Show More on the Kopiyka action and put its result into the Location field. That is the only thing that sets an entry's location — the town printed on the notification goes in the note, because a card used abroad names a town your phone was nowhere near. Shortcuts will ask for location permission once; Kopiyka itself never reads your location in the background." },
+  { title: "Shortcuts → Automation → +", subtitle: "The Automation tab, then + in the top right." },
+  { title: "“When I receive a notification”", subtitle: "Pick your bank’s app. No bank notifications? Pick Wallet (Apple Pay). Both is fine." },
+  { title: "Add a filter, choose Run Immediately", subtitle: "A word every payment notification has, like “Amount”. Turn off “Notify When Run”." },
+  { title: "Add “Log payment from an app notification”", subtitle: "Search for it; it is under Kopiyka Budget." },
+  { title: "Put Notification in its field", subtitle: "Tap the field → Select Variable → Notification." },
+  { title: "Optional: where you paid", subtitle: "Add “Get Current Location” above it, then pass it to Location under Show More." },
 ];
 
 /**
@@ -33,15 +32,15 @@ export default function ShortcutScreen() {
       <Stack.Screen options={{ title: "Automate with Shortcut" }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 60 }}>
         <Text style={styles.intro}>
-          Your bank already tells you about the payment. This sets up an automation that hands the whole notification to Kopiyka, which reads the amount, the shop or the sender, the card and the time out of its text. Six steps, once — and a seventh if you want the entry to remember where you paid.
+          Your bank already notifies you about every payment. Pass that notification to Kopiyka and it logs the payment for you. Set it up once.
         </Text>
 
         <View style={[styles.need, !AUTOMATION_SUPPORTED && styles.needStrong]}>
           <SymbolView name={AUTOMATION_SUPPORTED ? "info.circle" : "exclamationmark.triangle.fill"} size={18} tintColor={AUTOMATION_SUPPORTED ? C.secondary : C.orange} />
           <Text style={[styles.needText, !AUTOMATION_SUPPORTED && { color: C.label }]}>
             {AUTOMATION_SUPPORTED
-              ? `Needs iOS ${AUTOMATION_MIN_IOS} or later: the “When I receive a notification” trigger does not exist in earlier versions of Shortcuts.`
-              : `This needs iOS ${AUTOMATION_MIN_IOS} or later. ${IOS_VERSION ? `This device runs iOS ${IOS_VERSION}` : "This device is older"}, so Shortcuts has no “When I receive a notification” trigger and the automation cannot be created yet. Everything else in Kopiyka works as it is.`}
+              ? `Needs iOS ${AUTOMATION_MIN_IOS} or later.`
+              : `Needs iOS ${AUTOMATION_MIN_IOS} or later${IOS_VERSION ? ` — this device runs iOS ${IOS_VERSION}` : ""}. Everything else in Kopiyka works as it is.`}
           </Text>
         </View>
 
@@ -62,27 +61,16 @@ export default function ShortcutScreen() {
           <Row icon="arrow.up.forward.app" title="Open Shortcuts" onPress={openShortcuts} />
         </Card>
 
-        <SectionHeader>Once it is running</SectionHeader>
-        <Card>
-          <Row icon="slider.horizontal.3" iconColor="#5E5CE6" title="Shortcut settings"
-            subtitle="Whether it tells you about each payment, and the notifications it could not read."
-            onPress={() => router.push("/settings/automation")} />
-        </Card>
-
         <SectionHeader>What to expect</SectionHeader>
         <Card>
-          <Row icon="bell.badge" iconColor="#FF9F0A" title="It tells you what it filed" subtitle="One notification per payment, and the next payment replaces it rather than stacking up. Tapping opens the entry. Turn it off in Shortcut settings and it works exactly as before, silently." />
-          <Row icon="hourglass" iconColor="#FF9F0A" title="Everything new waits in Pending" subtitle="Approve from the Pending row on Transactions. A category may be guessed from the shop's name — or, with the optional step above, from the one you usually pick where you are — to save you a tap. The queue marks it “guess” and it never approves itself." style={styles.divider} />
-          <Row icon="wand.and.stars" iconColor="#30D158" title="A payment you have filed before fills itself in" subtitle="The same name exactly, filed by hand once: its category, tags and place are copied on and it skips Pending." style={styles.divider} />
-          <Row icon="questionmark.circle" iconColor="#FF9F0A" title="A name that merely looks familiar waits" subtitle="Another branch of a chain, or another shop paid for the same way — “BLIK INTERNET: …” is how you paid, not who you paid. The category is filled in as a guess and the entry stops in Pending." style={styles.divider} />
-          <Row icon="arrow.triangle.branch" iconColor="#FF9F0A" title="A shop you file two ways still asks" subtitle="Fuel one week, a hot dog the next: the entry waits in Pending, and its sheet offers every pairing of category and tags you have used there — one tap each." style={styles.divider} />
-          <Row icon="creditcard" iconColor="#0A84FF" title="The account is worked out" subtitle="From the card the notification names, else from the currency it is in — a charge in euro goes to a euro account rather than being converted." style={styles.divider} />
-          <Row icon="lock" iconColor="#FF9F0A" title="Money only blocked still counts" subtitle="A card authorisation is a real purchase the bank has not taken yet, so it is logged like any other. A hold being released is not a second purchase and is ignored." style={styles.divider} />
-          <Row icon="line.3.horizontal.decrease.circle" iconColor="#8E8E93" title="No amount, no entry" subtitle="One-time codes, deliveries, balance lines, rate adverts, sign-in alerts and declined payments are all dropped." style={styles.divider} />
-          <Row icon="doc.on.doc" iconColor="#5E5CE6" title="Logged once" subtitle="The same amount again within a minute is the same tap — Wallet and your bank both report it." style={styles.divider} />
+          <Row icon="hourglass" iconColor="#FF9F0A" title="New shops wait in Pending" subtitle="Check the category once and approve." />
+          <Row icon="wand.and.stars" iconColor="#30D158" title="Shops you know file themselves" subtitle="Same category and tags as last time." style={styles.divider} />
+          <Row icon="creditcard" iconColor="#0A84FF" title="The right account" subtitle="Picked from the card, or the currency." style={styles.divider} />
+          <Row icon="line.3.horizontal.decrease.circle" iconColor="#8E8E93" title="Only payments" subtitle="Codes, deliveries and declined payments are ignored." style={styles.divider} />
+          <Row icon="slider.horizontal.3" iconColor="#5E5CE6" title="Shortcut settings" subtitle="Notifications, and anything it could not read." onPress={() => router.push("/settings/automation")} style={styles.divider} />
         </Card>
 
-        <Text style={styles.hint}>Runs with Kopiyka closed. The text is read on the device; nothing leaves the phone.</Text>
+        <Text style={styles.hint}>Works with Kopiyka closed. Nothing leaves your phone.</Text>
       </ScrollView>
     </>
   );

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Linking, ScrollView, StyleSheet, Text } from "react-native";
 import { Stack, router, useFocusEffect } from "expo-router";
-import { HOME_RADIUS_M, debtTotals, eraseAll, formatMinor, listDebts, listRows } from "@kopiyka/core";
-import { mutate, useQuery } from "@/store";
+import { HOME_RADIUS_M, debtTotals, formatMinor, listDebts, listRows } from "@kopiyka/core";
+import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { getPeriodStartDay, setPeriodStartDay } from "@/lib/period";
@@ -16,17 +16,8 @@ import { ensureLocationPermission, locationStatus, placeName, preciseLocation } 
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { endTravel, tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { humanDayTime } from "@/lib/dates";
-import { parseLogCount } from "@/lib/parselog";
 
 const ordinal = (d: number) => `${d}${d === 1 || d === 21 ? "st" : d === 2 || d === 22 ? "nd" : d === 3 || d === 23 ? "rd" : "th"}`;
-
-/** "3 transactions, 1 account and 47 categories" — empty kinds are left out, so a fresh phone does not
- *  get told it is about to lose "0 tags". Returns "" when there is nothing to count. */
-function countList(parts: [number, string, string?][]): string {
-  const said = parts.filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n === 1 ? one : many ?? `${one}s`}`);
-  if (said.length < 2) return said[0] ?? "";
-  return `${said.slice(0, -1).join(", ")} and ${said[said.length - 1]}`;
-}
 
 export default function SettingsScreen() {
   const backup = useBackupState();
@@ -81,10 +72,6 @@ export default function SettingsScreen() {
   const refreshPerm = useCallback(() => { void Promise.all([notificationStatus(), locationStatus()]).then(([notif, loc]) => setPerm({ notif, loc })); }, []);
   useEffect(refreshPerm, [refreshPerm]);
   useFocusEffect(refreshPerm);
-  // The automation writes to a file with the app closed, so this is re-read on arrival rather than
-  // being part of the store. Counting lines, not decoding them: the row only needs "how many".
-  const [missedNotifications, setMissed] = useState(0);
-  useFocusEffect(useCallback(() => { setMissed(parseLogCount()); }, []));
   const toggleLocation = async (on: boolean) => {
     if (on && perm.loc === "denied") { void Linking.openSettings(); return; }
     if (on && !(await ensureLocationPermission())) { refreshPerm(); return; }
@@ -114,26 +101,9 @@ export default function SettingsScreen() {
     await ensureNotificationPermission();
     refreshPerm();
   };
-  // Erasing asks twice. The first tap is easy to make by accident on a row like this one; the second
-  // prompt counts out loud what is about to go, so agreeing to it takes actually reading the numbers.
-  const confirmReset = () => {
-    const doomed = countList([[counts.tx, "transaction"], [counts.accounts, "account"], [counts.categories, "category", "categories"], [counts.tags, "tag"]]);
-    Alert.alert("Last chance", doomed ? `${doomed} will be deleted from this phone.` : "Everything on this phone will be deleted.", [
-      { text: "Keep my data", style: "cancel" },
-      // A wiped phone is a first launch again: eraseAll clears the `onboarded` flag, and the welcome
-      // flow replaces the tabs so the user is not left on an empty Settings screen.
-      { text: "Erase everything", style: "destructive", onPress: () => { mutate((d) => eraseAll(d, { everywhere: false })); router.replace("/onboarding"); } },
-    ]);
-  };
-  const resetAll = () => Alert.alert("Erase this phone?", "This cannot be undone. iCloud backups are kept; you can restore one afterwards.", [
-    { text: "Cancel", style: "cancel" },
-    // The first alert has to finish dismissing before the second opens, or iOS drops it (same as pickDay).
-    { text: "Erase", style: "destructive", onPress: () => setTimeout(confirmReset, 350) },
-  ]);
-
   // One row leads to /settings/data, so its subtitle answers the question that screen is usually
   // opened for — when the last backup ran — and falls back to what else lives there.
-  const inventory = `${counts.tx} transactions · export, import, storage`;
+  const inventory = `${counts.tx} transactions · export, import, reset`;
   const backupLine = !backup.supported ? inventory
     : backup.busy ? "Backing up…"
     : backup.error ? `Backup failed: ${backup.error}`
@@ -175,21 +145,17 @@ export default function SettingsScreen() {
         <Card>
           <Row icon="bell.badge" iconColor="#FF9F0A" title="Automate with Shortcut"
             subtitle={`Log payments from your bank's or Wallet's notifications${AUTOMATION_SUPPORTED ? "" : ` · needs iOS ${AUTOMATION_MIN_IOS}`}`} onPress={() => router.push("/settings/shortcut")} />
-          {/* The notification log lives a level down now, so its count comes up here instead: one it
-              could not read is a purchase that may be missing, and nothing else on this screen says so. */}
-          <Row icon="slider.horizontal.3" iconColor="#5E5CE6" title="Shortcut settings"
-            subtitle={missedNotifications ? `${missedNotifications} notification${missedNotifications === 1 ? "" : "s"} it could not read` : "What it tells you, and what it could not read"}
-            subtitleColor={missedNotifications ? C.orange : undefined}
+          {/* No count of unread notifications here: the log is one tap away for whoever wants to look,
+              and a warning on the settings screen for every odd bank message was nagging. */}
+          <Row icon="slider.horizontal.3" iconColor="#5E5CE6" title="Shortcut settings" subtitle="What it tells you, and what it could not read"
             onPress={() => router.push("/settings/automation")} style={styles.divider} />
-          {/* The notes show themselves once after an update; this is how you find them again. */}
-          <Row icon="sparkles" iconColor="#8E8E93" title="What's new" subtitle={`The changes in version ${APP_MARKETING_VERSION}`} onPress={() => router.push("/whats-new")} style={styles.divider} />
+        </Card>
+        {/* Not a shortcut, so not in their card: the notes show themselves once after an update, and this is how you find them again. */}
+        <SectionHeader>About</SectionHeader>
+        <Card>
+          <Row icon="sparkles" iconColor="#8E8E93" title="What's new" subtitle={`The changes in version ${APP_MARKETING_VERSION}`} onPress={() => router.push("/whats-new")} />
           {/* Boot trace and the last JS crash: useful while developing, noise in a shipped build. The version lives in the footer instead. */}
           {__DEV__ ? <Row icon="stethoscope" iconColor="#8E8E93" title="Diagnostics" subtitle="Boot trace and the last recorded crash" onPress={() => router.push("/settings/diagnostics")} style={styles.divider} /> : null}
-        </Card>
-        {/* Its own section: a headerless card straight under Shortcuts read as one more shortcut. */}
-        <SectionHeader>Start over</SectionHeader>
-        <Card>
-          <Row icon="trash" iconColor="#FF3B30" title="Reset all data" subtitle="Delete every account, category, tag, budget and transaction" destructive onPress={resetAll} />
         </Card>
         <Text style={styles.foot}>Local-first. Your data lives on this phone{backup.enabled && backup.icloud ? ", with backups in your iCloud Drive" : ""}.</Text>
         <Text style={styles.version} selectable>Kopiyka Budget {APP_VERSION}</Text>

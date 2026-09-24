@@ -56,7 +56,7 @@ export default function AutomationSettings() {
         </Text>
         <SectionHeader>When it gets one wrong</SectionHeader>
         <Card>
-          <Row icon={missed ? "exclamationmark.triangle" : "doc.text.magnifyingglass"} iconColor={missed ? "#FF453A" : "#0A84FF"} title="Notification log"
+          <Row icon="doc.text.magnifyingglass" iconColor="#0A84FF" title="Notification log"
             subtitle={missed ? `${missed} notification${missed === 1 ? "" : "s"} could not be turned into a transaction` : "Nothing it could not read"}
             onPress={() => router.push("/settings/parselog")} />
         </Card>
@@ -65,7 +65,7 @@ export default function AutomationSettings() {
         </Text>
         <SectionHeader>Setting it up</SectionHeader>
         <Card>
-          <Row icon="bell.badge" iconColor="#FF9F0A" title="Automate with Shortcut" subtitle="The seven steps, and what to expect from it" onPress={() => router.push("/settings/shortcut")} />
+          <Row icon="bell.badge" iconColor="#FF9F0A" title="Automate with Shortcut" subtitle="How to set it up" onPress={() => router.push("/settings/shortcut")} />
         </Card>
       </ScrollView>
     </>
