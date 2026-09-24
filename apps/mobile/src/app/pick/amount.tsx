@@ -29,7 +29,7 @@ export interface AmountPick { minor: number; category_id: string | null; tag_ids
  *
  * It is the Log sheet's calculator with everything that belongs to the entry rather than to the
  * number taken away: the same hero amount with the sum written out under it (`CalcLine`), so what is
- * being typed is always on screen, and the same keypad with ± shown but off — the sign is the
+ * being typed is always on screen, and the same keypad with ± greyed out — the sign is the
  * caller's, never the answer's.
  */
 export default function PickAmount() {
@@ -80,7 +80,7 @@ export default function PickAmount() {
       }
       bottom={
         <>
-          <Keypad value={expr} onChange={setExpr} allowSign={false} signDisabled
+          <Keypad value={expr} onChange={setExpr} allowSign={false}
             extra={p.kind ? { label: category ? category.name : "Category", a11y: `Category: ${category ? category.name : "none"}`, icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: p.kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) } : undefined}
             extra2={p.kind ? { a11y: tags.length ? `Tags: ${tags.map((tag) => tag.name).join(", ")}` : "Tags", icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) } : undefined} />
           <ConfirmBar amount={`${amountText} ${cur}`} label={tooMuch ? "More than there is to give" : "Use this amount"}

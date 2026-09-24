@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { budgetCategoryIds, createBudget, getRow, listRows, remove, save, scopedBudget, suggestBudget, toMinor, fromMinor, type Budget } from "@kopiyka/core";
+import { budgetCategoryIds, createBudget, formatMinor, getRow, listRows, remove, save, scopedBudget, suggestBudget, toMinor, fromMinor, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Keypad, ConfirmBar, evalExpr } from "@/components/Keypad";
+import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { Chip, SheetFrame, Subtle, Title, ChipRow, DeleteRow } from "@/components/ui";
-import { S } from "@/constants/theme";
+import { C, S } from "@/constants/theme";
 import { monthBounds, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
 import { getPeriodStartDay } from "@/lib/period";
@@ -49,7 +49,9 @@ export default function BudgetEdit() {
     if (!tags.length) { Alert.alert("No tags yet", "Create a tag in Settings → Tags first."); return; }
     router.push({ pathname: "/pick/option", params: { key: tagKey, title: "Budget for a tag", selected: tagId ?? "", options: JSON.stringify(tags.map((t) => ({ value: t.id, label: t.name, subtitle: "Every expense with this tag counts" }))) } });
   };
-  const value = evalExpr(expr);
+  // `evalPartial`, as on the Log sheet: "900−" already means 900, and the field shows what is saved.
+  const value = evalPartial(expr);
+  const shown = value !== null ? formatMinor(toMinor(value, currency), currency) : "0";
   const valid = value !== null && value > 0;
   const commit = () => {
     if (!valid) return;
@@ -87,7 +89,8 @@ export default function BudgetEdit() {
               </ChipRow>
             </View>
           ) : null}
-          <Title style={styles.amount}>{expr || "0"} <Subtle style={{ fontSize: 18 }}>{currency}</Subtle></Title>
+          <Title style={[styles.amount, !expr && { color: C.tertiary }]}>{shown} <Subtle style={{ fontSize: 18 }}>{currency}</Subtle></Title>
+          <CalcLine expr={expr} style={{ textAlign: "left" }} />
         </View>
       }
       bottom={
@@ -108,7 +111,7 @@ export default function BudgetEdit() {
             <Chip icon={counted ? "sum" : "eye.slash"} label={counted ? "In Planned" : "Not in Planned"} active={counted} onPress={() => setCounted((v) => !v)} />
           </ChipRow>
           <Keypad value={expr} onChange={setExpr} allowSign={false} />
-          <ConfirmBar amount={`${expr || "0"} ${currency}`} label={existing ? "Tap to save" : "Tap to add budget"} onPress={commit} disabled={!valid} />
+          <ConfirmBar amount={`${shown} ${currency}`} label={existing ? "Tap to save" : "Tap to add budget"} onPress={commit} disabled={!valid} />
           {existing ? <DeleteRow label="Delete budget" onPress={del} /> : null}
         </>
       }

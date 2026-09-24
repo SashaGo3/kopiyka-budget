@@ -6,7 +6,7 @@ import { accountBalanceMinor, createTransfer, formatMinor, getRow, jsonIds, list
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Keypad, ConfirmBar, evalExpr } from "@/components/Keypad";
+import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { Chip, SheetFrame, Subtle, ChipRow, DeleteRow } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
@@ -71,8 +71,10 @@ export default function TransferSheet() {
     return () => { alive = false; };
   }, [cross, from?.currency, to?.currency]);
 
-  const fromValue = evalExpr(fromExpr);
-  const manualTo = evalExpr(toExpr);
+  // `evalPartial`, as on the Log sheet: each leg shows what its sum comes to, and the sum itself is
+  // written out under the legs for the side being typed.
+  const fromValue = evalPartial(fromExpr);
+  const manualTo = evalPartial(toExpr);
   const toValue = cross ? (toExpr ? manualTo : fromValue !== null && rate ? Math.round(fromValue * rate.rate * 100) / 100 : null) : fromValue;
   const valid = !!from && !!to && from.id !== to.id && fromValue !== null && fromValue > 0 && toValue !== null && toValue > 0;
 
@@ -101,13 +103,14 @@ export default function TransferSheet() {
             <Subtle style={{ flex: 1 }}>Transfer</Subtle>
             {stacked ? <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to expense" style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><Text style={styles.backText}>Back</Text></Pressable> : null}
           </View>
-          <Leg role="From" account={from?.name} amount={fromExpr || (fromValue !== null ? String(fromValue) : "0")} currency={from?.currency ?? ""}
+          <Leg role="From" account={from?.name} amount={fromValue !== null && from ? formatMinor(toMinor(fromValue, from.currency), from.currency) : "0"} currency={from?.currency ?? ""}
             active={side === "from"} onPress={() => setSide("from")} onPickAccount={pickFrom} negative
             balance={balances.from} after={fromValue !== null && from ? balances.from - toMinor(fromValue, from.currency) : null} />
           <View style={styles.arrow}><SymbolView name="arrow.down" size={18} tintColor={C.tertiary} /></View>
-          <Leg role="To" account={to?.name} amount={cross ? (toExpr || (toValue !== null ? String(toValue) : "…")) : fromExpr || "0"} currency={to?.currency ?? ""}
+          <Leg role="To" account={to?.name} amount={toValue !== null && to ? formatMinor(toMinor(toValue, to.currency), to.currency) : cross ? "…" : "0"} currency={to?.currency ?? ""}
             active={side === "to"} onPress={() => cross && setSide("to")} onPickAccount={pickTo}
             balance={balances.to} after={toValue !== null && to ? balances.to + toMinor(toValue, to.currency) : null} />
+          <CalcLine expr={side === "from" ? fromExpr : toExpr} style={{ textAlign: "left" }} />
           <Text style={styles.meta}>
             {cross && effRate ? `1 ${from!.currency} = ${effRate.toFixed(4)} ${to!.currency}${rate?.stale ? " (cached rate)" : toExpr ? " (manual)" : rate ? " (ECB)" : ""}` : cross ? "Fetching rate…" : " "}
           </Text>
@@ -125,7 +128,7 @@ export default function TransferSheet() {
           </ChipRow>
           <Keypad value={side === "from" ? fromExpr : toExpr} onChange={side === "from" ? setFromExpr : setToExpr} allowSign={false}
             extra={{ label: side === "from" ? (cross ? "Edit receiving" : "Same amount") : "Edit sending", icon: "arrow.up.arrow.down", active: side === "to", onPress: () => cross && setSide((s) => (s === "from" ? "to" : "from")) }} />
-          <ConfirmBar amount={fromValue !== null && from ? `${fromValue} ${from.currency}${cross && toValue !== null && to ? ` → ${toValue} ${to.currency}` : ""}` : "0"} label={valid ? (legs.length ? "Tap to save" : "Tap to transfer") : "Enter an amount"} onPress={commit} disabled={!valid} />
+          <ConfirmBar amount={fromValue !== null && from ? `${formatMinor(toMinor(fromValue, from.currency), from.currency)} ${from.currency}${cross && toValue !== null && to ? ` → ${formatMinor(toMinor(toValue, to.currency), to.currency)} ${to.currency}` : ""}` : "0"} label={valid ? (legs.length ? "Tap to save" : "Tap to transfer") : "Enter an amount"} onPress={commit} disabled={!valid} />
           {legs.length ? <DeleteRow label="Delete transfer" onPress={del} /> : null}
         </>
       }
