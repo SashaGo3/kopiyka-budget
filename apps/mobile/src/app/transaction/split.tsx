@@ -28,6 +28,10 @@ export interface SplitResult {
  * screen — it hands the parts back to the entry sheet, which creates them all when the entry is
  * saved, each with the same date, note, place, photo and account. Cancelling leaves the entry as
  * it was.
+ *
+ * One card, one row per part, the amounts in a column of their own down the right so they can be
+ * read against each other. A part's row opens its calculator, which carries Category and Tags too;
+ * the entry's own row has no amount to type, so it opens the two pickers directly.
  */
 export default function SplitEditor() {
   const insets = useSafeAreaInsets();
@@ -102,69 +106,77 @@ export default function SplitEditor() {
     openAmount(row);
   };
 
-  const line = (categoryId: string | null, tagIds: string[], key: string | null) => {
+  const tagLine = (tagIds: string[]) => tagIds.length
+    ? <View style={styles.tags}>{tagIds.map((x) => { const tag = tagRows.get(x); return tag ? <TagPill key={x} name={tag.name} color={tag.color} /> : null; })}</View>
+    : null;
+  const catIcon = (categoryId: string | null) => {
     const cat = categoryId ? catNames.get(categoryId) : null;
     const icon = cat ? iconFor(cat.name, { icon: cat.icon, color: cat.color }) : null;
-    return (
-      <>
-        <Pressable onPress={() => openCat(key, categoryId)} style={styles.catRow} accessibilityRole="button"
-          accessibilityLabel={cat ? `Category: ${cat.name}` : "Choose a category"}>
-          <View style={[styles.catIcon, { backgroundColor: icon?.color ?? (C.fill as unknown as string) }]}>
-            <SymbolView name={(icon?.icon as SFSymbol) ?? "folder.badge.plus"} size={14} tintColor={icon ? "white" : C.secondary} />
-          </View>
-          <Text style={[styles.catText, !cat && styles.missing]} numberOfLines={1}>{cat?.name ?? "Choose a category"}</Text>
-          <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
-        </Pressable>
-        <Pressable onPress={() => openTags(key, tagIds, categoryId)} style={styles.tagRow} accessibilityRole="button"
-          accessibilityLabel={tagIds.length ? `Tags: ${tagIds.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ")}` : "Tags"}>
-          <SymbolView name="number" size={12} tintColor={C.tertiary} />
-          {tagIds.length
-            ? tagIds.map((x) => { const tag = tagRows.get(x); return tag ? <TagPill key={x} name={tag.name} color={tag.color} /> : null; })
-            : <Text style={styles.tagHint}>Add tags</Text>}
-        </Pressable>
-      </>
-    );
+    return { cat, view: (
+      <View style={[styles.catIcon, { backgroundColor: icon?.color ?? (C.fill as unknown as string) }]}>
+        <SymbolView name={(icon?.icon as SFSymbol) ?? "folder.badge.plus"} size={15} tintColor={icon ? "white" : C.secondary} />
+      </View>
+    ) };
   };
+  const money = (minor: number, missing: boolean, red?: boolean) => (
+    <Text style={[styles.amount, missing && styles.missing, red && { color: C.red }]} numberOfLines={1}>
+      {formatMinor(minor, currency)} <Text style={styles.cur}>{currency}</Text>
+    </Text>
+  );
+  const mainIcon = catIcon(main.category_id);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title="Split the entry" left={{ label: "Cancel", onPress: () => router.back() }}
-        right={{ label: "Done", onPress: done, disabled: !ready }} />
+      <ModalHeader title="Split the entry" left={{ label: "Cancel", onPress: () => router.back() }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.intro}>
           One shop, several things. Give each part its own category — what is left stays on the entry itself.
         </Text>
 
         <View style={styles.card}>
-          <View style={styles.head}>
-            <Text style={styles.headLabel}>The rest of it</Text>
-            <Text style={[styles.amount, rest <= 0 && { color: C.red }]}>{formatMinor(rest, currency)} <Text style={styles.cur}>{currency}</Text></Text>
-          </View>
-          {line(main.category_id, main.tag_ids, null)}
-        </View>
-
-        {rows.map((r, i) => (
-          <View key={r.key} style={styles.card}>
-            <View style={styles.head}>
-              <Pressable onPress={() => openAmount(r)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Amount of part ${i + 2}`}>
-                <Text style={styles.headLabel}>{`Part ${i + 2}`}</Text>
-                <Text style={[styles.amount, !r.amount_minor && styles.missing]}>
-                  {formatMinor(r.amount_minor, currency)} <Text style={styles.cur}>{currency}</Text>
-                </Text>
+          <View style={styles.row}>
+            {mainIcon.view}
+            <View style={styles.middle}>
+              <Pressable onPress={() => openCat(null, main.category_id)} hitSlop={4} accessibilityRole="button"
+                accessibilityLabel={mainIcon.cat ? `Category of the rest: ${mainIcon.cat.name}` : "Choose a category for the rest"}>
+                <Text style={[styles.catText, !mainIcon.cat && styles.missing]} numberOfLines={1}>{mainIcon.cat?.name ?? "Choose a category"}</Text>
               </Pressable>
-              <Pressable onPress={() => setRows((list) => list.filter((x) => x.key !== r.key))} hitSlop={10}
-                accessibilityRole="button" accessibilityLabel={`Remove part ${i + 2}`} style={styles.remove}>
-                <SymbolView name="minus.circle.fill" size={20} tintColor={C.tertiary} />
+              <Pressable onPress={() => openTags(null, main.tag_ids, main.category_id)} hitSlop={4} accessibilityRole="button"
+                accessibilityLabel={main.tag_ids.length ? `Tags of the rest: ${main.tag_ids.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ")}` : "Add tags to the rest"}>
+                {tagLine(main.tag_ids) ?? <Text style={styles.tagHint}>Add tags</Text>}
               </Pressable>
             </View>
-            {line(r.category_id, r.tag_ids, r.key)}
+            <View style={styles.right}>
+              {money(rest, false, rest <= 0)}
+              <Text style={styles.caption}>the rest</Text>
+            </View>
+            <View style={styles.remove} />
           </View>
-        ))}
 
-        <Pressable onPress={add} style={({ pressed }) => [styles.add, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Add a part">
-          <SymbolView name="plus.circle" size={16} tintColor={C.tint} />
-          <Text style={styles.addText}>Add a part</Text>
-        </Pressable>
+          {rows.map((r, i) => {
+            const icon = catIcon(r.category_id);
+            return (
+              <Pressable key={r.key} onPress={() => openAmount(r)} style={({ pressed }) => [styles.row, styles.divider, pressed && { opacity: 0.6 }]}
+                accessibilityRole="button" accessibilityLabel={`Part ${i + 2}: ${formatMinor(r.amount_minor, currency)} ${currency}, ${icon.cat?.name ?? "no category"}. Tap to edit.`}>
+                {icon.view}
+                <View style={styles.middle}>
+                  <Text style={[styles.catText, !icon.cat && styles.missing]} numberOfLines={1}>{icon.cat?.name ?? "Choose a category"}</Text>
+                  {tagLine(r.tag_ids)}
+                </View>
+                <View style={styles.right}>{money(r.amount_minor, !r.amount_minor)}</View>
+                <Pressable onPress={() => setRows((list) => list.filter((x) => x.key !== r.key))} hitSlop={10}
+                  accessibilityRole="button" accessibilityLabel={`Remove part ${i + 2}`} style={styles.remove}>
+                  <SymbolView name="minus.circle.fill" size={20} tintColor={C.tertiary} />
+                </Pressable>
+              </Pressable>
+            );
+          })}
+
+          <Pressable onPress={add} style={({ pressed }) => [styles.add, styles.divider, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Add a part">
+            <SymbolView name="plus.circle.fill" size={20} tintColor={C.tint} />
+            <Text style={styles.addText}>Add a part</Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.foot}>
           {ready ? `${rows.length + 1} entries will be added, all with the same date, note, place and photo.` : hint}
@@ -183,19 +195,22 @@ export default function SplitEditor() {
 const styles = StyleSheet.create({
   content: { padding: S.md, gap: S.md },
   intro: { fontSize: 14, lineHeight: 19, color: C.secondary, paddingHorizontal: S.xs },
-  card: { backgroundColor: C.card, borderRadius: 16, padding: S.md, gap: S.sm },
-  head: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: S.md },
-  headLabel: { fontSize: 13, color: C.secondary },
-  amount: { fontSize: 26, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"], marginTop: 1 },
-  cur: { fontSize: 15, fontWeight: "600", color: C.secondary },
-  remove: { paddingTop: 4 },
-  catRow: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 36, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator, paddingTop: S.sm },
-  catIcon: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  catText: { flex: 1, fontSize: 16, color: C.label },
+  card: { backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.md },
+  row: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 60, paddingVertical: S.sm },
+  divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
+  catIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  middle: { flex: 1, gap: 4 },
+  catText: { fontSize: 16, color: C.label },
   missing: { color: C.tertiary },
-  tagRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 28 },
-  tagHint: { fontSize: 14, color: C.tertiary },
-  add: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44 },
+  tags: { flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" },
+  tagHint: { fontSize: 13, color: C.tint },
+  // The amounts are one column: right-aligned, same width of figure, whatever sits beside them.
+  right: { alignItems: "flex-end", flexShrink: 0 },
+  amount: { fontSize: 17, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"], textAlign: "right" },
+  cur: { fontSize: 13, fontWeight: "500", color: C.secondary },
+  caption: { fontSize: 12, color: C.secondary },
+  remove: { width: 22, alignItems: "center" },
+  add: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 50, paddingLeft: 5 },
   addText: { fontSize: 16, fontWeight: "600", color: C.tint },
   foot: { fontSize: 13, lineHeight: 18, color: C.secondary, textAlign: "center", paddingHorizontal: S.md },
 });
