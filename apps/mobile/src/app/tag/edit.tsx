@@ -10,6 +10,7 @@ import { BusyOverlay, Card, DeleteRow, ModalHeader, Row, SectionHeader, TagPill,
 import { ALL_TIME } from "@/lib/filters";
 import { dismissTo } from "@/lib/nav";
 import { C, S } from "@/constants/theme";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /** Tag editor: name, colour, and which categories (or whole folders) it belongs to. */
 export default function TagEdit() {
@@ -21,6 +22,9 @@ export default function TagEdit() {
   // The write is one synchronous transaction over every transaction carrying the tag, so the screen
   // cannot render while it runs: the overlay goes up first and the work starts two frames later.
   const [converting, setConverting] = useState(false);
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([name, color, scope]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
   const cats = useQuery((d) => new Map(listRows(d, "categories", "deleted=0", [], "sort, name").map((c) => [c.id, c])));
   const uses = useQuery((d) => (existing ? d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions WHERE deleted=0 AND tag_ids LIKE ?`, [`%"${existing.id}"%`])?.n ?? 0 : 0), [existing?.id]);
   const keys = useMemo(() => ({ cats: newPickKey("tcats"), folder: newPickKey("tfolder"), color: newPickKey("tcolor") }), []);
@@ -34,10 +38,10 @@ export default function TagEdit() {
       { text: "Convert", style: "destructive", onPress: () => runBusy(
         () => setConverting(true),
         () => mutate((d) => convertTagToCategory(d, existing.id, { parent_id: parent })),
-        () => { setConverting(false); router.back(); },
+        () => { setConverting(false); leave(); },
       ) },
     ]);
-  }, [existing, uses]));
+  }, [existing, uses, leave]));
   // Jump to this tag's transactions: the Transactions tab itself, filtered to it over all time (see
   // the same jump in category/edit.tsx). One navigation rather than a dismissal and a timer — see
   // `lib/nav.ts` for what the timer cost.
@@ -57,7 +61,7 @@ export default function TagEdit() {
     mutate((d) => existing
       ? save(d, "tags", { ...existing, name: name.trim(), color, category_ids: JSON.stringify(scope) } as Tag)
       : createTag(d, { name: name.trim(), color, category_ids: JSON.stringify(scope) }));
-    router.back();
+    leave();
   };
   /**
    * Retire the tag: every transaction keeps it, a budget on it still counts, and it simply stops
@@ -74,7 +78,7 @@ export default function TagEdit() {
   const rules = useQuery((d) => (existing ? listRows(d, "recurring_rules", "deleted=0 AND active=1").filter((r) => jsonIds(r.tag_ids).includes(existing.id)).length : 0), [existing?.id]);
   const archive = () => {
     if (!existing) return;
-    if (existing.archived) { mutate((d) => save(d, "tags", { ...existing, archived: 0 } as Tag)); router.back(); return; }
+    if (existing.archived) { mutate((d) => save(d, "tags", { ...existing, archived: 0 } as Tag)); leave(); return; }
     if (onTrip) {
       Alert.alert("Travel mode is using this tag", "It is being put on everything you log right now. End the trip on the Budgets screen first, then archive the tag.", [{ text: "OK" }]);
       return;
@@ -85,12 +89,12 @@ export default function TagEdit() {
        "It stops being offered for anything new.",
       ].filter(Boolean).join(" "), [
       { text: "Cancel", style: "cancel" },
-      { text: "Archive", onPress: () => { mutate((d) => save(d, "tags", { ...existing, archived: 1 } as Tag)); router.back(); } },
+      { text: "Archive", onPress: () => { mutate((d) => save(d, "tags", { ...existing, archived: 1 } as Tag)); leave(); } },
     ]);
   };
   const del = () => existing && Alert.alert("Delete tag?", "Transactions keep everything else.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "tags", existing.id)); router.back(); } },
+    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "tags", existing.id)); leave(); } },
   ]);
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>

@@ -11,6 +11,7 @@ import { Chip, SheetFrame, Subtle, ChipRow, DeleteRow } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { getCurrentAccount } from "@/lib/settings";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /**
  * Transfer between two accounts. When currencies differ, the destination amount
@@ -53,6 +54,8 @@ export default function TransferSheet() {
   // Transfers can be categorised and tagged like any entry (e.g. "Savings", #vacation); both legs share them.
   const [categoryId, setCategoryId] = useState<string | null>(outLeg?.category_id ?? null);
   const [tagIds, setTagIds] = useState<string[]>(() => jsonIds(outLeg?.tag_ids ?? "[]"));
+  // Closing with changes asks first (lib/discard.ts).
+  const exit = useDiscardGuard(useDirty([fromId, toId, fromExpr, toExpr, date, note, categoryId, tagIds]));
   const category = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) ?? null : null), [categoryId]);
   const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((t) => tagIds.includes(t.id)), [tagIds.join(",")]);
 
@@ -84,11 +87,11 @@ export default function TransferSheet() {
       if (legs.length) for (const l of legs) remove(d, "transactions", l.id);
       createTransfer(d, { from_account_id: from.id, to_account_id: to.id, date, from_amount_minor: toMinor(fromValue!, from.currency), to_amount_minor: toMinor(toValue!, to.currency), from_currency: from.currency, to_currency: to.currency, notes: note || null, category_id: categoryId, tag_ids: JSON.stringify(tagIds) });
     });
-    if (stacked) router.dismiss(2); else router.back();
+    exit(() => { if (stacked) router.dismiss(2); else router.back(); });
   };
   const del = () => Alert.alert("Delete transfer?", undefined, [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => { for (const l of legs) remove(d, "transactions", l.id); }); router.back(); } },
+    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => { for (const l of legs) remove(d, "transactions", l.id); }); exit(() => router.back()); } },
   ]);
 
   const effRate = fromValue && toValue ? toValue / fromValue : rate?.rate;

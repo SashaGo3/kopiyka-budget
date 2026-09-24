@@ -9,6 +9,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, DeleteRow, ModalHeader, Row, SectionHeader, Segmented } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { INSIGHT_LOOK, addableKinds } from "@/lib/insights";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /** Pick a kind, then fill in its parameters; each one opens the matching picker sheet. */
 export default function InsightEdit() {
@@ -16,6 +17,9 @@ export default function InsightEdit() {
   const existing = id === "new" ? null : (getRow(db, "insights", id) as Insight | undefined) ?? null;
   const [kind, setKind] = useState<InsightKind | null>(existing?.kind ?? (presetKind as InsightKind) ?? null);
   const [p, setP] = useState<InsightParams>(() => (existing ? parseInsightParams(existing.params) : {}));
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([kind, p]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
   const names = useQuery((d) => ({ accounts: new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a])), categories: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, c.name])), tags: new Map(listRows(d, "tags", "1=1").map((t) => [t.id, t.name])) }));
   const subs = useQuery((d) => subscriptionsPerYear(d).lines);
   const others = useQuery((d) => (listRows(d, "insights", "deleted=0") as Insight[]).filter((i) => i.id !== existing?.id));
@@ -42,9 +46,9 @@ export default function InsightEdit() {
   const commit = (k: InsightKind | null = kind, params: InsightParams = p) => {
     if (!k) return;
     mutate((d) => existing ? save(d, "insights", { ...existing, kind: k, params: JSON.stringify(params) }) : createInsight(d, { kind: k, params: JSON.stringify(params), sort: nextSort(d) }));
-    router.back();
+    leave();
   };
-  const del = () => existing && Alert.alert("Remove this insight?", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); router.back(); } }]);
+  const del = () => existing && Alert.alert("Remove this insight?", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); leave(); } }]);
   const money = (minor?: number) => (minor != null ? `${formatMinor(minor, currency)} ${currency}` : "Not set");
   const catList = (p.category_ids ?? []).map((cid) => names.categories.get(cid) ?? "?").join(", ");
 

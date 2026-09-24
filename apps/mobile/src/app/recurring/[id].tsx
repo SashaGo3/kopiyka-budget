@@ -10,7 +10,7 @@ import { ConfirmBar } from "@/components/Keypad";
 import { Card, DeleteRow, ModalHeader, Row, Segmented } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { humanDayTime, localIso, timeLabel, todayLocal } from "@/lib/dates";
-import { confirmDiscard, guardOptions } from "@/lib/discard";
+import { confirmDiscard, guardOptions, useDirty, useDiscardGuard } from "@/lib/discard";
 import { CUSTOM, REPEAT_OPTIONS, REPEAT_UNITS, parseRepeat, repeatCounts, repeatLabel, repeatValue } from "@/lib/repeat";
 import { ensureNotificationPermission } from "@/lib/notifications";
 import { REMINDER_OPTIONS, WAIT_DAYS_OPTIONS, getReminderDaysBefore, getRecurringWait, getRecurringWaitDays } from "@/lib/settings";
@@ -70,6 +70,9 @@ export default function RecurringEdit() {
   const [tagIds, setTagIds] = useState<string[]>(() => jsonIds((existing ?? seedTx)?.tag_ids ?? ""));
   const customUnit = useRef<Frequency>("monthly");
   const [fromTx, setFromTx] = useState<string | null>(seedTx ? (seedTx.source === "history" && seedTx.occurrences > 1 ? `Seen ${seedTx.occurrences}× · ${seedTx.frequency}` : "Monthly guessed from one transaction") : null);
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([accountId, kind, amountMinor, categoryId, payee, notes, freq, interval, start, daysBefore, autoPost, time, waitDays, matchPayee, tagIds]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
   const cat = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) : null), [categoryId]);
   const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((t) => tagIds.includes(t.id)), [tagIds.join(",")]);
   const keys = useMemo(() => ({ cat: newPickKey("rcat"), acc: newPickKey("racc"), date: newPickKey("rdate"), time: newPickKey("rtime"), payee: newPickKey("rpayee"), notes: newPickKey("rnotes"), amount: newPickKey("ramount"), repeat: newPickKey("rrep"), unit: newPickKey("runit"), count: newPickKey("rcount"), remind: newPickKey("rrem"), post: newPickKey("rpost"), wait: newPickKey("rwait"), match: newPickKey("rmatch"), tags: newPickKey("rtags"), tx: newPickKey("rtx") }), []);
@@ -118,7 +121,7 @@ export default function RecurringEdit() {
       const base = { account_id: account.id, amount_minor: amountMinor * (kind === "expense" ? -1 : 1), category_id: categoryId, payee: payee.trim() || null, notes: notes.trim() || null, tag_ids: JSON.stringify(tagIds), frequency: freq, interval, start_date: existing?.start_date ?? start, next_date: start, notify: daysBefore !== null ? 1 : 0, notify_days_before: daysBefore ?? 1, auto_post: autoPost ? 1 : 0, time_of_day: time, wait_days: waitDays, match_payee: matchPayee } as const;
       if (existing) save(d, "recurring_rules", { ...existing, ...base } as RecurringRule); else createRecurring(d, base);
     });
-    router.back();
+    leave();
   };
   // Picking a payment teaches the rule the shop's name as the bank writes it; clearing falls back to
   // matching on the exact amount alone.
@@ -133,7 +136,7 @@ export default function RecurringEdit() {
   };
   const del = () => existing && Alert.alert("Delete recurring rule?", "Already posted transactions stay.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "recurring_rules", existing.id)); router.back(); } },
+    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "recurring_rules", existing.id)); leave(); } },
   ]);
   const option = (key: string, title: string, options: { value: string; label: string; subtitle?: string }[], selected?: string) => router.push({ pathname: "/pick/option", params: { key, title, options: JSON.stringify(options), ...(selected ? { selected } : {}) } });
   const repeats = repeatLabel(freq, interval);
@@ -143,8 +146,8 @@ export default function RecurringEdit() {
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       {existing ? null : <Stack.Screen options={guardOptions("recurring rule")} />}
-      <ModalHeader title={existing ? "Recurring" : "New recurring"} left={{ label: "Cancel", onPress: () => (existing ? router.back() : confirmDiscard("recurring rule", () => router.back())) }}
-        right={existing ? { label: existing.active ? "Pause" : "Resume", bold: false, onPress: () => { mutate((d) => save(d, "recurring_rules", { ...existing, active: existing.active ? 0 : 1 })); router.back(); } } : undefined} />
+      <ModalHeader title={existing ? "Recurring" : "New recurring"} left={{ label: "Cancel", onPress: () => (existing ? router.back() : confirmDiscard("recurring rule", leave)) }}
+        right={existing ? { label: existing.active ? "Pause" : "Resume", bold: false, onPress: () => { mutate((d) => save(d, "recurring_rules", { ...existing, active: existing.active ? 0 : 1 })); leave(); } } : undefined} />
       <ScrollView contentContainerStyle={{ paddingBottom: S.md }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <Pressable onPress={editAmount} style={styles.hero} accessibilityRole="button" accessibilityLabel={`Amount: ${formatMinor(amountMinor, currency)} ${currency}`} accessibilityHint="Opens the keypad">
           <Text style={[styles.amount, kind === "income" && { color: C.green }, !amountMinor && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{kind === "expense" ? "−" : "+"}{formatMinor(amountMinor, currency)} <Text style={styles.cur}>{currency}</Text></Text>

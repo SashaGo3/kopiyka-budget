@@ -10,6 +10,7 @@ import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHe
 import { ALL_TIME } from "@/lib/filters";
 import { dismissTo } from "@/lib/nav";
 import { C, S } from "@/constants/theme";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /**
  * Category editor: name at the top, icon auto-suggested from the name. Icon, colour and
@@ -34,6 +35,9 @@ export default function CategoryEdit() {
   const hasChildren = children.length;
   /** Folder colour → every category inside it, applied on Save so Cancel still undoes everything. */
   const [recolour, setRecolour] = useState(false);
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([name, parentId, kind, icon, color, description, recolour]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
   const uses = useQuery((d) => (existing ? d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE t.deleted=0 AND (t.category_id=? OR c.parent_id=?)`, [existing.id, existing.id])?.n ?? 0 : 0), [existing?.id]);
   const keys = useMemo(() => ({ icon: newPickKey("cicon"), color: newPickKey("ccolor"), folder: newPickKey("cfolder"), where: newPickKey("cwhere"), moveTo: newPickKey("cmoveto") }), []);
   usePickResult<string | null>(keys.icon, useCallback((v) => setIcon(v), []));
@@ -64,7 +68,7 @@ export default function CategoryEdit() {
       { text: "Convert", style: "destructive", onPress: () => runBusy(
         () => setConverting(true),
         () => mutate((d) => convertCategoryToTag(d, existing.id, { moveTo })),
-        () => { setConverting(false); router.back(); },
+        () => { setConverting(false); leave(); },
       ) },
     ]);
   };
@@ -105,7 +109,7 @@ export default function CategoryEdit() {
       return row;
     });
     if (pickKey) resolvePick(pickKey, c.id);
-    router.back();
+    leave();
   };
   /**
    * Retire this category instead of deleting it. Nothing filed under it changes — that history is
@@ -119,7 +123,7 @@ export default function CategoryEdit() {
   const archived = existing?.archived === 1;
   const archive = () => {
     if (!existing) return;
-    if (archived) { mutate((d) => save(d, "categories", { ...existing, archived: 0 } as Category)); router.back(); return; }
+    if (archived) { mutate((d) => save(d, "categories", { ...existing, archived: 0 } as Category)); leave(); return; }
     const what = isFolder ? "folder" : "category";
     Alert.alert(`Archive this ${what}?`,
       [`Its ${uses} transaction${uses === 1 ? "" : "s"} keep it and still count everywhere.`,
@@ -127,12 +131,12 @@ export default function CategoryEdit() {
        "It stops being offered for anything new, including to the Shortcut automation, which will leave those payments in Pending for you to file.",
       ].filter(Boolean).join(" "), [
       { text: "Cancel", style: "cancel" },
-      { text: "Archive", onPress: () => { mutate((d) => save(d, "categories", { ...existing, archived: 1 } as Category)); router.back(); } },
+      { text: "Archive", onPress: () => { mutate((d) => save(d, "categories", { ...existing, archived: 1 } as Category)); leave(); } },
     ]);
   };
   const del = () => existing && Alert.alert(isFolder ? "Delete folder?" : "Delete category?", hasChildren ? `Its ${hasChildren} categories become top-level folders. Transactions keep their data.` : "Transactions keep their data but become uncategorized.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "categories", existing.id)); router.back(); } },
+    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "categories", existing.id)); leave(); } },
   ]);
   const pickFolder = () => {
     const options = parents.filter((p) => p.id !== existing?.id).map((p) => ({ value: p.id, label: p.name, icon: p.icon, color: p.color, subtitle: p.kind === "income" ? "Income" : undefined }));

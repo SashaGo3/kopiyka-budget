@@ -10,6 +10,7 @@ import { ConfirmBar } from "@/components/Keypad";
 import type { AmountPick } from "@/app/pick/amount";
 import { ModalHeader, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /** A part as the editor holds it: the payload plus a key React and the pickers can address it by. */
 type Row = SplitPart & { key: string };
@@ -46,6 +47,9 @@ export default function SplitEditor() {
   const [rows, setRows] = useState<Row[]>(() => {
     try { return (JSON.parse(p.parts) as SplitPart[]).map((x) => ({ ...x, key: newPickKey("part") })); } catch { return []; }
   });
+
+  // Closing with parts added or changed asks first (lib/discard.ts); keeping the split does not.
+  const exit = useDiscardGuard(useDirty([main, rows.map(({ key: _k, ...part }) => part)]));
 
   // One handler per field rather than per row: rows come and go, and a hook cannot.
   const keys = useMemo(() => ({ cat: newPickKey("scat"), tags: newPickKey("stags"), amt: newPickKey("samt") }), []);
@@ -84,7 +88,7 @@ export default function SplitEditor() {
     : !amounts ? (rows.some((r) => !r.amount_minor) ? "Every part needs an amount" : "The parts come to more than the entry")
       : "Every part needs a category";
   // The entry sheet saves and leaves from here, taking this screen with it.
-  const done = () => resolvePick(p.key, { main, parts: rows.map(({ key: _k, ...part }) => part) } satisfies SplitResult);
+  const done = () => exit(() => resolvePick(p.key, { main, parts: rows.map(({ key: _k, ...part }) => part) } satisfies SplitResult));
 
   // A part can only ever be worth what the entry still has: the rest of it, plus whatever this part
   // is already holding, since editing it hands that back first. The ceiling is a minor unit under

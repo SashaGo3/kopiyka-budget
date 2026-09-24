@@ -8,6 +8,7 @@ import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /** What comes back when the screen was opened with `kind`, i.e. with the Category and Tags keys on. */
 export interface AmountPick { minor: number; category_id: string | null; tag_ids: string[] }
@@ -38,6 +39,7 @@ export default function PickAmount() {
   const [expr, setExpr] = useState(p.value && Number(p.value) ? String(Math.abs(Number(p.value)) / 100) : "");
   const [categoryId, setCategoryId] = useState<string | null>(p.category || null);
   const [tagIds, setTagIds] = useState<string[]>(p.tags ? p.tags.split(",").filter(Boolean) : []);
+  const exit = useDiscardGuard(useDirty([expr, categoryId, tagIds]));
 
   const keys = useMemo(() => ({ cat: newPickKey("amtcat"), tags: newPickKey("amttags") }), []);
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => setCategoryId(v), []));
@@ -55,7 +57,7 @@ export default function PickAmount() {
   const tooMuch = ceiling !== null && minor !== null && minor > ceiling;
   const use = () => {
     resolvePick(p.key, p.kind ? ({ minor: minor!, category_id: categoryId, tag_ids: tagIds } satisfies AmountPick) : minor!);
-    router.back();
+    exit(() => router.back());
   };
   const amountText = abs !== null ? formatMinor(toMinor(abs, cur), cur) : "0";
 

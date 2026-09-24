@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { budgetCategoryIds, createBudget, formatMinor, getRow, listRows, remove, save, scopedBudget, suggestBudget, toMinor, fromMinor, type Budget } from "@kopiyka/core";
@@ -11,6 +11,7 @@ import { C, S } from "@/constants/theme";
 import { monthBounds, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
 import { getPeriodStartDay } from "@/lib/period";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 export default function BudgetEdit() {
   const { id, account } = useLocalSearchParams<{ id: string; account?: string }>();
@@ -26,6 +27,9 @@ export default function BudgetEdit() {
   const tag = useQuery((d) => (tagId ? getRow(d, "tags", tagId) : null), [tagId]);
   const currency = existing?.currency ?? getBaseCurrency();
   const [expr, setExpr] = useState(existing ? String(fromMinor(existing.amount_minor, existing.currency)) : "");
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([categoryIds, tagId, name, counted, expr]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
   const startDay = getPeriodStartDay();
   // One name reads better than a count, so the names are spelled out until there are too many of them.
   const catNames = useQuery((d) => {
@@ -60,11 +64,11 @@ export default function BudgetEdit() {
       // `scopedBudget` keeps `category_id` in step with the set; `createBudget` does it itself.
       if (existing) save(d, "budgets", scopedBudget({ ...existing, ...base }) as Budget); else createBudget(d, base);
     });
-    router.back();
+    leave();
   };
   const del = () => existing && Alert.alert("Delete budget?", undefined, [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", existing.id)); router.back(); } },
+    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", existing.id)); leave(); } },
   ]);
   return (
     <SheetFrame
