@@ -100,9 +100,13 @@ export default function TagEdit() {
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={existing ? (existing.archived ? "Archived tag" : "Edit tag") : "New tag"} left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Save", onPress: commit, disabled: !valid }} />
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 60 }}>
-        <View style={styles.nameRow}>
-          <TagPill name={name || "tag"} color={color} />
-          <TextInput value={name} onChangeText={setName} placeholder="Tag name" placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing} returnKeyType="done" onSubmitEditing={commit} autoCapitalize="none" />
+        {/* The field on its own line and the preview under it: side by side, a long name's pill took
+            half the width and left the text being edited too narrow to read or select. Multiline so a
+            long name wraps whole instead of scrolling sideways; Return still saves, never a new line. */}
+        <View style={styles.nameBlock}>
+          <TextInput value={name} onChangeText={setName} placeholder="Tag name" placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing}
+            multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} autoCapitalize="none" accessibilityLabel="Tag name" />
+          <View style={styles.preview}><TagPill name={name || "tag"} color={color} /></View>
         </View>
         <SectionHeader>Appearance</SectionHeader>
         <Card>
@@ -147,8 +151,9 @@ export default function TagEdit() {
 
 const styles = StyleSheet.create({
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: S.md, padding: S.lg },
-  input: { flex: 1, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, height: 50, fontSize: 18, color: C.label },
+  nameBlock: { gap: S.sm, padding: S.lg },
+  input: { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 18, color: C.label },
+  preview: { flexDirection: "row", paddingHorizontal: S.xs },
   right: { flexDirection: "row", alignItems: "center", gap: S.sm },
   swatch: { width: 24, height: 24, borderRadius: 12 },
 });

@@ -149,7 +149,8 @@ export default function CategoryEdit() {
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 60 }}>
         <View style={styles.nameRow}>
           <View style={[styles.preview, { backgroundColor: shownColor + "26" }]}><SymbolView name={shownIcon as SFSymbol} size={26} tintColor={shownColor} /></View>
-          <TextInput value={name} onChangeText={setName} placeholder={isFolder ? "Folder name" : "Category name"} placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing} returnKeyType="done" onSubmitEditing={commit} />
+          <TextInput value={name} onChangeText={setName} placeholder={isFolder ? "Folder name" : "Category name"} placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing}
+            multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} accessibilityLabel={isFolder ? "Folder name" : "Category name"} />
         </View>
         <View style={{ paddingHorizontal: S.md, gap: S.sm }}>
           <Segmented<"category" | "folder"> value={isFolder ? "folder" : "category"} onChange={(v) => setParentId(v === "folder" ? null : parents.find((p) => p.id !== existing?.id)?.id ?? null)}
@@ -219,7 +220,8 @@ const styles = StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.md, padding: S.lg },
   preview: { width: 50, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  input: { flex: 1, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, height: 50, fontSize: 18, color: C.label },
+  // Multiline so a long name wraps whole and can be read and selected; Return still saves.
+  input: { flex: 1, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 18, color: C.label },
   desc: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingVertical: S.sm, minHeight: 60, fontSize: 16, color: C.label },
   right: { flexDirection: "row", alignItems: "center", gap: S.sm },
   rowIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
