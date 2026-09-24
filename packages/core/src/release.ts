@@ -12,9 +12,20 @@ export interface Release {
   version: string;
   /** YYYY-MM-DD. */
   date: string;
-  added?: string[];
-  improved?: string[];
-  fixed?: string[];
+  added?: ReleaseNote[];
+  improved?: ReleaseNote[];
+  fixed?: ReleaseNote[];
+}
+
+/**
+ * One line of the notes. A bare string is just the words; the object form adds a symbol drawn
+ * beside them (an SF Symbol name on iOS), which is how a list of a dozen lines stays scannable.
+ */
+export type ReleaseNote = string | { text: string; icon?: string };
+
+/** The words of a note, whichever form it was written in. */
+export function noteText(n: ReleaseNote): string {
+  return typeof n === "string" ? n : n.text;
 }
 
 /**

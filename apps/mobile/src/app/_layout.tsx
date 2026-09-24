@@ -159,6 +159,8 @@ export default function RootLayout() {
           <Stack.Screen name="pick/transaction" options={picker} />
           <Stack.Screen name="pick/location" options={modal} />
           <Stack.Screen name="insight/edit" options={modal} />
+          {/* A drag list, like budget/reorder: the sheet's own swipe would fight every row. */}
+          <Stack.Screen name="insight/reorder" options={{ ...modal, gestureEnabled: false }} />
           <Stack.Screen name="filter" options={modal} />
         </Stack>
         <BootSkeleton />

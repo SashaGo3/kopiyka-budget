@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
+import { noteText } from "@kopiyka/core";
 import { BigButton, Card, ModalHeader } from "@/components/ui";
 import { markWhatsNewSeen, releasesToRead } from "@/lib/whatsNew";
 import { C, R, S } from "@/constants/theme";
@@ -29,7 +30,9 @@ export default function WhatsNew() {
   const close = () => { markWhatsNewSeen(); router.back(); };
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title="What's new" right={{ label: "Done", onPress: close, bold: true }} />
+      {/* No Done up here: the one at the bottom is where a reader arrives, and two buttons for the
+          same thing on one short sheet is one too many. */}
+      <ModalHeader title="What's new" />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         {releases.map((r, i) => (
           <View key={r.version}>
@@ -47,12 +50,18 @@ export default function WhatsNew() {
                       <SymbolView name={icon} size={14} tintColor={C.tint} />
                       <Text style={styles.sectionTitle}>{title}</Text>
                     </View>
-                    {lines.map((line) => (
-                      <View key={line} style={styles.item}>
-                        <Text style={styles.bullet}>·</Text>
-                        <Text style={styles.line}>{line}</Text>
-                      </View>
-                    ))}
+                    {lines.map((note) => {
+                      const text = noteText(note);
+                      const symbol = typeof note === "string" ? undefined : note.icon;
+                      return (
+                        <View key={text} style={styles.item}>
+                          {symbol
+                            ? <View style={styles.icon}><SymbolView name={symbol as SFSymbol} size={17} tintColor={C.tint} /></View>
+                            : <Text style={styles.bullet}>·</Text>}
+                          <Text style={styles.line}>{text}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 );
               })}
@@ -70,11 +79,12 @@ const styles = StyleSheet.create({
   version: { fontSize: 20, fontWeight: "700", color: C.label },
   skipped: { fontSize: 13, color: C.tertiary },
   card: { marginHorizontal: S.lg, borderRadius: R.card, padding: S.lg, gap: S.lg },
-  section: { gap: 6 },
+  section: { gap: 10 },
   sectionHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   sectionTitle: { fontSize: 13, fontWeight: "700", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
-  item: { flexDirection: "row", gap: S.sm, paddingLeft: 2 },
-  bullet: { fontSize: 15, color: C.tertiary, lineHeight: 21 },
+  item: { flexDirection: "row", gap: S.sm },
+  bullet: { fontSize: 15, color: C.tertiary, lineHeight: 21, width: 24, textAlign: "center" },
+  icon: { width: 24, height: 21, alignItems: "center", justifyContent: "center" },
   line: { flex: 1, fontSize: 15, color: C.label, lineHeight: 21 },
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: S.xxl, paddingTop: S.sm, backgroundColor: C.bgGrouped },
 });

@@ -10,34 +10,41 @@ import { C, S, VALUE_LABEL, ValueRamp } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay } from "@/lib/period";
 import { getBudgetScope } from "@/lib/settings";
+import { INSIGHT_LOOK } from "@/lib/insights";
 import { scopeAccount, scopeAccountIds } from "@/lib/scope";
 
 /** User-added statistics cards. Each card is computed in core from its stored params. */
 export default function InsightsScreen() {
   const insights = useQuery((db) => listRows(db, "insights", "deleted=0", [], "sort, rowid") as Insight[]);
   const { visible, onScroll } = useScrollHide();
+  const canReorder = insights.length > 1;
+  const reorder = () => router.push("/insight/reorder");
   return (
     <>
       <Stack.Screen options={{ title: "Insights", headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180, paddingTop: S.sm, gap: S.md }} onScroll={onScroll} scrollEventThrottle={16}>
-        {insights.length === 0 ? <Empty title="No insights yet" hint="Add what is safe to spend once everything still coming out is taken off, this period split by how much each category matters, a safety buffer, free money left, days until salary, what is left on an account, a savings goal, a payments checklist, subscriptions per year, what your recurring rules took this period, upcoming payments or regular spending." /> : null}
-        {insights.map((i, n) => <FadeIn key={i.id} delay={n * 60}><InsightCard insight={i} /></FadeIn>)}
+        {insights.length === 0 ? <Empty title="No insights yet" hint="Cards that answer one question each — what is safe to spend, how long until salary, how a savings goal is going, what your subscriptions cost a year. Add the ones you want and drag them into your order." /> : null}
+        {insights.map((i, n) => <FadeIn key={i.id} delay={n * 60}><InsightCard insight={i} reorder={canReorder ? reorder : undefined} /></FadeIn>)}
       </ScrollView>
       <BottomBar visible={visible}>
         <BarButton icon="plus" label="Add insight" onPress={() => router.push({ pathname: "/insight/edit", params: { id: "new" } })} a11y="Add insight" />
+        {canReorder ? <BarButton icon="arrow.up.arrow.down" label="Reorder" onPress={reorder} a11y="Reorder insights" /> : null}
       </BottomBar>
     </>
   );
 }
 
-function InsightCard({ insight }: { insight: Insight }) {
+function InsightCard({ insight, reorder }: { insight: Insight; reorder?: () => void }) {
   const p = parseInsightParams(insight.params);
   const meta = INSIGHT_KINDS.find((k) => k.kind === insight.kind);
   const title = p.title || meta?.title || insight.kind;
+  const look = INSIGHT_LOOK[insight.kind];
   return (
     <View style={styles.card}>
-      <Pressable onPress={() => router.push({ pathname: "/insight/edit", params: { id: insight.id } })} style={styles.head} accessibilityRole="button" accessibilityLabel={`Edit ${title}`}>
-        <Text style={styles.title}>{title}</Text>
+      <Pressable onPress={() => router.push({ pathname: "/insight/edit", params: { id: insight.id } })} onLongPress={reorder} style={styles.head}
+        accessibilityRole="button" accessibilityLabel={`Edit ${title}`} accessibilityHint={reorder ? "Long press to reorder the insights" : undefined}>
+        {look ? <SymbolView name={look.icon} size={15} tintColor={look.color} weight="semibold" /> : null}
+        <Text style={styles.title} numberOfLines={1}>{title}</Text>
         <SymbolView name="ellipsis.circle" size={18} tintColor={C.tertiary} />
       </Pressable>
       <Body insight={insight} p={p} />
@@ -105,7 +112,7 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
         const openLog = () => {
           if (c.done) return;
           const last = c.last;
-          if (last) router.push({ pathname: "/transaction/[id]", params: { id: "new", category: c.category_id, amount: String(Math.abs(last.amount_minor) / 100), kind: last.amount_minor >= 0 ? "income" : "expense", note: last.notes ?? "", tags: last.tag_ids.join(","), account: last.account_id } });
+          if (last) router.push({ pathname: "/transaction/[id]", params: { id: "new", category: c.category_id, amount: formatMinor(Math.abs(last.amount_minor), last.currency, { grouping: "" }), kind: last.amount_minor >= 0 ? "income" : "expense", note: last.notes ?? "", tags: last.tag_ids.join(","), account: last.account_id } });
           else router.push({ pathname: "/transaction/[id]", params: { id: "new", category: c.category_id } });
         };
         return <Pressable key={c.category_id} onPress={openLog} style={styles.check} accessibilityRole="button" accessibilityLabel={`${c.name}${c.done ? ", done" : ", not yet"}`}>
@@ -150,7 +157,7 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
         <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((o) => !o); }} accessibilityRole="button" accessibilityLabel={open ? "Hide list" : "Show list"} accessibilityState={{ expanded: open }}><Text style={styles.link}>{open ? "Hide" : "Show"} list</Text></Pressable>
         {open ? included.map((l) => (
           <View key={l.rule.id} style={styles.subRow}>
-            <View style={{ flex: 1, minWidth: 0 }}><Text style={styles.line} numberOfLines={1}>{l.title}</Text><Text style={styles.sub}>{(Math.abs(l.rule.amount_minor) / 100).toLocaleString()} {l.currency} {l.per_period}</Text></View>
+            <View style={{ flex: 1, minWidth: 0 }}><Text style={styles.line} numberOfLines={1}>{l.title}</Text><Text style={styles.sub}>{formatMinor(Math.abs(l.rule.amount_minor), l.currency)} {l.currency} {l.per_period}</Text></View>
             <Money minor={l.yearly_minor} currency={l.currency} style={styles.lineStrong} />
           </View>
         )) : null}</View>;
@@ -158,14 +165,14 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
     case "upcoming":
       return <View style={{ gap: 4 }}>{data.v.length ? data.v.map((u, i) => {
         const t = u.template;
-        return <Pressable key={i} onPress={() => !u.done && router.push({ pathname: "/transaction/[id]", params: { id: "new", account: t.account_id, category: t.category_id ?? "", amount: String(Math.abs(t.amount_minor) / 100), kind: t.amount_minor >= 0 ? "income" : "expense", note: t.notes ?? "", tags: t.tag_ids.join(",") } })} style={styles.check} accessibilityRole="button" accessibilityLabel={`${t.notes ?? u.category_name ?? "Payment"}${u.done ? ", logged" : ", tap to log"}`}>
+        return <Pressable key={i} onPress={() => !u.done && router.push({ pathname: "/transaction/[id]", params: { id: "new", account: t.account_id, category: t.category_id ?? "", amount: formatMinor(Math.abs(t.amount_minor), u.currency, { grouping: "" }), kind: t.amount_minor >= 0 ? "income" : "expense", note: t.notes ?? "", tags: t.tag_ids.join(",") } })} style={styles.check} accessibilityRole="button" accessibilityLabel={`${t.notes ?? u.category_name ?? "Payment"}${u.done ? ", logged" : ", tap to log"}`}>
           <SymbolView name={u.done ? "checkmark.circle.fill" : "circle"} size={22} tintColor={u.done ? C.green : C.tertiary} />
           <View style={{ flex: 1, minWidth: 0 }}><Text style={[styles.line, u.done && { color: C.secondary }]} numberOfLines={1}>{t.notes || u.category_name || "Payment"}</Text><View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap", alignItems: "center" }}>{u.category_name && t.notes ? <Text style={styles.sub}>{u.category_name}</Text> : null}{u.tag_names.map((n) => <TagPill key={n} name={n} />)}</View></View>
           <Money minor={t.amount_minor} currency={u.currency} style={styles.line} />
         </Pressable>;
       }) : sub("Add payments from your history in the editor.")}{sub(`${data.v.filter((u) => !u.done).length} to go · ${period.subtitle ?? period.title}`)}</View>;
     case "regular":
-      return <View>{data.v.length ? data.v.map((r) => <View key={r.currency}><Money minor={r.average_minor} currency={r.currency} style={styles.big} />{sub(`per ${r.frequency === "weekly" ? "week" : "month"} on ${data.names} · last ${r.frequency === "weekly" ? "week" : "month"} ${(r.last_minor / 100).toLocaleString()} ${r.currency}`)}</View>) : sub("Choose categories.")}</View>;
+      return <View>{data.v.length ? data.v.map((r) => <View key={r.currency}><Money minor={r.average_minor} currency={r.currency} style={styles.big} />{sub(`per ${r.frequency === "weekly" ? "week" : "month"} on ${data.names} · last ${r.frequency === "weekly" ? "week" : "month"} ${formatMinor(r.last_minor, r.currency)} ${r.currency}`)}</View>) : sub("Choose categories.")}</View>;
     case "values": {
       const v = data.v[0];
       if (!v) return sub("Nothing spent this period yet.");
@@ -252,12 +259,12 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
   }
 }
 
-function formatDiff(minor: number, currency: string) { return minor > 0 ? `${(minor / 100).toLocaleString()} ${currency} to go` : "Goal reached 🎉"; }
+function formatDiff(minor: number, currency: string) { return minor > 0 ? `${formatMinor(minor, currency)} ${currency} to go` : "Goal reached 🎉"; }
 
 const styles = StyleSheet.create({
   card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, padding: S.lg, gap: 6 },
-  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { fontSize: 15, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.3 },
+  head: { flexDirection: "row", alignItems: "center", gap: 6 },
+  title: { flex: 1, fontSize: 15, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.3 },
   big: { fontSize: 30, fontWeight: "700", color: C.label },
   sub: { fontSize: 13, color: C.secondary },
   line: { fontSize: 15, color: C.label },
