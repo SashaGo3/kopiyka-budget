@@ -196,11 +196,26 @@ describe("safe to spend", () => {
     expect(safeToSpend(db, { today: TODAY, startDay: 1, budgetAccount: null }).safe).toEqual([{ currency: "PLN", minor: 250000 }]);
   });
 
-  test("commitments in a currency with no budget are all overspend, not silence", () => {
-    const { db } = fresh();
+  test("a bill no budget covers is not taken off one that does", () => {
+    const { db, acc, rent, food } = fresh();
     const eur = createAccount(db, { name: "Euro", currency: "EUR" });
+    createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_ids: JSON.stringify([food.id]) });
+    createRecurring(db, { account_id: acc.id, amount_minor: -250000, frequency: "monthly", start_date: "2026-09-25", payee: "Rent", category_id: rent.id });
     createRecurring(db, { account_id: eur.id, amount_minor: -2000, frequency: "monthly", start_date: "2026-09-25", payee: "Server" });
-    expect(safeToSpend(db, { today: TODAY, startDay: 1, budgetAccount: null }).safe).toEqual([{ currency: "EUR", minor: -2000 }]);
+    const s = safeToSpend(db, { today: TODAY, startDay: 1, budgetAccount: null });
+    expect(s.safe).toEqual([{ currency: "PLN", minor: 100000 }]);
+    expect(s.committed).toEqual([]);
+    expect(s.short).toEqual([]);
+  });
+
+  test("never below zero: what is over is reported apart", () => {
+    const { db, acc } = fresh();
+    createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01" });
+    createRecurring(db, { account_id: acc.id, amount_minor: -150000, frequency: "monthly", start_date: "2026-09-25", payee: "Rent" });
+    const s = safeToSpend(db, { today: TODAY, startDay: 1, budgetAccount: null });
+    expect(s.safe).toEqual([{ currency: "PLN", minor: 0 }]);
+    expect(s.per_day).toEqual([{ currency: "PLN", minor: 0 }]);
+    expect(s.short).toEqual([{ currency: "PLN", minor: 50000 }]);
   });
 
   test("it is strictly better than days_to_salary: same figure when nothing is coming", () => {

@@ -45,7 +45,7 @@ describe("what is still coming", () => {
     const { db, acc } = fresh();
     createRecurring(db, { account_id: acc.id, amount_minor: -4999, frequency: "monthly", start_date: "2026-09-25", payee: "Rent" });
     expect(commitments(db, WINDOW)).toEqual([
-      { kind: "rule", id: expect.any(String), title: "Rent", day: "2026-09-25", currency: "PLN", minor: 4999 },
+      { kind: "rule", id: expect.any(String), title: "Rent", day: "2026-09-25", currency: "PLN", minor: 4999, category_id: null, tag_ids: [] },
     ]);
     expect(committedMinor(db, WINDOW)).toEqual([{ currency: "PLN", minor: 4999 }]);
   });

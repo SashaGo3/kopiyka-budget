@@ -243,7 +243,7 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
       if (!v.safe.length) return sub("No budgets for this period yet, and nothing due before the next salary.");
       return (
         <View style={{ gap: 6 }}>
-          {v.safe.map((m) => <Money key={m.currency} minor={m.minor} currency={m.currency} style={[styles.big, { color: m.minor < 0 ? C.red : C.label }]} />)}
+          {v.safe.map((m) => <Money key={m.currency} minor={m.minor} currency={m.currency} style={styles.big} />)}
           {sub(`safe to spend over ${v.days} day${v.days === 1 ? "" : "s"} until ${humanDayTime(v.next)}`)}
           {v.per_day.map((m) => <Text key={m.currency} style={styles.line}><Money minor={m.minor} currency={m.currency} style={styles.lineStrong} /> per day</Text>)}
           {v.committed.length ? (
@@ -253,6 +253,11 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
               {v.committed.map((c) => `${formatMinor(c.minor, c.currency)} still to be charged`).join(" · ")}
             </Text>
           ) : sub("Nothing else is due before then.")}
+          {v.short.length ? (
+            <Text style={[styles.sub, { color: C.orange }]}>
+              {v.short.map((m) => `${formatMinor(m.minor, m.currency)} ${m.currency}`).join(" · ")} more is due than the budgets have left — worth a look before payday.
+            </Text>
+          ) : null}
         </View>
       );
     }

@@ -21,7 +21,7 @@
  */
 import type { SqlDriver } from "./db";
 import type { Account, Category, Debt, RecurringRule } from "./models";
-import { listRows } from "./repo";
+import { jsonIds, listRows } from "./repo";
 import { occurrencesBetween } from "./recurring";
 import { listDebts } from "./debts";
 
@@ -35,6 +35,9 @@ export interface Commitment {
   currency: string;
   /** Always positive: money that is still going to leave. */
   minor: number;
+  /** What a rule is filed under, so a budget can tell whether it pays for it; null (and none) for a debt. */
+  category_id: string | null;
+  tag_ids: string[];
 }
 
 export interface CommitmentQuery {
@@ -69,7 +72,7 @@ export function commitments(db: SqlDriver, o: CommitmentQuery): Commitment[] {
     if (!currency) continue;
     const title = rule.payee || (rule.category_id ? cats.get(rule.category_id)?.name : null) || "Recurring";
     for (const day of occurrencesBetween(rule, o.start, o.end)) {
-      out.push({ kind: "rule", id: rule.id, title, day, currency, minor: -rule.amount_minor });
+      out.push({ kind: "rule", id: rule.id, title, day, currency, minor: -rule.amount_minor, category_id: rule.category_id, tag_ids: jsonIds(rule.tag_ids) });
     }
   }
 
@@ -79,7 +82,7 @@ export function commitments(db: SqlDriver, o: CommitmentQuery): Commitment[] {
       if (d.due_date < o.start || d.due_date >= o.end) continue;
       // A debt that names no account is money you owe whichever accounts you are looking at.
       if (scope && d.account_id && !scope.has(d.account_id)) continue;
-      out.push({ kind: "debt", id: d.id, title: d.person, day: d.due_date, currency: d.currency, minor: d.amount_minor });
+      out.push({ kind: "debt", id: d.id, title: d.person, day: d.due_date, currency: d.currency, minor: d.amount_minor, category_id: null, tag_ids: [] });
     }
   }
 

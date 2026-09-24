@@ -8,7 +8,7 @@ import { normTitle } from "./detect";
 import { accountBalanceMinor, budgetCategoryIds, categorySpend, getRow, inBudgetScope, jsonIds, listRows, recurringSpend, tagIdsOf, tagSpend } from "./repo";
 import { addPeriod, budgetPeriod, dueOccurrences } from "./recurring";
 import { categoryImportance } from "./importance";
-import { committedMinor } from "./commitments";
+import { commitments } from "./commitments";
 import { tripTagIds } from "./trips";
 
 export interface UpcomingTemplate { category_id: string | null; tag_ids: string[]; notes: string | null; amount_minor: number; account_id: string }
@@ -327,17 +327,19 @@ export interface SafeToSpend {
   days: number;
   next: string;
   free: MoneyByCurrency[];
-  /** Still going to be charged between today and the next salary. */
+  /** Still going to be charged between today and the next salary, out of what the budgets cover. */
   committed: MoneyByCurrency[];
-  /** Free less committed: what is genuinely yours to decide about. */
+  /** Free less committed, never below zero: what is genuinely yours to decide about. */
   safe: MoneyByCurrency[];
   per_day: MoneyByCurrency[];
+  /** How far free less committed goes below zero, where it does: the budgets are already spoken for. */
+  short: MoneyByCurrency[];
 }
 
 /**
  * `days_to_salary` divides budget headroom by the days left and does not know the rent is coming,
  * so it reads *safe* on the 3rd and is wrong on the 4th. This is the same card with the one thing
- * it was missing: everything still due before the next salary taken off first (`committedMinor`).
+ * it was missing: everything still due before the next salary taken off first (`commitments`).
  *
  * The window starts **today**, not at the period start: a bill that has already been paid is not
  * still coming, and its rule has moved on past it anyway.
@@ -350,12 +352,24 @@ export function safeToSpend(db: SqlDriver, o: { today: string; startDay: number;
   const { start, end } = budgetPeriod(o.today, o.startDay);
   const days = Math.max(1, daysUntil(o.today, end));
   const free = freeMoney(db, { start, end, accountIds: o.accountIds, budgetAccount: o.budgetAccount });
-  const committed = committedMinor(db, { start: o.today, end, accountIds: o.accountIds });
-  const owed = new Map(committed.map((c) => [c.currency, c.minor]));
-  const safe = free.map((f) => ({ currency: f.currency, minor: f.minor - (owed.get(f.currency) ?? 0) }));
-  // A currency with commitments but no budget still has something to say: it is all overspend.
-  for (const c of committed) if (!safe.some((s) => s.currency === c.currency)) safe.push({ currency: c.currency, minor: -c.minor });
-  return { days, next: end, free, committed, safe, per_day: safe.map((s) => ({ currency: s.currency, minor: Math.round(s.minor / days) })) };
+  // A bill only comes out of the money a budget set aside for it. Rent under no budget is not taken
+  // off a Food budget's headroom, and a currency with bills but no budget has no headroom to take it
+  // from — both used to drive the number below zero for money that was never budgeted to begin with.
+  // With an overall budget in the currency everything is its business, debts included.
+  const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
+  const budgets = activeBudgets(db, end, o.budgetAccount).filter((b) => b.in_planned !== 0);
+  const covers = (c: { currency: string; category_id: string | null; tag_ids: string[] }) => budgets.some((b) => b.currency === c.currency && (
+    b.tag_id ? c.tag_ids.includes(b.tag_id) : !budgetCategoryIds(b).length || (c.category_id !== null && inBudgetScope(budgetCategoryIds(b), cats, c.category_id))));
+  const owed = new Map<string, number>();
+  for (const c of commitments(db, { start: o.today, end, accountIds: o.accountIds })) if (covers(c)) owed.set(c.currency, (owed.get(c.currency) ?? 0) + c.minor);
+  const left = free.map((f) => ({ currency: f.currency, minor: f.minor - (owed.get(f.currency) ?? 0) }));
+  // Never below zero: "safe to spend" has no negative answer. What is over goes in `short` instead.
+  const safe = left.map((l) => ({ currency: l.currency, minor: Math.max(0, l.minor) }));
+  const short = left.filter((l) => l.minor < 0).map((l) => ({ currency: l.currency, minor: -l.minor }));
+  return {
+    days, next: end, free, committed: [...owed].map(([currency, minor]) => ({ currency, minor })), safe, short,
+    per_day: safe.map((s) => ({ currency: s.currency, minor: Math.round(s.minor / days) })),
+  };
 }
 
 export interface ChecklistItem {
