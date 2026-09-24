@@ -26,6 +26,9 @@ export interface KeypadProps {
   extra2?: { a11y: string; icon: React.ComponentProps<typeof SymbolView>["name"]; badge?: number; active?: boolean; onPress: () => void };
   /** Show the ± key (off for transfers/budgets). */
   allowSign?: boolean;
+  /** Show the ± key greyed out instead of leaving its slot empty: the calculator that looks like the
+   *  Log sheet's, where the sign is the caller's to decide rather than the keypad's. */
+  signDisabled?: boolean;
   onToggleSign?: () => void;
 }
 
@@ -67,7 +70,7 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
   );
 }
 
-export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign }: KeypadProps) {
+export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, signDisabled, onToggleSign }: KeypadProps) {
   // The decimal point applies to the number being typed — the part after the last operator — so
   // that tail is what says whether it has been pressed.
   const tail = value.split(/[+−×÷]/).pop() ?? "";
@@ -134,6 +137,11 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             }
             const wide = k === "0";
             const fn = k === "⌫" || k === "C" || k === "±";
+            if (k === "±" && signDisabled) return (
+              <View key={k} style={[styles.keySlot, styles.key, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel="Change sign" accessibilityState={{ disabled: true }}>
+                <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
+              </View>
+            );
             if (k === "±" && !allowSign) return <View key={k} style={styles.key} />;
             const dot = k === ".";
             return (
