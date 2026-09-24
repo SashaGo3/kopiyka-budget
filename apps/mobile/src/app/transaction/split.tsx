@@ -25,9 +25,9 @@ export interface SplitResult {
  * The entry itself is the first row and is not editable here except for its category and tags: its
  * amount is whatever the other rows leave, so the total on the keypad stays the receipt total and
  * every part carved off makes the first row smaller (`splitAmounts`). Nothing is written from this
- * screen — it hands the parts back to the entry sheet, which creates them all when the entry is
- * saved, each with the same date, note, place, photo and account. Cancelling leaves the entry as
- * it was.
+ * screen — it hands the parts back to the entry sheet, which saves the entry and creates them all
+ * there and then, each with the same date, note, place, photo and account, and opens the list on
+ * them. Cancelling leaves the entry as it was.
  *
  * One card, one row per part, the amounts in a column of their own down the right so they can be
  * read against each other. A part's row opens its calculator, which carries Category and Tags too;
@@ -83,7 +83,8 @@ export default function SplitEditor() {
   const hint = !rows.length ? "Add a part to split this entry"
     : !amounts ? (rows.some((r) => !r.amount_minor) ? "Every part needs an amount" : "The parts come to more than the entry")
       : "Every part needs a category";
-  const done = () => { resolvePick(p.key, { main, parts: rows.map(({ key: _k, ...part }) => part) } satisfies SplitResult); router.back(); };
+  // The entry sheet saves and leaves from here, taking this screen with it.
+  const done = () => resolvePick(p.key, { main, parts: rows.map(({ key: _k, ...part }) => part) } satisfies SplitResult);
 
   // A part can only ever be worth what the entry still has: the rest of it, plus whatever this part
   // is already holding, since editing it hands that back first. The ceiling is a minor unit under
@@ -185,7 +186,7 @@ export default function SplitEditor() {
       <View style={{ paddingBottom: Math.max(insets.bottom, S.md), paddingTop: S.sm, backgroundColor: C.bgGrouped }}>
         <ConfirmBar
           amount={amounts ? `${amounts.length} entries` : "Not a split yet"}
-          label={ready ? "Tap to keep the split" : hint}
+          label={ready ? "Tap to save the split" : hint}
           disabled={!ready} onPress={done} />
       </View>
     </View>

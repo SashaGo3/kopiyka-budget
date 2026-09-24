@@ -14,6 +14,7 @@ import { Chip, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/co
 import { copyToClipboard } from "@/lib/device";
 import { C, S } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
+import { dismissTo } from "@/lib/nav";
 import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
 import { getCurrentAccount, getLocationEnabled, getShowBalance, setLocationEnabled, waitDefaultDays } from "@/lib/settings";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
@@ -69,10 +70,19 @@ export default function TransactionSheet() {
   const [note, setNote] = useState(existing?.notes ?? existing?.payee ?? p.note ?? "");
   const [noteOpen, setNoteOpen] = useState(false);
   // iOS drops the caret at the end of the text when a field takes focus, which opens a long note
-  // scrolled past its first words. Pin the selection to the start for the moment focus lands and
-  // then let go, so the note opens at its beginning and behaves like an ordinary field afterwards.
-  const [caret, setCaret] = useState<{ start: number; end: number } | undefined>(undefined);
-  const openNote = () => { setCaret({ start: 0, end: 0 }); setNoteOpen(true); };
+  // scrolled past its first words. So the first time the note opens, the caret is moved to its start
+  // once, imperatively, and from then on the field is left alone: a reopened note keeps the caret
+  // wherever iOS puts it. It is deliberately not the `selection` prop — a controlled selection is
+  // re-applied on every keystroke until it is released, and a release that lost the race with the
+  // first letter pinned the caret at 0, so each new letter landed before the last and the note came
+  // out backwards.
+  const noteOpened = useRef(false);
+  const openNote = () => setNoteOpen(true);
+  const noteFocused = () => {
+    if (noteOpened.current) return;
+    noteOpened.current = true;
+    requestAnimationFrame(() => noteRef.current?.setSelection(0, 0));
+  };
   // The shop a Shortcut or a receipt filed this under. No field of its own — it is carried so that
   // saving keeps it and Duplicate copies it.
   const [payee] = useState<string | null>(existing?.payee ?? p.payee ?? null);
@@ -192,12 +202,6 @@ export default function TransactionSheet() {
       main: JSON.stringify({ category_id: categoryId, tag_ids: tagIds }), parts: JSON.stringify(parts),
     } });
   };
-  usePickResult<SplitResult>(keys.split, useCallback((r: SplitResult) => {
-    setCategoryId(r.main.category_id);
-    setSuggested(false);
-    setTagIds(r.main.tag_ids);
-    setParts(r.parts);
-  }, []));
   usePickResult<string>(keys.date, useCallback((day: string) => setDate((d) => (day === d.slice(0, 10) ? d : day === todayLocal() ? localIso() : dayWithNow(day))), []));
   usePickResult<string>(keys.time, useCallback((hhmm: string) => setDate((d) => withTime(d, hhmm)), []));
   usePickResult<(Coords & { place: string | null }) | null>(keys.loc, useCallback((v: (Coords & { place: string | null }) | null) => { setCoords(v ? { lat: v.lat, lon: v.lon } : null); setPlace(v?.place ?? null); }, []));
@@ -303,16 +307,21 @@ export default function TransactionSheet() {
     return () => { alive = false; };
   }, [isNew]);
 
-  const persist = () => {
-    if (!valid || !account) return false;
+  // `split` is what the split editor just handed back, saved before the state it also sets has landed.
+  const persist = (split?: { categoryId: string | null; tagIds: string[]; parts: SplitPart[] }) => {
+    const cat = split ? split.categoryId : categoryId;
+    const tagList = split ? split.tagIds : tagIds;
+    const partList = split ? split.parts : parts;
+    const minors = split ? (value !== null && partList.length ? splitAmounts(toMinor(value, currency), partList.map((x) => x.amount_minor)) : null) : splitMinors;
+    if (value === null || value <= 0 || !account || (partList.length && !minors)) return false;
     const minor = toMinor(value!, currency) * (kind === "expense" ? -1 : 1);
     // A new shot replaces the stored file; clearing the photo removes it.
     let photoName = photo;
     if (shot) { try { photoName = keepPhoto(shot); if (existing?.photo) releasePhoto(existing.photo, existing.id); } catch { photoName = photo; } }
     else if (existing?.photo && !photo) releasePhoto(existing.photo, existing.id);
     mutate((d) => {
-      const base = { account_id: account.id, date, amount_minor: minor, category_id: categoryId, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagIds), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
-      if (!parts.length || !splitMinors) {
+      const base = { account_id: account.id, date, amount_minor: minor, category_id: cat, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagList), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
+      if (!partList.length || !minors) {
         if (existing) { save(d, "transactions", { ...existing, ...base } as Transaction); return; }
         // A payment typed in by hand can be the charge a recurring rule is waiting for just as much
         // as one the automation logged — the rule takes it and stops expecting a second.
@@ -324,17 +333,17 @@ export default function TransactionSheet() {
       // new row that differs from it only in amount, category and tags. A foreign original is shared
       // out in the same proportions, so a part still shows what the bank actually charged for it.
       const sign = kind === "expense" ? -1 : 1;
-      const entered = existing?.entered_amount_minor ? shareEntered(existing.entered_amount_minor, splitMinors) : null;
+      const entered = existing?.entered_amount_minor ? shareEntered(existing.entered_amount_minor, minors) : null;
       const shared = { account_id: base.account_id, date, payee, notes: base.notes, pending: base.pending, lat: base.lat, lon: base.lon, place, photo: photoName, source: existing?.source ?? null } as const;
-      splitMinors.forEach((magnitude, i) => {
+      minors.forEach((magnitude, i) => {
         const money = { amount_minor: magnitude * sign, ...(entered ? { entered_amount_minor: entered[i]!, entered_currency: existing!.entered_currency, exchange_rate: existing!.exchange_rate } : {}) };
         if (i === 0) {
-          const first = { ...shared, ...money, category_id: categoryId, tag_ids: JSON.stringify(tagIds) };
+          const first = { ...shared, ...money, category_id: cat, tag_ids: JSON.stringify(tagList) };
           if (existing) save(d, "transactions", { ...existing, ...first } as Transaction);
           else createTransaction(d, first);
           return;
         }
-        const part = parts[i - 1]!;
+        const part = partList[i - 1]!;
         createTransaction(d, { ...shared, ...money, category_id: part.category_id, tag_ids: JSON.stringify(part.tag_ids) });
       });
     });
@@ -342,6 +351,20 @@ export default function TransactionSheet() {
     return true;
   };
   const commit = () => { if (persist()) router.back(); };
+  // Keeping the split is saving the entry: the parts were the last thing left to decide, so the
+  // entries are written there and then and the list opens on them — coming back to this sheet only
+  // to press Add a second time was a step with nothing in it.
+  const [leave, setLeave] = useState(false);
+  usePickResult<SplitResult>(keys.split, (r: SplitResult) => {
+    setCategoryId(r.main.category_id);
+    setSuggested(false);
+    setTagIds(r.main.tag_ids);
+    setParts(r.parts);
+    if (persist({ categoryId: r.main.category_id, tagIds: r.main.tag_ids, parts: r.parts })) setLeave(true);
+    else router.back();
+  });
+  // After the render that sets `done`, so the unsaved-entry prompt below is already switched off.
+  useEffect(() => { if (leave) dismissTo({ pathname: "/transactions" }); }, [leave]);
   // Closing with an amount typed (swipe, tap outside, back) asks first; the sheet stays until answered.
   usePreventRemove(isNew && !done && !stacked && !!expr, ({ data }) => {
     Alert.alert("Add this transaction?", valid ? `${formatMinor(toMinor(value!, currency), currency)} ${currency}${category ? ` · ${category.name}` : ""}` : "The amount is not complete yet.", [
@@ -492,7 +515,7 @@ export default function TransactionSheet() {
               grows with the note up to eight lines or so and scrolls beyond that, with the line that
               does not fit left half-shown so it is plain there is more. */}
           <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder="Note" placeholderTextColor={C.tertiary} style={styles.noteInput}
-            selection={caret} onFocus={() => setTimeout(() => setCaret(undefined), 0)}
+            onFocus={noteFocused}
             onBlur={() => setNoteOpen(false)} accessibilityLabel="Note" />
           <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done"><Text style={styles.noteDone}>Done</Text></Pressable>
         </View>
