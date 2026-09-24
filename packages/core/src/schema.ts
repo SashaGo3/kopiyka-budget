@@ -100,6 +100,53 @@ export const MIGRATIONS: string[][] = [
     // fired at a hard-coded 09:00, and move to 08:00 with everything else.
     `ALTER TABLE debts ADD COLUMN notify_time TEXT NOT NULL DEFAULT '08:00'`,
   ],
+  [
+    // v11: money that came back. `refunded_minor` is the signed total of the returns booked against
+    // the row, so the amount it was paid at is `amount_minor - refunded_minor` and no second row is
+    // needed to remember it. 0 means nothing came back, which is what every existing row gets.
+    `ALTER TABLE transactions ADD COLUMN refunded_minor INTEGER NOT NULL DEFAULT 0`,
+  ],
+  [
+    // v12: a budget covers a set of categories rather than one. `category_id` stays, holding the
+    // first of them, so a row written here still reads as a budget for *something* on a build that
+    // predates this — a narrower budget than intended rather than an "everything" one, which would
+    // have silently suppressed every other budget in `freeMoney`.
+    `ALTER TABLE budgets ADD COLUMN category_ids TEXT NOT NULL DEFAULT '[]'`,
+    `UPDATE budgets SET category_ids = json_array(category_id) WHERE category_id IS NOT NULL AND category_ids = '[]'`,
+  ],
+  [
+    // v13: a recurring rule can wait for the bank's own charge instead of posting on the day, so the
+    // notification automation and the rule stop writing the same payment twice. NULL is "whatever the
+    // app-wide default says", which is what every existing rule gets — and with waiting off (the
+    // default) that is 0, exactly what those rules did before.
+    `ALTER TABLE recurring_rules ADD COLUMN wait_days INTEGER`,
+    // The shop as the *bank* prints it, which is rarely what you called the rule ("NETFLIX.COM
+    // AMSTERDAM" against "Netflix"): it is what a waiting rule recognises its own charge by.
+    `ALTER TABLE recurring_rules ADD COLUMN match_payee TEXT`,
+  ],
+  [
+    // v14: a budget can be given a name of its own, put in an order of your choosing, and left out
+    // of the Planned/Available totals without being deleted. Existing budgets keep their derived
+    // name (NULL), the order they already had (every `sort` equal, and the sort is stable) and are
+    // counted as they always were.
+    `ALTER TABLE budgets ADD COLUMN name TEXT`,
+    `ALTER TABLE budgets ADD COLUMN sort INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE budgets ADD COLUMN in_planned INTEGER NOT NULL DEFAULT 1`,
+  ],
+  [
+    // v15: a category or a tag can be retired without being deleted. Nothing that was filed under it
+    // changes — the history is the reason not to delete it — it simply stops being offered for
+    // anything new. Accounts have had exactly this column since v1.
+    `ALTER TABLE categories ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE tags ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`,
+  ],
+  [
+    // v16: how much a category matters — 0 unset, 1 low, 2 medium, 3 high. Only you know which of
+    // two identical spends was rent's little brother and which was a whim, it does not change
+    // often, and it is worth saying once. Everything starts unset, which is honest: nothing that
+    // reads it may assume a database has been through the marking flow.
+    `ALTER TABLE categories ADD COLUMN importance INTEGER NOT NULL DEFAULT 0`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

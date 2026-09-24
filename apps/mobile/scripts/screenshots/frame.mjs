@@ -20,10 +20,12 @@
  *   --contact-sheet    also write <out>/contact-sheet.png (the numbered ten)
  *   --contact-sheet=all  ...with the extras appended
  *   --no-bare          skip the transparent <out>/bare set (it is built by default)
+ *   --no-ipad          skip the <out>/ipad-13 set (it is built whenever raw/ipad exists)
  *   --keep-svg         leave the intermediate .svg files next to the PNGs (debugging)
  *   --help
  *
- * Output: <out>/iphone-6.9, <out>/iphone-6.5, <out>/iphone-6.5-1242 (the numbered App Store set), <out>/extras/…
+ * Output: <out>/iphone-6.9, <out>/iphone-6.5, <out>/iphone-6.5-1242 (the numbered App Store set),
+ * <out>/ipad-13 (the same slides, laid out for the 13" iPad, from raw/ipad), <out>/extras/…
  * (unnumbered spares) and <out>/watch (raw screens, which is what watchOS wants).
  *
  * It also writes a fourth, non-App-Store set: <out>/bare/iphone/<id>.png and
@@ -83,6 +85,7 @@ const ONLY = flag("only", null);
 const ONLY_SET = ONLY && ONLY !== true ? new Set(String(ONLY).split(",").map((s) => s.trim()).filter(Boolean)) : null;
 const CONTACT_SHEET = flag("contact-sheet", false); // true = the numbered set, "all" = + extras
 const KEEP_SVG = flag("keep-svg", false) === true;
+const IPAD = flag("no-ipad", false) !== true; // the 13" iPad set, on whenever raw/ipad has captures
 const BARE = flag("no-bare", false) !== true; // the transparent website set, on unless opted out
 
 /* -------------------------------------------------------------------- design */
@@ -94,6 +97,12 @@ const IPHONE_SIZES = [
   { dir: "iphone-6.5", w: 1284, h: 2778, label: '6.5" (iPhone 14 Plus / 11 Pro Max)' },
   { dir: "iphone-6.5-1242", w: 1242, h: 2688, label: '6.5" legacy (iPhone 11 Pro Max / XS Max)' },
 ];
+
+/** The iPad canvas, and the whole iPad requirement: App Store Connect has one iPad slot, "iPad
+ *  13-inch displays", and scales every smaller iPad from it. It takes 2064 × 2752 (13" Pro / Air)
+ *  or 2048 × 2732 (the 12.9" Pro) in that slot; we render the newer one, at the native size of
+ *  the capture, so nothing is resampled. A build offered on iPad cannot be submitted without it. */
+const IPAD_SIZES = [{ dir: "ipad-13", w: 2064, h: 2752, label: '13" (iPad Pro M4/M5, iPad Air 13")' }];
 
 /** Sizes App Store Connect accepts for Apple Watch, newest first. */
 const WATCH_SIZES = [
@@ -130,6 +139,16 @@ const WATCH_FRAME = {
   case: { y: 135, h: 655 },
 };
 
+/**
+ * The iPad is drawn rather than composited into a product bezel: Apple ships no 13" iPad bezel in
+ * the Product Bezels download and frameit's set stops at the 12.9" Pro of 2020, so there is no
+ * asset to measure. The numbers come from Apple's tech specs instead — a 215.5 × 281.6 mm body
+ * around a 198.6 × 264.7 mm display (2064 × 2752 at 264 ppi) — which is 8.45 mm of bezel on all
+ * four sides, uniform, with no notch and no Dynamic Island to draw.
+ */
+const IPAD_SCREEN = { w: 2064, h: 2752 };
+const IPAD_BEZEL = 0.0392; // 8.45 / 215.5 of the outer width
+
 /** Bezel thickness as a fraction of the device's outer width (drawn fallback only). */
 const PHONE_BEZEL = 0.0295;
 /** Devices start on the same line on every slide, so a row of ten reads as one system whether
@@ -137,9 +156,13 @@ const PHONE_BEZEL = 0.0295;
  *  never above this floor (fraction of canvas height). */
 const DEVICE_TOP = 0.268;
 
-/** Outer device height as a multiple of its outer width, and the inverse. */
+/** Outer device height as a multiple of its outer width, and the inverse. The phone's ratio is
+ *  its bezel PNG's opaque box; the iPad's is its screen plus the bezel drawn around it. */
 const phoneHeightFor = (w) => w * (PHONE_FRAME.body.h / PHONE_FRAME.body.w);
 const phoneWidthFor = (h) => h * (PHONE_FRAME.body.w / PHONE_FRAME.body.h);
+const IPAD_H_PER_W = (1 - 2 * IPAD_BEZEL) * (IPAD_SCREEN.h / IPAD_SCREEN.w) + 2 * IPAD_BEZEL;
+const ipadHeightFor = (w) => w * IPAD_H_PER_W;
+const ipadWidthFor = (h) => h / IPAD_H_PER_W;
 
 const BRAND = {
   offwhite: "#F4F4F1",
@@ -526,18 +549,108 @@ function watchDrawn({ uid, x, y, w, href, imgW, imgH }) {
   };
 }
 
+/**
+ * The 13" iPad: uniform near-black bezel, a bright edge along the aluminium, the landscape front
+ * camera in the middle of the long bezel (where the M4 moved it), and the capture clipped to the
+ * screen's rounded rect. `w` is the full outer width.
+ *
+ * Every iPad slide goes through here — unlike the iPhone, this is not a fallback. It draws nothing
+ * the device does not have: no notch, no Dynamic Island, no home button, no visible buttons in
+ * portrait, which is exactly what a 13" iPad looks like face on.
+ */
+function ipadDrawn({ uid, x, y, w, href, imgW, imgH }) {
+  const bezel = w * IPAD_BEZEL;
+  const sw = w - 2 * bezel;
+  const sh = sw * (imgH / imgW);
+  const srx = sw * 0.026; // ~27 pt display corner
+  const orx = srx + bezel;
+  const h = sh + 2 * bezel;
+  const sx = x + bezel;
+  const sy = y + bezel;
+  const edge = w * 0.0022;
+
+  return {
+    h,
+    svg: `
+  <g>
+    <g filter="url(#f-shadow)">
+      <rect x="${(x + w * 0.03).toFixed(2)}" y="${(y + h * 0.02).toFixed(2)}" width="${(w - w * 0.06).toFixed(2)}" height="${h.toFixed(2)}" rx="${orx.toFixed(2)}" fill="#000" opacity="0.32"/>
+    </g>
+    <rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="${orx.toFixed(2)}" fill="url(#g-frame-${uid})"/>
+    <rect x="${(x + edge).toFixed(2)}" y="${(y + edge).toFixed(2)}" width="${(w - 2 * edge).toFixed(2)}" height="${(h - 2 * edge).toFixed(2)}" rx="${(orx - edge).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="${(edge * 1.5).toFixed(2)}"/>
+    <rect x="${(x + bezel * 0.5).toFixed(2)}" y="${(y + bezel * 0.5).toFixed(2)}" width="${(w - bezel).toFixed(2)}" height="${(h - bezel).toFixed(2)}" rx="${(orx - bezel * 0.5).toFixed(2)}" fill="#0C0C0E"/>
+    <clipPath id="clip-${uid}"><rect x="${sx.toFixed(2)}" y="${sy.toFixed(2)}" width="${sw.toFixed(2)}" height="${sh.toFixed(2)}" rx="${srx.toFixed(2)}"/></clipPath>
+    <g clip-path="url(#clip-${uid})">
+      <rect x="${sx.toFixed(2)}" y="${sy.toFixed(2)}" width="${sw.toFixed(2)}" height="${sh.toFixed(2)}" fill="#000"/>
+      <image x="${sx.toFixed(2)}" y="${sy.toFixed(2)}" width="${sw.toFixed(2)}" height="${sh.toFixed(2)}" preserveAspectRatio="xMidYMin slice" href="${href}" xlink:href="${href}"/>
+    </g>
+    <circle cx="${(x + bezel * 0.5).toFixed(2)}" cy="${(y + h / 2).toFixed(2)}" r="${(bezel * 0.16).toFixed(2)}" fill="#0A0A0C"/>
+    <rect x="${sx.toFixed(2)}" y="${sy.toFixed(2)}" width="${sw.toFixed(2)}" height="${sh.toFixed(2)}" rx="${srx.toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="${(w * 0.0016).toFixed(2)}"/>
+  </g>`,
+  };
+}
+
+/* ----------------------------------------------------------------- devices */
+
+/**
+ * How the words are sized on a slide, as fractions of the canvas width: headline, subtitle, closing
+ * note, the accent rule above the headline (width, thickness, the gap under it), the side margin,
+ * and `measure` — how much of the column between the margins a line may use.
+ *
+ * The phone's numbers are the design as it was drawn. The iPad canvas is two thirds as tall as it is
+ * wide instead of a little over twice, so the same fractions would put a 176 px headline across it
+ * and leave the device the height of a postcard: everything shrinks, the column stops short of the
+ * full width, and the block is centred, which is how the text sits over a device on a wide canvas.
+ */
+const PHONE_TYPE = { title: 0.0855, sub: 0.0394, note: 0.0318, rule: 0.062, ruleH: 0.0046, ruleGap: 0.038, mx: 0.085, measure: 1, align: "start" };
+const IPAD_TYPE = { title: 0.058, sub: 0.0268, note: 0.0216, rule: 0.042, ruleH: 0.0031, ruleGap: 0.0258, mx: 0.1, measure: 0.66, align: "middle" };
+
+/**
+ * What a slide needs to know about the device it shows: where its raw captures live, what a capture
+ * should measure, how to draw it, its type metrics, and how wide it may get on the canvas — full
+ * height above the bottom margin, or bottom-anchored and cropped by the edge. The two share every
+ * other rule, so a whole set is one call with a different device.
+ *
+ * The iPad is nearly as square as its own canvas, so it is allowed more of the width than a phone:
+ * at the phone's 0.735 it would sit in the middle of the slide like a stamp.
+ */
+const PHONE_DEVICE = {
+  key: "phone",
+  raw: "iphone",
+  screen: PHONE_FRAME.screen,
+  frame: "phone", // key into `frames`; null means always drawn
+  render: phone,
+  type: PHONE_TYPE,
+  widthFor: phoneWidthFor,
+  heightFor: phoneHeightFor,
+  maxFull: 0.735,
+  maxBottom: 0.795,
+};
+const IPAD_DEVICE = {
+  key: "ipad",
+  raw: "ipad",
+  screen: IPAD_SCREEN,
+  frame: null,
+  render: ipadDrawn,
+  type: IPAD_TYPE,
+  widthFor: ipadWidthFor,
+  heightFor: ipadHeightFor,
+  maxFull: 0.8,
+  maxBottom: 0.87,
+};
+
 /* ---------------------------------------------------------------- slide text */
 
-function textBlock({ shot, W, H, x, maxWidth, top, color, sub, accent, align = "start" }) {
-  const titleSize = W * 0.0855;
+function textBlock({ shot, W, H, x, maxWidth, top, color, sub, accent, type = PHONE_TYPE, align = type.align }) {
+  const titleSize = W * type.title;
   const titleTrack = -titleSize * 0.022;
   const titleLead = titleSize * 1.07;
-  const subSize = W * 0.0394;
+  const subSize = W * type.sub;
   const subLead = subSize * 1.36;
 
-  const ruleW = W * 0.062;
-  const ruleH = Math.max(3, W * 0.0046);
-  const ruleGap = W * 0.038;
+  const ruleW = W * type.rule;
+  const ruleH = Math.max(3, W * type.ruleH);
+  const ruleGap = W * type.ruleGap;
 
   const titleLines = balancedWrap(shot.title ?? "", maxWidth, titleSize, true, titleTrack);
   const subLines = shot.subtitle ? balancedWrap(shot.subtitle, maxWidth, subSize, false, 0) : [];
@@ -575,13 +688,21 @@ function textBlock({ shot, W, H, x, maxWidth, top, color, sub, accent, align = "
   return { svg: parts.join("\n    "), bottom };
 }
 
+/** The text column: its left edge and its width. Centred type keeps a narrower measure, so it is
+ *  centred on the canvas rather than left-aligned inside the full column. */
+function textColumn(W, type) {
+  const mx = W * type.mx;
+  const width = (W - 2 * mx) * type.measure;
+  return { x: type.align === "middle" ? (W - width) / 2 : mx, width };
+}
+
 /** Where the devices start, shared by a whole set: below the tallest text block in it, and never
  *  above the DEVICE_TOP floor. Computed over the full list so --only renders identical slides. */
-function deviceTopFor(list, W, H) {
-  const mx = W * 0.085;
+function deviceTopFor(list, W, H, type = PHONE_TYPE) {
+  const col = textColumn(W, type);
   let lowest = 0;
   for (const shot of list) {
-    const t = textBlock({ shot, W, H, x: mx, maxWidth: W - 2 * mx, top: H * 0.062, color: "#000", sub: "#000", accent: "#000" });
+    const t = textBlock({ shot, W, H, x: col.x, maxWidth: col.width, top: H * 0.062, color: "#000", sub: "#000", accent: "#000", type });
     lowest = Math.max(lowest, t.bottom);
   }
   return Math.max(DEVICE_TOP * H, lowest + H * 0.038);
@@ -589,7 +710,7 @@ function deviceTopFor(list, W, H) {
 
 /* --------------------------------------------------------------- slide build */
 
-function buildSlide({ shot, W, H, phoneImg, watchImg, deviceTop, frames }) {
+function buildSlide({ shot, W, H, device = PHONE_DEVICE, phoneImg, watchImg, deviceTop, frames }) {
   const uid = `${shot.id}-${W}`;
   const bg = shot.bg || (shot.theme === "dark" ? BRAND.ink : BRAND.offwhite);
   const dark = isDarkBg(bg);
@@ -597,12 +718,13 @@ function buildSlide({ shot, W, H, phoneImg, watchImg, deviceTop, frames }) {
   const sub = shot.sub || (dark ? shade(BRAND.offwhite, -0.38) : shade(BRAND.graphite, 0.36));
   const accent = shot.accent || BRAND.gold;
 
-  const mx = W * 0.085;
+  const type = device.type;
+  const col = textColumn(W, type);
   const topPad = H * 0.062;
-  const maxTextW = W - 2 * mx;
 
   // Definitions a device needs to contribute (the watch band's fade mask), filled in below.
   const extraDefs = [];
+  const frameHref = device.frame ? frames[device.frame] : null;
 
   const defs = () => `
   <defs>${extraDefs.join("")}
@@ -642,7 +764,7 @@ function buildSlide({ shot, W, H, phoneImg, watchImg, deviceTop, frames }) {
   const layout = shot.layout || "phone";
 
   if (layout === "phone-watch") {
-    const text = textBlock({ shot, W, H, x: mx, maxWidth: maxTextW, top: topPad, color: fg, sub, accent });
+    const text = textBlock({ shot, W, H, x: col.x, maxWidth: col.width, top: topPad, color: fg, sub, accent, type });
     body.push(text.svg);
 
     // Devices bleed a little wider than the text column: phone left, watch just in front of
@@ -650,10 +772,10 @@ function buildSlide({ shot, W, H, phoneImg, watchImg, deviceTop, frames }) {
     const gx = W * 0.05;
     const avail = H - deviceTop - H * 0.05;
 
-    const pw = Math.min(W * 0.57, phoneWidthFor(avail));
-    const ph = phoneHeightFor(pw);
+    const pw = Math.min(W * 0.57, device.widthFor(avail));
+    const ph = device.heightFor(pw);
     const py = deviceTop; // same start line as every other slide
-    const p = phone({ uid: `p-${uid}`, x: gx, y: py, w: pw, href: phoneImg.href, frameHref: frames.phone, imgW: phoneImg.w, imgH: phoneImg.h });
+    const p = device.render({ uid: `p-${uid}`, x: gx, y: py, w: pw, href: phoneImg.href, frameHref, imgW: phoneImg.w, imgH: phoneImg.h });
 
     const ww = W * 0.34;
     const probe = watchDevice({ uid: `w-${uid}`, x: 0, y: 0, w: ww, href: watchImg.href, frameHref: frames.watch, imgW: watchImg.w, imgH: watchImg.h });
@@ -665,26 +787,26 @@ function buildSlide({ shot, W, H, phoneImg, watchImg, deviceTop, frames }) {
     body.push(p.svg);
     body.push(wd.svg);
   } else {
-    const text = textBlock({ shot, W, H, x: mx, maxWidth: maxTextW, top: topPad, color: fg, sub, accent });
+    const text = textBlock({ shot, W, H, x: col.x, maxWidth: col.width, top: topPad, color: fg, sub, accent, type });
     body.push(text.svg);
 
-    const noteSize = W * 0.0318;
+    const noteSize = W * type.note;
     const noteBand = shot.note ? noteSize * 3.2 : 0;
 
     let pw;
     if (layout === "phone-bottom") {
       // Anchored to the bottom edge and cropped by it — the classic App Store look.
-      pw = W * 0.795;
+      pw = W * device.maxBottom;
     } else {
       const avail = H - deviceTop - H * 0.045 - noteBand;
-      pw = Math.min(W * 0.735, phoneWidthFor(avail));
+      pw = Math.min(W * device.maxFull, device.widthFor(avail));
     }
     const px = (W - pw) / 2;
-    const p = phone({ uid: `p-${uid}`, x: px, y: deviceTop, w: pw, href: phoneImg.href, frameHref: frames.phone, imgW: phoneImg.w, imgH: phoneImg.h });
+    const p = device.render({ uid: `p-${uid}`, x: px, y: deviceTop, w: pw, href: phoneImg.href, frameHref, imgW: phoneImg.w, imgH: phoneImg.h });
     body.push(p.svg);
 
     if (shot.note) {
-      const lines = balancedWrap(shot.note, W - 2 * mx * 0.72, noteSize, false, 0);
+      const lines = balancedWrap(shot.note, W - 2 * W * type.mx * 0.72, noteSize, false, 0);
       let ny = H - H * 0.045 - (lines.length - 1) * noteSize * 1.36;
       for (const line of lines) {
         body.push(
@@ -771,26 +893,33 @@ function main() {
   };
 
   /**
-   * Renders one set of iPhone slides at both canvas sizes. `numbered` prefixes the App Store
-   * order; extras keep their bare id and land under extras/ so they never join the upload set.
+   * Renders one set of slides at every canvas size the device has. `numbered` prefixes the App
+   * Store order; extras keep their bare id and land under extras/ so they never join the upload set.
+   *
+   * A slide that composes an Apple Watch beside the phone is an iPhone slide only: the watch app
+   * pairs with an iPhone, so there is nothing to stand beside an iPad. It is left out of the iPad
+   * set rather than renumbered around, so slide 05 is the same slide in whichever set has it.
    */
-  function renderSet(list, { subdir = "", numbered = true, collect = null }) {
-    if (!list.length) return;
-    const tops = new Map(IPHONE_SIZES.map((s) => [s.dir, deviceTopFor(list, s.w, s.h)]));
-    for (const size of IPHONE_SIZES) fs.mkdirSync(path.join(OUT_DIR, subdir, size.dir), { recursive: true });
+  function renderSet(list, { device = PHONE_DEVICE, sizes = IPHONE_SIZES, subdir = "", numbered = true, collect = null }) {
+    const entries = list
+      .map((shot, i) => ({ shot, i }))
+      .filter(({ shot }) => device.key === "phone" || shot.layout !== "phone-watch");
+    if (!entries.length) return;
+    const tops = new Map(sizes.map((s) => [s.dir, deviceTopFor(entries.map((e) => e.shot), s.w, s.h, device.type)]));
+    for (const size of sizes) fs.mkdirSync(path.join(OUT_DIR, subdir, size.dir), { recursive: true });
 
-    for (const [i, shot] of list.entries()) {
+    for (const { shot, i } of entries) {
       if (ONLY_SET && !ONLY_SET.has(shot.id)) continue;
       const name = numbered ? `${String(i + 1).padStart(2, "0")}-${shot.id}` : shot.id;
       const theme = shot.theme === "dark" ? "dark" : "light";
-      const rawFile = path.join(RAW_DIR, "iphone", theme, `${shot.id}.png`);
+      const rawFile = path.join(RAW_DIR, device.raw, theme, `${shot.id}.png`);
       if (!fs.existsSync(rawFile)) {
-        warnings.push(`skip ${name}: missing raw ${short(rawFile)}`);
+        warnings.push(`skip ${path.join(subdir, name)} (${device.key}): missing raw ${short(rawFile)}`);
         continue;
       }
       const { w: iw, h: ih } = readPngSize(rawFile);
-      if (iw !== PHONE_FRAME.screen.w || ih !== PHONE_FRAME.screen.h) {
-        warnings.push(`note ${name}: raw is ${iw}x${ih}, expected ${PHONE_FRAME.screen.w}x${PHONE_FRAME.screen.h} (framed anyway)`);
+      if (iw !== device.screen.w || ih !== device.screen.h) {
+        warnings.push(`note ${name}: raw is ${iw}x${ih}, expected ${device.screen.w}x${device.screen.h} (framed anyway)`);
       }
       const phoneImg = { href: dataUri(rawFile), w: iw, h: ih };
 
@@ -803,10 +932,10 @@ function main() {
         }
       }
 
-      for (const size of IPHONE_SIZES) {
+      for (const size of sizes) {
         const rel = path.join(subdir, size.dir, `${name}.png`);
         const out = path.join(OUT_DIR, rel);
-        const { svg, bg } = buildSlide({ shot, W: size.w, H: size.h, phoneImg, watchImg, deviceTop: tops.get(size.dir), frames });
+        const { svg, bg } = buildSlide({ shot, W: size.w, H: size.h, device, phoneImg, watchImg, deviceTop: tops.get(size.dir), frames });
         rasterize(svg, { W: size.w, H: size.h, out, bg, tag: `${name}-${size.w}` });
         const v = verify(out, size.w, size.h);
         console.log(`${v.ok ? "ok  " : "BAD "} ${rel}  ${v.detail}`);
@@ -820,6 +949,22 @@ function main() {
   if ((shots.extras || []).length) {
     console.log("");
     renderSet(shots.extras, { subdir: "extras", numbered: false, collect: madeExtras });
+  }
+
+  /* -------------------------------------------------------------- iPad */
+  // The same shot list and the same captions, re-laid out for the 13" canvas from the iPad's own
+  // captures — an iPhone screenshot stretched to 2064 wide would be a blurry lie about the app.
+  if (IPAD) {
+    const ipadRaw = path.join(RAW_DIR, IPAD_DEVICE.raw);
+    if (!fs.existsSync(ipadRaw)) {
+      warnings.push(`iPad set skipped: nothing in ${short(ipadRaw)} — capture it with scripts/screenshots/capture.sh --ipad`);
+    } else {
+      console.log("");
+      renderSet(shots.iphone || [], { device: IPAD_DEVICE, sizes: IPAD_SIZES });
+      if ((shots.extras || []).length) {
+        renderSet(shots.extras, { device: IPAD_DEVICE, sizes: IPAD_SIZES, subdir: "extras", numbered: false });
+      }
+    }
   }
 
   /* ------------------------------------------------------------- watch */

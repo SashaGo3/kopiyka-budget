@@ -3,10 +3,13 @@
  * phone, widgets and tests share one implementation. Amounts are minor units.
  */
 import type { SqlDriver } from "./db";
-import type { Budget, Frequency, InsightKind, RecurringRule, Transaction } from "./models";
+import type { Budget, Category, Frequency, Importance, InsightKind, RecurringRule, Transaction } from "./models";
 import { normTitle } from "./detect";
-import { accountBalanceMinor, categorySpend, getRow, jsonIds, listRows, recurringSpend, tagIdsOf, tagSpend } from "./repo";
+import { accountBalanceMinor, budgetCategoryIds, categorySpend, getRow, inBudgetScope, jsonIds, listRows, recurringSpend, tagIdsOf, tagSpend } from "./repo";
 import { addPeriod, budgetPeriod, dueOccurrences } from "./recurring";
+import { categoryImportance } from "./importance";
+import { commitments } from "./commitments";
+import { tripTagIds } from "./trips";
 
 export interface UpcomingTemplate { category_id: string | null; tag_ids: string[]; notes: string | null; amount_minor: number; account_id: string }
 
@@ -34,7 +37,29 @@ export const INSIGHT_KINDS: { kind: InsightKind; title: string; hint: string; in
   { instant: true, kind: "recurring_spend", title: "Recurring this period", hint: "What your recurring rules have actually taken so far this period" },
   { kind: "upcoming", title: "Upcoming payments", hint: "Templates from past transactions: tap to log the same again" },
   { kind: "regular", title: "Regular spending", hint: "Weekly or monthly average for a category" },
+  { instant: true, kind: "values", title: "What it went on", hint: "This period split by how much each category matters to you" },
+  { kind: "safety_buffer", title: "Safety buffer", hint: "How many months of essentials an account would cover" },
+  { instant: true, kind: "safe_to_spend", title: "Safe to spend", hint: "What is free once everything still coming out is taken off" },
 ];
+
+/**
+ * How many periods of history a card looks back over when it wants "your own normal". Six months is
+ * long enough that one holiday does not become the baseline and short enough to still be about how
+ * you live now.
+ */
+export const HISTORY_PERIODS = 6;
+
+/** The consecutive budget periods ending with the one containing `today`, oldest first. */
+export function recentPeriods(today: string, startDay: number, count = HISTORY_PERIODS): { start: string; end: string }[] {
+  const out: { start: string; end: string }[] = [];
+  let { start, end } = budgetPeriod(today, startDay);
+  for (let i = 0; i < count; i++) {
+    out.unshift({ start, end });
+    end = start;
+    start = addPeriod(start, "monthly", -1);
+  }
+  return out;
+}
 
 export interface RecurringSpendLine { rule: RecurringRule; title: string; currency: string; spent_minor: number; n: number }
 export interface RecurringSpendResult { lines: RecurringSpendLine[]; totals: { currency: string; minor: number }[]; posted: number; due: number }
@@ -76,35 +101,48 @@ export function activeBudgets(db: SqlDriver, _end: string, budgetAccount: string
   const out: Budget[] = [];
   for (const b of rows) {
     if ((b.account_id ?? null) !== budgetAccount) continue;
-    const key = `${b.tag_id ? `tag:${b.tag_id}` : b.category_id ?? "all"}|${b.currency}`;
+    const key = `${b.tag_id ? `tag:${b.tag_id}` : budgetCategoryIds(b).join("+") || "all"}|${b.currency}`;
     if (seen.has(key)) continue; seen.add(key); out.push(b);
   }
-  return out;
+  // Then in the order you put them in. A stable sort with every `sort` still 0 changes nothing, so a
+  // database that has never been reordered keeps the order it always had.
+  return out.sort((a, z) => (a.sort ?? 0) - (z.sort ?? 0));
 }
 
 export interface BudgetRow { budget: Budget; spent_minor: number; children: { category_id: string | null; spent_minor: number }[] }
 
-/** Spend against each active budget; a category budget includes its subcategories, a tag budget every expense carrying the tag. */
+/**
+ * Spend against each active budget; a category budget includes its subcategories, a tag budget every
+ * expense carrying the tag. What a trip paid for (`tripTagIds`) counts against the trip and not here,
+ * so travelling does not eat the month's budgets — a budget on the trip's own tag still sees it.
+ */
 export function budgetRows(db: SqlDriver, o: { start: string; end: string; accountIds?: string[]; budgetAccount: string | null }): BudgetRow[] {
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
-  const spend = categorySpend(db, o.start, o.end, o.accountIds);
+  const trips = tripTagIds(db);
+  const spend = categorySpend(db, o.start, o.end, o.accountIds, { exceptTags: trips });
   return activeBudgets(db, o.end, o.budgetAccount).map((b) => {
-    const inScope = (cid: string | null) => !b.category_id || cid === b.category_id || cats.get(cid ?? "")?.parent_id === b.category_id;
-    const pool = b.tag_id ? tagSpend(db, b.tag_id, { fromIso: o.start, toIso: o.end, accountIds: o.accountIds }) : spend;
-    const scoped = pool.filter((s) => s.currency === b.currency && inScope(s.category_id));
+    const ids = budgetCategoryIds(b);
+    const pool = b.tag_id ? tagSpend(db, b.tag_id, { fromIso: o.start, toIso: o.end, accountIds: o.accountIds, exceptTags: trips }) : spend;
+    const scoped = pool.filter((s) => s.currency === b.currency && inBudgetScope(ids, cats, s.category_id));
     return { budget: b, spent_minor: -scoped.reduce((a, s) => a + s.spent_minor, 0), children: scoped.map((s) => ({ category_id: s.category_id, spent_minor: -s.spent_minor })) };
   });
 }
 
 export interface MoneyByCurrency { currency: string; minor: number }
 
-/** Sum of (limit − spent) over active budgets, per currency. Overall budgets count once; category budgets are added only when there is no overall budget in that currency. */
+/**
+ * Sum of (limit − spent) over active budgets, per currency. Overall budgets count once; category
+ * budgets are added only when there is no overall budget in that currency. A budget marked out of
+ * the totals (`in_planned = 0`) is left out here as well — it is a yardstick, not money set aside —
+ * and it does not suppress the category budgets of its currency either, because it is not counted
+ * as the overall one.
+ */
 export function freeMoney(db: SqlDriver, o: { start: string; end: string; accountIds?: string[]; budgetAccount: string | null }): MoneyByCurrency[] {
-  const rows = budgetRows(db, o);
+  const rows = budgetRows(db, o).filter((r) => r.budget.in_planned !== 0);
   const out = new Map<string, number>();
-  const overall = new Set(rows.filter((r) => !r.budget.category_id).map((r) => r.budget.currency));
+  const overall = new Set(rows.filter((r) => !budgetCategoryIds(r.budget).length).map((r) => r.budget.currency));
   for (const r of rows) {
-    if (r.budget.category_id && overall.has(r.budget.currency)) continue;
+    if (budgetCategoryIds(r.budget).length && overall.has(r.budget.currency)) continue;
     out.set(r.budget.currency, (out.get(r.budget.currency) ?? 0) + r.budget.amount_minor - r.spent_minor);
   }
   return [...out].map(([currency, minor]) => ({ currency, minor }));
@@ -161,6 +199,178 @@ export function savingsGoal(db: SqlDriver, p: InsightParams): { balance: number;
   return { balance, target, currency: a.currency, ratio: target > 0 ? Math.max(0, Math.min(1, balance / target)) : 0 };
 }
 
+
+/* ── What it went on: the split by importance ─────────────────────────────────────────────── */
+
+export interface ValuePeriod {
+  start: string;
+  /** Spend in the period per level, positive minor units. Index 0 is everything not marked. */
+  by_level: Record<Importance, number>;
+  total_minor: number;
+  /** Level 3 as a share of the total, 0..1; null when nothing was spent. */
+  essential_share: number | null;
+}
+
+export interface ValueSplit {
+  currency: string;
+  /** Newest last, so the trend reads left to right. The last entry is the period being shown. */
+  periods: ValuePeriod[];
+  now: ValuePeriod;
+  /** How much of this period's spend is in categories nobody has marked yet. */
+  unmarked_minor: number;
+}
+
+/**
+ * Every other screen is organised by category, which is the right axis for "what did I buy" and the
+ * wrong one for "how am I living". This is the other axis: the period's spend split by how much
+ * each category matters (`categoryImportance`, so a folder answers for what is inside it).
+ *
+ * The number to watch is not the total — it is whether the essential share is drifting up, because
+ * that is what decides how much freedom there is to have. So the history comes with it rather than
+ * being a separate card you have to go and compare against.
+ *
+ * Spend in a category nobody has marked is reported separately rather than guessed at. Folding it
+ * into "in between" would make the split look complete when it is not, and the whole card is only
+ * as true as the marks behind it.
+ */
+export function valueSplit(db: SqlDriver, o: { today: string; startDay: number; accountIds?: string[]; periods?: number }): ValueSplit[] {
+  const cats = listRows(db, "categories", "1=1") as Category[];
+  const level = categoryImportance(cats);
+  const windows = recentPeriods(o.today, o.startDay, o.periods ?? HISTORY_PERIODS);
+  const byCurrency = new Map<string, ValuePeriod[]>();
+  for (const w of windows) {
+    const here = new Map<string, Record<Importance, number>>();
+    for (const s of categorySpend(db, w.start, w.end, o.accountIds)) {
+      // Uncategorised spend is unmarked spend: nobody said what it was, let alone whether it mattered.
+      const at = (s.category_id ? level.get(s.category_id) : 0) ?? 0;
+      const row = here.get(s.currency) ?? { 0: 0, 1: 0, 2: 0, 3: 0 };
+      row[at] += -s.spent_minor;
+      here.set(s.currency, row);
+    }
+    for (const c of new Set([...here.keys(), ...byCurrency.keys()])) {
+      const by_level = here.get(c) ?? { 0: 0, 1: 0, 2: 0, 3: 0 };
+      const total_minor = by_level[0] + by_level[1] + by_level[2] + by_level[3];
+      const list = byCurrency.get(c) ?? [];
+      // A currency first seen in a later period gets empty periods before it, so every series is
+      // the same length and the trend is read against the same months.
+      while (list.length < windows.indexOf(w)) list.push({ start: windows[list.length]!.start, by_level: { 0: 0, 1: 0, 2: 0, 3: 0 }, total_minor: 0, essential_share: null });
+      list.push({ start: w.start, by_level, total_minor, essential_share: total_minor > 0 ? by_level[3] / total_minor : null });
+      byCurrency.set(c, list);
+    }
+  }
+  return [...byCurrency]
+    .map(([currency, periods]) => ({ currency, periods, now: periods[periods.length - 1]!, unmarked_minor: periods[periods.length - 1]!.by_level[0] }))
+    .filter((v) => v.periods.some((p) => p.total_minor > 0))
+    .sort((a, b) => b.now.total_minor - a.now.total_minor);
+}
+
+/* ── Safety buffer ────────────────────────────────────────────────────────────────────────── */
+
+export interface SafetyBuffer {
+  currency: string;
+  /** What a month of the things you could not live without actually costs, averaged over `periods`. */
+  essential_minor: number;
+  /** What the chosen account holds, pending included. */
+  have_minor: number;
+  /** How many months of essentials that covers; null when no essential spend is known yet. */
+  months_covered: number | null;
+  months_wanted: number;
+  target_minor: number;
+  /** 0..1 against the target, for the bar. */
+  ratio: number;
+  periods: number;
+  /** True when no category is marked high: the target would be 0 and the card should say why. */
+  no_essentials: boolean;
+}
+
+/**
+ * "Enough to be safe" is a real number and nobody ever computes it, because it needs two things:
+ * what an essential month costs, and what you have. Importance gives the first for free.
+ *
+ * The target is **computed, not typed**: it moves on its own as life gets more expensive, which a
+ * figure you entered last year does not. That is the whole difference from `savings_goal`, and the
+ * reason both exist.
+ *
+ * Like `savings_goal` this ignores the scope pill. A buffer is a whole-life number, and showing it
+ * differently because you were looking at one account would be answering a question nobody asked.
+ */
+export function safetyBuffer(db: SqlDriver, p: InsightParams, o: { today: string; startDay: number }): SafetyBuffer | null {
+  const a = p.account_id ? getRow(db, "accounts", p.account_id) : undefined;
+  if (!a) return null;
+  const cats = listRows(db, "categories", "1=1") as Category[];
+  const level = categoryImportance(cats);
+  const months = Math.max(1, Math.round(p.months ?? 3));
+  // Complete periods only: the month in progress would drag the average down every time it is read.
+  const windows = recentPeriods(o.today, o.startDay, HISTORY_PERIODS + 1).slice(0, -1);
+  let essential = 0;
+  for (const w of windows) {
+    for (const s of categorySpend(db, w.start, w.end, undefined)) {
+      if (s.currency !== a.currency) continue;
+      if ((s.category_id ? level.get(s.category_id) : 0) === 3) essential += -s.spent_minor;
+    }
+  }
+  const essential_minor = Math.round(essential / windows.length);
+  const have_minor = accountBalanceMinor(db, a.id, { includePending: true });
+  const target_minor = essential_minor * months;
+  return {
+    currency: a.currency, essential_minor, have_minor, months_wanted: months, target_minor,
+    months_covered: essential_minor > 0 ? have_minor / essential_minor : null,
+    ratio: target_minor > 0 ? Math.max(0, Math.min(1, have_minor / target_minor)) : 0,
+    periods: windows.length,
+    no_essentials: !cats.some((c) => level.get(c.id) === 3),
+  };
+}
+
+/* ── Safe to spend ────────────────────────────────────────────────────────────────────────── */
+
+export interface SafeToSpend {
+  days: number;
+  next: string;
+  free: MoneyByCurrency[];
+  /** Still going to be charged between today and the next salary, out of what the budgets cover. */
+  committed: MoneyByCurrency[];
+  /** Free less committed, never below zero: what is genuinely yours to decide about. */
+  safe: MoneyByCurrency[];
+  per_day: MoneyByCurrency[];
+  /** How far free less committed goes below zero, where it does: the budgets are already spoken for. */
+  short: MoneyByCurrency[];
+}
+
+/**
+ * `days_to_salary` divides budget headroom by the days left and does not know the rent is coming,
+ * so it reads *safe* on the 3rd and is wrong on the 4th. This is the same card with the one thing
+ * it was missing: everything still due before the next salary taken off first (`commitments`).
+ *
+ * The window starts **today**, not at the period start: a bill that has already been paid is not
+ * still coming, and its rule has moved on past it anyway.
+ *
+ * Nothing is reserved and nothing is written. The value is in the number, not in moving money —
+ * a real Reserve account would mean un-reserving it as each bill lands, which is a second state
+ * machine that has to be right on two devices.
+ */
+export function safeToSpend(db: SqlDriver, o: { today: string; startDay: number; accountIds?: string[]; budgetAccount: string | null }): SafeToSpend {
+  const { start, end } = budgetPeriod(o.today, o.startDay);
+  const days = Math.max(1, daysUntil(o.today, end));
+  const free = freeMoney(db, { start, end, accountIds: o.accountIds, budgetAccount: o.budgetAccount });
+  // A bill only comes out of the money a budget set aside for it. Rent under no budget is not taken
+  // off a Food budget's headroom, and a currency with bills but no budget has no headroom to take it
+  // from — both used to drive the number below zero for money that was never budgeted to begin with.
+  // With an overall budget in the currency everything is its business, debts included.
+  const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
+  const budgets = activeBudgets(db, end, o.budgetAccount).filter((b) => b.in_planned !== 0);
+  const covers = (c: { currency: string; category_id: string | null; tag_ids: string[] }) => budgets.some((b) => b.currency === c.currency && (
+    b.tag_id ? c.tag_ids.includes(b.tag_id) : !budgetCategoryIds(b).length || (c.category_id !== null && inBudgetScope(budgetCategoryIds(b), cats, c.category_id))));
+  const owed = new Map<string, number>();
+  for (const c of commitments(db, { start: o.today, end, accountIds: o.accountIds })) if (covers(c)) owed.set(c.currency, (owed.get(c.currency) ?? 0) + c.minor);
+  const left = free.map((f) => ({ currency: f.currency, minor: f.minor - (owed.get(f.currency) ?? 0) }));
+  // Never below zero: "safe to spend" has no negative answer. What is over goes in `short` instead.
+  const safe = left.map((l) => ({ currency: l.currency, minor: Math.max(0, l.minor) }));
+  const short = left.filter((l) => l.minor < 0).map((l) => ({ currency: l.currency, minor: -l.minor }));
+  return {
+    days, next: end, free, committed: [...owed].map(([currency, minor]) => ({ currency, minor })), safe, short,
+    per_day: safe.map((s) => ({ currency: s.currency, minor: Math.round(s.minor / days) })),
+  };
+}
 
 export interface ChecklistItem {
   category_id: string; name: string; done: boolean; spent_minor: number; currency: string | null;

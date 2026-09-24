@@ -85,10 +85,17 @@ struct KPWatchState: Codable {
     let uses: Int
     /// The user's own hint ("groceries, bakery"), what the receipt reader matches merchants against.
     var description: String? = nil
+    /// Retired in the app: still named on the history rows that carry it, never offered for
+    /// anything new (`KPRank.categories`). Absent in a state file written before archiving existed.
+    var archived: Bool? = nil
   }
   /// The home the app knows (meta `home_lat`/`home_lon`); no category is suggested near it.
   struct Home: Codable, Hashable { let lat: Double; let lon: Double }
-  struct Tag: Codable, Identifiable, Hashable { let id: String; let name: String; let color: String?; let category_ids: [String]; let uses: Int }
+  struct Tag: Codable, Identifiable, Hashable {
+    let id: String; let name: String; let color: String?; let category_ids: [String]; let uses: Int
+    /// Retired: shown on the transactions that already carry it, never offered for a new one.
+    var archived: Bool? = nil
+  }
   struct Tx: Codable, Identifiable, Hashable {
     let id: String; let date: String; let title: String; let sub: String; let amount: Double; let currency: String
     let account_id: String; let category_id: String?; let tag_ids: [String]; let pending: Bool; let transfer: Bool
@@ -108,6 +115,9 @@ struct KPWatchState: Codable {
   var location_enabled: Bool?
   /// Everything below is written by JS from wave 2 on and absent in older files — hence optional.
   var home: Home? = nil
+  /// Whether the Shortcut automation may say it logged a payment (meta `shortcut_notify`).
+  /// Absent means an older state file, and the preference is on unless turned off — so nil reads as on.
+  var shortcut_notify: Bool? = nil
   /// Newest cached exchange rate per "BASE>QUOTE" pair; the inverse is derived when only one side is stored.
   var rates: [String: Double]? = nil
 
@@ -154,12 +164,22 @@ enum KPRank {
   /// included, which is to say: not offered at all. A folder is how the list is divided, never a
   /// place to file money (core `folderIds`), and an intent that offered one would file transactions
   /// where the app itself cannot. A top-level category with nothing inside it is not a folder.
+  ///
+  /// Archived categories are left out for the same reason, and so is everything inside an archived
+  /// folder (core `archivedCategoryIds`): what the app will not offer, nothing here may offer either
+  /// — an intent that filed a payment under a retired category would put it somewhere the app itself
+  /// no longer shows. They stay in the state file, so history rows keep their names.
   static func categories(_ all: [KPWatchState.Category], kind: String) -> [KPWatchState.Category] {
     let wanted = kind == "income" ? "income" : "expense"
     let byId = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
     let folders = Set(all.compactMap(\.parent_id))
+    func retired(_ c: KPWatchState.Category) -> Bool {
+      if c.archived ?? false { return true }
+      if let p = c.parent_id, byId[p]?.archived ?? false { return true }
+      return false
+    }
     return all
-      .filter { c in !folders.contains(c.id) && (c.kind == wanted || (c.parent_id.flatMap { byId[$0] }?.kind == wanted)) }
+      .filter { c in !folders.contains(c.id) && !retired(c) && (c.kind == wanted || (c.parent_id.flatMap { byId[$0] }?.kind == wanted)) }
       .sorted { a, b in a.uses != b.uses ? a.uses > b.uses : a.name.localizedCompare(b.name) == .orderedAscending }
   }
 
@@ -182,7 +202,8 @@ enum KPRank {
       return (!ids.isEmpty || withCat[t.id] != nil) ? 0 : 1
     }
     return all.map { RankedTag(tag: $0, rank: rank($0), together: withCat[$0.id] ?? 0) }
-      .filter { $0.rank < 2 || selected.contains($0.tag.id) }
+      // A retired tag is not offered, but one already ticked stays so it can be seen and taken off.
+      .filter { ($0.rank < 2 && !($0.tag.archived ?? false)) || selected.contains($0.tag.id) }
       .sorted { a, b in
         if a.rank != b.rank { return a.rank < b.rank }
         if a.together != b.together { return a.together > b.together }
@@ -338,6 +359,8 @@ enum KPStore {
     switch key {
     case "current_account": return s.current_account
     case "location_enabled": return (s.location_enabled ?? false) ? "1" : "0"
+    // Absent from an older state file: the preference is on unless it says otherwise, so nil reads as on.
+    case "shortcut_notify": return (s.shortcut_notify ?? true) ? "1" : "0"
     case "home_lat": return s.home.map { String($0.lat) }
     case "home_lon": return s.home.map { String($0.lon) }
     default: return nil
@@ -345,6 +368,17 @@ enum KPStore {
   }
 
   static func currentAccountId() -> String { meta("current_account") ?? "" }
+
+  /// How many entries are waiting in the Pending queue — the number on the app's badge. nil while JS
+  /// owns the database, where the count comes back in the reply to the write instead.
+  static func pendingCount() -> Int? {
+    withDatabase { db in
+      var stmt: OpaquePointer?
+      guard sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM transactions WHERE deleted=0 AND pending=1", -1, &stmt, nil) == SQLITE_OK else { return nil }
+      defer { sqlite3_finalize(stmt) }
+      return sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : nil
+    }
+  }
 
   /// Travel mode (core `activeTripTagId`): the tag every new expense gets while a trip runs.
   static func activeTripTagId(_ db: OpaquePointer) -> String? {
@@ -553,7 +587,7 @@ enum KPStore {
         accounts: accounts(db).map { .init(id: $0.id, name: $0.name, currency: $0.currency, balance: balances[$0.id] ?? 0) },
         categories: cats, tags: tags, together: together, history: history(db, limit: 50), snapshot: snap,
         location_enabled: meta(db, "location_enabled") == "1",
-        home: home(db))
+        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0")
     }
     if let built { return built }
     // JS owns the database. It writes the state file before every `updateWatch`, so this is current.
@@ -569,21 +603,41 @@ enum KPStore {
 
   /// No category is suggested this close to home (core `HOME_RADIUS_M`).
   static let homeRadiusM: Double = 50
-  /// Port of core `suggestCategoryNear`: the category used most within `radiusM` of a point.
-  /// SQLite half only — nil while JS owns the database; the app target's `suggestCategoryNear`
-  /// (native/KPWrites.swift) then asks JS instead, because the location history is far too big
-  /// for the state file.
-  static func localSuggestCategoryNear(lat: Double, lon: Double, radiusM: Double = 150) -> String? {
-    withDatabase { suggestCategoryNear($0, lat: lat, lon: lon, radiusM: radiusM) }
+  /// "Here", with only a coordinate to go on (core `NEAR_RADIUS_M`). 80 m is roughly a fix's own
+  /// error; the 150 m this used to be reached across the street and suggested the neighbour's category.
+  static let nearRadiusM: Double = 80
+  /// How far a row with the same place name may be and still be the same place (core `SAME_PLACE_RADIUS_M`).
+  static let samePlaceRadiusM: Double = 2000
+
+  /// A place name reduced to what counts as the same place. Mirrors core `placeKey`, which the app
+  /// matches with — the two must agree or the same shop would be two places depending on who asked.
+  static func placeKey(_ place: String) -> String {
+    let folded = place.replacingOccurrences(of: "ł", with: "l").replacingOccurrences(of: "Ł", with: "L")
+      .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    let parts = folded.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+    return parts.joined(separator: " ")
   }
 
-  private static func suggestCategoryNear(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double) -> String? {
-    // At home anything gets bought, so no category is suggested there (meta `home_lat`/`home_lon`, set in Settings).
-    if let h = home(db), distanceMeters(lat, lon, h.lat, h.lon) <= homeRadiusM { return nil }
+  /// Port of core `suggestCategoryAt`: what was filed at this place before, else what is filed
+  /// around here. SQLite half only — nil while JS owns the database; the app target's
+  /// `suggestCategoryNear` (native/KPWrites.swift) then asks JS instead, because the location
+  /// history is far too big for the state file.
+  static func localSuggestCategoryNear(lat: Double, lon: Double, place: String? = nil, radiusM: Double = nearRadiusM) -> String? {
+    withDatabase { db in
+      if let h = home(db), distanceMeters(lat, lon, h.lat, h.lon) <= homeRadiusM { return nil }
+      let key = place.map(placeKey) ?? ""
+      if !key.isEmpty, let named = pickNearby(db, lat: lat, lon: lon, radiusM: samePlaceRadiusM, keep: { placeKey($0 ?? "") == key }) { return named }
+      return pickNearby(db, lat: lat, lon: lon, radiusM: radiusM, keep: { _ in true })
+    }
+  }
+
+  /// The most-used category among rows within `radiusM` that `keep` accepts; ties go to the most
+  /// recent, because the rows arrive newest first and the maximum below is stable.
+  private static func pickNearby(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double, keep: (String?) -> Bool) -> String? {
     let dLat = radiusM / 111_000, dLon = radiusM / (111_000 * max(0.2, cos(lat * .pi / 180)))
     var stmt: OpaquePointer?
     let sql = """
-      SELECT category_id, lat, lon FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
+      SELECT category_id, lat, lon, place FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
       AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? ORDER BY date DESC LIMIT 200
       """
     guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
@@ -595,6 +649,7 @@ enum KPStore {
     while sqlite3_step(stmt) == SQLITE_ROW {
       let rlat = sqlite3_column_double(stmt, 1), rlon = sqlite3_column_double(stmt, 2)
       if distanceMeters(lat, lon, rlat, rlon) > radiusM { continue }
+      if !keep(opt(stmt, 3)) { continue }
       let id = str(stmt, 0)
       if counts[id] == nil { order.append(id) }
       counts[id, default: 0] += 1
@@ -612,10 +667,44 @@ enum KPStore {
     var place: String?
     var lat: Double?
     var lon: Double?
-    /// History filed this name under a category before, so a new entry for it is already understood
-    /// and needs no trip through the pending queue (core `isFiledBefore`).
+    /// How many different (category, tags) pairs this name was ever filed under (core `payeeOptions`).
+    var variants: Int = 0
+    /// How the row that supplied the category and tags was found — "exact" or "similar", nil when
+    /// nothing was found (core `PayeeMatch`). A first-word match is a guess: "BLIK INTERNET:
+    /// FLYSTORE.PL" and "BLIK INTERNET: ALLEGRO.PL" share everything except the shop.
+    var match: String?
+    /// History has a category for this name, by whatever route — enough to fill the field in.
     var filedBefore: Bool { categoryId != nil }
+    /// …and it was this very name, so the entry is already understood and needs no trip through the
+    /// pending queue (core `isTrustedFiling`).
+    var trusted: Bool { categoryId != nil && match == "exact" }
+    /// The same shop, filed more than one way — fuel one week, a hot dog the next. History can only
+    /// repeat the last of them, so nothing here is a decision: the entry has to be asked about.
+    var ambiguous: Bool { variants > 1 }
     static let none = PayeeHistory()
+  }
+
+  /**
+   Words that say how the money moved, not who received it — "BLIK INTERNET: FLYSTORE.PL". As a
+   name's first word they say nothing about the shop, and matching on them files a bookshop under
+   groceries because both were paid for with BLIK.
+
+   The same list lives in core (`METHOD_WORDS`, packages/core/src/payee.ts) and in the parser
+   (`KPPaymentText.methodWords`). It cannot be shared: this file is compiled on its own into the
+   widget and watch targets and by the parity harness, and the parser is compiled on its own by
+   scripts/payment-parse. The parity harness is what catches them drifting apart.
+   */
+  private static let methodWords: Set<String> = [
+    "blik", "przelew", "przelewy", "przelewy24", "p24", "payu", "tpay", "dotpay", "paypal",
+    "platnosc", "platnosci", "zakup", "zakupy", "karta", "karty", "internet", "online", "ecommerce",
+    "mobile", "apple", "google", "pay", "visa", "mastercard", "payment", "transfer", "oplata", "web",
+    "переказ", "оплата", "платеж", "платіж",
+  ]
+
+  static func isMethodWord(_ word: String) -> Bool {
+    let folded = word.replacingOccurrences(of: "ł", with: "l").replacingOccurrences(of: "Ł", with: "L")
+      .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    return methodWords.contains(folded.components(separatedBy: CharacterSet.alphanumerics.inverted).joined())
   }
 
   /// SQLite half only — nil while JS owns the database; the app target's `payeeHistory`
@@ -635,41 +724,55 @@ enum KPStore {
     // of one chain ("ZABKA ZE212 K.5" / "ZABKA NANO 3087") still find each other. A name matches
     // whether it was filed as a payee or as a note: a Shortcut with only a note writes it into `notes`.
     let byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE)"
-    var tries: [(clause: String, binds: [String])] = []
-    if let s = shop, !s.isEmpty { tries.append((byName, [s, s])) }
-    if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, [t, t])) }
-    if let s = shop, let head = s.split(separator: " ").first.map(String.init), head.count >= 3, head != s {
-      tries.append(("payee LIKE ? COLLATE NOCASE", [head + "%"]))
+    var tries: [(clause: String, binds: [String], exact: Bool)] = []
+    if let s = shop, !s.isEmpty { tries.append((byName, [s, s], true)) }
+    if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, [t, t], true)) }
+    // A first word that says how you paid is no name at all, so there is nothing to widen to.
+    if let s = shop, let head = s.split(separator: " ").first.map(String.init), head.count >= 3, head != s,
+       !isMethodWord(head) {
+      tries.append(("payee LIKE ? COLLATE NOCASE", [head + "%"], false))
     }
     guard !tries.isEmpty else { return out }
 
     /// The newest past entry matching any of the names above, in that order, that also satisfies `has`.
-    /// Returns a stepped statement the caller reads and finalizes.
-    func newest(_ cols: String, _ has: String) -> OpaquePointer? {
+    /// Returns a stepped statement the caller reads and finalizes, and whether the name matched exactly.
+    func newest(_ cols: String, _ has: String) -> (stmt: OpaquePointer, exact: Bool)? {
       for t in tries {
         var stmt: OpaquePointer?
         let sql = "SELECT \(cols) FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND \(has) AND \(t.clause) ORDER BY date DESC LIMIT 1"
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
         for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
-        if sqlite3_step(stmt) == SQLITE_ROW { return stmt }
+        if sqlite3_step(stmt) == SQLITE_ROW, let stmt { return (stmt, t.exact) }
         sqlite3_finalize(stmt)
       }
       return nil
     }
     // Category and tags come from whichever single row matches, so they always describe one past
     // decision; a row with tags but no category still counts.
-    if let stmt = newest("category_id, tag_ids", "(category_id IS NOT NULL OR tag_ids <> '[]')") {
-      out.categoryId = opt(stmt, 0)
-      out.tagIds = jsonIds(str(stmt, 1))
+    if let hit = newest("category_id, tag_ids", "(category_id IS NOT NULL OR tag_ids <> '[]')") {
+      out.categoryId = opt(hit.stmt, 0)
+      out.tagIds = jsonIds(str(hit.stmt, 1))
+      out.match = hit.exact ? "exact" : "similar"
+      sqlite3_finalize(hit.stmt)
+    }
+    // How many ways this name was filed, so a caller can tell a decision from a coin toss. Counted
+    // over the same name that answered above, since `newest` takes the first one that matches at all.
+    for t in tries {
+      var stmt: OpaquePointer?
+      let sql = "SELECT COUNT(*) FROM (SELECT DISTINCT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) LIMIT 200)"
+      guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
+      for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
+      let n = sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : 0
       sqlite3_finalize(stmt)
+      if n > 0 { out.variants = n; break }
     }
     // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
     // whether or not that is the entry the category came from.
-    if let stmt = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)") {
-      out.place = opt(stmt, 0)
-      if sqlite3_column_type(stmt, 1) != SQLITE_NULL { out.lat = sqlite3_column_double(stmt, 1) }
-      if sqlite3_column_type(stmt, 2) != SQLITE_NULL { out.lon = sqlite3_column_double(stmt, 2) }
-      sqlite3_finalize(stmt)
+    if let hit = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)") {
+      out.place = opt(hit.stmt, 0)
+      if sqlite3_column_type(hit.stmt, 1) != SQLITE_NULL { out.lat = sqlite3_column_double(hit.stmt, 1) }
+      if sqlite3_column_type(hit.stmt, 2) != SQLITE_NULL { out.lon = sqlite3_column_double(hit.stmt, 2) }
+      sqlite3_finalize(hit.stmt)
     }
     return out
   }
@@ -748,7 +851,8 @@ enum KPStore {
     return ok && ok2
   }
 
-  private static func distanceMeters(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
+  /// Rough great-circle distance in metres; good enough for "same shop" (core `distanceMeters`).
+  static func distanceMeters(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
     let r = 6_371_000.0, dLat = (lat2 - lat1) * .pi / 180, dLon = (lon2 - lon1) * .pi / 180
     let a = sin(dLat / 2) * sin(dLat / 2) + cos(lat1 * .pi / 180) * cos(lat2 * .pi / 180) * sin(dLon / 2) * sin(dLon / 2)
     return 2 * r * atan2(sqrt(a), sqrt(1 - a))

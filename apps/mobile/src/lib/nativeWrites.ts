@@ -3,11 +3,17 @@
  * Native code must not touch the database while JS has it open (two SQLite copies in one process
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
-import { createTransaction, fillPending, getRow, payeeHistory, remove, samePaymentSince, save, suggestCategoryNear, withTripTag } from "@kopiyka/core";
+import { claimRecurring, createTransaction, fillPending, getRow, payeeHistory, payeeOptions, remove, samePaymentSince, save, suggestCategoryAt, withTripTag } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
-import { localIso } from "./dates";
+import { localIso, todayLocal } from "./dates";
+import { waitDefaultDays } from "./settings";
+
+/** Entries waiting in the Pending queue: the app's badge, and what a native write is told after it lands. */
+export function pendingCount(): number {
+  return db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions WHERE deleted=0 AND pending=1`)?.n ?? 0;
+}
 
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -18,16 +24,23 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       const id = String(w.id);
       // The watch may deliver the same entry twice (a reply that timed out, then the queued transfer).
       if (getRow(db, "transactions", id)) return {};
-      mutate((d) => createTransaction(d, {
-        id, account_id: String(w.account_id), date: str(w.date) ?? localIso(), amount_minor: Number(w.amount_minor),
-        category_id: str(w.category_id), payee: str(w.payee), notes: str(w.note),
-        tag_ids: JSON.stringify(withTripTag(d, Array.isArray(w.tag_ids) ? w.tag_ids.map(String) : [])),
-        pending: w.pending ? 1 : 0, lat: num(w.lat), lon: num(w.lon), place: str(w.place), source: str(w.source),
-        // A payment the bank printed in another currency: what it charged, and the rate it was
-        // expressed at, so the row can be checked rather than taken on trust.
-        entered_amount_minor: num(w.entered_amount_minor), entered_currency: str(w.entered_currency), exchange_rate: num(w.exchange_rate),
-      }));
-      return {};
+      mutate((d) => {
+        const row = createTransaction(d, {
+          id, account_id: String(w.account_id), date: str(w.date) ?? localIso(), amount_minor: Number(w.amount_minor),
+          category_id: str(w.category_id), payee: str(w.payee), notes: str(w.note),
+          tag_ids: JSON.stringify(withTripTag(d, Array.isArray(w.tag_ids) ? w.tag_ids.map(String) : [])),
+          pending: w.pending ? 1 : 0, lat: num(w.lat), lon: num(w.lon), place: str(w.place), source: str(w.source),
+          // A payment the bank printed in another currency: what it charged, and the rate it was
+          // expressed at, so the row can be checked rather than taken on trust.
+          entered_amount_minor: num(w.entered_amount_minor), entered_currency: str(w.entered_currency), exchange_rate: num(w.exchange_rate),
+        });
+        // The charge a recurring rule has been waiting for: it takes the rule's id, category and
+        // tags and moves the rule on, so the rule never writes the same payment a second time.
+        claimRecurring(d, row, { today: todayLocal(), waitDefault: waitDefaultDays() });
+      });
+      // What the badge on the app icon should read now. Native code cannot count it for itself
+      // while JS has the database open, and the notification it is about to post carries the number.
+      return { pending: pendingCount() };
     }
     case "delete":
       mutate((d) => remove(d, "transactions", String(w.id)));
@@ -41,7 +54,9 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
     case "suggest": {
       // Native code can't touch SQLite while JS owns the database (see scratchpad/STATE-CONTRACT), so
       // the watch/Shortcuts location suggestion is forwarded here instead of read from the state file.
-      const hit = suggestCategoryNear(db, Number(w.lat), Number(w.lon));
+      // With a place name (the automation's placemark) this is "what have I filed at this shop
+      // before", falling back to the coordinate search; the watch sends no name and only gets the latter.
+      const hit = suggestCategoryAt(db, { lat: Number(w.lat), lon: Number(w.lon), place: str(w.place) });
       return hit ? { category_id: hit.category_id, place: hit.place } : {};
     }
     case "payee":
@@ -55,6 +70,12 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       const reply: Record<string, unknown> = {
         category_id: hist.category_id ?? undefined, tag_ids: hist.tag_ids,
         place: hist.place ?? undefined, lat: hist.lat ?? undefined, lon: hist.lon ?? undefined,
+        // Whether it was this very name or only one starting with the same word: the automation
+        // trusts the first and treats the second as a guess.
+        match: hist.match ?? undefined,
+        // How many different ways this name was filed before. More than one and the automation has no
+        // business picking for you: the entry stays pending so the sheet can ask which it was.
+        variants: payeeOptions(db, str(w.payee), str(w.note)).length,
       };
       if (w.op === "payment") {
         // Wallet and the bank app both notify the same tap, and iOS can re-deliver a notification.

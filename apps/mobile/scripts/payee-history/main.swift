@@ -13,7 +13,7 @@ guard args.count == 3, let data = FileManager.default.contents(atPath: args[1]),
 
 func opt(_ v: Any?) -> Any { (v as? String).flatMap { $0.isEmpty ? nil : $0 } ?? NSNull() }
 func json(_ h: KPStore.PayeeHistory) -> [String: Any] {
-  ["category_id": h.categoryId ?? NSNull(), "tag_ids": h.tagIds,
+  ["category_id": h.categoryId ?? NSNull(), "tag_ids": h.tagIds, "match": h.match ?? NSNull(),
    "place": h.place ?? NSNull(), "lat": h.lat ?? NSNull(), "lon": h.lon ?? NSNull()]
 }
 

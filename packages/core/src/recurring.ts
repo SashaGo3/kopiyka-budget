@@ -39,6 +39,31 @@ export function upcomingOccurrences(rule: RuleLike, count: number): string[] {
   return out;
 }
 
+/**
+ * Occurrence dates falling in `[from, to)`. `upcomingOccurrences` is bounded by a *count*, which is
+ * the wrong bound for "what is still to be charged before payday": a weekly rule needs five and a
+ * yearly one needs none, so any count that covers both generates dozens and throws most away.
+ *
+ * It starts at `next_date`, and `next_date` is what says an occurrence has not been dealt with yet
+ * — posting advances it, and so does a real charge claiming it (`claimRecurring` → `advanceRule`,
+ * DATA.md rule 13). So everything this returns has genuinely not happened, including an occurrence
+ * that is already overdue: that is money still to leave, and it belongs in the window it was due in
+ * rather than nowhere.
+ */
+export function occurrencesBetween(rule: RuleLike, from: string, to: string, guard = 500): string[] {
+  if (!rule.active) return [];
+  const out: string[] = [];
+  let day = rule.next_date;
+  for (let i = 0; i < guard && day < to; i++) {
+    if (rule.end_date && day > rule.end_date) break;
+    if (day >= from) out.push(day);
+    const next = addPeriod(day, rule.frequency, rule.interval);
+    if (next <= day) break; // a rule with no interval would otherwise never finish
+    day = next;
+  }
+  return out;
+}
+
 /** Occurrences with date <= today that have not been posted yet. */
 export function dueOccurrences(rule: RuleLike, today: string): string[] {
   if (!rule.active) return [];
@@ -52,27 +77,93 @@ export function dueOccurrences(rule: RuleLike, today: string): string[] {
   return out;
 }
 
-export type PlannedKind = "reminder" | "due";
+/**
+ * Default number of days a rule waits for the bank's own charge, when waiting is on and the rule
+ * itself names no window. A week covers a standing order that slips over a weekend or a bank holiday
+ * without leaving a payment unaccounted for long enough to be forgotten.
+ */
+export const DEFAULT_WAIT_DAYS = 7;
+
+/**
+ * How many days *early* a charge may be and still be this occurrence. Standing orders are routinely
+ * taken on the last working day before the date they name, so a payment due on the 1st can land on
+ * the Friday before it.
+ */
+export const CLAIM_LEAD_DAYS = 3;
+
+/**
+ * How long this rule waits for the real charge: its own `wait_days`, else the app-wide default.
+ *
+ * `waitDefault` is 0 when waiting is switched off, and that is the only way to get 0 out of here:
+ * a rule may ask for a longer or shorter rope than the default, never for none, so a stored 0 (or
+ * anything else that is not a whole day or more) falls back to the default rather than quietly
+ * opting one rule out of the feature. 0 means the rule posts, or asks, on the day — what every rule
+ * did before waiting existed.
+ */
+export function ruleWaitDays(rule: Pick<RecurringRule, "wait_days">, waitDefault: number): number {
+  if (!(waitDefault > 0)) return 0;
+  const d = rule.wait_days ?? waitDefault;
+  return Number.isFinite(d) && d >= 1 ? Math.floor(d) : Math.floor(waitDefault);
+}
+
+/** The last day an occurrence can still be claimed by a real charge. */
+export function claimDeadline(occurrence: string, wait: number): string {
+  return addPeriod(occurrence, "daily", wait);
+}
+
+/**
+ * Is this occurrence now the rule's to act on? A rule that does not wait owns it the moment the day
+ * arrives; one that waits gives the charge the whole window and acts the day after it closes.
+ */
+export function isOwed(occurrence: string, today: string, wait: number): boolean {
+  return wait <= 0 ? occurrence <= today : claimDeadline(occurrence, wait) < today;
+}
+
+/** Due occurrences the rule may now act on itself — post (automatic) or ask about (manual). */
+export function overdueOccurrences(rule: RuleLike & Pick<RecurringRule, "wait_days">, today: string, waitDefault = 0): string[] {
+  const wait = ruleWaitDays(rule, waitDefault);
+  return dueOccurrences(rule, today).filter((occ) => isOwed(occ, today, wait));
+}
+
+/** Due occurrences still inside their window: the charge has not arrived, and nothing is owed yet. */
+export function waitingOccurrences(rule: RuleLike & Pick<RecurringRule, "wait_days">, today: string, waitDefault = 0): string[] {
+  const wait = ruleWaitDays(rule, waitDefault);
+  return wait <= 0 ? [] : dueOccurrences(rule, today).filter((occ) => !isOwed(occ, today, wait));
+}
+
+/**
+ * `reminder` — `notify_days_before` days ahead of the occurrence.
+ * `due` — on the day: the transaction was posted (automatic) or is waiting to be confirmed (manual).
+ * `late` — what `due` becomes for a rule that waits: it fires when the window closes, and says the
+ * charge never turned up, because on the day itself there is nothing to tell you yet.
+ */
+export type PlannedKind = "reminder" | "due" | "late";
 export interface PlannedNotification { rule_id: string; occurrence: string; fire_day: string; kind: PlannedKind }
 
 /**
  * Local notification schedule for the next `horizonDays`, computed on device.
- * Each occurrence gets a "reminder" `notify_days_before` days earlier (when > 0) and a
- * "due" notification on the day itself: for automatic rules it says the transaction was
- * posted, for manual ones it asks to confirm.
+ * Each occurrence gets a "reminder" `notify_days_before` days earlier (when > 0) and one on the day
+ * itself: for automatic rules it says the transaction was posted, for manual ones it asks to confirm.
+ *
+ * A rule that waits for the bank says neither of those on the day — it does not know yet whether the
+ * charge is coming — so its second notification moves to the day the window closes and becomes
+ * "late": by then the charge has either claimed the occurrence, and there is nothing to send, or it
+ * never arrived and that is the news.
  */
-export function plannedNotifications(rules: RecurringRule[], today: string, horizonDays = 60): PlannedNotification[] {
+export function plannedNotifications(rules: RecurringRule[], today: string, horizonDays = 60, waitDefault = 0): PlannedNotification[] {
   const horizon = addPeriod(today, "daily", horizonDays);
   const out: PlannedNotification[] = [];
   for (const r of rules) {
     if (!r.notify || !r.active || r.deleted) continue;
+    const wait = ruleWaitDays(r, waitDefault);
     for (const occ of upcomingOccurrences(r, 24)) {
       if (occ > horizon) break;
       if (r.notify_days_before > 0) {
         const fire = addPeriod(occ, "daily", -r.notify_days_before);
         if (fire >= today) out.push({ rule_id: r.id, occurrence: occ, fire_day: fire, kind: "reminder" });
       }
-      if (occ >= today) out.push({ rule_id: r.id, occurrence: occ, fire_day: occ, kind: "due" });
+      const day = wait > 0 ? addPeriod(claimDeadline(occ, wait), "daily", 1) : occ;
+      if (day >= today && day <= horizon) out.push({ rule_id: r.id, occurrence: occ, fire_day: day, kind: wait > 0 ? "late" : "due" });
     }
   }
   return out.sort((a, b) => a.fire_day.localeCompare(b.fire_day) || a.occurrence.localeCompare(b.occurrence));
@@ -123,31 +214,50 @@ export function yearlyAmountMinor(rule: Pick<RecurringRule, "amount_minor" | "fr
 export interface DueRule { rule: RecurringRule; days: string[] }
 
 /**
- * Manual rules with at least one occurrence already due — the queue behind the "Recurring due"
+ * Manual rules with at least one occurrence that is now owed — the queue behind the "Recurring due"
  * row on Transactions. Automatic rules never appear here: `postDueRecurring` has already written
  * them as real transactions, so there is nothing left to decide.
+ *
+ * A rule that waits for the bank only reaches the queue once its window has closed. Inside the
+ * window there is nothing to ask: the charge may still arrive and claim the occurrence by itself,
+ * and asking first is how you end up posting it twice.
  */
-export function dueManualRules(db: SqlDriver, today: string): DueRule[] {
+export function dueManualRules(db: SqlDriver, today: string, waitDefault = 0): DueRule[] {
   const out: DueRule[] = [];
   for (const rule of listRows(db, "recurring_rules", "deleted=0 AND active=1 AND auto_post=0", [], "next_date") as RecurringRule[]) {
-    const days = dueOccurrences(rule, today);
+    const days = overdueOccurrences(rule, today, waitDefault);
     if (days.length) out.push({ rule, days });
   }
   return out;
 }
 
-export interface AutoPosted { rule: RecurringRule; days: string[] }
+/** Rules whose day has come and which are now waiting to see whether the bank charges them. */
+export function waitingRules(db: SqlDriver, today: string, waitDefault = 0): DueRule[] {
+  const out: DueRule[] = [];
+  for (const rule of listRows(db, "recurring_rules", "deleted=0 AND active=1", [], "next_date") as RecurringRule[]) {
+    const days = waitingOccurrences(rule, today, waitDefault);
+    if (days.length) out.push({ rule, days });
+  }
+  return out;
+}
 
-/** Post every due occurrence of auto_post rules (Budget Flow behaviour). Manual rules are left for the confirm sheet. */
-export function postDueRecurring(db: SqlDriver, today: string): AutoPosted[] {
+export interface AutoPosted { rule: RecurringRule; days: string[]; waited: boolean }
+
+/**
+ * Post every occurrence of an auto_post rule that is now owed. Manual rules are left for the confirm
+ * sheet. A rule that waits for the bank posts only once its window has closed without a charge
+ * claiming the occurrence — `waited` says so, because "we never saw this leave your account, so here
+ * is what the rule says" is a different thing to tell the user than "posted, as arranged".
+ */
+export function postDueRecurring(db: SqlDriver, today: string, waitDefault = 0): AutoPosted[] {
   const out: AutoPosted[] = [];
   db.transaction(() => {
     for (const rule of listRows(db, "recurring_rules", "deleted=0 AND active=1 AND auto_post=1") as RecurringRule[]) {
-      const days = dueOccurrences(rule, today);
+      const days = overdueOccurrences(rule, today, waitDefault);
       if (!days.length) continue;
       for (const d of days) postOccurrence(db, rule, d);
       advanceRule(db, rule, days[days.length - 1]!);
-      out.push({ rule, days });
+      out.push({ rule, days, waited: ruleWaitDays(rule, waitDefault) > 0 });
     }
   });
   return out;

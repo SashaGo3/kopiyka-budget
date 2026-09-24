@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
-import { useColorScheme, Linking, AppState, InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
+import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
 import { Brand, C, R, S } from "@/constants/theme";
 import { onAfterWrite } from "@/store";
@@ -10,9 +10,11 @@ import { KPBridge } from "@/lib/bridge";
 import { BootSkeleton } from "@/components/BootSkeleton";
 import { notifyChange } from "@/store";
 import { installNativeWrites } from "@/lib/nativeWrites";
-import { registerNavigationRef } from "@/lib/deeplink";
+import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
+import { maybeShowWhatsNew } from "@/lib/whatsNew";
+import { isPad, screenContentStyle } from "@/constants/layout";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
 markAppCodeStart();
@@ -26,14 +28,32 @@ installNativeWrites();
 /** A cold-start deep link (widget / watch / Shortcut) mounts `(tabs)` first and pushes the target sheet on top of it, instead of the sheet becoming the only screen. */
 export const unstable_settings = { anchor: "(tabs)" };
 
-const sheet = { presentation: "formSheet" as const, headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: { backgroundColor: C.bgGrouped } };
-/** Entry sheets hug their content: no dead space above the amount. */
+/**
+ * Sheets. On a phone a form sheet is sized by its detents — `fitToContents` measures the content and
+ * the sheet is exactly that tall.
+ *
+ * On an iPad a form sheet is a fixed-size card and UIKit ignores those detents (react-native-screens
+ * only applies sheet configuration to `formSheet`, and iPadOS sizes that presentation itself), so
+ * anything taller than the card had its bottom quietly cut off — on the entry sheet that was the
+ * save bar, which is the one thing the screen exists to reach. A page sheet there is a tall card the
+ * content fits inside, and the content is pinned to its bottom edge so the room that is left over
+ * appears above it, where the design already puts empty space.
+ */
+const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
+const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
+/** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
 const fit = { ...sheet, sheetAllowedDetents: "fitToContents" as const };
 const medium = { ...sheet, sheetAllowedDetents: [0.55, 0.92] };
 /** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
 const picker = { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 };
 /** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
 const modal = { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: C.bgGrouped } };
+/**
+ * A pushed full screen keeps the iPad column (constants/layout.ts). Sheets and modals do not: on a
+ * tablet iOS already sizes those itself, and a column inside a centred card is a card with margins.
+ * `(tabs)` is left out too — the tab bar belongs to the window, not to the content.
+ */
+const pushed = { contentStyle: screenContentStyle };
 
 /** Navigation colours that match iOS grouped backgrounds, so native headers never differ from the content. */
 const lightTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: Brand.bg, card: Brand.bg, primary: Brand.accent, border: Brand.border } };
@@ -56,15 +76,33 @@ export default function RootLayout() {
       InteractionManager.runAfterInteractions(() => {
         installBackupTriggers();
         writeWidgetSnapshot();
+        maybeShowWhatsNew();
         void notifications.runAutoPosting().then(() => notifications.rescheduleRecurringNotifications());
+        void notifications.syncBadge();
       });
     });
-    const appState = AppState.addEventListener("change", (s) => { if (s === "active") void notifications.runAutoPosting(); });
-    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); });
-    const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      const url = r.notification.request.content.data?.url;
-      if (typeof url === "string") void Linking.openURL(url);
-    });
+    // Coming back to the foreground: post anything that fell due, and re-read the database. A
+    // Shortcut automation writes card payments straight into it while the app is suspended, and
+    // nothing in JS ever hears about those — without this the entry only appears on a cold start.
+    // A Shortcut automation sets the badge itself while the app is away; coming back re-reads it
+    // from the database, so a queue approved on another device does not leave a number behind.
+    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); void notifications.syncBadge(); } });
+    // The badge is derived, never incremented: approving the queue here, on the watch or on another
+    // phone all end at the same recount.
+    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); void notifications.syncBadge(); });
+    // A tapped reminder goes where it is about: this debt, this recurring occurrence. The same
+    // response can arrive twice — once cached from the cold launch that the tap caused, once live —
+    // so each notification is followed only once.
+    let followed: string | null = null;
+    const follow = (r: import("expo-notifications").NotificationResponse | null) => {
+      const url = r?.notification.request.content.data?.url;
+      const id = r?.notification.request.identifier ?? null;
+      if (typeof url !== "string" || (id !== null && id === followed)) return;
+      followed = id;
+      openDeepLink(url);
+    };
+    const sub = Notifications.addNotificationResponseReceivedListener(follow);
+    void Notifications.getLastNotificationResponseAsync().then(follow).catch(() => {});
     const offWatch = KPBridge.onExternalChange(() => notifyChange());
     return () => { offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
   }, []);
@@ -75,23 +113,35 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="accounts/[id]" options={{ title: "", headerBackTitle: "Back" }} />
-          <Stack.Screen name="pending" options={{ title: "Pending", headerBackTitle: "Back" }} />
+          {/* A short read of variable length: a half sheet that can be dragged up, not a full card. */}
+          <Stack.Screen name="whats-new" options={medium} />
+          <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: "Back" }} />
+          <Stack.Screen name="pending" options={{ ...pushed, title: "Pending", headerBackTitle: "Back" }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
+          <Stack.Screen name="transaction/split" options={modal} />
+          {/* A list that has to be read before it is agreed to, so a full card rather than a sheet. */}
+          <Stack.Screen name="transaction/bulk" options={modal} />
           <Stack.Screen name="transfer/[id]" options={fit} />
           <Stack.Screen name="account/edit" options={fit} />
           <Stack.Screen name="category/edit" options={modal} />
+          {/* Two questions and a list to read before agreeing to it, so a full card rather than a sheet. */}
+          <Stack.Screen name="category/importance" options={modal} />
           <Stack.Screen name="tag/edit" options={modal} />
           <Stack.Screen name="budget/edit" options={fit} />
+          {/* The one screen with a drag: the sheet's own swipe-to-dismiss would be pulling against
+              every downward drag of a row, and it has Cancel and Done of its own. */}
+          <Stack.Screen name="budget/reorder" options={{ ...modal, gestureEnabled: false }} />
+          <Stack.Screen name="budget/planned" options={modal} />
           <Stack.Screen name="debt/edit" options={fit} />
           <Stack.Screen name="travel/start" options={fit} />
+          <Stack.Screen name="travel/dates" options={fit} />
           <Stack.Screen name="travel/backfill" options={modal} />
           <Stack.Screen name="receipt/scan" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="photo/capture" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="photo/view" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="recurring/[id]" options={modal} />
           <Stack.Screen name="recurring/confirm" options={fit} />
-          <Stack.Screen name="recurring/due" options={{ title: "Recurring due", headerBackTitle: "Back" }} />
+          <Stack.Screen name="recurring/due" options={{ ...pushed, title: "Recurring due", headerBackTitle: "Back" }} />
           <Stack.Screen name="pick/category" options={picker} />
           <Stack.Screen name="pick/icon" options={picker} />
           <Stack.Screen name="pick/color" options={picker} />
@@ -110,6 +160,8 @@ export default function RootLayout() {
           <Stack.Screen name="pick/transaction" options={picker} />
           <Stack.Screen name="pick/location" options={modal} />
           <Stack.Screen name="insight/edit" options={modal} />
+          {/* A drag list, like budget/reorder: the sheet's own swipe would fight every row. */}
+          <Stack.Screen name="insight/reorder" options={{ ...modal, gestureEnabled: false }} />
           <Stack.Screen name="filter" options={modal} />
         </Stack>
         <BootSkeleton />

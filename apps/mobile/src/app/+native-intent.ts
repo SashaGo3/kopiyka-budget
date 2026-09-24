@@ -1,5 +1,6 @@
-import { openEntrySheet } from "@/lib/deeplink";
+import { openEntrySheet, parseQuery } from "@/lib/deeplink";
 import { needsOnboarding } from "@/lib/onboarding";
+import { markLaunchTarget } from "@/lib/boot";
 
 /**
  * Every URL the app is handed passes through here before expo-router routes it — the launch URL,
@@ -25,21 +26,13 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
   if (!name) {
     try { return needsOnboarding() ? "/onboarding" : "/transactions"; } catch { return path; } // the database is opened by the root layout; before that, route as before
   }
+  // Anything but a plain launch had somewhere to be: the release notes wait for the next start
+  // rather than landing on top of the sheet the user actually asked for.
+  markLaunchTarget();
   if (name !== "log" && name !== "transaction/new") return path;
 
   const params = { ...(name === "log" ? { kind: "expense" } : null), ...parseQuery(query) };
   if (initial) return `/transaction/new?${Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")}`;
   openEntrySheet(params);
   return null;
-}
-
-function parseQuery(query: string) {
-  const out: Record<string, string> = {};
-  for (const pair of query.split("&")) {
-    if (!pair) continue;
-    const eq = pair.indexOf("=");
-    const decode = (s: string) => { try { return decodeURIComponent(s.replace(/\+/g, " ")); } catch { return s; } };
-    out[decode(eq < 0 ? pair : pair.slice(0, eq))] = eq < 0 ? "" : decode(pair.slice(eq + 1));
-  }
-  return out;
 }

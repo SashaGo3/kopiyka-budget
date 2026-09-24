@@ -131,15 +131,20 @@ extension KPStore {
   /// `watch-state.json`, so while JS owns the database the question is forwarded to it (op "suggest").
   /// `timeout` is the wait for that forwarded answer; a notification automation (`LogPaymentIntent`)
   /// has seconds for everything it does and shortens it, rather than spend the default on a nicety.
-  static func suggestCategoryNear(lat: Double, lon: Double, radiusM: Double = 150, timeout: TimeInterval = 3) async -> String? {
-    if let id = localSuggestCategoryNear(lat: lat, lon: lon, radiusM: radiusM) { return id }
+  static func suggestCategoryNear(lat: Double, lon: Double, place: String? = nil, radiusM: Double = nearRadiusM, timeout: TimeInterval = 3) async -> String? {
+    if let id = localSuggestCategoryNear(lat: lat, lon: lon, place: place, radiusM: radiusM) { return id }
     guard KPWrites.isClaimed else { return nil }
-    return await KPWrites.query(["op": "suggest", "lat": lat, "lon": lon], timeout: timeout).reply["category_id"] as? String
+    var op: [String: Any] = ["op": "suggest", "lat": lat, "lon": lon]
+    // Free for a notification automation: Shortcuts hands over a placemark, so the better question
+    // ("have I filed anything at this shop before?") costs nothing it was not already given.
+    if let place, !place.isEmpty { op["place"] = place }
+    return await KPWrites.query(op, timeout: timeout).reply["category_id"] as? String
   }
 
   private static func history(_ reply: [String: Any]) -> PayeeHistory {
     PayeeHistory(categoryId: reply["category_id"] as? String, tagIds: reply["tag_ids"] as? [String] ?? [],
-                 place: reply["place"] as? String, lat: reply["lat"] as? Double, lon: reply["lon"] as? Double)
+                 place: reply["place"] as? String, lat: reply["lat"] as? Double, lon: reply["lon"] as? Double,
+                 variants: reply["variants"] as? Int ?? 0, match: reply["match"] as? String)
   }
 
   /// What history knows about a shop or a note: the category and tags it was filed under last time and

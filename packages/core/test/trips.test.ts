@@ -29,6 +29,37 @@ describe("travel mode", () => {
     expect(activeBudgets(db, "2026-10-01", null)).toHaveLength(0);
   });
 
+  test("what a trip paid for is the trip's, not the month budgets'", () => {
+    const { db, pln, food } = seed();
+    createBudget(db, { currency: "PLN", amount_minor: 300000, starts: "2026-09-01" });
+    createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_ids: JSON.stringify([food.id]) });
+    const { tag } = startTrip(db, { name: "Rome", currency: "PLN", amount_minor: 500000, ends: "2026-09-14", today: "2026-09-08" });
+    const other = createTag(db, { name: "work" });
+    createTransaction(db, { account_id: pln.id, date: "2026-09-09T12:00:00+02:00", amount_minor: -4000, category_id: food.id, tag_ids: JSON.stringify([tag.id]) });
+    createTransaction(db, { account_id: pln.id, date: "2026-09-10T12:00:00+02:00", amount_minor: -1500, category_id: food.id, tag_ids: JSON.stringify([other.id]) });
+    createBudget(db, { currency: "PLN", amount_minor: 20000, starts: "2026-09-01", tag_id: other.id });
+    const rows = budgetRows(db, { start: "2026-09-01", end: "2026-10-01", budgetAccount: null });
+    // Overall and Food see only the lunch at home; the tag budget sees its own row, not the trip's.
+    expect(rows.map((r) => r.spent_minor)).toEqual([1500, 1500, 1500]);
+    // A budget on the trip's own tag still counts it.
+    createBudget(db, { currency: "PLN", amount_minor: 10000, starts: "2026-09-01", tag_id: tag.id });
+    expect(budgetRows(db, { start: "2026-09-01", end: "2026-10-01", budgetAccount: null }).find((r) => r.budget.tag_id === tag.id)?.spent_minor).toBe(4000);
+  });
+
+  test("a recurring payment is never the trip's, even carrying its tag", () => {
+    const { db, pln, food } = seed();
+    createBudget(db, { currency: "PLN", amount_minor: 300000, starts: "2026-09-01" });
+    const { budget, tag } = startTrip(db, { name: "Rome", currency: "PLN", amount_minor: 500000, ends: "2026-09-14", today: "2026-09-08" });
+    createTransaction(db, { account_id: pln.id, date: "2026-09-09T12:00:00+02:00", amount_minor: -4000, category_id: food.id, tag_ids: JSON.stringify([tag.id]) });
+    const sub = createTransaction(db, { account_id: pln.id, date: "2026-09-10T12:00:00+02:00", amount_minor: -2999, tag_ids: JSON.stringify([tag.id]), recurring_id: "rule-1" });
+    expect(tripStats(db, budget, { today: "2026-09-10" }).spent_minor).toBe(4000);
+    // …so it stays with the month instead of falling between the two.
+    expect(budgetRows(db, { start: "2026-09-01", end: "2026-10-01", budgetAccount: null })[0]!.spent_minor).toBe(2999);
+    // And adding earlier purchases to the trip skips them.
+    const rent = createTransaction(db, { account_id: pln.id, date: "2026-09-01T09:00:00+02:00", amount_minor: -150000, recurring_id: "rule-2" });
+    expect(tagTransactions(db, tag.id, [sub.id, rent.id])).toBe(0);
+  });
+
   test("an existing tag with the same name is reused, case-insensitively", () => {
     const { db } = seed();
     const old = createTag(db, { name: "rome" });

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { folderIds, listRows, type Category } from "@kopiyka/core";
+import { archivedCategoryIds, folderIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon } from "@/components/ui";
@@ -39,6 +39,10 @@ export default function PickCategory() {
     const all = listRows(db, "categories", "deleted=0", [], "sort, name");
     const byId = new Map(all.map((c) => [c.id, c]));
     const folders = folderIds(all);
+    // Retired categories, and everything inside a retired folder, are not offered — but the one this
+    // row already carries still is (the `c.id === selected` arm below), or the sheet would claim a
+    // transaction has no category at all.
+    const retired = archivedCategoryIds(all);
     const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
     const usage = new Map(db.all<{ category_id: string; n: number }>(`SELECT category_id, COUNT(*) AS n FROM transactions WHERE deleted=0 AND category_id IS NOT NULL AND date>=? GROUP BY category_id`, [since]).map((r) => [r.category_id, r.n]));
     const wanted = !kind || kind === "expense" ? "expense" : "income";
@@ -46,7 +50,7 @@ export default function PickCategory() {
     // older entry may still point at a folder, and hiding it would make the sheet claim the
     // transaction has no category at all.
     const list: Pickable[] = all
-      .filter((c) => c.id === selected || ((allowFolders || !folders.has(c.id)) && (c.kind === wanted || (c.parent_id && byId.get(c.parent_id)?.kind === wanted))))
+      .filter((c) => c.id === selected || (!retired.has(c.id) && (allowFolders || !folders.has(c.id)) && (c.kind === wanted || (c.parent_id && byId.get(c.parent_id)?.kind === wanted))))
       .map((c) => ({ ...c, folder: c.parent_id ? byId.get(c.parent_id) ?? null : null, uses: usage.get(c.id) ?? 0, isFolder: folders.has(c.id) }));
 
     const out: Item[] = [];

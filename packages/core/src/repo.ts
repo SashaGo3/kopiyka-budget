@@ -9,13 +9,13 @@ import { SYNCED_TABLES } from "./models";
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor"],
-  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description"],
-  tags: ["name", "color", "category_ids"],
+  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance"],
+  tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
-    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source"],
+    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
-    "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day"],
-  budgets: ["category_id", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended"],
+    "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee"],
+  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned"],
   insights: ["kind", "params", "sort"],
   debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
 };
@@ -98,30 +98,69 @@ export function createAccount(db: SqlDriver, a: Partial<Account> & Pick<Account,
 }
 
 export function createCategory(db: SqlDriver, c: Partial<Category> & Pick<Category, "name">): Category {
-  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, ...c } as Category);
+  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, ...c } as Category);
 }
 
 export function createTag(db: SqlDriver, t: Partial<Tag> & Pick<Tag, "name">): Tag {
-  return save(db, "tags", { color: null, category_ids: "[]", ...t } as Tag);
+  return save(db, "tags", { color: null, category_ids: "[]", archived: 0, ...t } as Tag);
 }
 
 export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<Transaction, "account_id" | "date" | "amount_minor">): Transaction {
   return save(db, "transactions", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", pending: 0, transfer_id: null,
     entered_amount_minor: null, entered_currency: null, exchange_rate: null, recurring_id: null, lat: null, lon: null, place: null, photo: null,
-    source: null, ...t,
+    source: null, refunded_minor: 0, ...t,
   } as Transaction);
+}
+
+/**
+ * Does a live transaction still point at this photo file? A split gives every part the same photo
+ * — one receipt, photographed once — so the file outlives any single row and may only be deleted
+ * when the last row referencing it goes (`except` is the row being deleted or cleared right now).
+ */
+export function photoInUse(db: SqlDriver, name: string, except?: string): boolean {
+  const row = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM transactions WHERE photo=? AND deleted=0 AND id<>?`, [name, except ?? ""]);
+  return !!row?.n;
 }
 
 export function createRecurring(db: SqlDriver, r: Partial<RecurringRule> & Pick<RecurringRule, "account_id" | "amount_minor" | "frequency" | "start_date">): RecurringRule {
   return save(db, "recurring_rules", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", interval: 1, end_date: null,
-    next_date: r.start_date, notify: 1, notify_days_before: 1, auto_post: 0, active: 1, time_of_day: "09:00", ...r,
+    next_date: r.start_date, notify: 1, notify_days_before: 1, auto_post: 0, active: 1, time_of_day: "09:00", wait_days: null, match_payee: null, ...r,
   } as RecurringRule);
 }
 
 export function createBudget(db: SqlDriver, b: Partial<Budget> & Pick<Budget, "currency" | "amount_minor" | "starts">): Budget {
-  return save(db, "budgets", { category_id: null, tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, ...b } as Budget);
+  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, name: null, sort: 0, in_planned: 1, ...b } as Budget));
+}
+
+/**
+ * The categories (or folders) a budget counts; empty means everything. The set lives in
+ * `category_ids`, but a budget written before a budget could have more than one — or restored from
+ * a backup of that time — carries its single category in `category_id` instead, so both are read.
+ */
+export function budgetCategoryIds(b: { category_id: string | null; category_ids?: string | null }): string[] {
+  const ids = jsonIds(b.category_ids ?? null);
+  return ids.length ? ids : b.category_id ? [b.category_id] : [];
+}
+
+/** Keeps `category_id` in step with the set, so one budget never says two different things. Call before every save. */
+export function scopedBudget<T extends { category_id: string | null; category_ids?: string | null }>(b: T): T {
+  const ids = budgetCategoryIds(b);
+  return { ...b, category_ids: JSON.stringify(ids), category_id: ids[0] ?? null };
+}
+
+/**
+ * Does spending in category `cid` count towards a budget scoped to `ids`? An empty scope counts
+ * everything; a folder in the scope counts every category inside it (DATA.md rule 5's deliberate
+ * exception), and spending with no category at all counts only for an overall budget or one that
+ * asked for "none".
+ */
+export function inBudgetScope(ids: string[], cats: Map<string, { parent_id: string | null }>, cid: string | null): boolean {
+  if (!ids.length) return true;
+  if (cid === null) return ids.includes("none");   // the picker's "Uncategorized", as in lib/filters
+  return ids.includes(cid) || ids.includes(cats.get(cid)?.parent_id ?? "");
 }
 
 export function createInsight(db: SqlDriver, i: Partial<Insight> & Pick<Insight, "kind">): Insight {
@@ -190,17 +229,49 @@ export function folderIds(cats: { id: string; parent_id: string | null }[]): Set
   return new Set(cats.flatMap((c) => (c.parent_id ? [c.parent_id] : [])));
 }
 
+/**
+ * Which of these categories may no longer be filed into: the archived ones, and everything inside an
+ * archived folder. Archiving a folder retires what is in it — a category you cannot reach through
+ * the list is not one you can pick — so the two are one question and every caller asks it this way
+ * rather than testing `archived` and forgetting the folder.
+ *
+ * Everything already filed under them stays exactly as it is: this answers "what may I choose now",
+ * never "what counts".
+ */
+export function archivedCategoryIds(cats: { id: string; parent_id: string | null; archived: 0 | 1 }[]): Set<string> {
+  const out = new Set(cats.filter((c) => c.archived).map((c) => c.id));
+  // One pass down is enough today (a folder holds categories, not folders); the loop costs nothing
+  // and means a deeper tree would not quietly leak a pickable category.
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const c of cats) if (c.parent_id && out.has(c.parent_id) && !out.has(c.id)) { out.add(c.id); changed = true; }
+  }
+  return out;
+}
+
+/** The categories that may be filed into right now: live, not archived, not inside an archived folder. */
+export function pickableCategories<T extends { id: string; parent_id: string | null; archived: 0 | 1 }>(cats: T[]): T[] {
+  const gone = archivedCategoryIds(cats);
+  return cats.filter((c) => !gone.has(c.id));
+}
+
 export interface CategorySpend { category_id: string | null; currency: string; spent_minor: number }
 
-/** Spend per category per currency between two ISO dates (inclusive start, exclusive end). Transfers excluded; optionally limited to some accounts. */
-export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, accountIds?: string[]): CategorySpend[] {
+/**
+ * Spend per category per currency between two ISO dates (inclusive start, exclusive end). Transfers
+ * excluded; optionally limited to some accounts, and optionally leaving out whatever carries one of
+ * `exceptTags` — the trip tags, when the question is what the ordinary month cost (trips.ts).
+ */
+export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, accountIds?: string[], o: { exceptTags?: string[] } = {}): CategorySpend[] {
   const scope = accountIds?.length ? ` AND t.account_id IN (${accountIds.map(() => "?").join(",")})` : "";
+  // A recurring payment carrying a trip tag is still the month's: the trip never counts it (`tripStats`).
+  const except = (o.exceptTags ?? []).map(() => " AND (t.recurring_id IS NOT NULL OR t.tag_ids NOT LIKE ?)").join("");
   return db.all<Row>(
     `SELECT t.category_id, a.currency, SUM(t.amount_minor) AS spent_minor
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}${except}
      GROUP BY t.category_id, a.currency`,
-    [fromIso, toIso, ...(accountIds?.length ? accountIds : [])],
+    [fromIso, toIso, ...(accountIds?.length ? accountIds : []), ...(o.exceptTags ?? []).map((x) => `%"${x}"%`)],
   ) as unknown as CategorySpend[];
 }
 
@@ -227,10 +298,14 @@ export interface TagSpend { category_id: string | null; currency: string; spent_
 /**
  * Expenses carrying a tag, per category and currency. Transfers excluded; optionally limited to
  * some accounts and to a date window (inclusive start, exclusive end). Without dates: all time.
+ * `exceptTags` leaves out rows that also carry one of those (never the asked-about tag itself), and
+ * `oneOff` leaves out what a recurring rule posted or claimed — both for trips (trips.ts).
  */
-export function tagSpend(db: SqlDriver, tagId: string, o: { fromIso?: string; toIso?: string; accountIds?: string[] } = {}): TagSpend[] {
+export function tagSpend(db: SqlDriver, tagId: string, o: { fromIso?: string; toIso?: string; accountIds?: string[]; exceptTags?: string[]; oneOff?: boolean } = {}): TagSpend[] {
   const conds = ["t.deleted=0", "t.transfer_id IS NULL", "t.amount_minor<0", "t.tag_ids LIKE ?"];
   const params: SqlParam[] = [`%"${tagId}"%`];
+  for (const x of o.exceptTags ?? []) { if (x === tagId) continue; conds.push("(t.recurring_id IS NOT NULL OR t.tag_ids NOT LIKE ?)"); params.push(`%"${x}"%`); }
+  if (o.oneOff) conds.push("t.recurring_id IS NULL");
   if (o.fromIso) { conds.push("t.date>=?"); params.push(o.fromIso); }
   if (o.toIso) { conds.push("t.date<?"); params.push(o.toIso); }
   if (o.accountIds?.length) { conds.push(`t.account_id IN (${o.accountIds.map(() => "?").join(",")})`); params.push(...o.accountIds); }
@@ -261,7 +336,7 @@ export function jsonIds(raw: string | null | undefined): string[] {
  * category or its folder. Tags for other categories are left out. With no category, every tag.
  */
 export function tagsForCategory(db: SqlDriver, categoryId: string | null): Tag[] {
-  const tags = listRows(db, "tags", "deleted=0", [], "name");
+  const tags = listRows(db, "tags", "deleted=0 AND archived=0", [], "name");
   if (!categoryId) return tags;
   const cat = getRow(db, "categories", categoryId);
   const scope = new Set([categoryId, cat?.parent_id ?? ""]);
@@ -297,7 +372,77 @@ export function setHome(db: SqlDriver, home: { lat: number; lon: number; place: 
 /** No category is suggested this close to home (anything gets bought there). */
 export const HOME_RADIUS_M = 50;
 
-export function suggestCategoryNear(db: SqlDriver, lat: number, lon: number, radiusM = 150): PlaceSuggestion | null {
+/**
+ * How close counts as "here" when there is only a coordinate to go on.
+ *
+ * It used to be 150 m, which on a high street is four other shops and a petrol station: the
+ * suggestion was as likely to be the neighbour's category as this one's. 80 m is roughly a phone
+ * fix's own error, so it means "this building, give or take" — and when the place has a name, the
+ * name is matched first and the radius never comes into it.
+ */
+export const NEAR_RADIUS_M = 80;
+
+/**
+ * How far away a row with the same place name may be and still be believed. Names repeat — every
+ * town has a Main Street 5, and half of Poland has a Żabka — so the name alone would hand a trip
+ * abroad the categories of home. Two kilometres is "the same shop, however badly the fix landed",
+ * not "the same chain".
+ */
+export const SAME_PLACE_RADIUS_M = 2000;
+
+/** A place name reduced to what should count as the same place: case, accents and punctuation off. */
+export function placeKey(place: string): string {
+  return place.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\u0142/g, "l")
+    .toLowerCase().replace(/[^a-z0-9\u0400-\u04ff]+/g, " ").trim();
+}
+
+/**
+ * The category to offer for where you are standing.
+ *
+ * Two questions, asked in that order. **Have I filed anything at this place before** — matched on
+ * the name the geocoder gives it, which is the shop's own name when it has one, so "Biedronka" is
+ * the same Biedronka however the fix wandered. Only then **what do I usually file around here**,
+ * the old coordinate search, which is all there is offline, on a row logged before place names
+ * were kept, or in the middle of a market with no name to match.
+ *
+ * Ties go to the most recent: the rows arrive newest first and the count is a stable maximum, so
+ * "the one I have used most here, and of those the one I used last" falls out without a second sort.
+ */
+export function suggestCategoryAt(db: SqlDriver, at: { lat: number; lon: number; place?: string | null }, radiusM = NEAR_RADIUS_M): (PlaceSuggestion & { by: "place" | "near" }) | null {
+  const home = getHome(db);
+  if (home && distanceMeters(at.lat, at.lon, home.lat, home.lon) <= HOME_RADIUS_M) return null;
+  const key = at.place ? placeKey(at.place) : "";
+  if (key) {
+    const named = pickNearby(db, at.lat, at.lon, SAME_PLACE_RADIUS_M, (r) => !!r.place && placeKey(r.place) === key);
+    if (named) return { ...named, by: "place" };
+  }
+  const near = pickNearby(db, at.lat, at.lon, radiusM, () => true);
+  return near ? { ...near, by: "near" } : null;
+}
+
+/**
+ * Rows within `radiusM` that `keep` accepts, reduced to the most-used category. An archived category
+ * is skipped rather than being the answer: it is where this shop *used* to be filed, and suggesting
+ * it would put a new entry somewhere the picker will not even offer.
+ */
+function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, keep: (r: { place: string | null }) => boolean): PlaceSuggestion | null {
+  const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
+  const dLat = radiusM / 111_000, dLon = radiusM / (111_000 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const rows = db.all<{ category_id: string; lat: number; lon: number; place: string | null }>(
+    `SELECT category_id, lat, lon, place FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
+     AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? ORDER BY date DESC LIMIT 200`,
+    [lat - dLat, lat + dLat, lon - dLon, lon + dLon]);
+  const counts = new Map<string, PlaceSuggestion>();
+  for (const r of rows) {
+    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r) || gone.has(r.category_id)) continue;
+    const e = counts.get(r.category_id) ?? { category_id: r.category_id, count: 0, place: null };
+    e.count++; e.place ??= r.place; counts.set(r.category_id, e);
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count)[0] ?? null;
+}
+
+/** The coordinate half of `suggestCategoryAt`, kept for the callers that have no name to offer. */
+export function suggestCategoryNear(db: SqlDriver, lat: number, lon: number, radiusM = NEAR_RADIUS_M): PlaceSuggestion | null {
   // At home anything gets bought, so no category is suggested there (meta `home_lat`/`home_lon`, set in Settings).
   const home = getHome(db);
   if (home && distanceMeters(lat, lon, home.lat, home.lon) <= HOME_RADIUS_M) return null;
@@ -313,6 +458,79 @@ export function suggestCategoryNear(db: SqlDriver, lat: number, lon: number, rad
     e.count++; e.place ??= r.place; counts.set(r.category_id, e);
   }
   return [...counts.values()].sort((a, b) => b.count - a.count)[0] ?? null;
+}
+
+/**
+ * Turn a category into a tag — the mirror of `convertTagToCategory`, for a category that turned out
+ * to be a property of a purchase rather than a kind of it ("Lidl" under Food, not a category of its
+ * own).
+ *
+ * Every transaction and rule filed under it gets the new tag and is re-filed under `moveTo` — the
+ * parent folder, usually, which stops being a folder and becomes an ordinary category as soon as
+ * its last child leaves (rule 5) — or under nothing, if that is the answer given. The category is
+ * then deleted, and every id pointing at it is repaired in the same transaction:
+ *
+ * * a **budget** scoped to it alone becomes a budget on the new tag, which is the same intent
+ *   expressed the only other way the schema has. It must not simply lose the id: an empty scope
+ *   means *everything* (rule 5), so a 300 zł grocery budget would silently become a 300 zł budget
+ *   for the whole month. One scoped to several categories just drops this one.
+ * * an **insight** narrows the same way, and one left with nothing to point at is deleted rather
+ *   than widened to everything for the same reason.
+ * * a **tag** offered only for this category follows the transactions to `moveTo`, or — with
+ *   nowhere to follow to — loses the restriction and is offered everywhere, which is the only
+ *   remaining meaning of an empty list.
+ *
+ * A folder is refused: converting it would leave its categories parentless, and the caller is
+ * expected to say so rather than have the shape of the tree changed behind the question.
+ */
+export function convertCategoryToTag(db: SqlDriver, categoryId: string, o: { moveTo: string | null }): Tag {
+  const cat = getRow(db, "categories", categoryId);
+  if (!cat) throw new Error("Category not found");
+  if (folderIds(listRows(db, "categories", "deleted=0")).has(categoryId)) throw new Error("A folder cannot become a tag while it has categories inside it");
+  if (o.moveTo === categoryId) throw new Error("A category cannot be moved into itself");
+  return db.transaction(() => {
+    const tag = createTag(db, { name: cat.name, color: cat.color, category_ids: o.moveTo ? JSON.stringify([o.moveTo]) : "[]" });
+    const withTag = (ids: string[]) => JSON.stringify(ids.includes(tag.id) ? ids : [...ids, tag.id]);
+    for (const t of listRows(db, "transactions", "deleted=0 AND category_id=?", [categoryId])) {
+      save(db, "transactions", { ...t, category_id: o.moveTo, tag_ids: withTag(tagIdsOf(t)) });
+    }
+    for (const r of listRows(db, "recurring_rules", "deleted=0 AND category_id=?", [categoryId])) {
+      save(db, "recurring_rules", { ...r, category_id: o.moveTo, tag_ids: withTag(jsonIds(r.tag_ids)) });
+    }
+    for (const b of listRows(db, "budgets", "deleted=0")) {
+      const ids = budgetCategoryIds(b);
+      if (!ids.includes(categoryId)) continue;
+      const rest = ids.filter((id) => id !== categoryId);
+      // Alone in its scope: the budget was about this spending, and the tag is now what carries it.
+      if (!rest.length) save(db, "budgets", scopedBudget({ ...b, category_ids: "[]", category_id: null, tag_id: b.tag_id ?? tag.id }));
+      else save(db, "budgets", scopedBudget({ ...b, category_ids: JSON.stringify(rest) }));
+    }
+    for (const i of listRows(db, "insights", "deleted=0")) {
+      const params = parseParams(i.params);
+      const ids = Array.isArray(params.category_ids) ? (params.category_ids as string[]) : [];
+      if (!ids.includes(categoryId)) continue;
+      const rest = ids.filter((id) => id !== categoryId);
+      if (rest.length) save(db, "insights", { ...i, params: JSON.stringify({ ...params, category_ids: rest }) });
+      else remove(db, "insights", i.id);
+    }
+    for (const t of listRows(db, "tags", "deleted=0")) {
+      const ids = jsonIds(t.category_ids);
+      if (!ids.includes(categoryId)) continue;
+      const rest = ids.filter((id) => id !== categoryId);
+      const moved = o.moveTo && !rest.includes(o.moveTo) ? [...rest, o.moveTo] : rest;
+      save(db, "tags", { ...t, category_ids: JSON.stringify(moved) });
+    }
+    remove(db, "categories", categoryId);
+    return tag;
+  });
+}
+
+/** An insight's params, or an empty object when the row holds something unreadable. */
+function parseParams(params: string): Record<string, unknown> {
+  try {
+    const p: unknown = JSON.parse(params);
+    return p && typeof p === "object" ? (p as Record<string, unknown>) : {};
+  } catch { return {}; }
 }
 
 /**

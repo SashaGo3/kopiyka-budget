@@ -24,6 +24,15 @@ export function listTrips(db: SqlDriver): Budget[] {
   return listRows(db, "budgets", TRIP_WHERE, [], "starts DESC, rowid DESC");
 }
 
+/**
+ * Every tag a trip was ever run on. What carries one of these is the trip's money, not the month's:
+ * the ordinary budgets leave it out (`budgetRows`), and the Spending list shows it as a group of its
+ * own, so a week away does not read as a month of overspending on food and taxis.
+ */
+export function tripTagIds(db: SqlDriver): string[] {
+  return db.all<{ tag_id: string }>(`SELECT DISTINCT tag_id FROM budgets WHERE ${TRIP_WHERE}`).map((r) => r.tag_id);
+}
+
 /** Id of the tag new expenses should carry while travel mode is on, else null. Cheap: one indexed-size query. */
 export function activeTripTagId(db: SqlDriver): string | null {
   return activeTrip(db)?.tag_id ?? null;
@@ -51,7 +60,7 @@ export interface StartTrip {
  * create the one-off budget. Fails when a trip is already running.
  */
 export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: Tag } {
-  if (activeTrip(db)) throw new Error("A trip is already running");
+  if (activeTrip(db)) throw new Error("Travel mode is already on");
   const name = p.name.trim();
   if (!name) throw new Error("Name required");
   return db.transaction(() => {
@@ -65,17 +74,17 @@ export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: T
 /** Turn travel mode off: the trip keeps its tag and budget as history. */
 export function endTrip(db: SqlDriver, budgetId: string, day = todayLocalDay()): Budget {
   const b = getRow(db, "budgets", budgetId);
-  if (!b) throw new Error("Trip not found");
+  if (!b) throw new Error("Travel not found");
   return save(db, "budgets", { ...b, ended: day < b.starts ? b.starts : day });
 }
 
-/** Tag some existing transactions with the trip tag (flights, hotels booked before departure). Transfers are skipped. */
+/** Tag some existing transactions with the trip tag (flights, hotels booked before departure). Transfers and recurring payments are skipped. */
 export function tagTransactions(db: SqlDriver, tagId: string, txIds: string[]): number {
   let n = 0;
   db.transaction(() => {
     for (const id of txIds) {
       const t = getRow(db, "transactions", id);
-      if (!t || t.deleted || t.transfer_id) continue;
+      if (!t || t.deleted || t.transfer_id || t.recurring_id) continue;
       const ids = tagIdsOf(t);
       if (ids.includes(tagId)) continue;
       save(db, "transactions", { ...t, tag_ids: JSON.stringify([...ids, tagId]) });
@@ -130,7 +139,9 @@ export function tripStats(db: SqlDriver, b: Budget, o: { today?: string; rateFor
   const byCat = new Map<string | null, number>();
   const unconverted = new Map<string, number>();
   let spent = 0;
-  for (const s of b.tag_id ? tagSpend(db, b.tag_id) : []) {
+  // Recurring payments are left out: rent and subscriptions go on at home whether or not you are
+  // away, and a charge that arrived during the trip is not something the trip bought.
+  for (const s of b.tag_id ? tagSpend(db, b.tag_id, { oneOff: true }) : []) {
     const rate = rateFor(s.currency, b.currency);
     if (rate == null) { unconverted.set(s.currency, (unconverted.get(s.currency) ?? 0) - s.spent_minor); continue; }
     const minor = -convertMinor(s.spent_minor, s.currency, b.currency, rate);
@@ -147,7 +158,7 @@ export function tripStats(db: SqlDriver, b: Budget, o: { today?: string; rateFor
   const daysLeft = active && today <= ends ? daysBetween(today, ends) + 1 : 0;
   const remaining = b.amount_minor - spent;
   return {
-    budget: b, tag, name: tag?.name ?? "Trip", currency: b.currency, limit_minor: b.amount_minor, spent_minor: spent, remaining_minor: remaining,
+    budget: b, tag, name: tag?.name ?? "Travel", currency: b.currency, limit_minor: b.amount_minor, spent_minor: spent, remaining_minor: remaining,
     unconverted: [...unconverted].map(([currency, minor]) => ({ currency, minor })),
     by_category: [...byCat].map(([category_id, spent_minor]) => ({ category_id, spent_minor })).sort((x, y) => y.spent_minor - x.spent_minor),
     day, days, days_left: daysLeft, per_day_minor: Math.round(spent / elapsed),

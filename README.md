@@ -1,7 +1,7 @@
 # Kopiyka Budget
 
-**A fast, local-first budget tracker for iPhone and Apple Watch.** Log an expense in two taps, keep
-every number on your own phone, and get budgets that start on payday instead of the 1st.
+**A fast, local-first budget tracker for iPhone, iPad and Apple Watch.** Log an expense in two taps,
+keep every number on your own device, and get budgets that start on payday instead of the 1st.
 
 Built with React Native (Expo) and a little Swift. Free, open source, no account, no server, no
 trackers.
@@ -53,7 +53,9 @@ Thank you for trying Kopiyka.
 - Apple Watch app with the same flow, today's entries, your budgets, and an "Add expense"
   complication. Ultra owners can put it on the Action button.
 - Siri and Shortcuts actions: add an expense, open the keypad, scan a receipt.
-- **Bank notifications (beta):** a Shortcuts automation hands your bank's payment notification to
+- Runs on iPad as well, one column down the middle of the window rather than a phone screen stretched
+  across it; two of your own devices meet in the iCloud backup folder and merge.
+- **Bank notifications (beta, needs iOS 27):** a Shortcuts automation hands your bank's payment notification to
   Kopiyka, which reads the amount, shop, card and time out of the text *on the device* — and, if you
   let Shortcuts pass your location, where you paid — and files the entry as pending for you to
   approve. No bank connection, no API, nothing leaves the phone.
@@ -160,7 +162,6 @@ a date). Location, camera and notifications are optional and used only on the de
 
 Planned, roughly in order:
 
-- **i18n** — the UI is English only today; Ukrainian and Polish first.
 - **A local web portal** — a small page you run on your own machine (from a backup file or the
   Mac's copy of it) to browse expenses and see a few insights on a big screen. Nothing hosted.
 - **Bug fixes** — always. Open an issue.

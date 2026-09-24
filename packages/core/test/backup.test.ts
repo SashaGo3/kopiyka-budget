@@ -13,9 +13,10 @@ describe("backup", () => {
   // a phone comes back from a backup with its settings quietly reset.
   test("carries every preference the app stores, and no identity of the device it came from", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
-      "backup_per_day", "base_currency", "budget_scope", "current_account",
+      "backup_keep_days", "base_currency", "budget_scope", "budgets_sections", "current_account",
       "hide_income", "home_lat", "home_lon", "home_place", "location_enabled",
-      "period_start_day", "recurring_notify_days_before", "show_balance",
+      "period_start_day", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
+      "shortcut_notify", "show_balance",
     ]);
     // These describe the install, not the data, and must never travel with a backup.
     for (const k of ["device_id", "last_pulled_seq", "onboarded"]) expect(BACKUP_META_KEYS as readonly string[]).not.toContain(k);
@@ -95,13 +96,13 @@ describe("backup", () => {
     setHome(a, { lat: 52.23, lon: 21.01, place: "Home" });
     setMeta(a, "hide_income", "1");
     setMeta(a, "show_balance", "1");
-    setMeta(a, "backup_per_day", "3");
+    setMeta(a, "backup_keep_days", "7");
     const b = fresh();
     importBackup(b, exportBackupJson(a));
     expect(getHome(b)).toEqual({ lat: 52.23, lon: 21.01, place: "Home" });
     expect(getMeta(b, "hide_income")).toBe("1");
     expect(getMeta(b, "show_balance")).toBe("1");
-    expect(getMeta(b, "backup_per_day")).toBe("3");
+    expect(getMeta(b, "backup_keep_days")).toBe("7");
   });
 
   test("round-trips every table, ids and settings", () => {
@@ -227,8 +228,10 @@ describe("tags per category and place suggestions", () => {
     setHome(db, { lat: 52.2297, lon: 21.0122, place: "Home" });
     expect(getHome(db)).toEqual({ lat: 52.2297, lon: 21.0122, place: "Home" });
     expect(suggestCategoryNear(db, 52.2298, 21.0123)).toBeNull();
-    // 50 m is the edge: ~120 m away the suggestion is back even with home set.
-    expect(suggestCategoryNear(db, 52.2308, 21.0123)?.category_id).toBe(coffee.id);
+    // 50 m is the edge: with home ~66 m up the road, standing at the cafe is out of the home
+    // circle and still well inside NEAR_RADIUS_M of the rows, so the suggestion is back.
+    setHome(db, { lat: 52.2303, lon: 21.0122, place: "Home" });
+    expect(suggestCategoryNear(db, 52.2297, 21.0122)?.category_id).toBe(coffee.id);
     setHome(db, null);
     expect(getHome(db)).toBeNull();
     expect(suggestCategoryNear(db, 52.2298, 21.0123)?.category_id).toBe(coffee.id);

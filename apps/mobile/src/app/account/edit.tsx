@@ -10,6 +10,7 @@ import { Chip, SheetFrame, Subtle, Title, ChipRow, DeleteRow } from "@/component
 import { C, S } from "@/constants/theme";
 import { currencyName } from "@/lib/currencies";
 import { getCurrentAccount, setCurrentAccount } from "@/lib/settings";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 const TYPES: { v: AccountType; l: string }[] = [{ v: "bank", l: "Bank" }, { v: "cash", l: "Cash" }, { v: "card", l: "Card" }, { v: "savings", l: "Savings" }, { v: "investment", l: "Investment" }, { v: "other", l: "Other" }];
 
@@ -36,6 +37,9 @@ export default function AccountEdit() {
   usePickResult<string>(keys.group, useCallback((v: string) => setGroup(v), []));
   const [inNet, setInNet] = useState(existing ? existing.include_in_net_worth === 1 : true);
   const [current, setCurrent] = useState(!!existing && getCurrentAccount() === existing.id);
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([name, currency, type, group, amount, inNet, current]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
   const value = evalExpr(amount.replace(/−/g, "-")) ?? 0;
   const valid = name.trim().length > 0;
 
@@ -58,7 +62,7 @@ export default function AccountEdit() {
       return existing ? save(d, "accounts", { ...existing, ...base } as Account) : createAccount(d, base);
     });
     if (current) setCurrentAccount(saved.id); else if (getCurrentAccount() === saved.id) setCurrentAccount("");
-    router.back();
+    leave();
   };
   // Accounts are archived, not deleted: the transactions stay, the account drops out of pickers,
   // Budgets and net worth and is listed as disabled under Accounts. Deleting is only offered while empty.
@@ -67,7 +71,7 @@ export default function AccountEdit() {
     if (!existing) return;
     mutate((d) => save(d, "accounts", { ...existing, archived: on ? 1 : 0 } as Account));
     if (on && getCurrentAccount() === existing.id) setCurrentAccount("");
-    router.back();
+    leave();
   };
   const archive = () => existing && Alert.alert("Archive account?", `${txCount} transaction${txCount === 1 ? "" : "s"} stay where they are. The account is hidden from logging, Budgets and net worth and shown as disabled under Accounts. You can unarchive it any time.`, [
     { text: "Cancel", style: "cancel" },
@@ -75,7 +79,7 @@ export default function AccountEdit() {
   ]);
   const del = () => existing && Alert.alert("Delete account?", "It has no transactions, so nothing else is removed.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "accounts", existing.id)); router.dismissAll(); } },
+    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "accounts", existing.id)); exit(() => router.dismissAll()); } },
   ]);
   const pickName = () => router.push({ pathname: "/pick/text", params: { key: keys.name, title: "Account name", value: name } });
   const shown = `${amount || "0"} ${currency}`;

@@ -7,14 +7,16 @@
  */
 import { fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
 import { db } from "@/db";
-import { getCurrentAccount, getLocationEnabled } from "./settings";
+import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
 import type { WidgetSnapshot } from "./widget";
 
 export interface WatchCategory {
   id: string; name: string; parent_id: string | null; parent_name: string | null; kind: string;
   icon: string | null; color: string | null; uses: number; description: string | null;
+  /** Retired in the app: still named on the history rows that carry it, never offered for a new one. */
+  archived: boolean;
 }
-export interface WatchTag { id: string; name: string; color: string | null; category_ids: string[]; uses: number }
+export interface WatchTag { id: string; name: string; color: string | null; category_ids: string[]; uses: number; archived: boolean }
 export interface WatchTx {
   id: string; date: string; title: string; sub: string; amount: number; currency: string;
   account_id: string; category_id: string | null; tag_ids: string[]; pending: boolean; transfer: boolean;
@@ -31,6 +33,8 @@ export interface WatchState {
   history: WatchTx[];
   snapshot: WidgetSnapshot;
   location_enabled: boolean;
+  /** Whether the Shortcut automation may post a notification: the intent reads it from here while JS owns the database. */
+  shortcut_notify: boolean;
   home: { lat: number; lon: number } | null;
   /** "BASE>QUOTE" -> rate, newest cached row per pair, both directions as stored. */
   rates: Record<string, number>;
@@ -41,22 +45,28 @@ function sinceDay(): string {
   return new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
 }
 
+/**
+ * Archived categories and tags travel with a flag rather than being left out: a history row still
+ * has to be able to print the name it was filed under. What must not happen is being *offered* one,
+ * and that is decided in one place on the other side — `KPRank.categories` / `KPRank.tags`, which
+ * every intent, the watch and the receipt reader go through.
+ */
 export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   const t0 = __DEV__ ? Date.now() : 0;
   const since = sinceDay();
 
   const categories: WatchCategory[] = db.all<{
     id: string; name: string; parent_id: string | null; parent_name: string | null; kind: string;
-    icon: string | null; color: string | null; description: string | null; uses: number;
+    icon: string | null; color: string | null; description: string | null; uses: number; archived: number;
   }>(
-    `SELECT c.id, c.name, c.parent_id, p.name AS parent_name, c.kind, c.icon, c.color, c.description,
+    `SELECT c.id, c.name, c.parent_id, p.name AS parent_name, c.kind, c.icon, c.color, c.description, c.archived,
        (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses
      FROM categories c LEFT JOIN categories p ON p.id=c.parent_id
      WHERE c.deleted=0 ORDER BY c.sort, c.name`,
     [since],
   ).map((c) => {
     const m = iconFor(c.name, { icon: c.icon, color: c.color });
-    return { id: c.id, name: c.name, parent_id: c.parent_id, parent_name: c.parent_name, kind: c.kind, icon: m.icon, color: m.color, uses: c.uses, description: c.description };
+    return { id: c.id, name: c.name, parent_id: c.parent_id, parent_name: c.parent_name, kind: c.kind, icon: m.icon, color: m.color, uses: c.uses, description: c.description, archived: !!c.archived };
   });
 
   // One pass over every tagged transaction: last-180-day usage per tag, all-time category<->tag co-occurrence.
@@ -71,9 +81,9 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
       if (r.category_id) { const byTag = (together[r.category_id] ??= {}); byTag[id] = (byTag[id] ?? 0) + 1; }
     }
   }
-  const tags: WatchTag[] = db.all<{ id: string; name: string; color: string | null; category_ids: string }>(
-    `SELECT id, name, color, category_ids FROM tags WHERE deleted=0 ORDER BY name`,
-  ).map((t) => ({ id: t.id, name: t.name, color: t.color, category_ids: jsonIds(t.category_ids), uses: tagUses.get(t.id) ?? 0 }));
+  const tags: WatchTag[] = db.all<{ id: string; name: string; color: string | null; category_ids: string; archived: number }>(
+    `SELECT id, name, color, category_ids, archived FROM tags WHERE deleted=0 ORDER BY name`,
+  ).map((t) => ({ id: t.id, name: t.name, color: t.color, category_ids: jsonIds(t.category_ids), uses: tagUses.get(t.id) ?? 0, archived: !!t.archived }));
 
   const history: WatchTx[] = db.all<{
     id: string; date: string; amount_minor: number; currency: string; account_name: string; account_id: string;
@@ -111,6 +121,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     accounts: snapshot.accounts,
     categories, tags, together, history, snapshot,
     location_enabled: getLocationEnabled(),
+    shortcut_notify: getShortcutNotify(),
     home: home ? { lat: home.lat, lon: home.lon } : null,
     rates,
   };

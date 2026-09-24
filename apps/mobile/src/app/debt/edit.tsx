@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { createDebt, getRow, remove, save, settleDebt, toMinor, fromMinor, trimNumber, DEFAULT_DEBT_NOTIFY_TIME, type Debt, type DebtDirection } from "@kopiyka/core";
@@ -10,6 +10,7 @@ import { Chip, ChipRow, DeleteRow, Segmented, SheetFrame, Subtle, Title } from "
 import { C, S } from "@/constants/theme";
 import { humanDayTime, localIso, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 const DIRECTIONS: { value: DebtDirection; label: string }[] = [
   { value: "owed_to_me", label: "They owe me" },
@@ -34,6 +35,9 @@ export default function DebtEdit() {
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [notify, setNotify] = useState(existing ? existing.notify === 1 : true);
   const [notifyTime, setNotifyTime] = useState(existing?.notify_time || DEFAULT_DEBT_NOTIFY_TIME);
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([person, direction, currency, expr, accountId, dueDate, notes, notify, notifyTime]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
   const account = useQuery((d) => (accountId ? getRow(d, "accounts", accountId) : null), [accountId]);
   const keys = useMemo(() => ({ person: newPickKey("dperson"), currency: newPickKey("dcur"), account: newPickKey("dacc"), date: newPickKey("ddate"), time: newPickKey("dtime"), notes: newPickKey("dnotes") }), []);
   // The state setters are already stable, so they are handed over as they are; wrapping them in
@@ -62,7 +66,7 @@ export default function DebtEdit() {
       if (existing) save(d, "debts", { ...existing, ...base } as Debt);
       else createDebt(d, { ...base, opened_date: todayLocal() });
     });
-    router.back();
+    leave();
   };
 
   const markPaid = () => {
@@ -70,7 +74,7 @@ export default function DebtEdit() {
     // The settling transaction gets the wall-clock time, not core's midday default: a balance only
     // counts transactions dated at or before now, so a payment recorded at breakfast would otherwise
     // read as planned and stay out of the account until noon.
-    const settle = (writeTransaction: boolean) => { mutate((d) => settleDebt(d, existing.id, { day: todayLocal(), dateIso: localIso(), writeTransaction })); router.back(); };
+    const settle = (writeTransaction: boolean) => { mutate((d) => settleDebt(d, existing.id, { day: todayLocal(), dateIso: localIso(), writeTransaction })); leave(); };
     if (existing.account_id) {
       Alert.alert("Mark as paid back?", "You can also record the transaction that moves the money.", [
         { text: "Cancel", style: "cancel" },
@@ -83,7 +87,7 @@ export default function DebtEdit() {
   // money twice — so say what is still there and let the user delete it themselves afterwards.
   const reopen = () => {
     if (!existing) return;
-    const go = () => { mutate((d) => save(d, "debts", { ...existing, settled_date: null } as Debt)); router.back(); };
+    const go = () => { mutate((d) => save(d, "debts", { ...existing, settled_date: null } as Debt)); leave(); };
     if (!existing.transaction_id) { go(); return; }
     Alert.alert("Reopen this debt?", "The transaction recorded when it was paid back stays in the account. Delete it there if the money never moved.", [
       { text: "Cancel", style: "cancel" },
@@ -92,7 +96,7 @@ export default function DebtEdit() {
   };
   const del = () => existing && Alert.alert("Delete debt?", "This cannot be undone.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "debts", existing.id)); router.back(); } },
+    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "debts", existing.id)); leave(); } },
   ]);
 
   return (

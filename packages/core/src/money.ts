@@ -52,3 +52,35 @@ export function sumInBase(totals: { currency: string; minor: number }[], base: s
   }
   return { minor: Math.round(sum), missing };
 }
+
+/**
+ * One figure per group, all of them in the same currency, for a screen that has room for a number
+ * but not for a breakdown.
+ *
+ * When everything involved is already in one currency — the usual case, and what looking at a single
+ * foreign account gives — that currency is used and nothing is converted at all. Only a genuinely
+ * mixed set falls back to `base`.
+ *
+ * The *currency* is one decision for all the groups, so income and expenses are never printed in two
+ * different currencies side by side. Whether a number was **converted** is each group's own business:
+ * zloty expenses beside dollar income are exact, and marking them approximate because something else
+ * on the screen was converted says the opposite of the truth. `converted` carries the parts that did
+ * need a rate, so a screen can explain the "≈" it is showing rather than leaving it to be wondered at.
+ */
+export function oneCurrency(
+  groups: { currency: string; minor: number }[][],
+  base: string,
+  rateFor: (from: string, to: string) => number | null,
+): { currency: string; missing: string[]; totals: { minor: number; approx: boolean; converted: { currency: string; minor: number }[] }[] } {
+  const currencies = [...new Set(groups.flat().map((g) => g.currency))];
+  const currency = currencies.length <= 1 ? currencies[0] ?? base : base;
+  const missing = new Set<string>();
+  const totals = groups.map((g) => {
+    if (currency !== base) return { minor: g.reduce((a, x) => a + x.minor, 0), approx: false, converted: [] };
+    const sum = sumInBase(g, base, rateFor);
+    for (const m of sum.missing) missing.add(m);
+    const converted = g.filter((x) => x.currency !== currency);
+    return { minor: sum.minor, approx: converted.length > 0, converted };
+  });
+  return { currency, missing: [...missing], totals };
+}
