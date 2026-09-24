@@ -4,7 +4,7 @@
 import type { SqlDriver } from "./db";
 import { addPeriod, budgetPeriod } from "./recurring";
 import { categorySpend, inBudgetScope, listRows, tagSpend } from "./repo";
-import { todayLocalDay } from "./trips";
+import { todayLocalDay, tripTagIds } from "./trips";
 
 export interface SuggestedBudget {
   /** Mean over the last `periods` complete periods, zero months included: the headline suggestion. */
@@ -44,9 +44,11 @@ export function suggestBudget(db: SqlDriver, o: { categoryIds: string[]; tagId: 
   const firstDay = db.get<{ d: string | null }>(`SELECT MIN(date) AS d FROM transactions WHERE deleted=0`)?.d?.slice(0, 10) ?? null;
   let end = budgetPeriod(o.today ?? todayLocalDay(), o.startDay).start; // start of the current (incomplete) period
   const perPeriod: number[] = [];
+  // Measured the way the budget will be: without what trips paid for (`budgetRows`).
+  const trips = tripTagIds(db);
   while (perPeriod.length < MAX_PERIODS) {
     const { start } = budgetPeriod(addPeriod(end, "daily", -1), o.startDay);
-    const pool = o.tagId ? tagSpend(db, o.tagId, { fromIso: start, toIso: end, accountIds: o.accountIds }) : categorySpend(db, start, end, o.accountIds);
+    const pool = o.tagId ? tagSpend(db, o.tagId, { fromIso: start, toIso: end, accountIds: o.accountIds, exceptTags: trips }) : categorySpend(db, start, end, o.accountIds, { exceptTags: trips });
     const scoped = pool.filter((s) => s.currency === o.currency && inScope(s.category_id));
     perPeriod.push(-scoped.reduce((a, s) => a + s.spent_minor, 0));
     end = start;

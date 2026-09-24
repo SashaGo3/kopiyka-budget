@@ -94,6 +94,15 @@ a row read by an older build is a narrower budget than intended rather than an "
 which would have silently suppressed every other budget of that currency in `freeMoney`. Keep the two
 in step with `scopedBudget` before every save.
 
+A trip's money is the trip's. Travel mode is a one-off budget on a tag (`packages/core/src/trips.ts`),
+and whatever carries a trip tag (`tripTagIds`) is left out of every monthly budget — `budgetRows`,
+so `freeMoney` and the budget suggestion too — except a budget on that very tag; the Budgets screen's
+Spending list shows it as a group of its own instead of inside Food and Taxis. The one thing a trip
+never counts is a **recurring payment** (`recurring_id` set): rent and subscriptions go on at home, so
+`tripStats` skips them, they stay in the month's budgets even carrying the tag, earlier purchases
+cannot be added to a trip from among them, and a charge that claims a rule's occurrence
+(`claimRecurring`) drops the trip tag travel mode put on it.
+
 ## 6. Money is integers, in minor units
 
 `amount_minor` is minor units of the **account's** currency, negative for an expense. Never a float.
@@ -113,7 +122,8 @@ the same breath (on 2026-09-18 `backup_per_day` became `backup_keep_days`, and `
 the language picker — the app is English only); an old backup still carrying the key is ignored on
 import, and on 2026-09-20 `shortcut_notify` joined the list, so a restored phone keeps the answer
 the old one gave about hearing from the automation; `recurring_wait` and `recurring_wait_days`
-joined it on 2026-09-21 with rule 13. `backup.test.ts` pins the list so the next drift shows up in a
+joined it on 2026-09-21 with rule 13, and `budgets_sections` (the order of the Budgets screen's
+sections) on 2026-09-25. `backup.test.ts` pins the list so the next drift shows up in a
 diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:

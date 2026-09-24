@@ -71,9 +71,9 @@ export default function SettingsScreen() {
     if (on) { if (!trip) router.push("/travel/start"); return; }
     if (!trip || !tripStats) return;
     const s = tripStats;
-    Alert.alert(`End the trip to ${s.name}?`, `${tripLine(s)}. New expenses stop getting the “${s.name}” tag; the trip stays in Budgets as history.`, [
+    Alert.alert(`End travel mode for ${s.name}?`, `${tripLine(s)}. New expenses stop getting the “${s.name}” tag; the budget stays on Budgets as history.`, [
       { text: "Keep travelling", style: "cancel" },
-      { text: "End trip", style: "destructive", onPress: () => endTravel(trip.id) },
+      { text: "End it", style: "destructive", onPress: () => endTravel(trip.id) },
     ]);
   };
   // Permissions: iOS state is read on every focus (the user may come back from the Settings app).
@@ -153,7 +153,7 @@ export default function SettingsScreen() {
           <Row icon="repeat" iconColor="#30D158" title="Recurring" subtitle={`${counts.recurring} active`} onPress={() => router.push("/settings/recurring")} style={styles.divider} />
           <Row icon="arrow.left.arrow.right.circle" iconColor="#FF9500" title="Debts" subtitle={debtSubtitle} onPress={() => router.push("/settings/debts")} style={styles.divider} />
           <ToggleRow icon="airplane" iconColor="#0A84FF" title="Travel mode" value={!!trip} onChange={toggleTravel} style={styles.divider}
-            subtitle={tripStats ? `${tripLine(tripStats)}${tripStats.days_left === 0 && trip?.ends ? ` · planned until ${humanDayTime(trip.ends)}` : ""}` : "Tag every new expense and track a trip budget"} />
+            subtitle={tripStats ? `${tripLine(tripStats)}${tripStats.days_left === 0 && trip?.ends ? ` · planned until ${humanDayTime(trip.ends)}` : ""}` : "Tag every new expense and track a travel budget"} />
         </Card>
         <SectionHeader>Preferences</SectionHeader>
         <Card>

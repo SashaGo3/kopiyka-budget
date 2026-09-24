@@ -134,6 +134,7 @@ export default function RootLayout() {
           <Stack.Screen name="budget/planned" options={modal} />
           <Stack.Screen name="debt/edit" options={fit} />
           <Stack.Screen name="travel/start" options={fit} />
+          <Stack.Screen name="travel/dates" options={fit} />
           <Stack.Screen name="travel/backfill" options={modal} />
           <Stack.Screen name="receipt/scan" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="photo/capture" options={{ presentation: "fullScreenModal", headerShown: false }} />

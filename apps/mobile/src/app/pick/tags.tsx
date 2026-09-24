@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { createTag, getRow, jsonIds, listRows } from "@kopiyka/core";
+import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { TagPill } from "@/components/ui";
@@ -14,7 +14,8 @@ import { C, S } from "@/constants/theme";
  * meant for other categories are hidden unless already selected. Typing a new name offers to create it:
  * the new tag is assigned to the chosen category (that is what naming it here means) and pinned to the
  * top of the list, newest first — it has no usage history to rank it, and it is the one the user was
- * just looking for.
+ * just looking for. Travel tags come last, under a heading of their own: each is one journey, not a
+ * way of filing things (the running one is already ticked on a new entry, and so sits at the top).
  */
 export default function PickTags() {
   const { key, selected, category } = useLocalSearchParams<{ key: string; selected?: string; category?: string }>();
@@ -40,8 +41,9 @@ export default function PickTags() {
     const rank = (t: { id: string; category_ids: string }) => { const ids = jsonIds(t.category_ids); return ids.length && !ids.some((id) => scope.has(id)) ? 2 : ids.length || withCat.has(t.id) ? 0 : 1; };
     // Tags the transaction already has come first so the ticks are visible without scrolling.
     const initial = new Set(selected ? selected.split(",").filter(Boolean) : []);
-    return rows.map((t) => ({ ...t, rank: rank(t), together: withCat.get(t.id) ?? 0 })).filter((t) => t.rank < 2 || chosen.includes(t.id))
-      .sort((a, b) => Number(initial.has(b.id)) - Number(initial.has(a.id)) || a.rank - b.rank || b.together - a.together || (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.name.localeCompare(b.name));
+    const trips = new Set(tripTagIds(db));
+    return rows.map((t) => ({ ...t, rank: rank(t), together: withCat.get(t.id) ?? 0, travel: trips.has(t.id) && !initial.has(t.id) })).filter((t) => t.rank < 2 || chosen.includes(t.id))
+      .sort((a, b) => Number(initial.has(b.id)) - Number(initial.has(a.id)) || Number(a.travel) - Number(b.travel) || a.rank - b.rank || b.together - a.together || (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.name.localeCompare(b.name));
   }, [category, selected]);
   // Sorted after the query so the rest of the order is untouched (Array#sort is stable).
   const ordered = useMemo(() => {
@@ -79,8 +81,9 @@ export default function PickTags() {
       }
       renderItem={({ item: t, index }) => (
         <>
-          {category && index === 0 && t.rank === 0 ? <Text style={styles.section}>Used with this category</Text> : null}
-          {category && t.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>Other tags</Text> : null}
+          {category && !t.travel && index === 0 && t.rank === 0 ? <Text style={styles.section}>Used with this category</Text> : null}
+          {category && !t.travel && t.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>Other tags</Text> : null}
+          {t.travel && (index === 0 || !filtered[index - 1]!.travel) ? <Text style={styles.section}>Travel</Text> : null}
           <Pressable onPress={() => toggle(t.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={t.name} accessibilityState={{ selected: chosen.includes(t.id) }}>
             <TagPill name={t.name} color={t.color} />
             <Text style={styles.count}>{t.together ? `${t.together}×` : ""}</Text>

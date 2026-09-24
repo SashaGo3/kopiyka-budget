@@ -257,15 +257,21 @@ export function pickableCategories<T extends { id: string; parent_id: string | n
 
 export interface CategorySpend { category_id: string | null; currency: string; spent_minor: number }
 
-/** Spend per category per currency between two ISO dates (inclusive start, exclusive end). Transfers excluded; optionally limited to some accounts. */
-export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, accountIds?: string[]): CategorySpend[] {
+/**
+ * Spend per category per currency between two ISO dates (inclusive start, exclusive end). Transfers
+ * excluded; optionally limited to some accounts, and optionally leaving out whatever carries one of
+ * `exceptTags` — the trip tags, when the question is what the ordinary month cost (trips.ts).
+ */
+export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, accountIds?: string[], o: { exceptTags?: string[] } = {}): CategorySpend[] {
   const scope = accountIds?.length ? ` AND t.account_id IN (${accountIds.map(() => "?").join(",")})` : "";
+  // A recurring payment carrying a trip tag is still the month's: the trip never counts it (`tripStats`).
+  const except = (o.exceptTags ?? []).map(() => " AND (t.recurring_id IS NOT NULL OR t.tag_ids NOT LIKE ?)").join("");
   return db.all<Row>(
     `SELECT t.category_id, a.currency, SUM(t.amount_minor) AS spent_minor
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}${except}
      GROUP BY t.category_id, a.currency`,
-    [fromIso, toIso, ...(accountIds?.length ? accountIds : [])],
+    [fromIso, toIso, ...(accountIds?.length ? accountIds : []), ...(o.exceptTags ?? []).map((x) => `%"${x}"%`)],
   ) as unknown as CategorySpend[];
 }
 
@@ -292,10 +298,14 @@ export interface TagSpend { category_id: string | null; currency: string; spent_
 /**
  * Expenses carrying a tag, per category and currency. Transfers excluded; optionally limited to
  * some accounts and to a date window (inclusive start, exclusive end). Without dates: all time.
+ * `exceptTags` leaves out rows that also carry one of those (never the asked-about tag itself), and
+ * `oneOff` leaves out what a recurring rule posted or claimed — both for trips (trips.ts).
  */
-export function tagSpend(db: SqlDriver, tagId: string, o: { fromIso?: string; toIso?: string; accountIds?: string[] } = {}): TagSpend[] {
+export function tagSpend(db: SqlDriver, tagId: string, o: { fromIso?: string; toIso?: string; accountIds?: string[]; exceptTags?: string[]; oneOff?: boolean } = {}): TagSpend[] {
   const conds = ["t.deleted=0", "t.transfer_id IS NULL", "t.amount_minor<0", "t.tag_ids LIKE ?"];
   const params: SqlParam[] = [`%"${tagId}"%`];
+  for (const x of o.exceptTags ?? []) { if (x === tagId) continue; conds.push("(t.recurring_id IS NOT NULL OR t.tag_ids NOT LIKE ?)"); params.push(`%"${x}"%`); }
+  if (o.oneOff) conds.push("t.recurring_id IS NULL");
   if (o.fromIso) { conds.push("t.date>=?"); params.push(o.fromIso); }
   if (o.toIso) { conds.push("t.date<?"); params.push(o.toIso); }
   if (o.accountIds?.length) { conds.push(`t.account_id IN (${o.accountIds.map(() => "?").join(",")})`); params.push(...o.accountIds); }

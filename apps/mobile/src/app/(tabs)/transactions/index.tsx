@@ -3,13 +3,14 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, waitingRules, jsonIds, listRows, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, formatMinor, waitingRules, jsonIds, listRows, listTrips, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { TransactionList, sortByAmount, useTransactions } from "@/components/TransactionList";
 import { BarButton, BottomBar, LogButton, useScrollHide } from "@/components/BottomBar";
 import { PeriodPill } from "@/components/PeriodPill";
+import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
 import { Empty, Money, StatPair } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
@@ -142,6 +143,12 @@ export default function TransactionsScreen() {
   const rows = useTransactions(hideIncome ? `(${where}) AND NOT (t.transfer_id IS NULL AND t.amount_minor>0)` : where, params, 2000);
   const sorted = sort === "amount" ? sortByAmount(rows) : rows;
   const n = activeCount(filter, { accounts: scopeAccounts, period });
+  // The travel budget at the top: the trip whose tag the list is filtered on (from its card, from
+  // Budgets, or the filter sheet's Travel row), else the one running now while the list is unfiltered
+  // by tag — it is what the entries being logged count against, which is the reason to be here.
+  const trips = useQuery((d) => listTrips(d));
+  const shownTrip = filter.tags.length === 1 ? trips.find((t) => t.tag_id === filter.tags[0]) ?? null
+    : !filter.tags.length && !isSearchTab ? trips.find((t) => !t.ended) ?? null : null;
   const base = useQuery(() => getBaseCurrency());
   // Deliberately outside the filter and the period: a Shortcut automation can write a pending entry
   // into any month, and an entry nobody ever approves is exactly the one that must stay visible.
@@ -340,6 +347,7 @@ export default function TransactionsScreen() {
               <ScopePill label={scopeLabel(scope, accounts)} active={!!scope} onPress={pickScope} />
             </View>
           ) : null}
+          {shownTrip && !selecting ? <View style={styles.trip}><TripCard budget={shownTrip} /></View> : null}
           {/* Totals next — the month at a glance. Then what still needs a decision: recurring you owe, then entries to check. */}
           <StatPair stats={[
             ...(hideIncome ? [] : [{ label: "Income", ...statOf(totals.totals[0]!, "Income", "income"), color: C.green }]),
@@ -423,6 +431,7 @@ const styles = StyleSheet.create({
   selectHint: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.pill, backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, maxWidth: 320 },
   selectHintText: { color: C.secondary, fontSize: 14, flexShrink: 1 },
   pills: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs },
+  trip: { paddingTop: S.sm },
   pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: "rgba(255,149,0,0.14)" },
   due: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: "rgba(255,59,48,0.14)" },
   dueSum: { fontSize: 16, fontWeight: "700", color: C.red },

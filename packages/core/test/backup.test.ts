@@ -13,7 +13,7 @@ describe("backup", () => {
   // a phone comes back from a backup with its settings quietly reset.
   test("carries every preference the app stores, and no identity of the device it came from", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
-      "backup_keep_days", "base_currency", "budget_scope", "current_account",
+      "backup_keep_days", "base_currency", "budget_scope", "budgets_sections", "current_account",
       "hide_income", "home_lat", "home_lon", "home_place", "location_enabled",
       "period_start_day", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
       "shortcut_notify", "show_balance",

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { listRows } from "@kopiyka/core";
+import { listRows, listTrips } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { BigButton, Card, Chip, ChipRow, ModalHeader, Row, SectionHeader, Segmented } from "@/components/ui";
@@ -21,7 +21,16 @@ export default function FilterScreen() {
     categories: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c.name])),
     tags: new Map(listRows(db, "tags", "1=1").map((t) => [t.id, t.name])),
   }));
-  const keys = useMemo(() => ({ from: newPickKey("ffrom"), to: newPickKey("fto"), acc: newPickKey("facc"), cat: newPickKey("fcat"), tag: newPickKey("ftag") }), []);
+  const trips = useQuery((db) => listTrips(db));
+  const tripTags = new Set(trips.map((t) => t.tag_id));
+  const trip = trips.find((t) => f.tags.includes(t.tag_id ?? ""));
+  const keys = useMemo(() => ({ from: newPickKey("ffrom"), to: newPickKey("fto"), acc: newPickKey("facc"), cat: newPickKey("fcat"), tag: newPickKey("ftag"), trip: newPickKey("ftrip") }), []);
+  // A travel is its tag, over the whole of it: the trip's days are rarely one month, and the flights
+  // were bought weeks before, so choosing one opens the range to all time unless one was set by hand.
+  usePickResult<string>(keys.trip, (tag: string) => setF((s) => ({
+    ...s, tags: [...s.tags.filter((x) => !tripTags.has(x)), ...(tag === "any" ? [] : [tag])],
+    ...(tag !== "any" && !s.from && !s.to ? { from: ALL_TIME } : {}),
+  })));
   usePickResult<string>(keys.from, useCallback((d: string) => setF((s) => ({ ...s, from: d })), []));
   usePickResult<string>(keys.to, useCallback((d: string) => { const [y, m, dd] = d.split("-").map(Number) as [number, number, number]; const next = new Date(Date.UTC(y, m - 1, dd + 1)).toISOString().slice(0, 10); setF((s) => ({ ...s, to: next })); }, []));
   usePickResult<string[]>(keys.acc, useCallback((ids: string[]) => setF((s) => ({ ...s, accounts: ids })), []));
@@ -93,6 +102,13 @@ export default function FilterScreen() {
           <Row icon="creditcard" title="Accounts" subtitle={list(f.accounts, names.accounts, "Any account", "Account")} onPress={() => router.push({ pathname: "/pick/accounts", params: { key: keys.acc, selected: f.accounts.join(",") } })} />
           <Row icon="folder" iconColor="#FF9F0A" title="Categories" subtitle={list(f.categories, names.categories, "Any category", "Category")} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cat, selected: f.categories.join(",") } })} style={styles.divider} />
           <Row icon="number" iconColor="#5E5CE6" title="Tags" subtitle={list(f.tags, names.tags, "Any tag", "tag")} onPress={() => router.push({ pathname: "/pick/tags", params: { key: keys.tag, selected: f.tags.join(",") } })} style={styles.divider} />
+          {trips.length ? (
+            <Row icon="airplane" iconColor="#0A84FF" title="Travel" subtitle={trip ? names.tags.get(trip.tag_id ?? "") ?? "Travel" : "Any"} style={styles.divider}
+              onPress={() => router.push({ pathname: "/pick/option", params: { key: keys.trip, title: "Travel", selected: trip?.tag_id ?? "any", options: JSON.stringify([
+                { value: "any", label: "Any" },
+                ...trips.map((t) => ({ value: t.tag_id, label: names.tags.get(t.tag_id ?? "") ?? "Travel", subtitle: `${humanDayTime(t.starts, null, undefined, true)} → ${humanDayTime(t.ended ?? t.ends ?? t.starts, null, undefined, true)}${t.ended ? "" : " · now"}` })),
+              ]) } })} />
+          ) : null}
         </Card>
         <Text style={styles.hint}>A folder includes all its categories. Several accounts, categories or tags are combined with "or".</Text>
       </ScrollView>

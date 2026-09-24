@@ -69,6 +69,17 @@ export function setShowBalance(on: boolean): void { write("show_balance", on ? "
  * count towards the filter badge, and an explicit "Income" type filter still wins, so choosing
  * Income from the filter sheet never lands on a deliberately empty list.
  */
+/** The Budgets screen's sections, top to bottom. Missing or unknown entries fall back to the default order. */
+export type BudgetsSection = "budgets" | "spending" | "travel";
+export const BUDGETS_SECTIONS: BudgetsSection[] = ["budgets", "spending", "travel"];
+export function getBudgetsSections(): BudgetsSection[] {
+  let saved: unknown = [];
+  try { saved = JSON.parse(read("budgets_sections") ?? "[]"); } catch { /* the default */ }
+  const known = (Array.isArray(saved) ? saved : []).filter((x): x is BudgetsSection => BUDGETS_SECTIONS.includes(x as BudgetsSection));
+  return [...new Set([...known, ...BUDGETS_SECTIONS])];
+}
+export function setBudgetsSections(order: BudgetsSection[]): void { write("budgets_sections", JSON.stringify(order)); }
+
 export function getHideIncome(): boolean { return read("hide_income") === "1"; }
 export function setHideIncome(on: boolean): void { write("hide_income", on ? "1" : "0"); }
 

@@ -9,6 +9,7 @@ import { accountBalanceMinor, budgetCategoryIds, categorySpend, getRow, inBudget
 import { addPeriod, budgetPeriod, dueOccurrences } from "./recurring";
 import { categoryImportance } from "./importance";
 import { committedMinor } from "./commitments";
+import { tripTagIds } from "./trips";
 
 export interface UpcomingTemplate { category_id: string | null; tag_ids: string[]; notes: string | null; amount_minor: number; account_id: string }
 
@@ -110,13 +111,18 @@ export function activeBudgets(db: SqlDriver, _end: string, budgetAccount: string
 
 export interface BudgetRow { budget: Budget; spent_minor: number; children: { category_id: string | null; spent_minor: number }[] }
 
-/** Spend against each active budget; a category budget includes its subcategories, a tag budget every expense carrying the tag. */
+/**
+ * Spend against each active budget; a category budget includes its subcategories, a tag budget every
+ * expense carrying the tag. What a trip paid for (`tripTagIds`) counts against the trip and not here,
+ * so travelling does not eat the month's budgets — a budget on the trip's own tag still sees it.
+ */
 export function budgetRows(db: SqlDriver, o: { start: string; end: string; accountIds?: string[]; budgetAccount: string | null }): BudgetRow[] {
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
-  const spend = categorySpend(db, o.start, o.end, o.accountIds);
+  const trips = tripTagIds(db);
+  const spend = categorySpend(db, o.start, o.end, o.accountIds, { exceptTags: trips });
   return activeBudgets(db, o.end, o.budgetAccount).map((b) => {
     const ids = budgetCategoryIds(b);
-    const pool = b.tag_id ? tagSpend(db, b.tag_id, { fromIso: o.start, toIso: o.end, accountIds: o.accountIds }) : spend;
+    const pool = b.tag_id ? tagSpend(db, b.tag_id, { fromIso: o.start, toIso: o.end, accountIds: o.accountIds, exceptTags: trips }) : spend;
     const scoped = pool.filter((s) => s.currency === b.currency && inBudgetScope(ids, cats, s.category_id));
     return { budget: b, spent_minor: -scoped.reduce((a, s) => a + s.spent_minor, 0), children: scoped.map((s) => ({ category_id: s.category_id, spent_minor: -s.spent_minor })) };
   });

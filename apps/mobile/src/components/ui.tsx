@@ -44,12 +44,16 @@ export function accountIcon(type: string): SFSymbol {
   }
 }
 
-/** Amount pill like Budget Flow: red tint for expenses, green for income. */
-export function AmountPill({ minor, currency, neutral }: { minor: number; currency: string; neutral?: boolean }) {
+/**
+ * Amount pill like Budget Flow: red tint for expenses, green for income. `warn` draws a negative in
+ * orange instead — a budget gone over is a warning about the rest of the month, not an error.
+ */
+export function AmountPill({ minor, currency, neutral, warn }: { minor: number; currency: string; neutral?: boolean; warn?: boolean }) {
   const neg = minor < 0;
+  const negColor = warn ? C.orange : C.red;
   return (
-    <View style={[styles.pill, neutral ? styles.pillNeutral : neg ? styles.pillNeg : styles.pillPos]}>
-      <Money minor={minor} currency={currency} style={[styles.pillText, { color: neutral ? C.label : neg ? C.red : C.green }]} sign={!neutral && !neg} />
+    <View style={[styles.pill, neutral ? styles.pillNeutral : neg ? (warn ? styles.pillWarn : styles.pillNeg) : styles.pillPos]}>
+      <Money minor={minor} currency={currency} style={[styles.pillText, { color: neutral ? C.label : neg ? negColor : C.green }]} sign={!neutral && !neg} />
     </View>
   );
 }
@@ -320,6 +324,7 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, paddingHorizontal: S.md },
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   pillNeg: { backgroundColor: "rgba(255,59,48,0.14)" },
+  pillWarn: { backgroundColor: "rgba(255,149,0,0.16)" },
   pillPos: { backgroundColor: "rgba(52,199,89,0.14)" },
   pillNeutral: { backgroundColor: C.fill },
   pillText: { fontSize: 15, fontWeight: "600" },

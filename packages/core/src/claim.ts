@@ -17,7 +17,8 @@ import type { SqlDriver } from "./db";
 import type { RecurringRule, Transaction } from "./models";
 import { normTitle } from "./detect";
 import { CLAIM_LEAD_DAYS, addPeriod, advanceRule, claimDeadline, ruleWaitDays } from "./recurring";
-import { getRow, listRows, save } from "./repo";
+import { getRow, jsonIds, listRows, save } from "./repo";
+import { tripTagIds } from "./trips";
 
 export interface RecurringClaim {
   rule: RecurringRule;
@@ -107,11 +108,16 @@ export function claimRecurring(db: SqlDriver, tx: Transaction, o: ClaimOptions):
     const row = getRow(db, "transactions", tx.id);
     if (!row || row.deleted || row.recurring_id) return;
     const category_id = row.category_id ?? hit.rule.category_id;
+    // A subscription is not something the trip bought: travel mode put its tag on the charge because
+    // it arrived while away, and claiming it is where that turns out to be wrong. Without it the row
+    // may have no tags of its own left, and then the rule's go on as they would have.
+    const trips = new Set(tripTagIds(db));
+    const own = jsonIds(row.tag_ids).filter((x) => !trips.has(x));
     save(db, "transactions", {
       ...row,
       recurring_id: hit.rule.id,
       category_id,
-      tag_ids: row.tag_ids !== "[]" ? row.tag_ids : hit.rule.tag_ids,
+      tag_ids: own.length ? JSON.stringify(own) : hit.rule.tag_ids,
       pending: category_id ? 0 : row.pending,
     });
     // A rule that did not know how its charge is written now does: the next one is recognised by

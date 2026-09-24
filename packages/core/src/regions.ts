@@ -36,6 +36,14 @@ const BY_COUNTRY: Record<string, string> = {
   KZ: "KZT", AM: "AMD", AZ: "AZN",
 };
 
+/**
+ * The currency of `country` when it is one Kopiyka knows, else null — for a guess that should rather
+ * not be made than be made wrong (travel mode's destination currency), where EUR is no fallback.
+ */
+export function countryCurrency(country: string | null | undefined): string | null {
+  return country ? BY_COUNTRY[country.trim().toUpperCase()] ?? null : null;
+}
+
 /** The currency Kopiyka should offer in `country` (ISO 3166-1 alpha-2, any case), or EUR. */
 export function currencyForCountry(country: string | null | undefined): string {
   if (!country) return "EUR";

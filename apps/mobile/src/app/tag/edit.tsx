@@ -80,7 +80,7 @@ export default function TagEdit() {
     if (!existing) return;
     if (existing.archived) { mutate((d) => save(d, "tags", { ...existing, archived: 0 } as Tag)); leave(); return; }
     if (onTrip) {
-      Alert.alert("Travel mode is using this tag", "It is being put on everything you log right now. End the trip on the Budgets screen first, then archive the tag.", [{ text: "OK" }]);
+      Alert.alert("Travel mode is using this tag", "It is being put on everything you log right now. End travel mode first — on its card at the top of Transactions, or in Settings — then archive the tag.", [{ text: "OK" }]);
       return;
     }
     Alert.alert("Archive this tag?",
@@ -136,7 +136,7 @@ export default function TagEdit() {
               <Row icon={existing.archived ? "tray.and.arrow.up" : "archivebox"} iconColor="#FF9F0A"
                 title={existing.archived ? "Bring this tag back" : "Archive this tag"}
                 subtitle={existing.archived ? "Offered again everywhere it used to be"
-                  : onTrip ? "Not while travel mode is using it — end the trip first"
+                  : onTrip ? "Not while travel mode is using it — end travel mode first"
                   : "Keeps every transaction and every budget; just stops being offered"}
                 onPress={archive} />
             </Card>
