@@ -8,7 +8,8 @@ import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { getPeriodStartDay, setPeriodStartDay } from "@/lib/period";
 import { notifyChange } from "@/store";
 import { C, S } from "@/constants/theme";
-import { APP_MARKETING_VERSION, APP_VERSION } from "@/constants/app";
+import { APP_MARKETING_VERSION, APP_VERSION, PRIVACY_POLICY_URL } from "@/constants/app";
+import { releasesToRead } from "@/lib/whatsNew";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED } from "@/constants/features";
 import { lastBackupLine, useBackupState } from "@/lib/backup";
 import { getHideIncome, getHomeLocation, getLocationEnabled, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setShowBalance } from "@/lib/settings";
@@ -145,7 +146,10 @@ export default function SettingsScreen() {
         {/* Not a shortcut, so not in their card: the notes show themselves once after an update, and this is how you find them again. */}
         <SectionHeader>About</SectionHeader>
         <Card>
-          <Row icon="sparkles" iconColor="#8E8E93" title="What's new" subtitle={`The changes in version ${APP_MARKETING_VERSION}`} onPress={() => router.push("/whats-new")} />
+          <Row icon="hand.raised" iconColor="#8E8E93" title="Privacy Policy" subtitle="What the app keeps, and where"
+            onPress={() => { void Linking.openURL(PRIVACY_POLICY_URL); }} />
+          {/* No notes (a first release has nothing to be new against) means no row: the sheet would open empty. */}
+          {releasesToRead().length ? <Row icon="sparkles" iconColor="#8E8E93" title="What's new" subtitle={`The changes in version ${APP_MARKETING_VERSION}`} onPress={() => router.push("/whats-new")} style={styles.divider} /> : null}
           {/* Boot trace and the last JS crash: useful while developing, noise in a shipped build. The version lives in the footer instead. */}
           {__DEV__ ? <Row icon="stethoscope" iconColor="#8E8E93" title="Diagnostics" subtitle="Boot trace and the last recorded crash" onPress={() => router.push("/settings/diagnostics")} style={styles.divider} /> : null}
         </Card>
