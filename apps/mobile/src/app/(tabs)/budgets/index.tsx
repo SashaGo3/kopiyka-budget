@@ -1,10 +1,9 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from "react";
-import { Alert, LayoutAnimation, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LayoutAnimation, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { budgetCategoryIds, budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, remove, sumInBase, tagColor, tagSpend, tripStats, tripTagIds, type Budget } from "@kopiyka/core";
-import { db } from "@/db";
-import { mutate, useQuery } from "@/store";
+import { budgetCategoryIds, budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, sumInBase, tagColor, tagSpend, tripTagIds } from "@kopiyka/core";
+import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, ProgressBar, SectionHeader, StatPair } from "@/components/ui";
 import { PeriodPill } from "@/components/PeriodPill";
@@ -137,13 +136,6 @@ export default function BudgetsScreen() {
   /** A trip's line in Spending: everything with its tag in this period, whatever the category. */
   const openTrip = (tag: string, name: string) => openCategory(undefined, name, tag);
   const toggle = (key: string) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
-  const removeTrip = (t: Budget) => {
-    const s = tripStats(db, t);
-    Alert.alert("Remove this travel budget?", `${s.name} · ${formatMinor(s.spent_minor, s.currency)} of ${formatMinor(s.limit_minor, s.currency)} ${s.currency}. The tag and the transactions stay; only the travel budget is removed.`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => mutate((d) => remove(d, "budgets", t.id)) },
-    ]);
-  };
 
   // The sections in the order chosen on the reorder screen (Settings key `budgets_sections`).
   const sections = useQuery(() => getBudgetsSections());
@@ -200,8 +192,17 @@ export default function BudgetsScreen() {
                 </Pressable>
                 {/* Only while there is a difference to show: a full green bar at "0.00" says nothing the badge does not. */}
                 {exact ? null : <ProgressBar ratio={ratio} color={over || ratio > 0.85 ? C.orange : C.green} />}
-                <Text style={styles.budgetSub}>{fmt(b.spent)} of {fmt(b.limit)} {b.currency}</Text>
-                {b.children.map((ch) => (
+                {/* The categories it was spent on fold away behind the amount line: the whole row is the
+                    toggle, so it is a comfortable target rather than a small arrow to aim for. */}
+                {b.children.length ? (
+                  <Pressable onPress={() => toggle(`budget:${b.id}`)} style={styles.foldRow} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button"
+                    accessibilityLabel={`${fmt(b.spent)} of ${fmt(b.limit)} ${b.currency}. ${expanded.has(`budget:${b.id}`) ? "Hide" : "Show"} the ${b.children.length} categor${b.children.length === 1 ? "y" : "ies"} it was spent on`}
+                    accessibilityState={{ expanded: expanded.has(`budget:${b.id}`) }}>
+                    <Text style={[styles.budgetSub, { flex: 1 }]}>{fmt(b.spent)} of {fmt(b.limit)} {b.currency} · {b.children.length} categor{b.children.length === 1 ? "y" : "ies"}</Text>
+                    <SymbolView name={expanded.has(`budget:${b.id}`) ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
+                  </Pressable>
+                ) : <Text style={styles.budgetSub}>{fmt(b.spent)} of {fmt(b.limit)} {b.currency}</Text>}
+                {expanded.has(`budget:${b.id}`) && b.children.map((ch) => (
                   <Pressable key={ch.id ?? "none"} onPress={() => openCategory(ch.id, b.tag ? `${b.name} · ${ch.name}` : ch.name, b.tag)} style={styles.child} accessibilityRole="button" accessibilityLabel={`${ch.name} transactions${b.tag ? ` tagged ${b.name}` : ""}`}>
                     <CategoryIcon name={ch.name} icon={ch.icon} color={ch.color} size={24} />
                     <Text style={styles.childName}>{ch.name}</Text>
@@ -273,7 +274,7 @@ export default function BudgetsScreen() {
           {pastTrips.length ? (
             <SectionHeader right={pastTrips.length > 3 ? <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? "Hide travel history" : "Show travel history"}><Text style={styles.addText}>{pastOpen ? "Hide" : `Show ${pastTrips.length}`}</Text></Pressable> : undefined}>Travel history</SectionHeader>
           ) : null}
-          {(pastTrips.length > 3 ? (pastOpen ? pastTrips : []) : pastTrips).map((t) => <TripCard key={t.id} budget={t} compact onRemove={() => removeTrip(t)} />)}
+          {(pastTrips.length > 3 ? (pastOpen ? pastTrips : []) : pastTrips).map((t) => <TripCard key={t.id} budget={t} compact />)}
       </>
     ),
   };
@@ -309,6 +310,7 @@ const styles = StyleSheet.create({
   budgetSub: { fontSize: 13, color: C.secondary },
   celebrate: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "rgba(52,199,89,0.14)" },
   celebrateText: { fontSize: 15, fontWeight: "600", color: C.green },
+  foldRow: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 36 },
   child: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator, marginTop: 4 },
   childName: { flex: 1, fontSize: 15, color: C.label },
   childAmt: { fontSize: 15, color: C.secondary },

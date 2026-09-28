@@ -7,7 +7,7 @@ import { listRows, dueOccurrences, detectRecurring, adoptCandidate, ruleWaitDays
 import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission } from "@/lib/notifications";
 import { AmountPill, Card, Chip, Empty, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
-import { BarButton, BottomBar } from "@/components/BottomBar";
+import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
@@ -33,6 +33,8 @@ const then = (fn: () => void) => setTimeout(fn, 450);
 const toEditor = (extra: Record<string, string>) => router.push({ pathname: "/recurring/[id]", params: { id: "new", ...extra } });
 
 export default function RecurringList() {
+  // The Add bar slides away while scrolling down, as on Transactions, and comes back on the way up.
+  const { visible, onScroll } = useScrollHide();
   const rules = useQuery((db) => {
     const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a]));
     const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
@@ -101,7 +103,7 @@ export default function RecurringList() {
   return (
     <>
       <Stack.Screen options={{ title: "Recurring" }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         {perCurrency.length ? (
           <StatPair stats={[
             { label: "Per month", minor: Math.round(yearly.minor / 12), currency: base, color: yearly.minor < 0 ? C.red : C.green },
@@ -149,7 +151,7 @@ export default function RecurringList() {
         ) : null}
         <Text style={styles.foot}>Totals cover active rules only, every cadence normalised to a year. Reminders are local notifications on this phone; {wait ? "a rule acts only once its window has closed without a charge." : "automatic rules post on the day, manual ones wait for your tap."}</Text>
       </ScrollView>
-      <BottomBar><BarButton icon="plus" label="Add" onPress={addRule} a11y="Add a recurring rule" /></BottomBar>
+      <BottomBar visible={visible}><BarButton icon="plus" label="Add" onPress={addRule} a11y="Add a recurring rule" /></BottomBar>
     </>
   );
 }

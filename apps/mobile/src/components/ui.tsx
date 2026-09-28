@@ -78,14 +78,15 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   );
 }
 
-export function Row({ title, subtitle, subtitleColor, left, right, onPress, icon, iconColor, destructive, style }: {
-  title: string; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; destructive?: boolean; style?: StyleProp<ViewStyle>;
+/** `titleNode` draws something else where the title text goes (a tag's pill); `title` is still what VoiceOver reads. */
+export function Row({ title, titleNode, subtitle, subtitleColor, left, right, onPress, icon, iconColor, destructive, style }: {
+  title: string; titleNode?: ReactNode; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; destructive?: boolean; style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title} style={({ pressed }) => [styles.row, pressed && { backgroundColor: C.fill }, style]}>
       {left ?? (icon ? <View style={[styles.iconBox, { backgroundColor: iconColor ?? C.tint }]}><SymbolView name={icon} size={16} tintColor={iconColor ? "white" : C.onTint} /></View> : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={2} style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>
+        {titleNode ? <View style={{ flexDirection: "row" }}>{titleNode}</View> : <Text numberOfLines={2} style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
         {subtitle ? <Text numberOfLines={3} style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
       </View>
       {right}

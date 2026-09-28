@@ -3,7 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, waitingRules, jsonIds, listRows, listTrips, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -14,7 +14,7 @@ import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
 import { Empty, Money, StatPair } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
-import { EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
+import { ALL_TIME, EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
 import { getBaseCurrency, useRates } from "@/lib/rates";
@@ -135,8 +135,13 @@ export default function TransactionsScreen() {
   usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), []));
   const { visible, onScroll } = useScrollHide();
 
-  const custom = !!(filter.from || filter.to) || !!filter.upcoming;
-  const { where, params } = buildWhere(filter, filter.from || filter.to ? null : period);
+  const trips = useQuery((d) => listTrips(d));
+  // A travel is out of the month's boundaries — the flights were bought weeks before, the trip may
+  // straddle two months — so a list filtered to one has no period at all, and its card, not the
+  // month's Income/Expenses, is what sums it up.
+  const tripTag = filter.tags.length === 1 && trips.some((t) => t.tag_id === filter.tags[0]) ? filter.tags[0]! : null;
+  const custom = !!(filter.from || filter.to) || !!filter.upcoming || !!tripTag;
+  const { where, params } = buildWhere(filter, filter.from || filter.to || tripTag ? null : period);
   // "Hide income" is a display preference, not a filter — but asking for income explicitly still wins,
   // so picking Income in the filter sheet never lands on a list that is empty by design.
   const hideIncome = useQuery(() => getHideIncome()) && filter.type !== "income";
@@ -146,7 +151,6 @@ export default function TransactionsScreen() {
   // The travel budget at the top: the trip whose tag the list is filtered on (from its card, from
   // Budgets, or the filter sheet's Travel row), else the one running now while the list is unfiltered
   // by tag — it is what the entries being logged count against, which is the reason to be here.
-  const trips = useQuery((d) => listTrips(d));
   const shownTrip = filter.tags.length === 1 ? trips.find((t) => t.tag_id === filter.tags[0]) ?? null
     : !filter.tags.length && !isSearchTab ? trips.find((t) => !t.ended) ?? null : null;
   const base = useQuery(() => getBaseCurrency());
@@ -321,12 +325,13 @@ export default function TransactionsScreen() {
   const headerButton = (label: string, onPress: () => void, bold = false) => (
     <Pressable onPress={onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={label}><Text style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</Text></Pressable>
   );
-  const range = filter.from || filter.to ? rangeLabel(filter.from, filter.to) : filter.upcoming ? "Upcoming" : "";
+  const range = tripTag && filter.from === ALL_TIME && !filter.to ? "" : filter.from || filter.to ? rangeLabel(filter.from, filter.to) : filter.upcoming ? "Upcoming" : "";
   // What the screen was opened *about* — a category from Budgets, a tag or a category from its
   // editor — kept in the title beside the range. Dropped as soon as that filter is gone, so the
   // header never names something the list is no longer showing.
   const named = p.name && ((p.category && filter.categories.includes(p.category)) || (p.tag && filter.tags.includes(p.tag))) ? p.name : "";
-  const customTitle = [named, range].filter(Boolean).join(" · ");
+  const tripName = useQuery((d) => (tripTag ? getRow(d, "tags", tripTag)?.name ?? "Travel" : ""), [tripTag]);
+  const customTitle = [named || tripName, range].filter(Boolean).join(" · ");
 
   return (
     <>
@@ -349,10 +354,10 @@ export default function TransactionsScreen() {
           ) : null}
           {shownTrip && !selecting ? <View style={styles.trip}><TripCard budget={shownTrip} /></View> : null}
           {/* Totals next — the month at a glance. Then what still needs a decision: recurring you owe, then entries to check. */}
-          <StatPair stats={[
+          {tripTag ? null : <StatPair stats={[
             ...(hideIncome ? [] : [{ label: "Income", ...statOf(totals.totals[0]!, "Income", "income"), color: C.green }]),
             { label: "Expenses", ...statOf(totals.totals[1]!, "Expenses", "expense"), color: C.red },
-          ]} />
+          ]} />}
           {/* Same words as Net worth uses, for the same reason: a total quietly missing a currency is worse than one that admits it. */}
           {missingRates.length ? (
             <Text style={styles.ratesWarn}>{fetchingRates ? `Fetching ${missingRates.join(", ")} rate…` : `No rate yet for ${missingRates.join(", ")}, so it is left out. Connect to the internet once.`}</Text>

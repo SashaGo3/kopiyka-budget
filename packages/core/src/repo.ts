@@ -132,7 +132,7 @@ export function createRecurring(db: SqlDriver, r: Partial<RecurringRule> & Pick<
 }
 
 export function createBudget(db: SqlDriver, b: Partial<Budget> & Pick<Budget, "currency" | "amount_minor" | "starts">): Budget {
-  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, name: null, sort: 0, in_planned: 1, ...b } as Budget));
+  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, name: null, sort: 0, in_planned: 1, outside_ids: "[]", ...b } as Budget));
 }
 
 /**

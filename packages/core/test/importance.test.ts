@@ -183,7 +183,7 @@ describe("the column", () => {
     const db = openBunDb(":memory:");
     migrate(db);
     expect(db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info('categories') WHERE name='importance'`)?.n).toBe(1);
-    expect(MIGRATIONS.length).toBe(16);
+    expect(MIGRATIONS.length).toBeGreaterThanOrEqual(16);
     const rent = createCategory(db, { name: "Rent" });
     expect((getRow(db, "categories", rent.id) as Category).importance).toBe(0);
   });

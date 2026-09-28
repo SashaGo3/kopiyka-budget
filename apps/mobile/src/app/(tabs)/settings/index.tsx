@@ -14,7 +14,7 @@ import { lastBackupLine, useBackupState } from "@/lib/backup";
 import { getHideIncome, getHomeLocation, getLocationEnabled, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setShowBalance } from "@/lib/settings";
 import { ensureLocationPermission, locationStatus, placeName, preciseLocation } from "@/lib/location";
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
-import { endTravel, tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
+import { tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { humanDayTime } from "@/lib/dates";
 
 const ordinal = (d: number) => `${d}${d === 1 || d === 21 ? "st" : d === 2 || d === 22 ? "nd" : d === 3 || d === 23 ? "rd" : "th"}`;
@@ -58,15 +58,6 @@ export default function SettingsScreen() {
     options: JSON.stringify([{ value: "1", label: "1st", subtitle: "Calendar month" }, { value: "15", label: "15th", subtitle: "Salary in the middle of the month" }, { value: "custom", label: "Custom…", subtitle: prefs.startDay !== 1 && prefs.startDay !== 15 ? `Currently the ${ordinal(prefs.startDay)}` : "Any day up to the 28th" }]) } });
   const trip = useActiveTrip();
   const tripStats = useTripStats(trip);
-  const toggleTravel = (on: boolean) => {
-    if (on) { if (!trip) router.push("/travel/start"); return; }
-    if (!trip || !tripStats) return;
-    const s = tripStats;
-    Alert.alert(`End travel mode for ${s.name}?`, `${tripLine(s)}. New expenses stop getting the “${s.name}” tag; the budget stays on Budgets as history.`, [
-      { text: "Keep travelling", style: "cancel" },
-      { text: "End it", style: "destructive", onPress: () => endTravel(trip.id) },
-    ]);
-  };
   // Permissions: iOS state is read on every focus (the user may come back from the Settings app).
   const [perm, setPerm] = useState<{ notif: "granted" | "denied" | "undetermined"; loc: "granted" | "denied" | "undetermined" }>({ notif: "undetermined", loc: "undetermined" });
   const refreshPerm = useCallback(() => { void Promise.all([notificationStatus(), locationStatus()]).then(([notif, loc]) => setPerm({ notif, loc })); }, []);
@@ -122,8 +113,9 @@ export default function SettingsScreen() {
           <Row icon="number" iconColor="#5E5CE6" title="Tags" subtitle={`${counts.tags} · optionally per category`} onPress={() => router.push("/settings/tags")} style={styles.divider} />
           <Row icon="repeat" iconColor="#30D158" title="Recurring" subtitle={`${counts.recurring} active`} onPress={() => router.push("/settings/recurring")} style={styles.divider} />
           <Row icon="arrow.left.arrow.right.circle" iconColor="#FF9500" title="Debts" subtitle={debtSubtitle} onPress={() => router.push("/settings/debts")} style={styles.divider} />
-          <ToggleRow icon="airplane" iconColor="#0A84FF" title="Travel mode" value={!!trip} onChange={toggleTravel} style={styles.divider}
-            subtitle={tripStats ? `${tripLine(tripStats)}${tripStats.days_left === 0 && trip?.ends ? ` · planned until ${humanDayTime(trip.ends)}` : ""}` : "Tag every new expense and track a travel budget"} />
+          {/* Its own screen: starting, changing, ending and looking back at trips all live there. */}
+          <Row icon="airplane" iconColor="#0A84FF" title="Travel" style={styles.divider} onPress={() => router.push("/settings/travel")}
+            subtitle={tripStats ? `On · ${tripLine(tripStats)}${tripStats.days_left === 0 && trip?.ends ? ` · planned until ${humanDayTime(trip.ends)}` : ""}` : "Travel mode, and the trips you have been on"} />
         </Card>
         <SectionHeader>Preferences</SectionHeader>
         <Card>

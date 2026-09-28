@@ -25,11 +25,14 @@ import { resolvePick } from "@/store/pick";
  * logged at home in the meantime.
  */
 export default function TravelDates() {
-  const p = useLocalSearchParams<{ key?: string; name?: string; currency?: string; amount?: string; budget?: string }>();
+  const p = useLocalSearchParams<{ key?: string; name?: string; currency?: string; amount?: string; budget?: string; past?: string }>();
   const today = todayLocal();
   const editing = p.budget ? getRow(db, "budgets", p.budget) ?? null : null;
+  // A trip that is over — recorded after the fact, or ended — lies wholly in the past: its last day
+  // can be today at the latest, like its first.
+  const past = p.past === "1" || !!editing?.ended;
   const [start, setStart] = useState(editing?.starts ?? today);
-  const [end, setEnd] = useState<string | null>(editing ? editing.ends ?? editing.starts : defaultTripEnd(today));
+  const [end, setEnd] = useState<string | null>(editing ? editing.ended ?? editing.ends ?? editing.starts : defaultTripEnd(today));
   const [jump, setJump] = useState(0);
   const exit = useDiscardGuard(useDirty([start, end]) && !!editing);   // remounts the calendar on the month Today lands in
   const days = end ? daysBetween(start, end) + 1 : null;
@@ -39,7 +42,7 @@ export default function TravelDates() {
   const confirm = () => {
     if (!end) return;
     if (editing) {
-      mutate((d) => save(d, "budgets", { ...editing, starts: start, ends: end } as Budget));
+      mutate((d) => save(d, "budgets", { ...editing, starts: start, ends: end, ...(editing.ended ? { ended: end } : {}) } as Budget));
       exit(() => router.back());
       return;
     }
@@ -50,7 +53,7 @@ export default function TravelDates() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>{editing ? "Travel dates" : p.name ? `When is ${p.name}?` : "When is it?"}</Title>
+          <Title>{editing ? "Travel dates" : p.name ? `When ${past ? "was" : "is"} ${p.name}?` : past ? "When was it?" : "When is it?"}</Title>
           <Subtle>{end ? `${humanDayTime(start)} → ${humanDayTime(end)} · ${days} day${days === 1 ? "" : "s"}` : "Now tap the last day"}</Subtle>
         </View>
       }
@@ -60,10 +63,10 @@ export default function TravelDates() {
             <Chip icon="calendar" label="Today" active={start === today}
               onPress={() => { setStart(today); setEnd((e) => (e && e >= today ? e : null)); setJump((j) => j + 1); }} />
           </ChipRow>
-          <RangeCalendar key={jump} start={start} end={end} maxStart={today} onChange={(s, e) => { setStart(s); setEnd(e); }} />
-          <Text style={styles.hint}>Tap the first day, then the last. It can start today at the latest, and end whenever you like.</Text>
+          <RangeCalendar key={jump} start={start} end={end} maxStart={today} maxEnd={past ? today : undefined} onChange={(s, e) => { setStart(s); setEnd(e); }} />
+          <Text style={styles.hint}>{past ? "Tap the first day, then the last." : "Tap the first day, then the last. It can start today at the latest, and end whenever you like."}</Text>
           <ConfirmBar amount={editing ? (end ? `${days} day${days === 1 ? "" : "s"}` : "Pick the last day") : `${formatMinor(amount, currency)} ${currency}${days ? ` · ${days} day${days === 1 ? "" : "s"}` : ""}`}
-            label={!end ? "Tap the last day on the calendar" : editing ? "Tap to save the dates" : "Tap to start travel mode"} onPress={confirm} disabled={!end} />
+            label={!end ? "Tap the last day on the calendar" : editing ? "Tap to save the dates" : past ? "Tap to add it" : "Tap to start travel mode"} onPress={confirm} disabled={!end} />
         </>
       }
     />

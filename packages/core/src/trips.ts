@@ -9,8 +9,7 @@ import type { SqlDriver } from "./db";
 import type { Budget, Tag } from "./models";
 import { convertMinor } from "./money";
 import { latestCachedRate } from "./rates";
-import { createBudget, createTag, getRow, listRows, save, tagIdsOf, tagSpend } from "./repo";
-import { addPeriod } from "./recurring";
+import { createBudget, createTag, getRow, jsonIds, listRows, save, tagIdsOf, tagSpend } from "./repo";
 
 export const TRIP_WHERE = "deleted=0 AND period='once' AND tag_id IS NOT NULL";
 
@@ -71,6 +70,24 @@ export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: T
   });
 }
 
+export interface PastTrip { name: string; currency: string; amount_minor: number; starts: string; ends: string }
+
+/**
+ * Record a trip that has already happened: the same tag and one-off budget `startTrip` makes, born
+ * ended on its last day. It never touches the running one — a trip in the past is history, and
+ * there can be any number of those alongside the one travel mode is on for.
+ */
+export function addPastTrip(db: SqlDriver, p: PastTrip): { budget: Budget; tag: Tag } {
+  const name = p.name.trim();
+  if (!name) throw new Error("Name required");
+  const ends = p.ends < p.starts ? p.starts : p.ends;
+  return db.transaction(() => {
+    const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: "#0A84FF" });
+    const budget = createBudget(db, { tag_id: tag.id, period: "once", currency: p.currency, amount_minor: p.amount_minor, starts: p.starts, ends, ended: ends, account_id: null, category_id: null });
+    return { budget, tag };
+  });
+}
+
 /** Turn travel mode off: the trip keeps its tag and budget as history. */
 export function endTrip(db: SqlDriver, budgetId: string, day = todayLocalDay()): Budget {
   const b = getRow(db, "budgets", budgetId);
@@ -100,8 +117,10 @@ export interface TripStats {
   name: string;
   currency: string;
   limit_minor: number;
-  /** Everything with the tag, converted into the budget currency where a rate is cached. */
+  /** What counts against the budget, converted into its currency where a rate is cached. */
   spent_minor: number;
+  /** The trip's payments chosen to stay outside its budget (`outside_ids`), converted; not in `spent_minor`. */
+  outside_minor: number;
   remaining_minor: number;
   /** Spend in currencies with no cached rate to the budget currency (not part of spent_minor). */
   unconverted: { currency: string; minor: number }[];
@@ -138,16 +157,45 @@ export function tripStats(db: SqlDriver, b: Budget, o: { today?: string; rateFor
   const tag = b.tag_id ? getRow(db, "tags", b.tag_id) ?? null : null;
   const byCat = new Map<string | null, number>();
   const unconverted = new Map<string, number>();
-  let spent = 0;
+  let spent = 0, during = 0, outside = 0;
   // Recurring payments are left out: rent and subscriptions go on at home whether or not you are
   // away, and a charge that arrived during the trip is not something the trip bought.
-  for (const s of b.tag_id ? tagSpend(db, b.tag_id, { oneOff: true }) : []) {
-    const rate = rateFor(s.currency, b.currency);
-    if (rate == null) { unconverted.set(s.currency, (unconverted.get(s.currency) ?? 0) - s.spent_minor); continue; }
-    const minor = -convertMinor(s.spent_minor, s.currency, b.currency, rate);
-    spent += minor;
-    byCat.set(s.category_id, (byCat.get(s.category_id) ?? 0) + minor);
+  const convert = (currency: string, minor: number): number | null => {
+    const rate = rateFor(currency, b.currency);
+    if (rate == null) { unconverted.set(currency, (unconverted.get(currency) ?? 0) - minor); return null; }
+    return -convertMinor(minor, currency, b.currency, rate);
+  };
+  if (b.tag_id) {
+    for (const s of tagSpend(db, b.tag_id, { oneOff: true })) {
+      const minor = convert(s.currency, s.spent_minor);
+      if (minor === null) continue;
+      spent += minor;
+      byCat.set(s.category_id, (byCat.get(s.category_id) ?? 0) + minor);
+    }
+    for (const s of tagSpend(db, b.tag_id, { oneOff: true, fromIso: b.starts })) {
+      const minor = convert(s.currency, s.spent_minor);
+      if (minor !== null) during += minor; else unconverted.set(s.currency, (unconverted.get(s.currency) ?? 0) + s.spent_minor); // counted once above
+    }
+    // What was chosen to stay outside the budget comes back out of it — and out of the pace when it
+    // fell inside the trip's days — but stays the trip's, as `outside_minor`.
+    const ids = jsonIds(b.outside_ids);
+    if (ids.length) {
+      const rows = db.all<{ category_id: string | null; currency: string; amount_minor: number; date: string }>(
+        `SELECT t.category_id, a.currency, t.amount_minor, t.date FROM transactions t JOIN accounts a ON a.id=t.account_id
+         WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.recurring_id IS NULL AND t.amount_minor<0 AND t.tag_ids LIKE ? AND t.id IN (${ids.map(() => "?").join(",")})`,
+        [`%"${b.tag_id}"%`, ...ids]);
+      for (const r of rows) {
+        const rate = rateFor(r.currency, b.currency);
+        if (rate == null) { unconverted.set(r.currency, (unconverted.get(r.currency) ?? 0) + r.amount_minor); continue; }
+        const minor = -convertMinor(r.amount_minor, r.currency, b.currency, rate);
+        spent -= minor; outside += minor;
+        if (r.date >= b.starts) during -= minor;
+        const left = (byCat.get(r.category_id) ?? 0) - minor;
+        if (left > 0) byCat.set(r.category_id, left); else byCat.delete(r.category_id);
+      }
+    }
   }
+  for (const [k, v] of unconverted) if (!v) unconverted.delete(k);
   const ends = b.ends ?? b.starts;
   const last = b.ended && b.ended < ends ? b.ended : ends;
   const days = Math.max(1, daysBetween(b.starts, last) + 1);
@@ -159,9 +207,11 @@ export function tripStats(db: SqlDriver, b: Budget, o: { today?: string; rateFor
   const remaining = b.amount_minor - spent;
   return {
     budget: b, tag, name: tag?.name ?? "Travel", currency: b.currency, limit_minor: b.amount_minor, spent_minor: spent, remaining_minor: remaining,
+    outside_minor: outside,
     unconverted: [...unconverted].map(([currency, minor]) => ({ currency, minor })),
     by_category: [...byCat].map(([category_id, spent_minor]) => ({ category_id, spent_minor })).sort((x, y) => y.spent_minor - x.spent_minor),
-    day, days, days_left: daysLeft, per_day_minor: Math.round(spent / elapsed),
+    // The pace is what the days cost: what was paid before them is not spread over them.
+    day, days, days_left: daysLeft, per_day_minor: Math.round(during / elapsed),
     allowance_minor: daysLeft > 0 ? Math.round(remaining / daysLeft) : null,
     active, over: spent > b.amount_minor,
   };
@@ -180,5 +230,5 @@ export function todayLocalDay(d: Date | string = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** A week from a day, the default planned length offered when starting a trip. */
-export function defaultTripEnd(starts: string): string { return addPeriod(starts, "daily", 6); }
+/** The planned last day offered when starting a trip: the same day. A trip is as long as you say it is. */
+export function defaultTripEnd(starts: string): string { return starts; }

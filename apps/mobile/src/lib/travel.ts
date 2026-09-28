@@ -2,7 +2,7 @@
  * Travel mode on the phone: thin wrappers over core `trips.ts` plus the hooks the screens use.
  * The trip itself is a synced budget row, so nothing here is stored locally.
  */
-import { activeTrip, endTrip, getRow, startTrip, tripStats, type Budget, type StartTrip, type TripStats } from "@kopiyka/core";
+import { activeTrip, addPastTrip, endTrip, getRow, startTrip, tripStats, type Budget, type PastTrip, type StartTrip, type TripStats } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { getBaseCurrency } from "./rates";
@@ -23,6 +23,7 @@ export function useTripStats(b: Budget | null): TripStats | null {
 
 export function startTravel(p: StartTrip) { return mutate((d) => startTrip(d, p)); }
 export function endTravel(budgetId: string) { return mutate((d) => endTrip(d, budgetId)); }
+export function addPastTravel(p: PastTrip) { return mutate((d) => addPastTrip(d, p)); }
 
 export function tripLine(s: TripStats): string {
   const fmt = (m: number) => (m / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ");

@@ -147,6 +147,11 @@ export const MIGRATIONS: string[][] = [
     // reads it may assume a database has been through the marking flow.
     `ALTER TABLE categories ADD COLUMN importance INTEGER NOT NULL DEFAULT 0`,
   ],
+  [
+    // v17: a trip's payments that stay outside its budget — the flights booked months ago, say —
+    // chosen one by one, because whether something paid beforehand belongs in it depends. JSON ids.
+    `ALTER TABLE budgets ADD COLUMN outside_ids TEXT NOT NULL DEFAULT '[]'`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

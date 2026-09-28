@@ -188,6 +188,12 @@ export interface Budget extends Synced {
    * a budget you do not count is not part of what you have free.
    */
   in_planned: 0 | 1;
+  /**
+   * Trips only: the ids of the trip's transactions that stay outside its budget, as a JSON array —
+   * still the trip's money, just not what the budget was for (the flights booked months ago). Chosen
+   * one by one; everything carrying the tag counts unless it is here.
+   */
+  outside_ids: string;
   /** "monthly" renews every period; "once" is a one-off pot (a trip) that runs from `starts` until it is ended. */
   period: "monthly" | "once";
   /** YYYY-MM-DD, budget applies from this month on until superseded (monthly), or the first day of the trip (once). */

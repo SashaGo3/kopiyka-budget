@@ -1,18 +1,20 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 import { Stack, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Empty, Row, ScreenNote, SectionHeader, TagPill } from "@/components/ui";
-import { BarButton, BottomBar } from "@/components/BottomBar";
+import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S } from "@/constants/theme";
 
 /**
- * Tags, with the categories each one is limited to. The tags travel mode made are a list of their
+ * Tags, with the categories each one is limited to. Each row is the tag as it looks on a
+ * transaction — its pill — rather than its name printed and then drawn again beside it. The tags travel mode made are a list of their
  * own, above the archived ones: each is one journey rather than a way of filing things, and mixed
  * in with #work and #gift they read as clutter.
  */
 export default function TagsScreen() {
+  // The Add bar slides away while scrolling down, as on Transactions, and comes back on the way up.
+  const { visible, onScroll } = useScrollHide();
   const tags = useQuery((db) => {
     const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c.name]));
     const usage = new Map<string, number>();
@@ -26,14 +28,14 @@ export default function TagsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Tags" }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         <ScreenNote>A tag cuts across categories, where a category says what the money was for: #work lunch, #vacation fuel. A tag can be limited to the categories it makes sense in, a budget can be set on one, and travel mode tags a whole journey for you.</ScreenNote>
         {tags.length === 0 ? <Empty title="No tags" hint="Nothing tagged yet." /> : null}
         {live.length ? (
           <Card style={{ marginTop: S.lg }}>
             {live.map((t, i) => (
               <Row key={t.id} title={t.name} subtitle={`${t.uses} use${t.uses === 1 ? "" : "s"}${t.scope ? ` · only for ${t.scope}` : " · any category"}`} onPress={() => router.push({ pathname: "/tag/edit", params: { id: t.id } })} style={i > 0 ? styles.divider : undefined}
-                right={<View style={styles.right}><TagPill name={t.name} color={t.color} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
+                titleNode={<TagPill name={t.name} color={t.color} />} />
             ))}
           </Card>
         ) : null}
@@ -42,7 +44,7 @@ export default function TagsScreen() {
           <Card>
             {travel.map((t, i) => (
               <Row key={t.id} icon="airplane" iconColor="#0A84FF" title={t.name} subtitle={`${t.uses} use${t.uses === 1 ? "" : "s"}`} onPress={() => router.push({ pathname: "/tag/edit", params: { id: t.id } })} style={i > 0 ? styles.divider : undefined}
-                right={<View style={styles.right}><TagPill name={t.name} color={t.color} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
+                titleNode={<TagPill name={t.name} color={t.color} />} />
             ))}
           </Card>
         ) : null}
@@ -51,18 +53,17 @@ export default function TagsScreen() {
           <Card>
             {archived.map((t, i) => (
               <Row key={t.id} title={t.name} subtitle={`${t.uses} use${t.uses === 1 ? "" : "s"} · archived`} onPress={() => router.push({ pathname: "/tag/edit", params: { id: t.id } })} style={[i > 0 ? styles.divider : undefined, { opacity: 0.6 }]}
-                right={<View style={styles.right}><TagPill name={t.name} color={t.color} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
+                titleNode={<TagPill name={t.name} color={t.color} />} />
             ))}
           </Card>
         ) : null}
         {archived.length ? <ScreenNote>Transactions keep these tags and budgets on them still count; they are just not offered for anything new. Open one to bring it back.</ScreenNote> : null}
       </ScrollView>
-      <BottomBar><BarButton icon="plus" label="Add tag" onPress={() => router.push({ pathname: "/tag/edit", params: { id: "new" } })} a11y="Add tag" /></BottomBar>
+      <BottomBar visible={visible}><BarButton icon="plus" label="Add tag" onPress={() => router.push({ pathname: "/tag/edit", params: { id: "new" } })} a11y="Add tag" /></BottomBar>
     </>
   );
 }
 
 const styles = StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-  right: { flexDirection: "row", alignItems: "center", gap: 8 },
 });

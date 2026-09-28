@@ -103,6 +103,13 @@ never counts is a **recurring payment** (`recurring_id` set): rent and subscript
 cannot be added to a trip from among them, and a charge that claims a rule's occurrence
 (`claimRecurring`) drops the trip tag travel mode put on it.
 
+Everything carrying a trip's tag counts against its budget unless it was chosen to stay **outside**
+it: `budgets.outside_ids` (v17, trips only) is a JSON list of transaction ids — the flights booked
+months ago, say — picked one by one, because whether something paid ahead belongs in the money for the
+days depends. They are still the trip's money (`tripStats` reports them as `outside_minor`), and
+still out of the monthly budgets like the rest. A trip that already happened is recorded with
+`addPastTrip` — born ended, beside whatever trip is running.
+
 ## 6. Money is integers, in minor units
 
 `amount_minor` is minor units of the **account's** currency, negative for an expense. Never a float.

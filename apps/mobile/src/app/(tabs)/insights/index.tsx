@@ -4,7 +4,6 @@ import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { INSIGHT_KINDS, accountLeftover, categoryChecklist, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, recurringSpendInsight, regularSpending, safeToSpend, safetyBuffer, savingsGoal, subscriptionsPerYear, upcomingPayments, valueSplit, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
 import { useQuery } from "@/store";
-import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { CategoryIcon, Empty, FadeIn, Money, ProgressBar, TagPill } from "@/components/ui";
 import { C, S, VALUE_LABEL, ValueRamp } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
@@ -16,20 +15,27 @@ import { scopeAccount, scopeAccountIds } from "@/lib/scope";
 /** User-added statistics cards. Each card is computed in core from its stored params. */
 export default function InsightsScreen() {
   const insights = useQuery((db) => listRows(db, "insights", "deleted=0", [], "sort, rowid") as Insight[]);
-  const { visible, onScroll } = useScrollHide();
   const canReorder = insights.length > 1;
   const reorder = () => router.push("/insight/reorder");
   return (
     <>
-      <Stack.Screen options={{ title: "Insights", headerLargeTitle: true }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180, paddingTop: S.sm, gap: S.md }} onScroll={onScroll} scrollEventThrottle={16}>
-        {insights.length === 0 ? <Empty title="No insights yet" hint="Cards that answer one question each — what is safe to spend, how long until salary, how a savings goal is going, what your subscriptions cost a year. Add the ones you want and drag them into your order." /> : null}
+      {/* A screen for reading: the two things that change it sit in the header, out of the cards' way. */}
+      <Stack.Screen options={{ title: "Insights", headerLargeTitle: true, headerRight: () => (
+        <View style={styles.headerButtons}>
+          {canReorder ? (
+            <Pressable onPress={reorder} hitSlop={{ top: 10, bottom: 10, left: 10, right: 6 }} accessibilityRole="button" accessibilityLabel="Reorder insights">
+              <SymbolView name="arrow.up.arrow.down" size={19} tintColor={C.tint} />
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => router.push({ pathname: "/insight/edit", params: { id: "new" } })} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} accessibilityRole="button" accessibilityLabel="Add insight">
+            <SymbolView name="plus" size={20} tintColor={C.tint} />
+          </Pressable>
+        </View>
+      ) }} />
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120, paddingTop: S.sm, gap: S.md }}>
+        {insights.length === 0 ? <Empty title="No insights yet" hint="Cards that answer one question each — what is safe to spend, how long until salary, how a savings goal is going, what your subscriptions cost a year. Add them with + at the top." /> : null}
         {insights.map((i, n) => <FadeIn key={i.id} delay={n * 60}><InsightCard insight={i} reorder={canReorder ? reorder : undefined} /></FadeIn>)}
       </ScrollView>
-      <BottomBar visible={visible}>
-        <BarButton icon="plus" label="Add insight" onPress={() => router.push({ pathname: "/insight/edit", params: { id: "new" } })} a11y="Add insight" />
-        {canReorder ? <BarButton icon="arrow.up.arrow.down" label="Reorder" onPress={reorder} a11y="Reorder insights" /> : null}
-      </BottomBar>
     </>
   );
 }
@@ -267,6 +273,8 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
 function formatDiff(minor: number, currency: string) { return minor > 0 ? `${formatMinor(minor, currency)} ${currency} to go` : "Goal reached 🎉"; }
 
 const styles = StyleSheet.create({
+  // Far enough apart that a thumb aiming for one never lands on the other.
+  headerButtons: { flexDirection: "row", alignItems: "center", gap: 36, paddingHorizontal: 6 },
   card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, padding: S.lg, gap: 6 },
   head: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { flex: 1, fontSize: 15, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.3 },

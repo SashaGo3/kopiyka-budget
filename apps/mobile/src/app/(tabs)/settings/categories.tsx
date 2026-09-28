@@ -4,11 +4,13 @@ import { SymbolView } from "expo-symbols";
 import { archivedCategoryIds, categoryImportance, listRows, markableCategories, markableLeaves, unmarkedCount } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
-import { BarButton, BottomBar } from "@/components/BottomBar";
+import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S } from "@/constants/theme";
 
 /** Folders and their categories; tap any row to edit it. Add lives in the thumb zone. */
 export default function CategoriesScreen() {
+  // The Add bar slides away while scrolling down, as on Transactions, and comes back on the way up.
+  const { visible, onScroll } = useScrollHide();
   const groups = useQuery((db) => {
     const every = listRows(db, "categories", "deleted=0", [], "sort, name");
     // Retired ones stand apart at the foot of the screen — with their folder, when the whole folder
@@ -40,7 +42,7 @@ export default function CategoriesScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Categories" }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         <ScreenNote>A category is what money was spent on, and it is what budgets and every chart are built from. A folder groups categories and is never filed into: a transaction always goes to one of the categories inside it. Give a folder a colour and the categories created in it take that colour.</ScreenNote>
         {matters.total ? (
           <Card>
@@ -79,7 +81,7 @@ export default function CategoriesScreen() {
         ) : null}
         {groups.archived.length ? <ScreenNote>Everything already filed under these keeps its category and still counts in budgets and charts; they are simply not offered when anything new is filed. Open one to bring it back.</ScreenNote> : null}
       </ScrollView>
-      <BottomBar><BarButton icon="plus" label="Add" onPress={add} a11y="Add" /></BottomBar>
+      <BottomBar visible={visible}><BarButton icon="plus" label="Add" onPress={add} a11y="Add" /></BottomBar>
     </>
   );
 }

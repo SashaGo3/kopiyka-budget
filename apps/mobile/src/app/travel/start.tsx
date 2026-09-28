@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { countryCurrency, formatMinor, rateOrFallback, toMinor } from "@kopiyka/core";
 import { SymbolView } from "expo-symbols";
 import { db } from "@/db";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, Subtle, Title } from "@/components/ui";
 import { C, S } from "@/constants/theme";
-import { startTravel, tripCurrency } from "@/lib/travel";
+import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
+import { nextDay } from "@/lib/filters";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { DISMISS_MS } from "@/lib/nav";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -28,17 +29,20 @@ import { cityName, countryCode, quickLocation } from "@/lib/location";
  * the rate source does not cover is warned about before it is taken, since nothing could be counted.
  */
 export default function TravelStart() {
+  // `past`: recording a trip that already happened (Settings → Travel → Add a past travel). Same two
+  // sheets, but the location is not where it was, the dates are in the past, and nothing is switched on.
+  const past = useLocalSearchParams<{ past?: string }>().past === "1";
   const [currency, setCurrency] = useState(tripCurrency);
   const [chosen, setChosen] = useState(false);   // picked by hand: the location guess no longer moves it
   const chosenRef = useRef(false);               // the same, for the location lookup that lands later
   const curKey = useMemo(() => newPickKey("tripcur"), []);
   const [name, setName] = useState("");
-  const [placeholder, setPlaceholder] = useState("Where to?");
+  const [placeholder, setPlaceholder] = useState(past ? "Where did you go?" : "Where to?");
   const nameRef = useRef<TextInput>(null);
-  const [nameFocused, setNameFocused] = useState(false);
   const [expr, setExpr] = useState("");
   const exit = useDiscardGuard(useDirty([name, expr, chosen]));
   useEffect(() => {
+    if (past) return;
     let alive = true;
     void quickLocation().then(async (c) => {
       if (!c) return;
@@ -49,7 +53,7 @@ export default function TravelStart() {
       if (local && !chosenRef.current) setCurrency(local);
     });
     return () => { alive = false; };
-  }, []);
+  }, [past]);
   // A currency picked by hand is checked against the rate source first: with no rate between it and
   // the accounts, every payment would sit in "not counted" and the budget would never move.
   usePickResult<string>(curKey, useCallback((c: string) => {
@@ -67,36 +71,38 @@ export default function TravelStart() {
     });
   }, []));
   const value = evalPartial(expr);
-  const finalName = name.trim() || (placeholder !== "Where to?" ? placeholder : "");
+  const finalName = name.trim() || (placeholder !== "Where to?" && placeholder !== "Where did you go?" ? placeholder : "");
   const valid = value !== null && value > 0 && !!finalName;
   const shown = value !== null ? formatMinor(toMinor(value, currency), currency) : "0";
   const key = useMemo(() => newPickKey("tripdates"), []);
   const next = () => {
     if (!valid) return;
     nameRef.current?.blur();
-    router.push({ pathname: "/travel/dates", params: { key, name: finalName, currency, amount: String(toMinor(value!, currency)) } });
+    router.push({ pathname: "/travel/dates", params: { key, name: finalName, currency, amount: String(toMinor(value!, currency)), ...(past ? { past: "1" } : {}) } });
   };
   usePickResult<{ start: string; end: string }>(key, useCallback(({ start, end }: { start: string; end: string }) => {
     try {
-      const { tag } = startTravel({ name: finalName, currency, amount_minor: toMinor(value ?? 0, currency), starts: start, ends: end });
+      const trip = { name: finalName, currency, amount_minor: toMinor(value ?? 0, currency), starts: start, ends: end };
+      const { tag } = past ? addPastTravel(trip) : startTravel(trip);
+      // A past trip's purchases are looked for in its own days; a new one's in the months before it.
+      const range = past ? { from: start, to: nextDay(end) } : {};
       exit(() => {
         router.dismiss(2);
-        setTimeout(() => router.push({ pathname: "/travel/backfill", params: { tag: tag.id, name: finalName } }), DISMISS_MS);
+        setTimeout(() => router.push({ pathname: "/travel/backfill", params: { tag: tag.id, name: finalName, ...range } }), DISMISS_MS);
       });
     } catch (e) {
-      Alert.alert("Could not start travel mode", (e as Error).message);
+      Alert.alert(past ? "Could not add it" : "Could not start travel mode", (e as Error).message);
     }
-  }, [finalName, currency, value, exit]));
+  }, [finalName, currency, value, exit, past]));
   return (
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>Travel mode</Title>
-          <Subtle>Every new expense gets the travel tag; the budget counts everything with it, whatever currency it was paid in.</Subtle>
+          <Title>{past ? "A past travel" : "Travel mode"}</Title>
+          <Subtle>{past ? "Name it and say what it was meant to cost; its purchases come next." : "Every new expense gets the travel tag; the budget counts everything with it, whatever currency it was paid in."}</Subtle>
           <View style={styles.nameRow}>
             <TextInput ref={nameRef} value={name} onChangeText={setName} placeholder={placeholder} placeholderTextColor={C.tertiary} style={styles.input}
-              returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} onFocus={() => setNameFocused(true)} onBlur={() => setNameFocused(false)} accessibilityLabel="Where you are going" />
-            {nameFocused ? <Pressable onPress={() => nameRef.current?.blur()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done"><Text style={styles.nameDone}>Done</Text></Pressable> : null}
+              returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} accessibilityLabel={past ? "Where you went" : "Where you are going"} />
           </View>
           <View style={styles.amountRow}>
             <Text style={[styles.amount, !expr && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{shown}</Text>
@@ -124,7 +130,6 @@ const styles = StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.xs, gap: 4 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
   input: { flex: 1, fontSize: 22, fontWeight: "600", color: C.label, paddingVertical: S.sm },
-  nameDone: { color: C.tint, fontSize: 17, fontWeight: "700" },
   amountRow: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: S.xs },
   amount: { fontSize: 44, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"], flexShrink: 1 },
   cur: { fontSize: 18, color: C.secondary, fontWeight: "600" },

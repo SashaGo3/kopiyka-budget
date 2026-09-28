@@ -3,7 +3,8 @@ import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createBudget, createCategory, createTag, createTransaction, createTransfer, listRows, tagIdsOf } from "../src/repo";
 import { activeBudgets, budgetRows } from "../src/insights";
-import { activeTrip, activeTripTagId, daysBetween, defaultTripEnd, endTrip, listTrips, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
+import { activeTrip, activeTripTagId, addPastTrip, daysBetween, defaultTripEnd, endTrip, listTrips, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
+import { getRow, save } from "../src/repo";
 
 function seed() {
   const db = openBunDb(); migrate(db);
@@ -58,6 +59,30 @@ describe("travel mode", () => {
     // And adding earlier purchases to the trip skips them.
     const rent = createTransaction(db, { account_id: pln.id, date: "2026-09-01T09:00:00+02:00", amount_minor: -150000, recurring_id: "rule-2" });
     expect(tagTransactions(db, tag.id, [sub.id, rent.id])).toBe(0);
+  });
+
+  test("a payment chosen to stay outside the budget is still the trip's, just not the budget's", () => {
+    const { db, pln, hotel, food } = seed();
+    const { budget, tag } = startTrip(db, { name: "Rome", currency: "PLN", amount_minor: 100000, starts: "2026-09-08", ends: "2026-09-10", today: "2026-09-08" });
+    const flight = createTransaction(db, { account_id: pln.id, date: "2026-08-20T12:00:00+02:00", amount_minor: -60000, category_id: hotel.id, tag_ids: JSON.stringify([tag.id]) });
+    createTransaction(db, { account_id: pln.id, date: "2026-09-09T12:00:00+02:00", amount_minor: -10000, category_id: food.id, tag_ids: JSON.stringify([tag.id]) });
+    // Everything with the tag counts until it is chosen otherwise, whenever it was paid.
+    expect(tripStats(db, budget, { today: "2026-09-09" })).toMatchObject({ spent_minor: 70000, outside_minor: 0, remaining_minor: 30000 });
+    const chosen = save(db, "budgets", { ...getRow(db, "budgets", budget.id)!, outside_ids: JSON.stringify([flight.id]) });
+    const s = tripStats(db, chosen, { today: "2026-09-09" });
+    expect(s).toMatchObject({ spent_minor: 10000, outside_minor: 60000, remaining_minor: 90000 });
+    expect(s.by_category).toEqual([{ category_id: food.id, spent_minor: 10000 }]);
+    // The pace is the days' spending, either way.
+    expect(s.per_day_minor).toBe(5000);
+  });
+
+  test("a past trip is recorded ended, beside the running one", () => {
+    const { db } = seed();
+    const running = startTrip(db, { name: "Rome", currency: "EUR", amount_minor: 1, ends: "2026-09-14", today: "2026-09-08" });
+    const { budget } = addPastTrip(db, { name: "Lisbon", currency: "EUR", amount_minor: 90000, starts: "2026-05-01", ends: "2026-05-07" });
+    expect(budget).toMatchObject({ period: "once", starts: "2026-05-01", ends: "2026-05-07", ended: "2026-05-07" });
+    expect(activeTrip(db)?.id).toBe(running.budget.id);
+    expect(listTrips(db)).toHaveLength(2);
   });
 
   test("an existing tag with the same name is reused, case-insensitively", () => {
@@ -138,6 +163,6 @@ describe("travel mode", () => {
   test("date helpers", () => {
     expect(daysBetween("2026-09-08", "2026-09-14")).toBe(6);
     expect(daysBetween("2026-09-14", "2026-09-08")).toBe(-6);
-    expect(defaultTripEnd("2026-09-28")).toBe("2026-10-04");
+    expect(defaultTripEnd("2026-09-28")).toBe("2026-09-28");
   });
 });

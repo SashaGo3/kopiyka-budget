@@ -22,10 +22,11 @@ function day(y: number, m: number, d: number): string {
  * single day and the whole point here is the span between two — and because this one can take the
  * full width of the sheet, which gives every day a target the size of a keypad key.
  *
- * `maxStart` is the latest day the range may begin on; a later day can still end it.
+ * `maxStart` is the latest day the range may begin on; a later day can still end it. `maxEnd` is
+ * the latest it may end on — a trip already over — and the days after it cannot be tapped at all.
  */
-export function RangeCalendar({ start, end, onChange, maxStart }: {
-  start: string; end: string | null; onChange: (start: string, end: string | null) => void; maxStart?: string;
+export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
+  start: string; end: string | null; onChange: (start: string, end: string | null) => void; maxStart?: string; maxEnd?: string;
 }) {
   const [month, setMonth] = useState(() => monthBounds(end ?? start).start);
   const [y, m] = month.split("-").map(Number) as [number, number];
@@ -67,9 +68,10 @@ export function RangeCalendar({ start, end, onChange, maxStart }: {
             // The band runs behind the whole span, cut in half at either end so the circles sit on it.
             const bandLeft = inside || (d === last && end !== null && end !== start);
             const bandRight = inside || (d === start && end !== null && end !== start);
+            const off = !!maxEnd && d > maxEnd;
             return (
-              <Pressable key={j} onPress={() => tap(d)} style={styles.cell} accessibilityRole="button"
-                accessibilityLabel={d} accessibilityState={{ selected: edge || inside }}>
+              <Pressable key={j} onPress={() => tap(d)} disabled={off} style={[styles.cell, off && { opacity: 0.3 }]} accessibilityRole="button"
+                accessibilityLabel={d} accessibilityState={{ selected: edge || inside, disabled: off }}>
                 {bandLeft ? <View style={[styles.band, { left: 0, right: "50%" }]} /> : null}
                 {bandRight ? <View style={[styles.band, { left: "50%", right: 0 }]} /> : null}
                 <View style={[styles.dot, edge && styles.dotOn]}>
