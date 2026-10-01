@@ -6,6 +6,9 @@ keep every number on your own device, and get budgets that start on payday inste
 Built with React Native (Expo) and a little Swift. Free, open source, no account, no server, no
 trackers.
 
+**[Download on the App Store](https://apps.apple.com/us/app/kopiyka-budget/id6809896169)** ·
+[Website](https://sashago3.github.io/kopiyka-budget/)
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-2B2B2E.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-iOS%2018%2B%20%C2%B7%20watchOS%2010%2B-2B2B2E.svg)
 ![Expo SDK 57](https://img.shields.io/badge/Expo-SDK%2057-2B2B2E.svg)

@@ -14,7 +14,7 @@ site/
                     {{content}}, {{scripts}})
   styles.css        every style on the site, light and dark
   build.mjs         the build script
-  img/              generated: shots/, watch/, icon-180.png, icon-512.png, og.png
+  img/              generated: shots/, ipad/, watch/, icon-180.png, icon-512.png, og.png
   .nojekyll         tells GitHub Pages to serve the files as they are
 ```
 
@@ -34,38 +34,37 @@ after changing any of `docs/privacy-policy.md`, `docs/terms-of-use.md`,
 
 ## Where the screenshots come from
 
-`site/img/shots/` and `site/img/watch/` are resized from
+`site/img/shots/`, `site/img/ipad/` and `site/img/watch/` are resized from
 `apps/mobile/screenshots/appstore/bare/` — the raw capture inside Apple's iPhone 17 Pro Max and
-Apple Watch Ultra 3 bezels on a **transparent** canvas, with no headline, no subtitle and no slide
+Apple Watch Ultra 3 bezels (the iPad's is drawn to Apple's dimensions — there is no bezel asset
+for it) on a **transparent** canvas, with no headline, no subtitle and no slide
 background. Not the framed App Store slides: those carry a headline baked into the picture, and
 the page has its own heading right beside it, so the visitor reads the same sentence twice.
 
 `frame.mjs` writes that set as part of `bun run --cwd apps/mobile screenshots`, and it is
-committed like the rest of `appstore/`. Only the ids listed in `screenshots/shots.json`
-(`iphone[]` and `watch[]`) are copied into the site; the spares in `extras[]` are rendered but not
-shipped. Captions come from the same `shots.json` `title` fields, so change a caption there and
-rebuild.
+committed like the rest of `appstore/`. Only the images `index.html` actually references are
+copied into the site — an `img/shots/`, `img/ipad/` or `img/watch/` path whose id is in
+`screenshots/shots.json` — so adding a shot to the page is adding its `<figure>` and rebuilding.
 
 Dependencies: [`marked`](https://github.com/markedjs/marked), a devDependency at the repository
 root, and ImageMagick (`/opt/homebrew/bin/magick`) for the images. Without ImageMagick the script
 still builds the pages and leaves the images in `site/img/` untouched.
 
-## One thing to fill in
+## Links that live in more than one place
 
-**The App Store URL.** The "Download on the App Store" buttons are plain styled links to `#`,
-marked `data-todo="app-store-url"`. Replace the `href="#"` with the product URL
-(`https://apps.apple.com/app/idXXXXXXXXXX`) and delete the `data-todo` attribute. There are two of
-them in `index.html` (header and hero) and one in `_template.html` — change the template, not the
-generated pages, and rerun the build.
+**The App Store URL**, `https://apps.apple.com/us/app/kopiyka-budget/id6809896169`, is on the
+"Download on the App Store" buttons: two in `index.html` (header and hero) and one in
+`_template.html` — change the template, not the generated pages, and rerun the build. It is in the
+root `README.md` too.
 
 Apple's "Download on the App Store" badge artwork is deliberately **not** bundled here: it has
 to be downloaded from Apple's marketing resources and used under Apple's own guidelines. The
-text button is a fine stand-in, and stays a fine button if you would rather not use the badge.
+text button is a fine stand-in.
 
-That is the only placeholder left. The repository (`https://github.com/SashaGo3/kopiyka-budget`),
-the Pages URL (`https://sashago3.github.io/kopiyka-budget/`, used for `canonical` and `og:url`) and
-the support mailbox (`kopiyka_budget@icloud.com`) are all real and live in the `REPO` / `SITE_URL`
-constants in `site/build.mjs` plus the two hand-written HTML files.
+The repository (`https://github.com/SashaGo3/kopiyka-budget`), the Pages URL
+(`https://sashago3.github.io/kopiyka-budget/`, used for `canonical` and `og:url`) and the support
+mailbox (`kopiyka_budget@icloud.com`) live in the `REPO` / `SITE_URL` constants in
+`site/build.mjs` plus the two hand-written HTML files.
 
 ## Publishing
 

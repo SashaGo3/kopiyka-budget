@@ -28,8 +28,8 @@
  * <out>/ipad-13 (the same slides, laid out for the 13" iPad, from raw/ipad), <out>/extras/…
  * (unnumbered spares) and <out>/watch (raw screens, which is what watchOS wants).
  *
- * It also writes a fourth, non-App-Store set: <out>/bare/iphone/<id>.png and
- * <out>/bare/watch/<id>.png — the capture inside Apple's bezel on a TRANSPARENT canvas, with
+ * It also writes a fourth, non-App-Store set: <out>/bare/iphone/<id>.png, <out>/bare/ipad/<id>.png
+ * and <out>/bare/watch/<id>.png — the capture inside Apple's bezel on a TRANSPARENT canvas, with
  * no headline, no subtitle and no slide background. These are for the promo website
  * (site/build.mjs reads them), where the page supplies its own words and its own background,
  * so a slide's baked-in headline would only be the same sentence printed twice. They are the
@@ -460,6 +460,33 @@ function bareSvg(kind, { href, frameHref }) {
 }
 
 /**
+ * The bare iPad: the same drawn device the iPad slides use, on a transparent canvas exactly its own
+ * size and with no drop shadow. The bezel is drawn rather than composited for the reason given at
+ * IPAD_SCREEN — there is no Apple asset to composite into — and it is drawn from Apple's own
+ * dimensions, so unlike a drawn iPhone it shows a device that exists. The capture lands 1:1.
+ */
+function bareIpadSvg({ href }) {
+  const W = Math.round(IPAD_SCREEN.w / (1 - 2 * IPAD_BEZEL));
+  const H = Math.round(ipadHeightFor(W));
+  const uid = "bare-ipad";
+  const device = ipadDrawn({ uid, x: 0, y: 0, w: W, href, imgW: IPAD_SCREEN.w, imgH: IPAD_SCREEN.h, shadow: false });
+  return {
+    W,
+    H,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>
+    <linearGradient id="g-frame-${uid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3A3A3E"/>
+      <stop offset="0.08" stop-color="${BRAND.bezel}"/>
+      <stop offset="0.9" stop-color="#101012"/>
+      <stop offset="1" stop-color="#2F2F33"/>
+    </linearGradient>
+  </defs>${device.svg}
+</svg>`,
+  };
+}
+
+/**
  * Fallback when a bezel PNG is missing: a drawn iPhone — near-black bezel, titanium edge
  * highlight, Dynamic Island, side buttons, the capture clipped to the screen's rounded rect.
  * `w` is the full outer width of the device; the screen fills the rest.
@@ -558,7 +585,7 @@ function watchDrawn({ uid, x, y, w, href, imgW, imgH }) {
  * the device does not have: no notch, no Dynamic Island, no home button, no visible buttons in
  * portrait, which is exactly what a 13" iPad looks like face on.
  */
-function ipadDrawn({ uid, x, y, w, href, imgW, imgH }) {
+function ipadDrawn({ uid, x, y, w, href, imgW, imgH, shadow = true }) {
   const bezel = w * IPAD_BEZEL;
   const sw = w - 2 * bezel;
   const sh = sw * (imgH / imgW);
@@ -573,9 +600,9 @@ function ipadDrawn({ uid, x, y, w, href, imgW, imgH }) {
     h,
     svg: `
   <g>
-    <g filter="url(#f-shadow)">
+    ${shadow ? `<g filter="url(#f-shadow)">
       <rect x="${(x + w * 0.03).toFixed(2)}" y="${(y + h * 0.02).toFixed(2)}" width="${(w - w * 0.06).toFixed(2)}" height="${h.toFixed(2)}" rx="${orx.toFixed(2)}" fill="#000" opacity="0.32"/>
-    </g>
+    </g>` : ""}
     <rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="${orx.toFixed(2)}" fill="url(#g-frame-${uid})"/>
     <rect x="${(x + edge).toFixed(2)}" y="${(y + edge).toFixed(2)}" width="${(w - 2 * edge).toFixed(2)}" height="${(h - 2 * edge).toFixed(2)}" rx="${(orx - edge).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="${(edge * 1.5).toFixed(2)}"/>
     <rect x="${(x + bezel * 0.5).toFixed(2)}" y="${(y + bezel * 0.5).toFixed(2)}" width="${(w - bezel).toFixed(2)}" height="${(h - bezel).toFixed(2)}" rx="${(orx - bezel * 0.5).toFixed(2)}" fill="#0C0C0E"/>
@@ -1021,6 +1048,31 @@ function main() {
         rasterizeAlpha(svg, { W, H, out, tag: `bare-${shot.id}` });
         const v = verify(out, W, H, { alpha: true });
         console.log(`${v.ok ? "ok  " : "BAD "} bare/iphone/${shot.id}.png  ${v.detail}`);
+        if (!v.ok) warnings.push(`${out} is ${v.detail}, expected ${W}x${H} with alpha`);
+      }
+    }
+
+    // The iPad from its own captures, for every slide an iPad set has (not the phone-and-watch one).
+    const ipadRaw = path.join(RAW_DIR, IPAD_DEVICE.raw);
+    if (!IPAD || !fs.existsSync(ipadRaw)) {
+      warnings.push(`bare iPad set skipped: nothing in ${short(ipadRaw)}`);
+    } else {
+      const outIpad = path.join(OUT_DIR, "bare", "ipad");
+      fs.mkdirSync(outIpad, { recursive: true });
+      for (const shot of phoneShots) {
+        if (ONLY_SET && !ONLY_SET.has(shot.id)) continue;
+        if (shot.layout === "phone-watch") continue;
+        const theme = shot.theme === "dark" ? "dark" : "light";
+        const rawFile = path.join(ipadRaw, theme, `${shot.id}.png`);
+        if (!fs.existsSync(rawFile)) {
+          warnings.push(`skip bare/ipad/${shot.id}: missing raw ${short(rawFile)}`);
+          continue;
+        }
+        const { W, H, svg } = bareIpadSvg({ href: dataUri(rawFile) });
+        const out = path.join(outIpad, `${shot.id}.png`);
+        rasterizeAlpha(svg, { W, H, out, tag: `bare-ipad-${shot.id}` });
+        const v = verify(out, W, H, { alpha: true });
+        console.log(`${v.ok ? "ok  " : "BAD "} bare/ipad/${shot.id}.png  ${v.detail}`);
         if (!v.ok) warnings.push(`${out} is ${v.detail}, expected ${W}x${H} with alpha`);
       }
     }
