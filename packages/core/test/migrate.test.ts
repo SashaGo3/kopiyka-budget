@@ -29,6 +29,24 @@ describe("migrate", () => {
     expect(byId.get("a2")?.updated_at).toBe(1);
   });
 
+  test("v12 gives every existing budget a one-category set, and leaves an overall one empty", () => {
+    const db = openBunDb(":memory:");
+    migrate(db);
+    db.run(`INSERT INTO budgets (id, updated_at, deleted, category_id, category_ids, currency, amount_minor, period, starts, start_day) VALUES
+      ('b1', 1, 0, 'cat-food', '[]', 'PLN', 100000, 'monthly', '2026-09-01', 1),
+      ('b2', 1, 0, NULL, '[]', 'PLN', 500000, 'monthly', '2026-09-01', 1)`);
+    db.run(`UPDATE meta SET value='11' WHERE key='schema_version'`);
+    migrate(db);
+    const byId = new Map(listRows(db, "budgets").map((b) => [b.id, b]));
+    expect(byId.get("b1")?.category_ids).toBe('["cat-food"]');
+    expect(byId.get("b2")?.category_ids).toBe("[]");
+    // A set someone has since chosen is not overwritten by a re-run.
+    db.run(`UPDATE budgets SET category_ids='["a","b"]' WHERE id='b1'`);
+    db.run(`UPDATE meta SET value='11' WHERE key='schema_version'`);
+    migrate(db);
+    expect(byId.get("b1") && listRows(db, "budgets").find((b) => b.id === "b1")?.category_ids).toBe('["a","b"]');
+  });
+
   test("a new account is never groupless", () => {
     const db = openBunDb(":memory:");
     migrate(db);

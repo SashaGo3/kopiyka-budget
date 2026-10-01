@@ -5,7 +5,7 @@
  *   node site/build.mjs          (or: bun run site)
  *
  * What it does, in order:
- *   1. makes web-sized copies of the bare device shots, the app icon and the
+ *   1. makes web-sized copies of the bare device shots (iPhone, iPad, watch), the app icon and the
  *      Open Graph card with ImageMagick
  *   2. renders docs/*.md into site/*.html through site/_template.html
  *   3. checks that every local href/src in site/ resolves to a real file
@@ -172,6 +172,7 @@ function buildImages() {
 
   mkdirSync(join(SITE, 'img/shots'), { recursive: true });
   mkdirSync(join(SITE, 'img/watch'), { recursive: true });
+  mkdirSync(join(SITE, 'img/ipad'), { recursive: true });
 
   const bareIphone = join(SHOTS, 'appstore/bare/iphone');
   const bareWatch = join(SHOTS, 'appstore/bare/watch');
@@ -189,11 +190,11 @@ function buildImages() {
   // …and only the ids index.html actually shows: a slide dropped from the page must not keep
   // shipping its image.
   const indexHtml = readFileSync(join(SITE, 'index.html'), 'utf8');
-  const wanted = (list) => (list || []).map((s) => `${s.id}.png`).filter((n) => indexHtml.includes(`/${n}`));
+  const wanted = (list, dir) => (list || []).map((s) => `${s.id}.png`).filter((n) => indexHtml.includes(`img/${dir}/${n}`));
 
   // Bare phones at 560 px wide. The alpha channel is the point: the page's own
   // background shows through, so -background/-flatten must stay well away.
-  for (const name of wanted(shots.iphone)) {
+  for (const name of wanted(shots.iphone, 'shots')) {
     if (!existsSync(join(bareIphone, name))) {
       warn(`bare/iphone/${name} is missing — rerun frame.mjs`);
       continue;
@@ -207,8 +208,25 @@ function buildImages() {
     ]);
   }
 
+  // Bare iPads at 720 px wide — the page shows them at up to 360 — from the same shot ids, since an
+  // iPad slide is an iPhone slide captured on the iPad. Optional: no iPad captures, no iPad images.
+  const bareIpad = join(SHOTS, 'appstore/bare/ipad');
+  for (const name of wanted([...(shots.iphone || []), ...(shots.extras || [])], 'ipad')) {
+    if (!existsSync(join(bareIpad, name))) {
+      warn(`bare/ipad/${name} is missing — rerun frame.mjs`);
+      continue;
+    }
+    magick([
+      join(bareIpad, name),
+      '-strip',
+      '-resize', '720x',
+      '-define', 'png:compression-level=9',
+      join(SITE, 'img/ipad', name),
+    ]);
+  }
+
   // Bare watches at 300 px wide, alpha kept for the same reason.
-  for (const name of wanted(shots.watch)) {
+  for (const name of wanted(shots.watch, 'watch')) {
     if (!existsSync(join(bareWatch, name))) {
       warn(`bare/watch/${name} is missing — rerun frame.mjs`);
       continue;
@@ -244,7 +262,7 @@ function buildImages() {
     join(SITE, 'img/og.png'),
   ]);
 
-  console.log('  ✓ site/img/ (bare phones, bare watches, icons, og)');
+  console.log('  ✓ site/img/ (bare phones, iPads and watches, icons, og)');
 }
 
 // ---------------------------------------------------- 3. + 4. sanity checks

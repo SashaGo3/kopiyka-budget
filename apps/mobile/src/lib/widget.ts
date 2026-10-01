@@ -6,7 +6,7 @@
 import { File, Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { KPBridge } from "@/lib/bridge";
-import { accountBalanceMinor, activeTrip, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
+import { accountBalanceMinor, activeTrip, budgetCategoryIds, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
 import { db, APP_GROUP } from "@/db";
 import { currentPeriod } from "./period";
 import { getBudgetScope } from "./settings";
@@ -36,7 +36,9 @@ export function buildSnapshot(): WidgetSnapshot {
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
   const scopeIds = scopeAccountIds(scope, listRows(db, "accounts", "deleted=0"));
   const out: WidgetSnapshot["budgets"] = budgetRows(db, { start: period.start, end: period.end, accountIds: scopeIds, budgetAccount: scopeAccount(scope) }).map((r) => ({
-    category_id: r.budget.category_id, name: r.budget.category_id ? cats.get(r.budget.category_id)?.name ?? "?" : "Everything", currency: r.budget.currency,
+    category_id: r.budget.category_id,
+    name: budgetCategoryIds(r.budget).map((cid) => cats.get(cid)?.name ?? "?").join(", ") || "Everything",
+    currency: r.budget.currency,
     limit: fromMinor(r.budget.amount_minor, r.budget.currency), spent: fromMinor(r.spent_minor, r.budget.currency),
   }));
   const label = period.subtitle ? `${period.title} · ${period.subtitle}` : period.title;

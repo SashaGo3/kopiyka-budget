@@ -300,7 +300,7 @@ struct TagsPickView: View {
         HStack(spacing: 8) {
           Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(.green)
           VStack(alignment: .leading, spacing: 1) {
-            Text(tripTag == nil ? "No tags" : "Just the trip tag").font(.body.weight(.semibold))
+            Text(tripTag == nil ? "No tags" : "Just the travel tag").font(.body.weight(.semibold))
             Text(amountLabel).font(.caption2).foregroundStyle(.secondary)
           }
         }
@@ -463,7 +463,7 @@ struct BudgetsPage: View {
             Text(t.allowance.map { "\(t.dayLabel) · \(KPFormat.money(max(0, $0), t.currency, decimals: 0))/day" } ?? t.dayLabel).font(.caption2).foregroundStyle(.secondary)
           }
           .accessibilityElement(children: .ignore)
-          .accessibilityLabel("Trip \(t.name), \(KPFormat.money(t.remaining, t.currency, decimals: 0)) left, \(t.dayLabel)")
+          .accessibilityLabel("Travel \(t.name), \(KPFormat.money(t.remaining, t.currency, decimals: 0)) left, \(t.dayLabel)")
         }
       }
       if let s = snapshot, !s.budgets.isEmpty {

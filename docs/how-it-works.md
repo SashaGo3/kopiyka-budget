@@ -14,8 +14,10 @@ lists them and merges one in (newer rows win, nothing is deleted).
 
 - A backup is written 20 s after the last change, at most every 5 minutes, when the app goes to the
   background with unsaved changes, and at least once a day when the app is opened.
-- Each day keeps up to 7 files (Settings → Data management → Backups per day: 1–24): the day's first
-  backup plus the newest ones. Days older than 30 are removed. Automatic backups are compact (null
+- Each day keeps up to 7 files: the day's first backup plus the newest ones. Days outside the
+  retention window are removed — Settings → Data management → **Keep backups for** (3, 7, 14, 30 or
+  90 days, default 30), which is the dial for how much iCloud storage the backups take; shortening it
+  deletes what now falls outside straight away rather than at the next backup. Automatic backups are compact (null
   fields dropped, tombstones older than 30 days shrunk); the manual JSON export is complete. The
   policy lives in `packages/core/src/backupSchedule.ts`.
 - With iCloud Drive off, backups stay in the app's Documents folder (Files → On My iPhone → Kopiyka).
@@ -44,8 +46,17 @@ lists them and merges one in (newer rows win, nothing is deleted).
   Exchange rates are the exception and are always merged. The way back is built in: a replace takes
   a backup *first* and names it in the result, and Restore from a backup offers **Replace everything**
   as well as Merge — so undoing a replace is the same operation pointed at the copy taken before it.
-- **What a backup does not carry:** the three `meta` keys that describe the install rather than the
-  data (`device_id`, `last_pulled_seq`, `onboarded`). Everything else — all eight tables with every
+- **Merging from your other devices (auto-sync).** The container is shared, so it is also an inbox:
+  with Settings → Data management → **Merge from other devices** on (the default), the app lists the
+  container when it opens and every 5 minutes while it is open, and imports any backup this install
+  has never read. It merges — nothing is deleted, the newer row wins, and deletions still travel
+  because an automatic backup carries tombstones — so an iPhone and an iPad converge without either
+  losing what was typed on it. The import waits for interactions to finish, so it never lands in the
+  middle of a scroll; a poll with nothing new costs one directory listing. While it is on, retention
+  will not delete a backup this device has not merged yet. What it cannot carry is a *replace*: that
+  deletes rows outright, so another device's next backup hands them back (DATA.md rule 12).
+- **What a backup does not carry:** the `meta` keys that describe the install rather than the
+  data (`device_id`, `last_pulled_seq`, `onboarded`, and auto-sync's `sync_seen` and friends). Everything else — all eight tables with every
   column, deleted rows as tombstones, every preference in `BACKUP_META_KEYS`, the rates and the
   photos — is included.
 - Requires the `iCloud.dev.kopiyka` container (entitlements in `app.json`); Xcode's automatic signing
@@ -56,9 +67,12 @@ lists them and merges one in (newer rows win, nothing is deleted).
 - `kopiyka://log` (also the "Log expense" home-screen quick action and the Action button via the
   "New expense in Kopiyka" shortcut) opens the entry sheet straight from a cold start, before
   anything else renders.
-- **Bank notifications (beta).** iOS exposes no Wallet transactions to apps, but a Shortcuts
+- **Bank notifications (beta, iOS 27+).** iOS exposes no Wallet transactions to apps, but a Shortcuts
   automation (Automation → When I receive a notification → your bank's app) can run the "Log payment
-  from an app notification" intent. It takes the whole **Notification** variable and reads the
+  from an app notification" intent. The "When I receive a notification" trigger arrived in iOS 27, so
+  on anything older the automation cannot be created at all; the setup screen says so
+  (`AUTOMATION_MIN_IOS` in `apps/mobile/src/constants/features.ts`). Nothing else is gated — the app
+  itself runs on iOS 18. It takes the whole **Notification** variable and reads the
   amount, currency, shop or sender, transfer title, card, account number, timestamp and closing
   balance out of it (`apps/mobile/native/KPPaymentText.swift`; `apps/mobile/scripts/payment-parse`
   runs that reader on a Mac against sample texts). Settings → Automate with Shortcut walks through

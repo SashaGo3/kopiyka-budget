@@ -40,7 +40,7 @@ describe("recurring", () => {
     const base: RecurringRule = {
       id: "r1", updated_at: 0, deleted: 0, account_id: "a", amount_minor: -1000, category_id: null, payee: null, notes: null,
       tag_ids: "[]", frequency: "monthly", interval: 1, start_date: "2026-09-10", end_date: null, next_date: "2026-09-10",
-      notify: 1, notify_days_before: 2, auto_post: 0, active: 1, time_of_day: "09:00",
+      notify: 1, notify_days_before: 2, auto_post: 0, active: 1, time_of_day: "09:00", wait_days: null, match_payee: null,
     };
     const plan = plannedNotifications([base], "2026-09-07", 40);
     expect(plan).toEqual([

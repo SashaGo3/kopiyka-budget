@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kopiyka",
     "slug": "kopiyka",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kopiyka",
@@ -11,9 +11,15 @@
     "ios": {
       "bundleIdentifier": "dev.kopiyka.app",
       "icon": "./assets/expo.icon",
-      "supportsTablet": false,
+      "supportsTablet": true,
       "infoPlist": {
         "CFBundleDisplayName": "Kopiyka Budget",
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
         "NSCameraUsageDescription": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
         "ITSAppUsesNonExemptEncryption": false,
         "EXDevMenuShowFloatingActionButton": false,
@@ -48,7 +54,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "23"
+      "buildNumber": "42"
     },
     "android": {
       "package": "dev.kopiyka.app",
@@ -91,7 +97,7 @@
         "expo-camera",
         {
           "cameraPermission": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
-          "microphonePermission": "Kopiyka never records audio. iOS requires this notice because the camera library used for receipt photos can access the microphone.",
+          "microphonePermission": "Kopiyka doesn't record audio. Receipt photos are taken with sound off.",
           "recordAudioAndroid": false
         }
       ],
@@ -107,7 +113,7 @@
           "locationWhenInUsePermission": "Remember where you log expenses so the category can be suggested next time.",
           "locationAlwaysAndWhenInUsePermission": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
           "locationAlwaysPermission": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
-          "motionUsagePermission": "Kopiyka does not use motion data. iOS requires this notice because a library the app includes can access it."
+          "motionUsagePermission": "Kopiyka doesn't use motion or fitness data."
         }
       ],
       [

@@ -4,7 +4,7 @@
  * available so WidgetKit, App Intents and the watch bridge can read the same file.
  */
 import * as SQLite from "expo-sqlite";
-import { File, Paths } from "expo-file-system";
+import { Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { migrate, type Row, type SqlDriver, type SqlParam } from "@kopiyka/core";
 import { KPBridge } from "@/lib/bridge";
@@ -45,16 +45,6 @@ export const db: SqlDriver = {
 
 migrate(db);
 
-/** Size of the on-disk database file, in bytes (0 if it cannot be read). */
-export function databaseFileSize(): number {
-  try { return new File(dbDirectory ?? Paths.document, DB_NAME).size ?? 0; } catch { return 0; }
-}
-
-/** Reclaims space left by soft-deleted rows and past index rebuilds. Must not run inside a transaction. Returns the size afterward. */
-export function compactDatabase(): number {
-  db.run("VACUUM");
-  return databaseFileSize();
-}
 
 // Indexes damaged by an earlier concurrent native write (builds before 2026-09-08) are rebuilt once;
 // `quick_check` on this small file takes a few milliseconds.

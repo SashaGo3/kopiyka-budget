@@ -78,5 +78,15 @@ final class KPBridgeModule: Module {
       guard let url = URL(string: uri), let image = UIImage(contentsOfFile: url.path) else { throw KPReceipt.Failure.noImage }
       return KPReceipt.dictionary(try await KPReceipt.analyze(image: image))
     }
+
+    // Device odds and ends (native/KPDevice.swift; JS side: src/lib/device.ts).
+    Function("copyToClipboard") { (text: String) in KPDevice.copy(text) }
+    Function("readClipboard") { () -> String in KPDevice.paste() }
+    /// The languages and region iOS is set to — where the app language and the onboarding currency start.
+    Function("locales") { () -> [String: Any] in KPDevice.locales() }
+    /// Apple Maps place search (MKLocalSearch): free, keyless, and no third party sees the query.
+    AsyncFunction("searchPlaces") { (query: String, lat: Double?, lon: Double?, limit: Int) async throws -> [[String: Any]] in
+      try await KPDevice.searchPlaces(query: query, lat: lat, lon: lon, limit: limit)
+    }
   }
 }

@@ -31,6 +31,9 @@ export function rangeLabel(from: string | null, to: string | null): string {
   return `${humanDayTime(from!)} → ${last}`;
 }
 
+/** The day after a YYYY-MM-DD: the exclusive `to` bound that ends a range on that day. */
+export function nextDay(d: string): string { const [y, m, dd] = d.split("-").map(Number) as [number, number, number]; return new Date(Date.UTC(y, m - 1, dd + 1)).toISOString().slice(0, 10); }
+
 /** The day before an exclusive `to` bound, for display. */
 export function prevDay(d: string): string { const [y, m, dd] = d.split("-").map(Number) as [number, number, number]; return new Date(Date.UTC(y, m - 1, dd - 1)).toISOString().slice(0, 10); }
 

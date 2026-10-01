@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Shared helpers for the screenshot pipeline. Sourced by run.sh and capture.sh.
 #
-# The pipeline owns two simulators of its own ("Kopiyka Shots" + "Kopiyka Shots Watch") so it never
-# taps on a simulator you are working in. They are created on first use and reused afterwards.
+# The pipeline owns three simulators of its own ("Kopiyka Shots", "Kopiyka Shots Watch" and
+# "Kopiyka Shots iPad") so it never taps on a simulator you are working in. They are created on
+# first use and reused afterwards.
 
 set -euo pipefail
 
@@ -14,8 +15,16 @@ WATCH_APP_ID="dev.kopiyka.app.watchkitapp"
 
 PHONE_NAME="${SHOTS_PHONE_NAME:-Kopiyka Shots}"
 WATCH_NAME="${SHOTS_WATCH_NAME:-Kopiyka Shots Watch}"
+IPAD_NAME="${SHOTS_IPAD_NAME:-Kopiyka Shots iPad}"
 PHONE_TYPE="${SHOTS_PHONE_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max}"   # 6.9" → 1320×2868
 WATCH_TYPE="${SHOTS_WATCH_TYPE:-com.apple.CoreSimulator.SimDeviceType.Apple-Watch-Ultra-3-49mm}" # 422×514
+# App Store Connect's "iPad 13-inch" set is 2064×2752 (it also takes the 12.9" 2048×2732 there).
+# Any 13" iPad gives the same 2064×2752: Pro M4/M5 and Air 13" M2/M3/M4 all share that screen.
+IPAD_TYPE="${SHOTS_IPAD_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB}"   # 13" → 2064×2752
+
+# The raw capture sizes the framer lays its slides out against.
+PHONE_SIZE="1320x2868"
+IPAD_SIZE="2064x2752"
 
 # Release simulator build (no Metro, no dev-client launcher, cold-start deep links work).
 DERIVED="${SHOTS_DERIVED:-$MOBILE_DIR/build/ddr}"
@@ -64,9 +73,13 @@ boot_sim() {
 }
 
 # Apple's marketing status bar: 9:41, full battery, full signal, no carrier text.
+# A Wi-Fi iPad shows no cellular chrome at all, so pass "wifi" to leave those keys out rather than
+# put a carrier signal on a device that has none.
 pretty_status_bar() {
-  xcrun simctl status_bar "$1" override --time "9:41" --batteryState discharging --batteryLevel 100 \
-    --cellularBars 4 --operatorName "" --wifiBars 3 >/dev/null 2>&1 || true
+  local udid="$1" radio="${2:-cellular}"
+  local args=(--time "9:41" --batteryState discharging --batteryLevel 100 --wifiBars 3)
+  [[ "$radio" == wifi ]] || args+=(--cellularBars 4 --operatorName "")
+  xcrun simctl status_bar "$udid" override "${args[@]}" >/dev/null 2>&1 || true
 }
 
 # Pixel size of a PNG, "WxH".

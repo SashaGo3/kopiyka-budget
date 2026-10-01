@@ -13,6 +13,12 @@ Both are Apple's product bezels, distributed under the Apple Design Resources li
 allows them in App Store marketing material for an app that runs on the device shown. Do not
 recolour them or use them for anything else.
 
+**There is no iPad here.** Apple's Product Bezels download has no 13" iPad and frameit's set stops at
+the 12.9" Pro of 2020, so the iPad slides are drawn instead — `ipadDrawn` in `frame.mjs`, off the tech
+specs (a 215.5 × 281.6 mm body around a 198.6 × 264.7 mm display, so 8.45 mm of bezel all round). If
+a real 13" iPad bezel ever ships, drop it in, measure it as below, and give `IPAD_DEVICE` a `frame`
+the way `PHONE_DEVICE` has one.
+
 ## Geometry
 
 Measured from each PNG's own alpha channel (`magick <file> -alpha extract`, then scanning rows

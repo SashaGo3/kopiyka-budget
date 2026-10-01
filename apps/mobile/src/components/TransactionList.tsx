@@ -1,9 +1,10 @@
 import { memo, useMemo } from "react";
-import { Pressable, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { jsonIds, type Transaction } from "@kopiyka/core";
+import { formatMinor, jsonIds, paidAmountMinor, type Transaction } from "@kopiyka/core";
 import { useQuery } from "@/store";
+import { useCloudRefresh } from "@/lib/backup";
 import { AmountPill, CategoryIcon, Empty, Money, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { dayLabel, humanDayTime, timeLabel } from "@/lib/dates";
@@ -23,7 +24,7 @@ export function useTransactions(where: string, params: (string | number)[] = [],
 export function groupByDay(rows: TxRow[]) {
   const map = new Map<string, TxRow[]>();
   for (const r of rows) { const d = r.date.slice(0, 10); (map.get(d) ?? map.set(d, []).get(d)!).push(r); }
-  return [...map].map(([day, data]) => ({ title: dayLabel(day), day, data, total: data.filter((t) => !t.transfer_id).reduce((a, t) => a + t.amount_minor, 0), currency: data[0]?.currency ?? "" }));
+  return [...map].map(([day, data]) => ({ title: dayLabel(day), day, data, total: data.filter((r) => !r.transfer_id).reduce((a, r) => a + r.amount_minor, 0), currency: data[0]?.currency ?? "" }));
 }
 
 /** Highest income first, then the largest expenses; transfers last. Used by the "by amount" sort. */
@@ -39,32 +40,38 @@ export function sortByAmount(rows: TxRow[]): TxRow[] {
  * `resetKey` remounts the list so it starts from the very top again (with the large title expanded).
  * With `selected` set the list is in selection mode: rows show a check circle and tapping toggles them.
  */
-export function TransactionList({ rows, header, showAccount = true, resetKey, flat, onScroll, selected, onToggle }: {
-  rows: TxRow[]; header?: React.ReactElement; showAccount?: boolean; resetKey?: string; flat?: boolean; onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+export function TransactionList({ rows, header, empty, showAccount = true, resetKey, flat, onScroll, selected, onToggle }: {
+  rows: TxRow[]; header?: React.ReactElement; empty?: React.ReactElement; showAccount?: boolean; resetKey?: string; flat?: boolean; onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   selected?: Set<string>; onToggle?: (id: string) => void;
 }) {
   const sections = flat ? [{ title: "", day: "", data: rows, total: 0, currency: "" }] : groupByDay(rows);
   const selecting = !!selected;
+  // Pull to refresh: re-read the database (a Shortcut automation or the watch writes into it while
+  // the app is in the background, and nothing tells JS about that) and look in iCloud for what
+  // another device has backed up. Budgets pulls on the same hook, so the gesture means one thing.
+  const { refreshing, onRefresh } = useCloudRefresh();
   // Tags loaded once; resolved per row into a stable Map so the tags array a row gets doesn't
   // change reference (and TxItem doesn't re-render) unless that row's tags or the tags table did.
   const tagsById = useQuery((db) => new Map(db.all<{ id: string; name: string; color: string | null }>(
     `SELECT id, name, color FROM tags WHERE deleted=0`).map((r) => [r.id, { name: r.name, color: r.color }])));
   const tagsFor = useMemo(() => {
     const map = new Map<string, TagRef[]>();
-    for (const t of rows) map.set(t.id, jsonIds(t.tag_ids).flatMap((id) => { const tag = tagsById.get(id); return tag ? [{ id, name: tag.name, color: tag.color }] : []; }));
+    for (const tx of rows) map.set(tx.id, jsonIds(tx.tag_ids).flatMap((id) => { const tag = tagsById.get(id); return tag ? [{ id, name: tag.name, color: tag.color }] : []; }));
     return map;
   }, [rows, tagsById]);
   return (
     <SectionList
       key={resetKey}
       sections={sections}
-      keyExtractor={(t) => t.id}
+      keyExtractor={(tx) => tx.id}
       contentInsetAdjustmentBehavior="automatic"
       onScroll={onScroll}
       scrollEventThrottle={16}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       contentContainerStyle={{ paddingBottom: 220 }}
       ListHeaderComponent={header}
-      ListEmptyComponent={<Empty title="No transactions" hint="Tap Log to add one." />}
+      // The caller knows what it filtered by, so it can say why there is nothing here.
+      ListEmptyComponent={empty ?? <Empty title="No transactions" hint="Tap Log to add one." />}
       stickySectionHeadersEnabled={false}
       // Fewer rows mounted off-screen: switching selection mode re-renders every mounted row.
       windowSize={7}
@@ -72,9 +79,9 @@ export function TransactionList({ rows, header, showAccount = true, resetKey, fl
       maxToRenderPerBatch={14}
       renderSectionHeader={({ section }) => section.title ? <Text style={styles.sh}>{section.title}</Text> : <View style={{ height: S.sm }} />}
       renderSectionFooter={({ section }) => section.total !== 0 ? <Text style={styles.sum}>Sum: <Money minor={section.total} currency={section.currency} style={[styles.sumVal, { color: section.total < 0 ? C.red : C.green }]} /></Text> : <View style={{ height: S.sm }} />}
-      renderItem={({ item: t, index, section }) => (
-        <TxItem t={t} tags={tagsFor.get(t.id) ?? EMPTY_TAGS} flat={!!flat} showAccount={showAccount} first={index === 0} last={index === section.data.length - 1}
-          selecting={selecting} on={selected?.has(t.id) ?? false} onToggle={onToggle} />
+      renderItem={({ item: tx, index, section }) => (
+        <TxItem tx={tx} tags={tagsFor.get(tx.id) ?? EMPTY_TAGS} flat={!!flat} showAccount={showAccount} first={index === 0} last={index === section.data.length - 1}
+          selecting={selecting} on={selected?.has(tx.id) ?? false} onToggle={onToggle} />
       )}
     />
   );
@@ -83,28 +90,31 @@ export function TransactionList({ rows, header, showAccount = true, resetKey, fl
 const EMPTY_TAGS: TagRef[] = [];
 
 /** One row. Memoized: toggling one row in selection mode re-renders only that row. */
-const TxItem = memo(function TxItem({ t, tags, flat, showAccount, first, last, selecting, on, onToggle }: {
-  t: TxRow; tags: TagRef[]; flat: boolean; showAccount: boolean; first: boolean; last: boolean; selecting: boolean; on: boolean; onToggle?: (id: string) => void;
+const TxItem = memo(function TxItem({ tx, tags, flat, showAccount, first, last, selecting, on, onToggle }: {
+  tx: TxRow; tags: TagRef[]; flat: boolean; showAccount: boolean; first: boolean; last: boolean; selecting: boolean; on: boolean; onToggle?: (id: string) => void;
 }) {
-  const noteLines = t.notes ? t.notes.split("\n") : [];
+  const noteLines = tx.notes ? tx.notes.split("\n") : [];
   const note = noteLines[0] || null;
-  const title = t.transfer_id ? (note ? `Transfer · ${note}` : "Transfer") : note || t.payee || t.category_name || t.parent_name || "Uncategorized";
+  const title = tx.transfer_id ? (note ? `Transfer · ${note}` : "Transfer") : note || tx.payee || tx.category_name || tx.parent_name || "Uncategorized";
   const restLines = note ? noteLines.slice(1, 3) : []; // at most 2 more lines of the note, under the title
-  const category = t.category_name ? (t.parent_name ? `${t.parent_name} › ${t.category_name}` : t.category_name) : t.parent_name;
-  const sub = [showAccount ? t.account_name : null, category].filter(Boolean).join(" · ");
-  const payeeLine = t.payee && t.payee !== title ? t.payee : null;
-  const crossCurrency = t.entered_currency && t.entered_currency !== t.currency && t.entered_amount_minor != null
-    ? `entered ${(Math.abs(t.entered_amount_minor) / 100).toFixed(2)} ${t.entered_currency}${t.exchange_rate ? ` @ ${t.exchange_rate.toFixed(2)}` : ""}` : null;
-  const a11yBits = [sub, tags.length ? `tags ${tags.map((x) => x.name).join(", ")}` : null, t.pending ? "pending" : null].filter(Boolean).join(", ");
+  const category = tx.category_name ? (tx.parent_name ? `${tx.parent_name} › ${tx.category_name}` : tx.category_name) : tx.parent_name;
+  const sub = [showAccount ? tx.account_name : null, category].filter(Boolean).join(" · ");
+  const payeeLine = tx.payee && tx.payee !== title ? tx.payee : null;
+  const crossCurrency = tx.entered_currency && tx.entered_currency !== tx.currency && tx.entered_amount_minor != null
+    ? `entered ${(Math.abs(tx.entered_amount_minor) / 100).toFixed(2)} ${tx.entered_currency}` + (tx.exchange_rate ? ` @ ${tx.exchange_rate.toFixed(2)}` : "") : null;
+  // Part of this came back (packages/core/returns.ts): the row shows what it ended up costing, with
+  // what was paid struck through next to it, so a shrunken amount is never a mystery.
+  const returned = tx.refunded_minor ? `paid ${formatMinor(Math.abs(paidAmountMinor(tx)), tx.currency)}, ${formatMinor(Math.abs(tx.refunded_minor), tx.currency)} came back` : null;
+  const a11yBits = [sub, tags.length ? `tags ${tags.map((x) => x.name).join(", ")}` : null, tx.pending ? "pending" : null].filter(Boolean).join(", ");
   return (
     <Pressable
-      onPress={() => selecting ? onToggle?.(t.id) : router.push(t.transfer_id ? { pathname: "/transfer/[id]", params: { id: t.transfer_id } } : { pathname: "/transaction/[id]", params: { id: t.id } })}
-      style={({ pressed }) => [styles.item, first && styles.first, last && styles.last, !first && styles.divider, !!t.pending && styles.pendingBg, (pressed || on) && { backgroundColor: C.fill }]}
-      accessibilityRole={selecting ? "checkbox" : "button"} accessibilityState={selecting ? { checked: on } : undefined} accessibilityLabel={`${title}, ${t.amount_minor / 100} ${t.currency}, ${a11yBits}`}>
-      {t.pending ? <View style={styles.pendingBar} /> : null}
+      onPress={() => selecting ? onToggle?.(tx.id) : router.push(tx.transfer_id ? { pathname: "/transfer/[id]", params: { id: tx.transfer_id } } : { pathname: "/transaction/[id]", params: { id: tx.id } })}
+      style={({ pressed }) => [styles.item, first && styles.first, last && styles.last, !first && styles.divider, !!tx.pending && styles.pendingBg, (pressed || on) && { backgroundColor: C.fill }]}
+      accessibilityRole={selecting ? "checkbox" : "button"} accessibilityState={selecting ? { checked: on } : undefined} accessibilityLabel={`${title}, ${tx.amount_minor / 100} ${tx.currency}, ${a11yBits}`}>
+      {tx.pending ? <View style={styles.pendingBar} /> : null}
       {selecting ? <SymbolView name={on ? "checkmark.circle.fill" : "circle"} size={22} tintColor={on ? C.tint : C.tertiary} /> : null}
-      {t.transfer_id ? <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
-        : <CategoryIcon name={t.category_name ?? t.parent_name ?? "?"} icon={t.cat_icon ?? t.parent_icon} color={t.cat_color ?? t.parent_color} size={34} />}
+      {tx.transfer_id ? <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
+        : <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={34} />}
       <View style={styles.text}>
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
         {restLines.length ? <Text style={styles.sub} numberOfLines={2}>{restLines.join("\n")}</Text> : null}
@@ -112,16 +122,17 @@ const TxItem = memo(function TxItem({ t, tags, flat, showAccount, first, last, s
         {tags.length ? <View style={styles.tagRow}>{tags.map((tag) => <TagPill key={tag.id} name={tag.name} color={tag.color} />)}</View> : null}
         {payeeLine ? <Text style={styles.sub}>{payeeLine}</Text> : null}
         {crossCurrency ? <Text style={styles.sub}>{crossCurrency}</Text> : null}
-        {t.place || t.lat != null ? <Text style={styles.sub}>📍 {t.place ?? `${t.lat!.toFixed(4)}, ${t.lon!.toFixed(4)}`}</Text> : null}
+        {returned ? <Text style={[styles.sub, { color: C.green as unknown as string }]}>↩ {returned}</Text> : null}
+        {tx.place || tx.lat != null ? <Text style={styles.sub}>📍 {tx.place ?? `${tx.lat!.toFixed(4)}, ${tx.lon!.toFixed(4)}`}</Text> : null}
       </View>
       <View style={styles.right}>
         <View style={styles.metaRow}>
-          {t.recurring_id ? <SymbolView name="repeat" size={12} tintColor={C.secondary} /> : null}
-          {t.photo ? <SymbolView name="camera" size={12} tintColor={C.secondary} /> : null}
-          {t.pending ? <View style={styles.pendingRow}><SymbolView name="clock" size={12} tintColor={C.orange} /><Text style={styles.pendingText}>Pending</Text></View> : null}
-          <Text style={styles.time}>{flat ? humanDayTime(t.date.slice(0, 10)) : timeLabel(t.date)}</Text>
+          {tx.recurring_id ? <SymbolView name="repeat" size={12} tintColor={C.secondary} /> : null}
+          {tx.photo ? <SymbolView name="camera" size={12} tintColor={C.secondary} /> : null}
+          {tx.pending ? <View style={styles.pendingRow}><SymbolView name="clock" size={12} tintColor={C.orange} /><Text style={styles.pendingText}>Pending</Text></View> : null}
+          <Text style={styles.time}>{flat ? humanDayTime(tx.date.slice(0, 10)) : timeLabel(tx.date)}</Text>
         </View>
-        <AmountPill minor={t.amount_minor} currency={t.currency} neutral={!!t.transfer_id} />
+        <AmountPill minor={tx.amount_minor} currency={tx.currency} neutral={!!tx.transfer_id} />
       </View>
       {selecting ? null : <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />}
     </Pressable>

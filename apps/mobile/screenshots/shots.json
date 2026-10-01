@@ -3,6 +3,8 @@
     "Shared by the capture script (writes raw/) and scripts/screenshots/frame.mjs (writes appstore/).",
     "Capture needs only: iphone[].id + iphone[].theme -> raw/iphone/<theme>/<id>.png at 1320x2868,",
     "and watch[].id -> raw/watch/<id>.png at the Ultra 3 native size (422x514).",
+    "The same iphone[] list is rendered again for the iPad from raw/ipad/<theme>/<id>.png (2064x2752);",
+    "a layout of phone-watch is iPhone-only, so that slide is left out of the iPad set, number and all.",
     "Framing fields: title (\\n = manual break), subtitle, note (small closing line),",
     "layout = phone | phone-bottom | phone-watch, watch = <watch id> to compose beside the phone,",
     "bg = slide background (text colour is derived from its luminance), accent = rule colour.",

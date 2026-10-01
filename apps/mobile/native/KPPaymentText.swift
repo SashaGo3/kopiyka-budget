@@ -26,6 +26,10 @@ enum KPPaymentText {
     var time: String?
     /// A refund or an incoming transfer rather than a purchase.
     var income: Bool
+    /// The bank has *blocked* this money rather than taken it: a card authorisation, which settles
+    /// days later and may settle at another amount (a tip, a fuel pump's pre-authorisation). Real
+    /// money, so it is logged — but never as settled, whatever history knows about the shop.
+    var hold: Bool = false
     /// The notification, whitespace-collapsed — kept as the note when there is no shop to name the row.
     var text: String
     /// Who sent the money, when the notification names them ("Sender: PETRENKO ANDRII"). Becomes the
@@ -120,7 +124,7 @@ enum KPPaymentText {
     let stamp = timestamp(in: text)
 
     return .payment(Parse(amount: money.value, currency: money.currency, merchant: shop, place: city, card: card(in: lines) ?? issuer(clean(title)),
-                 date: stamp?.day, time: stamp?.time, income: income,
+                 date: stamp?.day, time: stamp?.time, income: income, hold: isHold(text),
                  text: String(text.replacingOccurrences(of: "\n", with: " · ").prefix(300)),
                  sender: who, reference: reference(in: lines), balance: balanceValue, amounts: candidates))
   }
@@ -281,7 +285,7 @@ enum KPPaymentText {
 
   // MARK: - Shop, card, time
 
-  private static let merchantLabels = #"place|miejsce|sprzedawca|merchant|shop|sklep|punkt|lokalizacja|terminal|odbiorca|м[іи]сце|магазин|продавець|получатель"#
+  private static let merchantLabels = #"place|miejsce|sprzedawca|merchant|shop|sklep|punkt|location|lokalizacja|terminal|odbiorca|м[іи]сце|магазин|продавець|получатель"#
   private static let cardLabels = #"card|karta|kart[ay]|карт[аи]|konto|account|rachunek"#
   /// Banks put one label per line, but some crowd several onto one ("Amount: … . Place: … ."), so the
   /// label is looked for anywhere and its value runs to the end of the line — trimmed back by `cutAtLabel`
@@ -303,9 +307,35 @@ enum KPPaymentText {
   private static let nextLabel = re(#"\s(?:\#(merchantLabels)|\#(cardLabels)|\#(amountLabels)|\#(senderLabels)|\#(referenceLabels)|\#(balanceLabels)|date|data|дата|time|godzina|час)\s*[:=]"#, [.caseInsensitive])
 
   static func merchant(in lines: [String]) -> String? {
-    for l in lines { if let m = first(merchantLine, l) { return tidy(cutAtLabel(m)) } }
-    for l in lines { if let m = first(merchantInline, l), amount(in: m) == nil { return tidy(m) } }
+    for l in lines { if let m = first(merchantLine, l) { return tidy(cutAtLabel(m)).flatMap(unwrapMethod) } }
+    for l in lines { if let m = first(merchantInline, l), amount(in: m) == nil { return tidy(m).flatMap(unwrapMethod) } }
     return nil
+  }
+
+  /// Words that say how the money moved, not who received it. Also in core (`METHOD_WORDS`) and in
+  /// `KPStore.isMethodWord`; each file is compiled on its own by a harness, so none of them can share it.
+  private static let methodWords: Set<String> = [
+    "blik", "przelew", "przelewy24", "p24", "payu", "tpay", "dotpay", "paypal", "platnosc", "platnosci",
+    "zakup", "zakupy", "karta", "karty", "karta", "internet", "online", "ecommerce", "mobile",
+    "apple", "google", "pay", "visa", "mastercard", "payment", "transfer", "oplata", "web",
+  ]
+
+  /**
+   Strip the payment method a bank wraps the shop in: "BLIK INTERNET: FLYSTORE.PL" is a purchase at
+   FLYSTORE.PL, not at a shop called BLIK.
+
+   Only when *everything* before the colon is method words, so "El Gato: Coffee Roasters" — a shop
+   whose name simply has a colon in it — is left exactly as it is. Without this the name filed is the
+   payment method, and every online BLIK purchase looks to history like the same shop.
+   */
+  static func unwrapMethod(_ name: String) -> String? {
+    guard let colon = name.firstIndex(of: ":") else { return name }
+    let head = String(name[name.startIndex..<colon])
+    let tail = String(name[name.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+    let words = fold(head).components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+    guard !words.isEmpty, words.allSatisfy({ methodWords.contains($0) }), tail.count >= 3 else { return name }
+    // The tail may wrap it again ("BLIK: ZAKUP: SHOP").
+    return unwrapMethod(tail) ?? tail
   }
 
   /// The card or account the money moved on.
@@ -443,7 +473,6 @@ enum KPPaymentText {
   /// language course you might pay for; "one-time" and not "otp", which hides inside other words).
   private static let ignoreWords = ["declined", "rejected", "odrzucon", "nieudan", "nie udalo sie", "nie udało się", "failed", "insufficient",
                                     "vidmova", "відмова", "недостатньо", "nedostatno", "brak środk", "brak srodk", "anulowan", "cancelled", "canceled", "reversal", "відхилен", "скасован",
-                                    "saldo", "balance", "available funds", "dostępne środki", "dostepne srodki", "залишок", "баланс",
                                     "kod blik", "blik code", "one-time code", "one-time password", "verification code", "security code", "kod weryfikacyjny", "jednorazowy kod", "haslo jednorazowe", "kod autoryzacyjn", "kod sms",
                                     "одноразов", "код підтвердж", "код подтвержд",
                                     // Rates and offers quote money they are not charging you.
@@ -455,9 +484,26 @@ enum KPPaymentText {
                                     // Money that has not moved yet: a reminder about what is coming is not a payment.
                                     "zostanie pobran", "zostanie obciążon", "zostanie obciazon", "will be charged", "will be debited", "will be taken",
                                     "upcoming payment", "nadchodząc", "nadchodzac", "przypomnienie", "reminder",
-                                    // A hold being released is the undoing of a charge, not another one.
-                                    "zwrot blokady", "zwolnienie blokady", "blokada zwolniona", "hold released", "authorisation released", "authorization released",
                                     "due", "termin spłaty", "termin splaty", "statement", "wyciąg", "wyciag"]
+
+  /// A bank reporting what is left. The only reason to ignore a notification that a hold can argue
+  /// with — a blocked amount is announced in the same breath as the balance it left behind — which is
+  /// why these are asked *after* `isHold` and everything above is asked before it.
+  private static let balanceWords = ["saldo", "balance", "available funds", "dostępne środki", "dostepne srodki", "залишок", "баланс"]
+
+  /// A hold being released is the undoing of a charge, not another one. Asked before everything else,
+  /// so that the words below — which say the opposite — cannot claim it.
+  private static let holdReleasedWords = ["zwrot blokady", "zwolnienie blokady", "blokada zwolniona", "odblokowan",
+                                          "hold released", "authorisation released", "authorization released", "hold expired", "unblocked"]
+
+  /// The bank blocking money on the card: an authorisation, which is a real purchase that has not
+  /// settled yet. These have to be read *before* `ignoreWords`, because a bank announcing one
+  /// ("Blocked balance. Amount: 1222,23 PLN") names a balance in the same breath, and the word
+  /// "balance" alone would otherwise file the whole thing as a balance report and drop the purchase.
+  private static let holdWords = ["blocked balance", "blocked amount", "amount blocked", "blokada srodkow", "blokada środków",
+                                  "kwota blokady", "zablokowano", "zablokowana kwota", "blokada na karcie", "blokada kwoty",
+                                  "authorisation hold", "authorization hold", "card authorisation", "card authorization",
+                                  "заблокован", "блокування", "блокировка"]
 
   /// Words for money going out. They exist only to argue with `incomeWords`: a bank can name both
   /// directions in one message ("Acct XX123 debited with Rs 10 ... & Acct XX456 credited"), and
@@ -485,7 +531,24 @@ enum KPPaymentText {
   // Both sides are folded: the text loses its accents, so a needle that keeps them ("wpływ") could
   // never match it. The lists still spell some words both ways, which is harmless once folded.
   static func isIncome(_ text: String) -> Bool { direction(text) > 0 }
-  static func isIgnored(_ text: String) -> Bool { let f = fold(text); return ignoreWords.contains { f.contains(fold($0)) } }
+  /// The bank has put a hold on the money — a purchase that has not settled yet, not a balance report.
+  static func isHold(_ text: String) -> Bool {
+    let f = fold(text)
+    if holdReleasedWords.contains(where: { f.contains(fold($0)) }) { return false }
+    return holdWords.contains { f.contains(fold($0)) }
+  }
+
+  /// Asked in order of how strongly each says "no money moved". A released hold and the words above
+  /// (declined, a one-time code, an exchange rate) settle it outright — an authorisation that was
+  /// *refused* is still a refusal, whatever it calls itself. Only then does a hold get to speak, and
+  /// only against the balance it names.
+  static func isIgnored(_ text: String) -> Bool {
+    let f = fold(text)
+    if holdReleasedWords.contains(where: { f.contains(fold($0)) }) { return true }
+    if ignoreWords.contains(where: { f.contains(fold($0)) }) { return true }
+    if isHold(text) { return false }   // money blocked is money spent; the balance it names is not the point
+    return balanceWords.contains { f.contains(fold($0)) }
+  }
 
   // MARK: - Small helpers
 

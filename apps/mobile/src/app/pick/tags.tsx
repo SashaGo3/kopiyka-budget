@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { createTag, getRow, jsonIds, listRows } from "@kopiyka/core";
+import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { TagPill } from "@/components/ui";
@@ -14,7 +14,8 @@ import { C, S } from "@/constants/theme";
  * meant for other categories are hidden unless already selected. Typing a new name offers to create it:
  * the new tag is assigned to the chosen category (that is what naming it here means) and pinned to the
  * top of the list, newest first — it has no usage history to rank it, and it is the one the user was
- * just looking for.
+ * just looking for. Travel tags come last, under a heading of their own: each is one journey, not a
+ * way of filing things (the running one is already ticked on a new entry, and so sits at the top).
  */
 export default function PickTags() {
   const { key, selected, category } = useLocalSearchParams<{ key: string; selected?: string; category?: string }>();
@@ -22,7 +23,10 @@ export default function PickTags() {
   const [q, setQ] = useState("");
   const [created, setCreated] = useState<string[]>([]);   // ids made in this sheet, oldest first
   const tags = useQuery((db) => {
-    const rows = listRows(db, "tags", "deleted=0", [], "name");
+    // A retired tag is not offered, but one already on this transaction stays in the list so it can
+    // still be seen — and taken off, which is the only thing left to do with it.
+    const keep = new Set(selected ? selected.split(",").filter(Boolean) : []);
+    const rows = listRows(db, "tags", "deleted=0", [], "name").filter((t) => !t.archived || keep.has(t.id));
     const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
     const recent = db.all<{ tag_ids: string }>(`SELECT tag_ids FROM transactions WHERE deleted=0 AND date>=? AND tag_ids<>'[]'`, [since]);
     const usage = new Map<string, number>();
@@ -37,8 +41,9 @@ export default function PickTags() {
     const rank = (t: { id: string; category_ids: string }) => { const ids = jsonIds(t.category_ids); return ids.length && !ids.some((id) => scope.has(id)) ? 2 : ids.length || withCat.has(t.id) ? 0 : 1; };
     // Tags the transaction already has come first so the ticks are visible without scrolling.
     const initial = new Set(selected ? selected.split(",").filter(Boolean) : []);
-    return rows.map((t) => ({ ...t, rank: rank(t), together: withCat.get(t.id) ?? 0 })).filter((t) => t.rank < 2 || chosen.includes(t.id))
-      .sort((a, b) => Number(initial.has(b.id)) - Number(initial.has(a.id)) || a.rank - b.rank || b.together - a.together || (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.name.localeCompare(b.name));
+    const trips = new Set(tripTagIds(db));
+    return rows.map((t) => ({ ...t, rank: rank(t), together: withCat.get(t.id) ?? 0, travel: trips.has(t.id) && !initial.has(t.id) })).filter((t) => t.rank < 2 || chosen.includes(t.id))
+      .sort((a, b) => Number(initial.has(b.id)) - Number(initial.has(a.id)) || Number(a.travel) - Number(b.travel) || a.rank - b.rank || b.together - a.together || (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.name.localeCompare(b.name));
   }, [category, selected]);
   // Sorted after the query so the rest of the order is untouched (Array#sort is stable).
   const ordered = useMemo(() => {
@@ -48,13 +53,16 @@ export default function PickTags() {
   }, [tags, created]);
   const filtered = q ? ordered.filter((t) => t.name.toLowerCase().includes(q.toLowerCase())) : ordered;
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
-  const done = () => { resolvePick(key, chosen); router.back(); };
+  const canCreate = !!q.trim() && !tags.some((t) => t.name.toLowerCase() === q.trim().toLowerCase());
+  const make = () => mutate((db) => createTag(db, { name: q.trim(), ...(category ? { category_ids: JSON.stringify([category]) } : null) }));
   const create = () => {
-    const name = q.trim(); if (!name) return;
-    const t = mutate((db) => createTag(db, { name, ...(category ? { category_ids: JSON.stringify([category]) } : null) }));
+    if (!q.trim()) return;
+    const t = make();
     setChosen((c) => [...c, t.id]); setCreated((c) => [...c, t.id]); setQ("");
   };
-  const canCreate = !!q.trim() && !tags.some((t) => t.name.toLowerCase() === q.trim().toLowerCase());
+  // A name typed that matches nothing is the tag being asked for: Done makes it rather than leaving
+  // it behind in the search field, where it would be thrown away with the sheet.
+  const done = () => { resolvePick(key, canCreate ? [...chosen, make().id] : chosen); router.back(); };
   return (
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={filtered} keyExtractor={(t) => t.id} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets stickyHeaderIndices={[0]}
       ListHeaderComponent={
@@ -62,7 +70,7 @@ export default function PickTags() {
           <View style={styles.head}>
             <View style={styles.side} />
             <Text style={styles.title}>Tags</Text>
-            <View style={[styles.side, { alignItems: "flex-end" }]}><Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done" style={styles.doneBtn}><Text style={styles.done}>Done{chosen.length ? ` (${chosen.length})` : ""}</Text></Pressable></View>
+            <View style={[styles.side, { alignItems: "flex-end" }]}><Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done" style={styles.doneBtn}><Text style={styles.done}>Done{chosen.length + (canCreate ? 1 : 0) ? ` (${chosen.length + (canCreate ? 1 : 0)})` : ""}</Text></Pressable></View>
           </View>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
@@ -73,8 +81,9 @@ export default function PickTags() {
       }
       renderItem={({ item: t, index }) => (
         <>
-          {category && index === 0 && t.rank === 0 ? <Text style={styles.section}>Used with this category</Text> : null}
-          {category && t.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>Other tags</Text> : null}
+          {category && !t.travel && index === 0 && t.rank === 0 ? <Text style={styles.section}>Used with this category</Text> : null}
+          {category && !t.travel && t.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>Other tags</Text> : null}
+          {t.travel && (index === 0 || !filtered[index - 1]!.travel) ? <Text style={styles.section}>Travel</Text> : null}
           <Pressable onPress={() => toggle(t.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={t.name} accessibilityState={{ selected: chosen.includes(t.id) }}>
             <TagPill name={t.name} color={t.color} />
             <Text style={styles.count}>{t.together ? `${t.together}×` : ""}</Text>

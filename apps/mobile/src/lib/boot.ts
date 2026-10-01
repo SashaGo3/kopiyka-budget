@@ -19,6 +19,16 @@ export function markBooted() {
   printTraceOnce();
 }
 
+/**
+ * Did this launch have somewhere to be — a widget tap, a tapped notification, a Shortcut — rather
+ * than being someone opening the app to look at it? Set by the two places a URL is turned into
+ * navigation (`+native-intent`, `openDeepLink`). Lives here, with the other facts about this
+ * launch, so the early-boot path can set it without importing anything that touches the database.
+ */
+let launchTarget = false;
+export const markLaunchTarget = () => { launchTarget = true; };
+export const launchHadTarget = () => launchTarget;
+
 /** Runs `l` once the app has painted; immediately if it already has. Returns an unsubscribe. */
 export function onBooted(l: () => void): () => void {
   if (booted) { l(); return () => {}; }

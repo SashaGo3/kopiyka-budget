@@ -1,6 +1,6 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { Stack, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { debtTotals, isOverdue, listDebts, listRows, type Debt, type DebtTotal } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Empty, Money, Row, ScreenNote, SectionHeader } from "@/components/ui";
@@ -10,6 +10,8 @@ import { humanDayTime, todayLocal } from "@/lib/dates";
 type DebtWithAccount = Debt & { accountName?: string };
 
 export default function DebtsSettings() {
+  // Add sits at the bottom like on Categories, and slides away while scrolling down.
+  const { visible, onScroll } = useScrollHide();
   const data = useQuery((db) => {
     const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a.name]));
     const debts = listDebts(db).map((d): DebtWithAccount => ({ ...d, accountName: d.account_id ? accounts.get(d.account_id) : undefined }));
@@ -22,10 +24,10 @@ export default function DebtsSettings() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Debts", headerLargeTitle: true, headerRight: () => <Pressable onPress={() => router.push({ pathname: "/debt/edit", params: { id: "new" } })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Add"><SymbolView name="plus" size={20} tintColor={C.tint} /></Pressable> }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
+      <Stack.Screen options={{ title: "Debts", headerLargeTitle: true }} />
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         <ScreenNote>Money lent to someone, or borrowed from them. A debt is not a transaction and touches no balance — it becomes one only when it is actually paid, which settling it here writes for you. Give it a due date and a reminder fires the day before and on the day, at a time you choose.</ScreenNote>
-        {data.totals.length ? <Summary totals={data.totals} /> : <Empty title="Nothing owed either way" hint="Tap + to record one." />}
+        {data.totals.length ? <Summary totals={data.totals} /> : <Empty title="Nothing owed either way" hint="Tap Add to record one." />}
         {owedToMe.length ? <SectionHeader>Owed to you</SectionHeader> : null}
         {owedToMe.length ? <Card>{owedToMe.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} />)}</Card> : null}
         {iOwe.length ? <SectionHeader>You owe</SectionHeader> : null}
@@ -33,6 +35,7 @@ export default function DebtsSettings() {
         {settled.length ? <SectionHeader>Settled</SectionHeader> : null}
         {settled.length ? <Card>{settled.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} settled />)}</Card> : null}
       </ScrollView>
+      <BottomBar visible={visible}><BarButton icon="plus" label="Add" onPress={() => router.push({ pathname: "/debt/edit", params: { id: "new" } })} a11y="Add a debt" /></BottomBar>
     </>
   );
 }

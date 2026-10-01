@@ -24,18 +24,24 @@ export const BACKUP_VERSION = 1;
  *   writes them anymore, but an old backup might still carry them, and restoring either onto another
  *   phone would be nonsensical, so they stay excluded.
  * - `onboarded` — whether this install has been set up, which the restore itself decides.
+ * - `whats_new_seen` — which version's release notes this phone has been shown. Carrying it would
+ *   tell a phone that has not been updated yet that it has already read the notes for a version it
+ *   is not running.
  *
  * Anything else a preference getter reads belongs here. A key that is written but missing from this
  * list is silently lost on restore, which is how `hide_income`, `show_balance`, `backup_per_day` and
  * the home location went missing until 2026-09-12 — the list also carried `hide_balances`, a key
  * nothing had written since it was renamed. `backup.test.ts` pins the list so the next drift shows
  * up in a diff. A preference that is removed from the app comes off this list too (`handedness`,
- * 2026-09-12): an old backup still carrying the key is simply ignored on import.
+ * 2026-09-12; `backup_per_day`, replaced by `backup_keep_days` on 2026-09-18; `language`, dropped
+ * with the app's language picker on 2026-09-18 — the app is English only): an old backup still
+ * carrying the key is simply ignored on import.
  */
 export const BACKUP_META_KEYS = [
   "period_start_day", "base_currency", "recurring_notify_days_before",
   "location_enabled", "home_lat", "home_lon", "home_place",
-  "current_account", "budget_scope", "hide_income", "show_balance", "backup_per_day",
+  "current_account", "budget_scope", "hide_income", "show_balance", "backup_keep_days",
+  "shortcut_notify", "recurring_wait", "recurring_wait_days", "budgets_sections",
 ] as const;
 
 /**
@@ -111,7 +117,7 @@ const ROW_DEFAULTS: Record<SyncedTable, Record<string, unknown>> = {
   recurring_rules: { account_id: "", amount_minor: 0, category_id: null, payee: null, notes: null, tag_ids: "[]", frequency: "monthly",
     interval: 1, start_date: "1970-01-01", end_date: null, next_date: "1970-01-01", notify: 1, notify_days_before: 0, auto_post: 0,
     active: 1, time_of_day: "09:00" },
-  budgets: { category_id: null, currency: "", amount_minor: 0, period: "monthly", starts: "1970-01-01", start_day: 1, account_id: null,
+  budgets: { category_id: null, category_ids: "[]", currency: "", amount_minor: 0, period: "monthly", starts: "1970-01-01", start_day: 1, account_id: null,
     tag_id: null, ends: null, ended: null },
   insights: { kind: "", params: "{}", sort: 0 },
   debts: { person: "", direction: "owed_to_me", amount_minor: 0, currency: "", account_id: null, opened_date: "1970-01-01", due_date: null, notes: null, settled_date: null, notify: 1, notify_time: DEFAULT_DEBT_NOTIFY_TIME, transaction_id: null },

@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { resolvePick } from "@/store/pick";
 import { ModalHeader } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /** Text entry modal: input at the top, so the keyboard never covers it. Used for names and groups. */
 export default function PickText() {
   const { key, title, value, multiline } = useLocalSearchParams<{ key: string; title?: string; value?: string; multiline?: string }>();
   const [text, setText] = useState(value ?? "");
-  const done = () => { resolvePick(key, text.trim()); router.back(); };
+  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const exit = useDiscardGuard(useDirty([text]));
+  const leave = useCallback(() => exit(() => router.back()), [exit]);
+  const done = () => { resolvePick(key, text.trim()); leave(); };
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={title ?? "Text"} left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Done", onPress: done }} />

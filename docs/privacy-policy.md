@@ -10,17 +10,17 @@ app asks your permission for.
 
 ## What Kopiyka is
 
-Kopiyka is a personal finance app for iPhone and Apple Watch. You record what you spend and earn,
+Kopiyka is a personal finance app for iPhone, iPad and Apple Watch. You record what you spend and earn,
 set budgets, and look at your own numbers. Everything happens on your device.
 
 ## What it stores, and where
 
 | What | Where it lives |
 |---|---|
-| Accounts, transactions, categories, tags, budgets, recurring rules, debts, notes, and your preferences | A database file inside the app on your iPhone |
-| The same data, in a form the Apple Watch app, the widgets and the Shortcuts actions can read | A shared container on your iPhone that only Kopiyka's own parts can open (the "App Group") |
-| Receipt photos you attach | Files in the app's own Documents folder on your iPhone |
-| Backups, if you turn them on | **Your own iCloud Drive**, in a folder named **Kopiyka** — visible to you in the Files app. This is your Apple Account's storage, not the developer's. With iCloud Drive turned off, backups stay in the app's folder on the phone instead. |
+| Accounts, transactions, categories, tags, budgets, recurring rules, debts, notes, and your preferences | A database file inside the app on your device |
+| The same data, in a form the Apple Watch app, the widgets and the Shortcuts actions can read | A shared container on your device that only Kopiyka's own parts can open (the "App Group") |
+| Receipt photos you attach | Files in the app's own Documents folder on your device |
+| Backups, if you turn them on | **Your own iCloud Drive**, in a folder named **Kopiyka** — visible to you in the Files app. This is your Apple Account's storage, not the developer's. With iCloud Drive turned off, backups stay in the app's folder on the device instead. |
 
 Nothing on that list is ever sent to the developer of Kopiyka, or to anyone else.
 

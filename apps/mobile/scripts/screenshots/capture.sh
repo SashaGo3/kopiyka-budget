@@ -1,31 +1,41 @@
 #!/usr/bin/env bash
-# Capture raw screenshots of the iPhone app and the Apple Watch app on the pipeline's own simulators.
+# Capture raw screenshots of the iPhone app, the 13" iPad and the Apple Watch app on the pipeline's
+# own simulators.
 #
-#   scripts/screenshots/capture.sh                 # phone (light + dark) and watch
+#   scripts/screenshots/capture.sh                 # iPhone + iPad (light + dark) and watch
 #   scripts/screenshots/capture.sh --phone --theme light
-#   scripts/screenshots/capture.sh --watch
+#   scripts/screenshots/capture.sh --ipad
+#   scripts/screenshots/capture.sh --phone --watch # several flags pick several devices
+#   scripts/screenshots/capture.sh --no-ipad       # everything except the iPad
 #   scripts/screenshots/capture.sh --only log,budgets --theme dark
 #
-# Expects the Release build installed and the demo data seeded (run.sh does both). Every phone
-# shot is a cold start into a deep link, so the navigation stack is identical on every run and a
-# screen never inherits state from the previous one. Output: screenshots/raw/iphone/<theme>/<id>.png
-# (1320×2868) and screenshots/raw/watch/<id>.png (422×514). frame.mjs turns them into App Store art.
+# Expects the Release build installed and the demo data seeded (run.sh does both). Every iPhone and
+# iPad shot is a cold start into a deep link, so the navigation stack is identical on every run and
+# a screen never inherits state from the previous one. Output:
+# screenshots/raw/iphone/<theme>/<id>.png (1320×2868), screenshots/raw/ipad/<theme>/<id>.png
+# (2064×2752) and screenshots/raw/watch/<id>.png (422×514). frame.mjs turns them into App Store art.
 #
-# Phone navigation is `xcrun simctl openurl` and nothing else — no taps, see the note below on why
-# agent-device must stay out of the way. The watch has no accessibility bridge on simulators, so it
-# is driven by idb taps at points calibrated against a screenshot.
+# iPhone navigation is `xcrun simctl openurl` and nothing else — no taps, see the note below on why
+# agent-device must stay out of the way. The iPad opens the same links but has to have iPadOS's
+# "Open in …?" confirmation tapped away (see confirm_open). The watch has no accessibility bridge on
+# simulators, so it is driven by idb taps at points calibrated against a screenshot.
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-DO_PHONE=1; DO_WATCH=1; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-3}"
+# No device flag means every device; one or more pick exactly those, so `--phone --watch` is the
+# old two-device run and `--ipad` on its own re-shoots the iPad set.
+DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-3}"
+pick() { [[ $PICKED == 1 ]] || { DO_PHONE=0; DO_WATCH=0; DO_IPAD=0; PICKED=1; }; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --phone) DO_WATCH=0 ;;
-    --watch) DO_PHONE=0 ;;
+    --phone) pick; DO_PHONE=1 ;;
+    --watch) pick; DO_WATCH=1 ;;
+    --ipad)  pick; DO_IPAD=1 ;;
+    --no-ipad) DO_IPAD=0 ;;
     --theme) shift; [[ "$1" == both ]] && THEMES=(light dark) || THEMES=("$1") ;;
     --only) shift; ONLY=",$1," ;;
     --settle) shift; SETTLE="$1" ;;
-    -h|--help) sed -n 2,16p "$0"; exit 0 ;;
+    -h|--help) sed -n 2,21p "$0"; exit 0 ;;
     *) die "unknown flag $1" ;;
   esac; shift
 done
@@ -47,7 +57,7 @@ eval "$(node -e '
   console.log(`TRIP_NAME=${q(tag ? encodeURIComponent(tag.name) : "")}`);
 ' "$DEMO_JSON")"
 
-# ---------------------------------------------------------------- phone
+# ------------------------------------------------------------------ iPhone + iPad
 PHONE="$(ensure_sim "$PHONE_NAME" "$PHONE_TYPE" iOS)"
 
 # Every shot is reachable by deep link alone, so nothing taps the phone and agent-device is not
@@ -64,25 +74,67 @@ PHONE="$(ensure_sim "$PHONE_NAME" "$PHONE_TYPE" iOS)"
 # prompt" step silently did to all 16 shots. There is no such prompt to press anyway: it belongs to
 # links opened from another app, not to `simctl openurl`.
 
-open_url() { xcrun simctl openurl "$PHONE" "$1"; }
+# The iPhone and the iPad are shot by the same three lines — terminate, open the deep link, wait —
+# so there is one recipe list and capture_ios points it at whichever simulator is being shot. $SIM,
+# $KIND, $EXPECT and $THEME are set by capture_ios and read by the helpers below.
+open_url() { xcrun simctl openurl "$SIM" "$1"; }
+
+# iPadOS asks "Open in "Kopiyka Budget"?" before it hands a scheme over — every time, whether the
+# app is running or not, and on the iPad only: the same openurl on the iPhone goes straight into the
+# app. The prompt is SpringBoard's, so the app cannot turn it off, and a shot taken over it is a
+# picture of an alert on the home screen (which is what the whole iPad set came out as until this
+# was added). So it is tapped away.
+#
+# `idb ui tap` injects at the HID level — no XCTest runner, so nothing is pushed into the background,
+# unlike agent-device above. The button is looked up by its accessibility label rather than tapped at
+# a fixed point because the alert is still sliding in when the first look happens, and a point
+# measured mid-animation lands below it; the loop simply looks again until the alert is gone.
+confirm_open() {
+  local try pt
+  for try in 1 2 3 4; do
+    pt="$(idb ui describe-all --udid "$SIM" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    els = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+hit = [e for e in els if e.get("type") == "Button" and (e.get("AXLabel") or "") == "Open"]
+if hit:
+    f = hit[-1]["frame"]
+    print(int(f["x"] + f["width"] / 2), int(f["y"] + f["height"] / 2))
+' || true)"
+    [[ -n "$pt" ]] || return 0      # no confirmation on screen: nothing to do
+    idb ui tap --udid "$SIM" $pt >/dev/null 2>&1 || true   # unquoted on purpose: "<x> <y>"
+    sleep 1.2
+  done
+  warn "    the \"Open in …\" confirmation would not go away — the shot may be of the alert"
+}
 
 # Cold start straight into a deep link: a clean stack every time.
 cold() {
-  xcrun simctl terminate "$PHONE" "$APP_ID" 2>/dev/null || true
+  xcrun simctl terminate "$SIM" "$APP_ID" 2>/dev/null || true
   sleep 0.5
   open_url "$1"
+  if [[ "$CONFIRM" == 1 ]]; then
+    sleep 1.5      # let the alert finish sliding in before looking for it
+    confirm_open
+  fi
   sleep "$SETTLE"
 }
 
 shoot() { # <id>
-  local out="$RAW_DIR/iphone/$THEME/$1.png"
+  local out="$RAW_DIR/$KIND/$THEME/$1.png" size
   mkdir -p "$(dirname "$out")"
-  xcrun simctl io "$PHONE" screenshot "$out" >/dev/null 2>&1
-  log "  $THEME/$1  $(png_size "$out")"
+  xcrun simctl io "$SIM" screenshot "$out" >/dev/null 2>&1
+  size="$(png_size "$out")"
+  log "  $KIND/$THEME/$1  $size"
+  # frame.mjs lays its slides out against the native size; a rotated or differently sized
+  # simulator would be resampled into the bezel instead of landing in it 1:1.
+  [[ "$size" == "$EXPECT" ]] || warn "    expected $EXPECT — is \"$SIM_NAME\" the right device, in portrait?"
 }
 
 # One entry per shot id in shots.json (plus a few spares). Add a screen here and in shots.json.
-phone_shot() {
+ios_shot() {
   case "$1" in
     welcome)      cold "kopiyka://onboarding" ;;
     log|watch)    cold "kopiyka://log?amount=14.50&category=$CAT_RESTAURANTS&note=Lunch%20at%20Time%20Out%20Market" ;;  # "watch" = the phone half of the Apple Watch slide
@@ -99,23 +151,43 @@ phone_shot() {
     shortcut)     cold "kopiyka://settings/shortcut" ;;
     data)         cold "kopiyka://settings/data" ;;
     pending)      cold "kopiyka://pending" ;;
-    *) warn "no recipe for phone shot '$1'"; return 1 ;;
+    *) warn "no recipe for shot '$1'"; return 1 ;;
   esac
   shoot "$1"
 }
 
-PHONE_SHOTS=(welcome log watch transactions budgets trip insights recurring debts accounts categories tags settings shortcut data pending)
+IOS_SHOTS=(welcome log watch transactions budgets trip insights recurring debts accounts categories tags settings shortcut data pending)
+# The iPad set has no Apple Watch slide — the watch pairs with an iPhone — so it skips that shot,
+# which is the `log` screen a second time anyway.
+IPAD_SHOTS=(); for id in "${IOS_SHOTS[@]}"; do [[ "$id" == watch ]] || IPAD_SHOTS+=("$id"); done
+
+capture_ios() { # <udid> <name> <kind: iphone|ipad> <expected WxH> <radio: cellular|wifi> <id…>
+  SIM="$1"; SIM_NAME="$2"; KIND="$3"; EXPECT="$4"; local radio="$5"; shift 5
+  CONFIRM=0; [[ "$KIND" == ipad ]] && CONFIRM=1
+  boot_sim "$SIM"
+  xcrun simctl get_app_container "$SIM" "$APP_ID" >/dev/null 2>&1 \
+    || die "Kopiyka is not installed on \"$SIM_NAME\" — run scripts/screenshots/run.sh --install"
+  if [[ "$CONFIRM" == 1 ]]; then
+    idb connect "$SIM" >/dev/null 2>&1 \
+      || { idb kill >/dev/null 2>&1 || true; idb connect "$SIM" >/dev/null 2>&1 \
+           || die "idb cannot connect to \"$SIM_NAME\" (brew install idb-companion; pipx install fb-idb) — the iPad needs it to tap away iPadOS's \"Open in …\" prompt"; }
+  fi
+  pretty_status_bar "$SIM" "$radio"
+  for THEME in "${THEMES[@]}"; do
+    log "$SIM_NAME · $THEME"
+    xcrun simctl ui "$SIM" appearance "$THEME" >/dev/null 2>&1 || true
+    for id in "$@"; do wanted "$id" && ios_shot "$id" || true; done
+  done
+  xcrun simctl ui "$SIM" appearance light >/dev/null 2>&1 || true
+}
 
 if [[ $DO_PHONE == 1 ]]; then
-  boot_sim "$PHONE"
-  xcrun simctl get_app_container "$PHONE" "$APP_ID" >/dev/null 2>&1 || die "Kopiyka is not installed on \"$PHONE_NAME\" — run scripts/screenshots/run.sh --install"
-  pretty_status_bar "$PHONE"
-  for THEME in "${THEMES[@]}"; do
-    log "iPhone · $THEME"
-    xcrun simctl ui "$PHONE" appearance "$THEME" >/dev/null 2>&1 || true
-    for id in "${PHONE_SHOTS[@]}"; do wanted "$id" && phone_shot "$id" || true; done
-  done
-  xcrun simctl ui "$PHONE" appearance light >/dev/null 2>&1 || true
+  capture_ios "$PHONE" "$PHONE_NAME" iphone "$PHONE_SIZE" cellular "${IOS_SHOTS[@]}"
+fi
+
+if [[ $DO_IPAD == 1 ]]; then
+  IPAD="$(ensure_sim "$IPAD_NAME" "$IPAD_TYPE" iOS)"
+  capture_ios "$IPAD" "$IPAD_NAME" ipad "$IPAD_SIZE" wifi "${IPAD_SHOTS[@]}"
 fi
 
 # ---------------------------------------------------------------- watch

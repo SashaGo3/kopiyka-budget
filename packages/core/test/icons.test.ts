@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { autoIcon, iconFor, tagColor, ICON_CATALOG, ICON_PRESETS, COLORS, COLOR_PRESETS } from "../src/icons";
+import { readFileSync } from "node:fs";
+import { autoIcon, iconFor, tagColor, searchIcons, ICON_CATALOG, ICON_GROUPS, ICON_PRESETS, COLORS, COLOR_PRESETS } from "../src/icons";
 
 describe("category icons", () => {
   test("matches english, ukrainian and polish names", () => {
@@ -27,12 +28,37 @@ describe("category icons", () => {
 });
 
 describe("icon catalogue", () => {
-  test("has ~120 entries, all unique, each with keywords", () => {
-    expect(ICON_CATALOG.length).toBeGreaterThanOrEqual(110);
-    expect(ICON_CATALOG.length).toBeLessThanOrEqual(140);
+  test("has ~240 entries, all unique, each grouped and with keywords", () => {
+    expect(ICON_CATALOG.length).toBeGreaterThanOrEqual(200);
+    expect(ICON_CATALOG.length).toBeLessThanOrEqual(280);
     const names = ICON_CATALOG.map((i) => i.name);
     expect(new Set(names).size).toBe(names.length);
-    for (const i of ICON_CATALOG) expect(i.keywords.length).toBeGreaterThan(0);
+    for (const i of ICON_CATALOG) {
+      expect(i.keywords.length).toBeGreaterThan(0);
+      expect(ICON_GROUPS as readonly string[]).toContain(i.group);
+    }
+  });
+  test("every group has icons, and the catalogue is ordered by group", () => {
+    // The picker reads the catalogue straight through, so a group split in two would print
+    // its heading twice.
+    const seen: string[] = [];
+    for (const i of ICON_CATALOG) if (seen[seen.length - 1] !== i.group) seen.push(i.group);
+    expect(seen).toEqual([...ICON_GROUPS]);
+  });
+  /**
+   * A symbol name is a plain string all the way to `SymbolView`, so a typo is not a type error —
+   * it is an icon that silently renders as nothing. The app's floor is iOS 18, so every name has
+   * to exist in SF Symbols 6.0 or earlier.
+   */
+  test("every symbol exists in SF Symbols 6.0 or earlier", () => {
+    const dts = readFileSync(new URL("../../../node_modules/sf-symbols-typescript/dist/index.d.ts", import.meta.url), "utf8");
+    const available = new Set<string>();
+    for (const block of dts.split("export type SFSymbols").slice(1)) {
+      const version = parseFloat(block.slice(0, block.indexOf(" ")).replace("_", "."));
+      if (version <= 6.0) for (const m of block.matchAll(/'([^']+)'/g)) available.add(m[1]!);
+    }
+    expect(available.size).toBeGreaterThan(5000);   // the file was found and parsed
+    expect(ICON_CATALOG.map((i) => i.name).filter((n) => !available.has(n))).toEqual([]);
   });
   test("ICON_PRESETS is derived from the catalogue and keeps every old preset", () => {
     expect(ICON_PRESETS).toEqual(ICON_CATALOG.map((i) => i.name));
@@ -45,6 +71,32 @@ describe("icon catalogue", () => {
       "birthday.cake.fill", "briefcase.fill", "key.fill", "lightbulb.fill", "laptopcomputer",
     ];
     for (const p of oldPresets) expect(ICON_PRESETS).toContain(p);
+  });
+});
+
+describe("icon search", () => {
+  test("a blank query is the whole catalogue, in catalogue order", () => {
+    expect(searchIcons("  ")).toEqual(ICON_CATALOG);
+  });
+  test("a whole word beats a substring: \"car\" leads with the car, not the carrot", () => {
+    const names = searchIcons("car").map((i) => i.name);
+    expect(names).toContain("car.fill");
+    expect(names.indexOf("car.fill")).toBeLessThan(names.indexOf("carrot.fill"));
+  });
+  test("every word has to match, so two words narrow rather than widen", () => {
+    const both = searchIcons("car electric");
+    expect(both.length).toBeGreaterThan(0);
+    expect(both.length).toBeLessThan(searchIcons("car").length);
+    for (const i of both) expect(`${i.name} ${i.keywords}`).toContain("electric");
+  });
+  test("finds icons by polish and ukrainian words, accents and all", () => {
+    expect(searchIcons("kawa")[0]?.name).toBe("cup.and.saucer.fill");
+    expect(searchIcons("кава")[0]?.name).toBe("cup.and.saucer.fill");
+    expect(searchIcons("smieci").map((i) => i.name)).toContain("trash.fill");   // written without the ś
+    expect(searchIcons("ksiazka").map((i) => i.name)).toContain("book.fill");   // ą folded, ż folded
+  });
+  test("nothing matches nothing", () => {
+    expect(searchIcons("qwertyuiop")).toEqual([]);
   });
 });
 

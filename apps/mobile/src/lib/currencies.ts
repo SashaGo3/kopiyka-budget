@@ -1,4 +1,7 @@
 /** Currencies offered by the picker: ISO code, name and symbol. Frequent European ones first, then the rest alphabetically. */
+import { currencyForCountry, currencyForLocale } from "@kopiyka/core";
+import { deviceLocales } from "./device";
+
 export interface CurrencyInfo { code: string; name: string; symbol: string }
 
 export const CURRENCY_LIST: CurrencyInfo[] = [
@@ -50,3 +53,25 @@ export const CURRENCY_LIST: CurrencyInfo[] = [
 ];
 
 export function currencyName(code: string): string { return CURRENCY_LIST.find((c) => c.code === code)?.name ?? code; }
+
+export function isKnownCurrency(code: string): boolean { return CURRENCY_LIST.some((c) => c.code === code); }
+
+/**
+ * The currency to open onboarding on, read off the phone rather than asked for.
+ *
+ * iOS knows the answer outright — Settings → General → Language & Region carries a currency, which
+ * is what the region's own apps bill in. When that is a currency the picker does not offer, the
+ * region itself is mapped instead (`currencyForCountry`), and a phone that reports no region at all
+ * falls back to its locale. It is only a default: the picker is one tap away and nothing is written
+ * until the user continues.
+ *
+ * `country` lets a caller that already knows where the phone actually is (a granted location fix,
+ * see `lib/location.ts`) override the setting — someone who moved keeps their old region for months.
+ */
+export function suggestedCurrency(country?: string | null): string {
+  if (country) { const c = currencyForCountry(country); if (isKnownCurrency(c)) return c; }
+  const d = deviceLocales();
+  if (d.currency && isKnownCurrency(d.currency)) return d.currency;
+  const byRegion = d.region ? currencyForCountry(d.region) : currencyForLocale(d.locale);
+  return isKnownCurrency(byRegion) ? byRegion : "EUR";
+}

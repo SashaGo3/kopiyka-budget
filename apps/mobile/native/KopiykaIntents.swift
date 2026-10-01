@@ -378,6 +378,9 @@ struct LogPaymentIntent: AppIntent {
     // separate fields when it was built before that existed.
     let outcome = trimmed(notification).map { KPPaymentText.read(notification: $0) }
       ?? KPPaymentText.read(title: alertTitle, subtitle: alertSubtitle, body: alertBody)
+    // The notification as it arrived, kept for the log: the only way to fix a bank whose wording the
+    // reader does not know yet is to still have the wording afterwards.
+    let raw = trimmed(notification) ?? [alertTitle, alertSubtitle, alertBody].compactMap { trimmed($0) }.joined(separator: " · ")
     var parsed: KPPaymentText.Parse? = nil
     if case .payment(let p) = outcome { parsed = p }
     // A mapped Amount (the old Transaction automation) beats the text; without either there is
@@ -385,8 +388,10 @@ struct LogPaymentIntent: AppIntent {
     let value = amount.map(abs).flatMap { $0 > 0 ? $0 : nil } ?? parsed?.amount
     guard let value else {
       if case .unreadable = outcome {
+        KPParseLog.record(.unreadable, text: raw, note: "money named, no amount read")
         throw KPIntentError("Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.")
       }
+      KPParseLog.record(.ignored, text: raw, note: "no amount, or money the bank is not charging")
       return .result()   // not a payment: the ordinary outcome, and it says nothing
     }
 
@@ -394,6 +399,7 @@ struct LogPaymentIntent: AppIntent {
     // and history, which this automation cannot afford (see the round-trip budgets below).
     let (accounts, currentAccount) = KPStore.accountList()
     guard let acc = resolveAccount(accounts, current: currentAccount, parsed: parsed) else {
+      KPParseLog.record(.failed, text: raw, parse: parsed, note: "no account to put it on")
       throw KPIntentError("No accounts in Kopiyka yet. Open it on your iPhone first.")
     }
 
@@ -447,7 +453,11 @@ struct LogPaymentIntent: AppIntent {
     // than one that is empty, but it is only ever offered *pending* and marked as a guess
     // (`source`), so the queue can say out loud which categories nobody has agreed to yet.
     var categoryId = history.categoryId
-    var guessed = false
+    // A category from history is a guess unless history recognised this exact name. The first-word
+    // rule ("ZABKA ZE212 K.5" finding "ZABKA NANO 3087") also makes "BLIK INTERNET: FLYSTORE.PL"
+    // look like every other online BLIK payment, so what it offers is worth a category and not the
+    // right to skip the queue.
+    var guessed = categoryId != nil && !history.trusted
     if categoryId == nil, let s = shop, let hit = LogPaymentIntent.matchCategory(s, KPStore.categoryRefs()) {
       categoryId = hit.id
       guessed = true
@@ -457,20 +467,39 @@ struct LogPaymentIntent: AppIntent {
     // stationery — so it lands pending and marked, and it is asked for last because it is the one
     // question that may cost a round-trip to the app (op "suggest"; the word match is in-process).
     if categoryId == nil, let fix {
-      categoryId = await KPStore.suggestCategoryNear(lat: fix.latitude, lon: fix.longitude, timeout: 1.5)
+      categoryId = await KPStore.suggestCategoryNear(lat: fix.latitude, lon: fix.longitude, place: location?.kpPlaceName, timeout: 1.5)
       guessed = categoryId != nil
     }
     // Where the payment happened: the fix the automation handed over, else what the shop's history
     // remembers. Both halves come from the same source, so a point and a name never disagree.
     let lat = fix?.latitude ?? history.lat
     let lon = fix?.longitude ?? history.lon
-    // The spot's own name beats the city the bank printed, which beats where this shop was last seen.
-    // Only read off a placemark that also carried a usable point, so the name always has one behind it.
-    let place = (fix == nil ? nil : location?.kpPlaceName) ?? parsed?.place ?? history.place
+    // Where you were, not where the bank says the shop is registered. The fix the automation passed
+    // (its Location parameter), else where this shop was last seen — both of which have a point
+    // behind them. The town printed on the notification is *not* a location: a card used abroad, or
+    // an online order, prints a town the phone was nowhere near, and writing it here would put the
+    // purchase on the map in the wrong country. It goes in the note instead, where it belongs — it
+    // is something the bank told you about the purchase, like the shop's name.
+    // Only read a name off a placemark that also carried a usable point, so a name always has one.
+    let place = (fix == nil ? nil : location?.kpPlaceName) ?? history.place
     // History has filed this name by hand before, so the entry is already understood and skips the
     // pending queue — unless the amount had to be converted, because then the number itself is an
-    // estimate and wants a pair of eyes.
-    let known = history.filedBefore && !converted
+    // estimate and wants a pair of eyes; or unless this shop has been filed more than one way
+    // (fuel one week, a hot dog the next), because then the last filing is not a decision about
+    // this payment and the entry sheet has to ask which of them it was.
+    //
+    // A hold is deliberately *not* one of these. Every card payment is an authorisation until the
+    // bank settles it — for some banks every notification says so in as many words — so treating one
+    // as unsettled would put every payment back in the queue and undo the whole point of history
+    // filling a shop in. "Pending" already means exactly "not final yet".
+    // Where this shop was last seen, against where the phone says you are. A name filed before in
+    // another town is not this payment's shop, whatever it is called — so it fills the entry in and
+    // the entry still waits to be looked at.
+    var movedTown = false
+    if let fix, let hlat = history.lat, let hlon = history.lon {
+      movedTown = KPStore.distanceMeters(fix.latitude, fix.longitude, hlat, hlon) > KPStore.samePlaceRadiusM
+    }
+    let known = history.trusted && !converted && !history.ambiguous && !movedTown
 
     // The same amount on the same account, minutes ago, from a shop whose name is compatible: one tap,
     // two notifications (Wallet's and the bank app's), or iOS re-delivering one. Never a second entry.
@@ -491,7 +520,11 @@ struct LogPaymentIntent: AppIntent {
 
     // What the payer called the transfer names it; without that, a shop names it on its own and
     // without either the notification itself has to.
-    let note = [parsed?.reference, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
+    // "Place: CYBEX, BAYREUTH." — the shop and the town as the bank printed them. Kept together, so
+    // the row is named after the purchase rather than after a town on its own.
+    var printedPlace: String? = nil
+    if let town = parsed?.place { printedPlace = [shop, town].compactMap { $0 }.joined(separator: ", ") }
+    let note = [parsed?.reference, printedPlace, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
     // The bank's own timestamp, so a notification that arrives late still lands on the right day.
     // Only a day a payment could actually have happened on: a notification about something scheduled
     // would otherwise file the entry in the future, where it sits invisible until the day comes.
@@ -499,12 +532,32 @@ struct LogPaymentIntent: AppIntent {
     if let p = parsed, let day = p.date, KPPaymentText.isPlausibleDay(day) { date = "\(day)T\(p.time ?? "12:00:00")\(KPStore.isoNow().suffix(6))" }
     // The location the automation passed, else the city from the notification and wherever this shop
     // was the last time it was logged (see `lat` / `lon` / `place` above).
-    let saved = await KPWrites.addTransaction(accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
+    // The id is minted here rather than inside `addTransaction`, because the notification below has
+    // to link to this exact row and there is no second way to find it afterwards.
+    let rowId = UUID().uuidString.lowercased()
+    let saved = await KPWrites.addTransaction(id: rowId, accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
                                               note: note.isEmpty ? nil : note, payee: shop, lat: lat, lon: lon,
                                               place: place, pending: pending && !known, date: date,
                                               source: guessed ? "shortcut-guess" : "shortcut",
                                               enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, timeout: 4)
-    guard saved.ok else { throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.") }
+    guard saved.ok else {
+      KPParseLog.record(.failed, text: raw, parse: parsed, account: acc.name, note: saved.error ?? "the app refused the write")
+      throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.")
+    }
+
+    // Say so, unless the user has turned it off. The automation runs with the app closed and used to
+    // be silent by design; what that actually bought was purchases turning up in a list days later.
+    // One notification, replacing the last one it posted (KPNotify), naming what was filed and how
+    // sure it is — a guess and a pending row are exactly what wants a second pair of eyes.
+    if KPStore.meta("shortcut_notify") != "0" {
+      let name = categoryId.flatMap { id in KPStore.categories().first { $0.id == id }?.name }
+      let marks = [name, guessed ? "guess" : nil, pending && !known ? "pending" : nil].compactMap { $0 }
+      let body = ([KPFormat.money(abs(KPFormat.major(minor, acc.currency)), acc.currency) + " " + acc.currency, acc.name] + marks).joined(separator: " · ")
+      await KPNotify.payment(id: rowId,
+                             title: shop ?? (income ? "Payment received" : "Payment logged"),
+                             body: body,
+                             badge: saved.reply["pending"] as? Int ?? KPStore.pendingCount())
+    }
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)
     // Off the critical path: the watch update is pure side work the shortcut's own result does not

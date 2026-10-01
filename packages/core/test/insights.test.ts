@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
-import { createAccount, createBudget, createCategory, createRecurring, createTag, createTransaction } from "../src/repo";
-import { accountLeftover, categoryChecklist, daysToSalary, freeMoney, regularSpending, savingsGoal, subscriptionsPerYear, templateFromTransaction, upcomingPayments } from "../src/insights";
+import { budgetCategoryIds, createAccount, createBudget, createCategory, createRecurring, createTag, createTransaction } from "../src/repo";
+import { accountLeftover, budgetRows, categoryChecklist, daysToSalary, freeMoney, regularSpending, savingsGoal, subscriptionsPerYear, templateFromTransaction, upcomingPayments } from "../src/insights";
 import { candidateFromTransaction } from "../src/detect";
 
 function seed() {
@@ -97,5 +97,66 @@ describe("tag → category", () => {
     expect(moved.length).toBe(1);
     expect(moved[0]!.tag_ids).toBe("[]");
     expect(getRow(db, "tags", tag.id)?.deleted).toBe(1);
+  });
+});
+
+describe("a budget over several categories", () => {
+  function seedMulti() {
+    const db = openBunDb(); migrate(db);
+    const acc = createAccount(db, { name: "Main", currency: "PLN" });
+    const food = createCategory(db, { name: "Food" });
+    const fuel = createCategory(db, { name: "Fuel" });
+    const fun = createCategory(db, { name: "Fun" });
+    const spend = (category_id: string, minor: number) =>
+      createTransaction(db, { account_id: acc.id, date: "2026-09-10T10:00:00+02:00", amount_minor: -minor, category_id });
+    spend(food.id, 3000); spend(fuel.id, 20000); spend(fun.id, 5000);
+    return { db, acc, food, fuel, fun };
+  }
+  const period = { start: "2026-09-01", end: "2026-10-01", budgetAccount: null };
+
+  test("counts every category in the set and nothing else", () => {
+    const { db, food, fuel } = seedMulti();
+    createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_ids: JSON.stringify([food.id, fuel.id]) });
+    const row = budgetRows(db, period)[0]!;
+    expect(row.spent_minor).toBe(23000);       // food + fuel, not fun
+    expect(budgetCategoryIds(row.budget)).toEqual([food.id, fuel.id]);
+  });
+
+  test("a folder in the set still brings its categories with it", () => {
+    const db = openBunDb(); migrate(db);
+    const acc = createAccount(db, { name: "Main", currency: "PLN" });
+    const out = createCategory(db, { name: "Going out" });
+    const bar = createCategory(db, { name: "Bar", parent_id: out.id });
+    const fuel = createCategory(db, { name: "Fuel" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-10T10:00:00+02:00", amount_minor: -4000, category_id: bar.id });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-10T10:00:00+02:00", amount_minor: -20000, category_id: fuel.id });
+    createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_ids: JSON.stringify([out.id, fuel.id]) });
+    expect(budgetRows(db, period)[0]!.spent_minor).toBe(24000);
+  });
+
+  test("a budget written before the set existed still counts its one category", () => {
+    const { db, food } = seedMulti();
+    const b = createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_id: food.id });
+    // What a row restored from an older backup looks like: the single column, and nothing in the set.
+    db.run(`UPDATE budgets SET category_ids='[]' WHERE id=?`, [b.id]);
+    const row = budgetRows(db, period)[0]!;
+    expect(budgetCategoryIds(row.budget)).toEqual([food.id]);
+    expect(row.spent_minor).toBe(3000);
+  });
+
+  test("category_id is kept in step with the set, so the two never disagree", () => {
+    const { db, food, fuel } = seedMulti();
+    const b = createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_ids: JSON.stringify([food.id, fuel.id]) });
+    expect(b.category_id).toBe(food.id);   // an older build reads a narrower budget, never a wider one
+    const overall = createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01" });
+    expect(overall.category_id).toBeNull();
+    expect(budgetCategoryIds(overall)).toEqual([]);
+  });
+
+  test("two budgets over different sets do not supersede each other", () => {
+    const { db, food, fuel, fun } = seedMulti();
+    createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_ids: JSON.stringify([food.id, fuel.id]) });
+    createBudget(db, { currency: "PLN", amount_minor: 20000, starts: "2026-09-01", category_ids: JSON.stringify([fun.id]) });
+    expect(budgetRows(db, period).length).toBe(2);
   });
 });

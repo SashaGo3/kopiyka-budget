@@ -442,6 +442,37 @@ section:first-of-type {
   color: var(--muted);
 }
 
+/* ---------- iPad ---------- */
+
+.ipad-row {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 26px 20px 18px;
+  margin-inline: -20px;
+  scroll-padding-inline: 20px;
+}
+
+/* Three at 340px fill the 1120px column; narrower viewports scroll the row. */
+.ipad-shot {
+  flex: 0 0 auto;
+  width: 340px;
+  margin: 0;
+  scroll-snap-align: center;
+}
+
+.ipad-shot img {
+  width: 340px;
+}
+
+.ipad-shot figcaption {
+  margin-top: 14px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 /* ---------- privacy / migrate / open source ---------- */
 
 .linkrow {
@@ -693,7 +724,8 @@ section:first-of-type {
   }
 
   .strip,
-  .watch-row {
+  .watch-row,
+  .ipad-row {
     margin-inline: -18px;
     padding-inline: 18px;
     scroll-padding-inline: 18px;
@@ -702,6 +734,11 @@ section:first-of-type {
   .slide,
   .slide img {
     width: 208px;
+  }
+
+  .ipad-shot,
+  .ipad-shot img {
+    width: 260px;
   }
 
   .strip-controls {
