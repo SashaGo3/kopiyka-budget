@@ -5,8 +5,8 @@ import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
 import { C, S } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+import { monthLong, monthShort } from "@/lib/dates";
+import { t } from "@/i18n";
 
 /**
  * Year row with arrows and a 4×3 grid of months; tapping a month picks it. Resolves "YYYY-MM-01".
@@ -26,27 +26,27 @@ export default function PickMonth() {
   return (
     <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.md, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
       <View style={styles.yearRow}>
-        <Pressable onPress={() => setYear((y) => y - 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Previous year" style={styles.arrow}><SymbolView name="chevron.left" size={18} tintColor={C.tint} /></Pressable>
+        <Pressable onPress={() => setYear((y) => y - 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.previousYear")} style={styles.arrow}><SymbolView name="chevron.left" size={18} tintColor={C.tint} /></Pressable>
         <Text style={styles.year}>{year}</Text>
-        <Pressable onPress={() => setYear((y) => y + 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Next year" style={styles.arrow}><SymbolView name="chevron.right" size={18} tintColor={C.tint} /></Pressable>
+        <Pressable onPress={() => setYear((y) => y + 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.nextYear")} style={styles.arrow}><SymbolView name="chevron.right" size={18} tintColor={C.tint} /></Pressable>
       </View>
       <View style={styles.grid}>
-        {MONTHS.map((m, i) => {
+        {Array.from({ length: 12 }, (_, i) => monthShort(i + 1)).map((m, i) => {
           const v = `${year}-${String(i + 1).padStart(2, "0")}-01`;
           const on = v.slice(0, 7) === sel.slice(0, 7);
           const isNow = v.slice(0, 7) === nowMonth;
           return (
-            <Pressable key={m} onPress={() => { resolvePick(key, v); router.back(); }} accessibilityRole="button" accessibilityLabel={`${m} ${year}`} accessibilityState={{ selected: on }}
+            <Pressable key={m} onPress={() => { resolvePick(key, v); router.back(); }} accessibilityRole="button" accessibilityLabel={t("dates.monthYear", { month: monthLong(i + 1), year })} accessibilityState={{ selected: on }}
               style={({ pressed }) => [styles.cell, on && styles.cellOn, pressed && { opacity: 0.6 }]}>
               <Text style={[styles.cellText, on && { color: C.onTint }, isNow && !on && { color: C.tint, fontWeight: "700" }]}>{m}</Text>
             </Pressable>
           );
         })}
       </View>
-      <Pressable onPress={() => { resolvePick(key, `${nowMonth}-01`); router.back(); }} accessibilityRole="button" accessibilityLabel="This month"
+      <Pressable onPress={() => { resolvePick(key, `${nowMonth}-01`); router.back(); }} accessibilityRole="button" accessibilityLabel={t("pick.month.thisMonth")}
         style={({ pressed }) => [styles.now, pressed && { opacity: 0.6 }]}>
         <SymbolView name="calendar" size={16} tintColor={C.tint} />
-        <Text style={styles.nowText}>This month</Text>
+        <Text style={styles.nowText}>{t("pick.month.thisMonth")}</Text>
       </Pressable>
     </View>
   );

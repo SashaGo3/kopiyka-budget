@@ -49,6 +49,8 @@ export function onAfterWrite(fn: () => void): () => void {
 
 function subscribe(cb: () => void) { listeners.add(cb); return () => { listeners.delete(cb); }; }
 function getVersion() { return version; }
+/** The write counter, for module-level caches that must not outlive the data they were built from. */
+export function dbVersion(): number { return version; }
 
 export function useDbVersion(): number {
   return useSyncExternalStore(subscribe, getVersion, getVersion);

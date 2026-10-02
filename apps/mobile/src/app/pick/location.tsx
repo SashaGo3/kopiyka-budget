@@ -9,6 +9,7 @@ import { ensureLocationPermission, placeName, quickLocation, type Coords } from 
 import { PLACE_SEARCH_AVAILABLE, searchPlaces, type PlaceHit } from "@/lib/device";
 import { getHomeLocation } from "@/lib/settings";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { t } from "@/i18n";
 
 /** Long enough that typing a shop name is one search and not eight. */
 const SEARCH_DEBOUNCE_MS = 350;
@@ -98,12 +99,12 @@ export default function PickLocation() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title="Location" left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Done", onPress: done }} />
+      <ModalHeader title={t("pick.location.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.done"), onPress: done }} />
       {PLACE_SEARCH_AVAILABLE ? (
         <View style={styles.search}>
           <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-          <TextInput value={query} onChangeText={type} placeholder="Search for a place" placeholderTextColor={C.tertiary} style={styles.input}
-            autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing" accessibilityLabel="Search for a place" />
+          <TextInput value={query} onChangeText={type} placeholder={t("pick.location.search")} placeholderTextColor={C.tertiary} style={styles.input}
+            autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing" accessibilityLabel={t("pick.location.search")} />
           {searching ? <ActivityIndicator size="small" color={C.tertiary} /> : null}
         </View>
       ) : null}
@@ -111,7 +112,7 @@ export default function PickLocation() {
         <AppleMaps.View
           style={{ flex: 1 }}
           cameraPosition={{ coordinates: { latitude: camera.lat, longitude: camera.lon }, zoom }}
-          markers={coords ? [{ coordinates: { latitude: coords.lat, longitude: coords.lon }, title: place ?? "Here", tintColor: "#FF375F" }] : []}
+          markers={coords ? [{ coordinates: { latitude: coords.lat, longitude: coords.lon }, title: place ?? t("pick.location.here"), tintColor: "#FF375F" }] : []}
           uiSettings={{ myLocationButtonEnabled: false, compassEnabled: false }}
           properties={{ isMyLocationEnabled: true }}
           onMapClick={(e) => { if (e.coordinates.latitude != null && e.coordinates.longitude != null) tapMap({ lat: e.coordinates.latitude, lon: e.coordinates.longitude }); }}
@@ -133,15 +134,15 @@ export default function PickLocation() {
           </View>
         ) : null}
         {long && !searching && !hits.length ? (
-          <View style={styles.results}><Text style={styles.none}>No places found.</Text></View>
+          <View style={styles.results}><Text style={styles.none}>{t("pick.location.none")}</Text></View>
         ) : null}
       </View>
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, S.md) }]}>
-        <Text style={styles.place} numberOfLines={1}>{coords ? `📍 ${place ?? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`}` : "Tap the map to place the pin"}</Text>
+        <Text style={styles.place} numberOfLines={1}>{coords ? `📍 ${place ?? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`}` : t("pick.location.tapMap")}</Text>
         <View style={styles.row}>
-          <Pressable onPress={() => void here()} style={styles.btn} accessibilityRole="button" accessibilityLabel="Use current location"><SymbolView name="location.fill" size={16} tintColor={C.tint} /><Text style={styles.btnText}>Current</Text></Pressable>
-          {coords ? <Pressable onPress={() => { setChosen(null); setCoords(null); }} style={styles.btn} accessibilityRole="button" accessibilityLabel="Remove location"><SymbolView name="xmark" size={14} tintColor={C.red} /><Text style={[styles.btnText, { color: C.red }]}>Remove</Text></Pressable> : null}
-          <Pressable onPress={done} style={[styles.btn, styles.primary]} accessibilityRole="button" accessibilityLabel="Use this location"><Text style={[styles.btnText, { color: C.onTint }]}>Use this location</Text></Pressable>
+          <Pressable onPress={() => void here()} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.currentA11y")}><SymbolView name="location.fill" size={16} tintColor={C.tint} /><Text style={styles.btnText}>{t("pick.location.current")}</Text></Pressable>
+          {coords ? <Pressable onPress={() => { setChosen(null); setCoords(null); }} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.removeA11y")}><SymbolView name="xmark" size={14} tintColor={C.red} /><Text style={[styles.btnText, { color: C.red }]}>{t("pick.location.remove")}</Text></Pressable> : null}
+          <Pressable onPress={done} style={[styles.btn, styles.primary]} accessibilityRole="button" accessibilityLabel={t("pick.location.use")}><Text style={[styles.btnText, { color: C.onTint }]}>{t("pick.location.use")}</Text></Pressable>
         </View>
       </View>
     </View>

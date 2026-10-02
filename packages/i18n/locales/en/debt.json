@@ -1,0 +1,49 @@
+{
+  "$comment": "The debt sheet (app/debt/edit.tsx).",
+  "direction": {
+    "owedToMe": { "message": "They owe me", "note": "Segmented control." },
+    "iOwe": { "message": "I owe", "note": "Segmented control." }
+  },
+  "lent": { "message": "Money lent", "note": "Sheet title while no person is named yet." },
+  "borrowed": { "message": "Money borrowed", "note": "Sheet title while no person is named yet." },
+  "summary": {
+    "owesYou": "Owes you",
+    "youOwe": "You owe",
+    "due": { "message": "due {date}", "note": "Part of a summary joined with \" · \"; date is \"22 Sep\". Lowercase." },
+    "noDue": { "message": "no due date", "note": "Part of a summary joined with \" · \". Lowercase." },
+    "reminder": { "message": "reminder at {time}", "note": "Part of a summary joined with \" · \"; time is HH:MM. Lowercase." }
+  },
+  "amountA11y": { "message": "Amount {amount}", "note": "VoiceOver label; amount with its currency code." },
+  "who": "Who?",
+  "noDueDate": "No due date",
+  "clearDate": "Clear date",
+  "account": "Account (optional)",
+  "noAccount": "No account",
+  "notes": "Notes",
+  "reminderOn": "Reminder on",
+  "reminderOff": "Reminder off",
+  "confirm": {
+    "save": "Tap to save",
+    "add": "Tap to add",
+    "amount": "Enter an amount",
+    "who": "Who owes what?"
+  },
+  "paid": {
+    "row": "Mark as paid back",
+    "title": "Mark as paid back?",
+    "body": "You can also record the transaction that moves the money.",
+    "only": "Just mark it paid",
+    "record": "Record the payment too"
+  },
+  "paidBack": { "message": "Paid back {date}", "note": "date is \"22 Sep\" or \"22 Sep 2025\"." },
+  "reopen": {
+    "title": "Reopen this debt?",
+    "body": "The transaction recorded when it was paid back stays in the account. Delete it there if the money never moved.",
+    "confirm": "Reopen"
+  },
+  "delete": {
+    "row": "Delete debt",
+    "title": "Delete debt?",
+    "body": "This cannot be undone."
+  }
+}

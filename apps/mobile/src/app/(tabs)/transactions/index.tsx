@@ -3,7 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation, usePathname } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -23,6 +23,8 @@ import { scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
 import { markBooted } from "@/lib/boot";
 import { DISMISS_MS } from "@/lib/nav";
 import { isPad } from "@/constants/layout";
+import { t } from "@/i18n";
+import { catName, catNameById, acctName } from "@/lib/names";
 
 /** Two presses of the tab within this are one gesture, not two taps. */
 const DOUBLE_PRESS_MS = 400;
@@ -98,11 +100,11 @@ export default function TransactionsScreen() {
     const count = activeCount(f, { accounts: inScope, period: per });
     const scoped = !!getBudgetScope(), month = per.start !== currentPeriod().start;
     if (!count && !scoped && !month) return false;
-    const on = [count ? `${count} filter${count === 1 ? "" : "s"}` : "", scoped ? "an account scope" : "", month ? (per.subtitle ?? per.title) : ""].filter(Boolean);
-    Alert.alert("Reset the list?", `Showing ${on.join(", ")}.`, [
-      { text: "Cancel", style: "cancel" },
-      ...(count ? [{ text: count === 1 ? "Clear the filter" : "Clear the filters", onPress: () => clearFilters(inScope) }] : []),
-      ...(scoped || month ? [{ text: "Back to defaults", onPress: showEverything }] : []),
+    const on = [count ? t("transactions.reset.filters", { count }) : "", scoped ? t("transactions.reset.scope") : "", month ? (per.subtitle ?? per.title) : ""].filter(Boolean);
+    Alert.alert(t("transactions.reset.title"), t("transactions.reset.body", { what: on.join(", ") }), [
+      { text: t("common.cancel"), style: "cancel" },
+      ...(count ? [{ text: t("transactions.reset.clear", { count }), onPress: () => clearFilters(inScope) }] : []),
+      ...(scoped || month ? [{ text: t("transactions.reset.defaults"), onPress: showEverything }] : []),
     ]);
     return true;
   }, [clearFilters, showEverything]);
@@ -141,7 +143,16 @@ export default function TransactionsScreen() {
   // month's Income/Expenses, is what sums it up.
   const tripTag = filter.tags.length === 1 && trips.some((t) => t.tag_id === filter.tags[0]) ? filter.tags[0]! : null;
   const custom = !!(filter.from || filter.to) || !!filter.upcoming || !!tripTag;
-  const { where, params } = buildWhere(filter, filter.from || filter.to || tripTag ? null : period);
+  // Search also finds a ready-made category by the name it is shown under (DATA.md rule 16).
+  const shownNameMatches = useQuery((d) => {
+    const q = filter.q.trim().toLowerCase();
+    return q ? listRows(d, "categories", "deleted=0").filter((c) => catName(c).toLowerCase().includes(q)).map((c) => c.id) : [];
+  }, [filter.q]);
+  const shownAccountMatches = useQuery((d) => {
+    const q = filter.q.trim().toLowerCase();
+    return q ? listRows(d, "accounts", "deleted=0").filter((a) => acctName(a).toLowerCase().includes(q)).map((a) => a.id) : [];
+  }, [filter.q]);
+  const { where, params } = buildWhere(filter, filter.from || filter.to || tripTag ? null : period, undefined, shownNameMatches, shownAccountMatches);
   // "Hide income" is a display preference, not a filter — but asking for income explicitly still wins,
   // so picking Income in the filter sheet never lands on a list that is empty by design.
   const hideIncome = useQuery(() => getHideIncome()) && filter.type !== "income";
@@ -206,21 +217,26 @@ export default function TransactionsScreen() {
    * to be taken on trust, which is the one thing an approximate number cannot ask for: tapping names
    * the money that was converted and the rate it went at, and offers the rows themselves.
    */
-  const statOf = (t: { minor: number; approx: boolean; converted: { currency: string; minor: number }[] }, label: string, kind: "income" | "expense") => ({
-    minor: t.minor, currency: totals.currency, approx: t.approx,
-    onPress: t.approx ? () => {
-      const lines = t.converted.map((c) => {
+  const statOf = (s: { minor: number; approx: boolean; converted: { currency: string; minor: number }[] }, kind: "income" | "expense") => ({
+    minor: s.minor, currency: totals.currency, approx: s.approx,
+    onPress: s.approx ? () => {
+      const lines = s.converted.map((c) => {
         const rate = rateFor(c.currency, totals.currency);
-        return `${formatMinor(Math.abs(c.minor), c.currency)} ${c.currency}${rate ? ` at ${trimNumber(rate)}` : " — no rate yet"}`;
+        const amount = formatMinor(Math.abs(c.minor), c.currency);
+        return rate ? t("transactions.approx.at", { amount, currency: c.currency, rate: trimNumber(rate).replace(".", numberFormat().decimal) }) : t("transactions.approx.noRate", { amount, currency: c.currency });
       });
-      const ids = accounts.filter((a) => t.converted.some((c) => c.currency === a.currency)).map((a) => a.id);
-      Alert.alert(`${label} is approximate`,
-        `${lines.join("\n")}\n\nConverted into ${totals.currency} at today's rate. Everything else in this ${label.toLowerCase()} total was already in ${totals.currency}.`, [
-          { text: "OK", style: "cancel" },
-          ...(ids.length ? [{ text: "Show them", onPress: () => router.push({ pathname: "/transactions", params: { accounts: ids.join(","), type: kind, ...(filter.from ? { from: filter.from } : {}), ...(filter.to ? { to: filter.to } : {}), nonce: String(Date.now()) } }) }] : []),
+      const ids = accounts.filter((a) => s.converted.some((c) => c.currency === a.currency)).map((a) => a.id);
+      const income = kind === "income";
+      Alert.alert(income ? t("transactions.approx.incomeTitle") : t("transactions.approx.expensesTitle"),
+        income ? t("transactions.approx.incomeBody", { lines: lines.join("\n"), currency: totals.currency }) : t("transactions.approx.expensesBody", { lines: lines.join("\n"), currency: totals.currency }), [
+          { text: t("common.ok"), style: "cancel" },
+          ...(ids.length ? [{ text: t("transactions.approx.show"), onPress: () => router.push({ pathname: "/transactions", params: { accounts: ids.join(","), type: kind, ...(filter.from ? { from: filter.from } : {}), ...(filter.to ? { to: filter.to } : {}), nonce: String(Date.now()) } }) }] : []),
         ]);
     } : undefined,
   });
+  const dueTitle = dueRecurring.n === 0 ? t("transactions.due.expected", { count: dueRecurring.waiting }) : t("transactions.due.due", { count: dueRecurring.n });
+  const dueSub = dueRecurring.n === 0 ? t("transactions.due.waiting")
+    : dueRecurring.waiting ? t("transactions.due.tapMore", { count: dueRecurring.waiting }) : t("transactions.due.tap");
   const toggleSort = () => { setSort((s) => (s === "date" ? "amount" : "date")); setSortGen((g) => g + 1); };
   /**
    * An empty list that says why it is empty. Every reason is something the screen is doing —
@@ -230,16 +246,16 @@ export default function TransactionsScreen() {
    * that arrived belongs to the others, and "No transactions" was the only thing it said.
    */
   const narrowing = [
-    scope ? `from ${scopeLabel(scope, accounts)}` : null,
-    custom ? rangeLabel(filter.from, filter.to).toLowerCase() : `in ${period.subtitle ?? period.title}`,
-    n ? `with ${n} filter${n === 1 ? "" : "s"} on` : null,
+    scope ? t("transactions.empty.scope", { scope: scopeLabel(scope, accounts) }) : null,
+    custom ? rangeLabel(filter.from, filter.to).toLowerCase() : t("transactions.empty.period", { period: period.subtitle ?? period.title }),
+    n ? t("transactions.empty.filters", { count: n }) : null,
   ].filter(Boolean);
   const emptyList = (
-    <Empty title="No transactions"
-      hint={`Nothing ${narrowing.join(", ")}.`}
-      action={{ label: "Show everything", onPress: showEverything }} />
+    <Empty title={t("transactions.empty.title")}
+      hint={t("transactions.empty.hint", { parts: narrowing.join(", ") })}
+      action={{ label: t("transactions.empty.action"), onPress: showEverything }} />
   );
-  const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: "Spending from", options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
+  const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: t("transactions.scopeTitle"), options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
   // Multi-edit. `selected` is null outside selection mode.
   const [selected, setSelected] = useState<Set<string> | null>(null);
@@ -287,10 +303,10 @@ export default function TransactionsScreen() {
   usePickResult<string>(keys.date, useCallback((day: string) => reviewAfterPick({ kind: "date", day }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const deleteChosen = () => {
     if (!chosen.length) return;
-    const transfers = chosen.filter((t) => t.transfer_id).length;
-    Alert.alert(chosen.length === 1 ? "Delete this transaction?" : `Delete ${chosen.length} transactions?`, transfers ? "Both sides of a transfer are deleted together." : undefined, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => { const ids = chosenIds(); mutate((d) => { for (const id of ids) remove(d, "transactions", id); }); setSelected(null); } },
+    const transfers = chosen.filter((x) => x.transfer_id).length;
+    Alert.alert(t("transactions.deleteTitle", { count: chosen.length }), transfers ? t("transactions.deleteTransfers") : undefined, [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("common.delete"), style: "destructive", onPress: () => { const ids = chosenIds(); mutate((d) => { for (const id of ids) remove(d, "transactions", id); }); setSelected(null); } },
     ]);
   };
   const pickCategory = () => {
@@ -319,27 +335,28 @@ export default function TransactionsScreen() {
   const pickNote = () => {
     if (!chosen.length) return;
     const same = chosen.every((t) => (t.notes ?? "") === (chosen[0]!.notes ?? "")) ? chosen[0]!.notes ?? "" : "";
-    router.push({ pathname: "/pick/text", params: { key: keys.note, title: "Note", value: same, multiline: "1" } });
+    router.push({ pathname: "/pick/text", params: { key: keys.note, title: t("transactions.noteTitle"), value: same, multiline: "1" } });
   };
   usePickResult<string>(keys.note, useCallback((text: string) => reviewAfterPick({ kind: "note", text, mode: "replace" }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const headerButton = (label: string, onPress: () => void, bold = false) => (
-    <Pressable onPress={onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={label}><Text style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</Text></Pressable>
+    <Pressable onPress={onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={label}><Text style={[styles.headerLink, bold && { fontWeight: "700" }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{label}</Text></Pressable>
   );
-  const range = tripTag && filter.from === ALL_TIME && !filter.to ? "" : filter.from || filter.to ? rangeLabel(filter.from, filter.to) : filter.upcoming ? "Upcoming" : "";
+  const range = tripTag && filter.from === ALL_TIME && !filter.to ? "" : filter.from || filter.to ? rangeLabel(filter.from, filter.to) : filter.upcoming ? t("transactions.upcoming") : "";
   // What the screen was opened *about* — a category from Budgets, a tag or a category from its
   // editor — kept in the title beside the range. Dropped as soon as that filter is gone, so the
   // header never names something the list is no longer showing.
-  const named = p.name && ((p.category && filter.categories.includes(p.category)) || (p.tag && filter.tags.includes(p.tag))) ? p.name : "";
-  const tripName = useQuery((d) => (tripTag ? getRow(d, "tags", tripTag)?.name ?? "Travel" : ""), [tripTag]);
+  const named = p.name && p.category && filter.categories.includes(p.category) ? catNameById(p.category, p.name) ?? p.name
+    : p.name && p.tag && filter.tags.includes(p.tag) ? p.name : "";
+  const tripName = useQuery((d) => (tripTag ? getRow(d, "tags", tripTag)?.name ?? t("transactions.travel") : ""), [tripTag]);
   const customTitle = [named || tripName, range].filter(Boolean).join(" · ");
 
   return (
     <>
-      <Stack.Screen options={{ title: selecting ? `${chosen.length} selected` : custom ? customTitle : isSearchTab ? "Search" : "Transactions", headerLargeTitle: !custom,
-        headerLeft: selecting ? () => headerButton(allChosen ? "Deselect all" : "Select all", toggleAll) : undefined,
-        headerRight: rows.length || selecting ? () => headerButton(selecting ? "Done" : "Select", () => setSelected(selecting ? null : new Set()), selecting) : undefined,
+      <Stack.Screen options={{ title: selecting ? t("transactions.selected", { count: chosen.length }) : custom ? customTitle : isSearchTab ? t("transactions.searchTitle") : t("transactions.title"), headerLargeTitle: !custom,
+        headerLeft: selecting ? () => headerButton(allChosen ? t("transactions.deselectAll") : t("transactions.selectAll"), toggleAll) : undefined,
+        headerRight: rows.length || selecting ? () => headerButton(selecting ? t("common.done") : t("transactions.select"), () => setSelected(selecting ? null : new Set()), selecting) : undefined,
         // Search lives in the search tab only (iOS puts its field in the bottom tab bar).
-        headerSearchBarOptions: isSearchTab ? { placeholder: "Search notes, categories, amounts", hideWhenScrolling: false, autoFocus: true,
+        headerSearchBarOptions: isSearchTab ? { placeholder: t("transactions.searchPlaceholder"), hideWhenScrolling: false, autoFocus: true,
           onChangeText: (e) => { const text = e?.nativeEvent?.text ?? ""; setFilter((f) => (f.q === text ? f : { ...f, q: text })); },
           onCancelButtonPress: () => setFilter((f) => (f.q ? { ...f, q: "" } : f)) } : undefined }} />
       <TransactionList rows={sorted} flat={sort === "amount"} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} empty={emptyList} header={
@@ -355,39 +372,33 @@ export default function TransactionsScreen() {
           {shownTrip && !selecting ? <View style={styles.trip}><TripCard budget={shownTrip} /></View> : null}
           {/* Totals next — the month at a glance. Then what still needs a decision: recurring you owe, then entries to check. */}
           {tripTag ? null : <StatPair stats={[
-            ...(hideIncome ? [] : [{ label: "Income", ...statOf(totals.totals[0]!, "Income", "income"), color: C.green }]),
-            { label: "Expenses", ...statOf(totals.totals[1]!, "Expenses", "expense"), color: C.red },
+            ...(hideIncome ? [] : [{ label: t("transactions.income"), ...statOf(totals.totals[0]!, "income"), color: C.green }]),
+            { label: t("transactions.expenses"), ...statOf(totals.totals[1]!, "expense"), color: C.red },
           ]} />}
           {/* Same words as Net worth uses, for the same reason: a total quietly missing a currency is worse than one that admits it. */}
           {missingRates.length ? (
-            <Text style={styles.ratesWarn}>{fetchingRates ? `Fetching ${missingRates.join(", ")} rate…` : `No rate yet for ${missingRates.join(", ")}, so it is left out. Connect to the internet once.`}</Text>
+            <Text style={styles.ratesWarn}>{fetchingRates ? t("transactions.rates.fetching", { currencies: missingRates.join(", ") }) : t("transactions.rates.missing", { currencies: missingRates.join(", ") })}</Text>
           ) : null}
           {dueRecurring.n > 0 || dueRecurring.waiting > 0 ? (
             <Pressable onPress={() => router.push("/recurring/due")} accessibilityRole="button"
-              accessibilityLabel={dueRecurring.n ? `${dueRecurring.n} recurring payments due, review them` : `${dueRecurring.waiting} recurring payments expected, see them`}
+              accessibilityLabel={`${dueTitle}. ${dueSub}`}
               style={({ pressed }) => [styles.due, pressed && { opacity: 0.7 }]}>
               <SymbolView name={dueRecurring.n ? "repeat.circle.fill" : "hourglass.circle.fill"} size={20} tintColor={dueRecurring.n ? C.red : C.secondary} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.pendingTitle}>
-                  {dueRecurring.n === 0 ? (dueRecurring.waiting === 1 ? "1 recurring payment expected" : `${dueRecurring.waiting} recurring payments expected`)
-                    : dueRecurring.n === 1 ? "1 recurring payment due" : `${dueRecurring.n} recurring payments due`}
-                </Text>
-                <Text style={styles.pendingSub}>
-                  {dueRecurring.n === 0 ? "Waiting for the charge to arrive"
-                    : dueRecurring.waiting ? `Tap to post or skip · ${dueRecurring.waiting} more expected` : "Tap to post or skip"}
-                </Text>
+                <Text style={styles.pendingTitle}>{dueTitle}</Text>
+                <Text style={styles.pendingSub}>{dueSub}</Text>
               </View>
               {dueRecurring.n && dueSum.totals[0]!.minor ? <Money minor={dueSum.totals[0]!.minor} currency={dueSum.currency} approx={dueSum.totals[0]!.approx} style={styles.dueSum} /> : null}
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}
           {pending.n > 0 ? (
-            <Pressable onPress={() => router.push("/pending")} accessibilityRole="button" accessibilityLabel={`${pending.n} pending, review them`}
+            <Pressable onPress={() => router.push("/pending")} accessibilityRole="button" accessibilityLabel={`${t("transactions.pending.title", { count: pending.n })}. ${t("transactions.pending.sub")}`}
               style={({ pressed }) => [styles.pending, pressed && { opacity: 0.7 }]}>
               <SymbolView name="clock.badge.exclamationmark" size={20} tintColor={C.orange} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.pendingTitle}>{pending.n === 1 ? "1 pending entry" : `${pending.n} pending entries`}</Text>
-                <Text style={styles.pendingSub}>Tap to check and approve</Text>
+                <Text style={styles.pendingTitle}>{t("transactions.pending.title", { count: pending.n })}</Text>
+                <Text style={styles.pendingSub}>{t("transactions.pending.sub")}</Text>
               </View>
               {pendingSum.totals[0]!.minor ? <Money minor={pendingSum.totals[0]!.minor} currency={pendingSum.currency} approx={pendingSum.totals[0]!.approx} style={styles.pendingSum} /> : null}
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
@@ -404,26 +415,26 @@ export default function TransactionsScreen() {
         {selecting && chosen.length === 0 ? (
           <View style={styles.selectHint} accessibilityRole="text">
             <SymbolView name="hand.tap" size={16} tintColor={C.secondary} />
-            <Text style={styles.selectHintText} numberOfLines={2}>Tap the transactions to change{rows.length > 1 ? ", or Select all" : ""}</Text>
+            <Text style={styles.selectHintText} numberOfLines={2}>{rows.length > 1 ? t("transactions.selectHintAll") : t("transactions.selectHint")}</Text>
           </View>
         ) : selecting ? (
           <>
-            <BarButton icon="folder" label="Category" active onPress={pickCategory} a11y={`Set category of ${chosen.length} selected`} />
-            <BarButton icon="number" active onPress={pickTags} a11y={`Edit tags of ${chosen.length} selected`} />
-            <BarButton icon="calendar" active onPress={pickDate} a11y={`Change date of ${chosen.length} selected`} />
-            <BarButton icon="text.alignleft" active onPress={pickNote} a11y={`Edit the note of ${chosen.length} selected`} />
-            {chosen.some((t) => t.pending) ? <BarButton icon="checkmark.circle" label="Confirm" active onPress={() => review({ kind: "confirm" })} a11y={`Confirm ${chosen.filter((t) => t.pending).length} pending`} /> : null}
-            <BarButton icon="trash" color={C.red} onPress={deleteChosen} a11y={`Delete ${chosen.length} selected`} />
+            <BarButton icon="folder" label={t("transactions.bar.category")} active onPress={pickCategory} a11y={t("transactions.bar.categoryA11y", { count: chosen.length })} />
+            <BarButton icon="number" active onPress={pickTags} a11y={t("transactions.bar.tagsA11y", { count: chosen.length })} />
+            <BarButton icon="calendar" active onPress={pickDate} a11y={t("transactions.bar.dateA11y", { count: chosen.length })} />
+            <BarButton icon="text.alignleft" active onPress={pickNote} a11y={t("transactions.bar.noteA11y", { count: chosen.length })} />
+            {chosen.some((x) => x.pending) ? <BarButton icon="checkmark.circle" label={t("transactions.bar.confirm")} active onPress={() => review({ kind: "confirm" })} a11y={t("transactions.bar.confirmA11y", { count: chosen.filter((x) => x.pending).length })} /> : null}
+            <BarButton icon="trash" color={C.red} onPress={deleteChosen} a11y={t("transactions.bar.deleteA11y", { count: chosen.length })} />
           </>
         ) : (
           <>
             {/* In the iPad column there is room for the words, and a column of icons alone is a
                 puzzle; on a phone the bar is in the thumb zone and the count is all that fits. */}
-            <BarButton icon="line.3.horizontal.decrease" label={isPad ? (n ? `Filters · ${n}` : "Filter") : n ? String(n) : undefined}
+            <BarButton icon="line.3.horizontal.decrease" label={isPad ? (n ? t("transactions.bar.filters", { count: n }) : t("transactions.bar.filter")) : n ? String(n) : undefined}
               active={n > 0} onPress={() => router.push({ pathname: "/filter", params: { key: keys.filter, value: JSON.stringify(filter) } })}
-              onLongPress={askReset} a11y={n ? `Filters, ${n} active` : "Filters"} a11yHint="Hold to clear what the list is narrowed to" />
-            <BarButton icon={sort === "date" ? "arrow.up.arrow.down" : "arrow.down.to.line"} label={isPad ? (sort === "date" ? "By date" : "By amount") : undefined}
-              active={sort === "amount"} onPress={toggleSort} a11y={sort === "date" ? "Sort by amount" : "Sort by date"} />
+              onLongPress={askReset} a11y={n ? t("transactions.bar.filtersActiveA11y", { count: n }) : t("transactions.bar.filtersA11y")} a11yHint={t("transactions.bar.filtersHint")} />
+            <BarButton icon={sort === "date" ? "arrow.up.arrow.down" : "arrow.down.to.line"} label={isPad ? (sort === "date" ? t("transactions.bar.byDate") : t("transactions.bar.byAmount")) : undefined}
+              active={sort === "amount"} onPress={toggleSort} a11y={sort === "date" ? t("transactions.bar.sortByAmount") : t("transactions.bar.sortByDate")} />
             <LogButton />
           </>
         )}

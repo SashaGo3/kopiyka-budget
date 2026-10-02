@@ -1,0 +1,18 @@
+{
+  "name": "@kopiyka/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "runtime/index.ts",
+  "types": "runtime/index.ts",
+  "scripts": {
+    "i18n": "bun src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "exports": {
+    ".": "./runtime/index.ts",
+    "./generated": "./generated/index.ts",
+    "./messages": "./generated/messages.ts"
+  }
+}

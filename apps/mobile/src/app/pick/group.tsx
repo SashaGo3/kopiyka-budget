@@ -7,11 +7,15 @@ import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { Row } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
+import { groupName } from "@/lib/names";
 
 /**
  * Group picker: lists groups already in use, with how many accounts are in each, and can create a
  * new one inline. There is no "no group" — every account belongs to one — so the default group is
- * always offered, even before any account has joined it.
+ * always offered, even before any account has joined it. A group is picked and stored by its stored
+ * name; the default one is only *shown* in the app's language (DATA.md rule 17), and typing its shown
+ * name finds it rather than creating a second group that reads the same.
  */
 export default function PickGroup() {
   const { key, selected } = useLocalSearchParams<{ key: string; selected?: string }>();
@@ -20,32 +24,32 @@ export default function PickGroup() {
     const counts = new Map<string, number>();
     counts.set(DEFAULT_ACCOUNT_GROUP, 0);
     for (const a of listRows(db, "accounts", "deleted=0")) if (a.group_name) counts.set(a.group_name, (counts.get(a.group_name) ?? 0) + 1);
-    return [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+    return [...counts].map(([name, count]) => ({ name, shown: groupName(name), count })).sort((a, b) => a.shown.localeCompare(b.shown));
   });
   const query = q.trim().toLowerCase();
-  const filtered = query ? groups.filter((g) => g.name.toLowerCase().includes(query)) : groups;
-  const canCreate = !!query && !groups.some((g) => g.name.toLowerCase() === query);
+  const filtered = query ? groups.filter((g) => g.name.toLowerCase().includes(query) || g.shown.toLowerCase().includes(query)) : groups;
+  const canCreate = !!query && !groups.some((g) => g.name.toLowerCase() === query || g.shown.toLowerCase() === query);
   const pick = (value: string) => { resolvePick(key, value); router.back(); };
 
   return (
     <FlatList style={{ backgroundColor: C.bgGrouped }} data={filtered} keyExtractor={(g) => g.name} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingTop: S.sm, paddingBottom: 40 }}
       ListHeaderComponent={
         <View>
-          <Text style={styles.title}>Group</Text>
+          <Text style={styles.title}>{t("pick.group.title")}</Text>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Search or create a group" placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} accessibilityLabel="Search groups" />
+            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.group.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} accessibilityLabel={t("pick.group.searchA11y")} />
           </View>
           {canCreate ? (
             <Pressable onPress={() => pick(q.trim())} style={styles.row} accessibilityRole="button">
               <SymbolView name="plus.circle" size={20} tintColor={C.tint} />
-              <Text style={[styles.rowText, { color: C.tint }]}>Create “{q.trim()}”</Text>
+              <Text style={[styles.rowText, { color: C.tint }]}>{t("pick.group.create", { name: q.trim() })}</Text>
             </Pressable>
           ) : null}
         </View>
       }
       renderItem={({ item: g }) => (
-        <Row title={g.name} subtitle={g.count ? `${g.count} account${g.count === 1 ? "" : "s"}` : "Empty"} style={styles.transparent} onPress={() => pick(g.name)}
+        <Row title={g.shown} subtitle={g.count ? t("pick.group.count", { count: g.count }) : t("pick.group.empty")} style={styles.transparent} onPress={() => pick(g.name)}
           right={selected === g.name ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : <SymbolView name="circle" size={1} tintColor="transparent" />} />
       )}
     />

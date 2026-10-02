@@ -59,6 +59,12 @@ export interface Category extends Synced {
    * by the fourth. Not a filter: it hides nothing and changes no total.
    */
   importance: Importance;
+  /**
+   * The ready-made category this row was created from ("food.groceries"), or null for one the user
+   * made. Shown translated while its name is still the preset's — read names through `categoryName`
+   * (presets.ts), never off `name`. Absent on rows from a build before v18.
+   */
+  preset?: string | null;
 }
 
 /** 0 unset, 1 low, 2 medium, 3 high. */

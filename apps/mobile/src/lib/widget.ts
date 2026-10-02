@@ -12,6 +12,9 @@ import { currentPeriod } from "./period";
 import { getBudgetScope } from "./settings";
 import { scopeAccount, scopeAccountIds } from "./scope";
 import { buildWatchState } from "./watchState";
+import { catNameById } from "./names";
+import { t } from "@/i18n";
+import { acctName } from "@/lib/names";
 
 export interface WidgetSnapshot {
   generated_at: string;
@@ -27,7 +30,7 @@ export interface WidgetSnapshot {
 
 export function buildSnapshot(): WidgetSnapshot {
   const accounts = listRows(db, "accounts", "deleted=0 AND archived=0", [], "sort, name");
-  const accs = accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency, balance: fromMinor(accountBalanceMinor(db, a.id), a.currency) }));
+  const accs = accounts.map((a) => ({ id: a.id, name: acctName(a), currency: a.currency, balance: fromMinor(accountBalanceMinor(db, a.id), a.currency) }));
   const nw = new Map<string, number>();
   for (const a of accounts) if (a.include_in_net_worth) nw.set(a.currency, (nw.get(a.currency) ?? 0) + accountBalanceMinor(db, a.id));
   // Same period, account scope and spend rule as the Budgets tab (budget start day, e.g. 15 Aug – 14 Sep).
@@ -37,15 +40,15 @@ export function buildSnapshot(): WidgetSnapshot {
   const scopeIds = scopeAccountIds(scope, listRows(db, "accounts", "deleted=0"));
   const out: WidgetSnapshot["budgets"] = budgetRows(db, { start: period.start, end: period.end, accountIds: scopeIds, budgetAccount: scopeAccount(scope) }).map((r) => ({
     category_id: r.budget.category_id,
-    name: budgetCategoryIds(r.budget).map((cid) => cats.get(cid)?.name ?? "?").join(", ") || "Everything",
+    name: budgetCategoryIds(r.budget).map((cid) => catNameById(cid, cats.get(cid)?.name ?? "?") ?? "?").join(", ") || t("misc.widget.everything"),
     currency: r.budget.currency,
     limit: fromMinor(r.budget.amount_minor, r.budget.currency), spent: fromMinor(r.spent_minor, r.budget.currency),
   }));
   const label = period.subtitle ? `${period.title} · ${period.subtitle}` : period.title;
-  const t = activeTrip(db);
-  const ts = t ? tripStats(db, t) : null;
-  const trip: WidgetSnapshot["trip"] = t && ts && t.tag_id ? {
-    budget_id: t.id, tag_id: t.tag_id, name: ts.name, currency: ts.currency, limit: fromMinor(ts.limit_minor, ts.currency), spent: fromMinor(ts.spent_minor, ts.currency),
+  const active = activeTrip(db);
+  const ts = active ? tripStats(db, active) : null;
+  const trip: WidgetSnapshot["trip"] = active && ts && active.tag_id ? {
+    budget_id: active.id, tag_id: active.tag_id, name: ts.name ?? t("travel.untitled"), currency: ts.currency, limit: fromMinor(ts.limit_minor, ts.currency), spent: fromMinor(ts.spent_minor, ts.currency),
     day: ts.day, days: ts.days, days_left: ts.days_left, allowance: ts.allowance_minor === null ? null : fromMinor(ts.allowance_minor, ts.currency),
   } : null;
   const category_icons: WidgetSnapshot["category_icons"] = {};

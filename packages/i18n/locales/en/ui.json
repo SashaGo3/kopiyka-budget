@@ -1,0 +1,15 @@
+{
+  "$comment": "Shared components (src/components) and labels from src/constants.",
+  "tagA11y": { "message": "Tag {name}", "note": "VoiceOver label of a tag pill; name is the tag's name." },
+  "approxA11y": { "message": "{label}, approximate. Tap to see what was converted.", "note": "VoiceOver label of a total that includes converted currencies; label is the total's caption (\"Planned\")." },
+  "log": { "message": "Log", "note": "The big button that opens the new-entry sheet.", "max": 12 },
+  "logA11y": "Log a transaction",
+  "logHint": "Long press to photograph a receipt",
+  "reorderA11y": { "message": "Reorder {title}", "note": "VoiceOver label of a row's drag handle; title is the row's name." },
+  "value": {
+    "high": { "message": "Could not live without", "note": "Importance level: high. Legend label on Insights." },
+    "medium": { "message": "In between", "note": "Importance level: medium." },
+    "low": { "message": "Could stop tomorrow", "note": "Importance level: low." },
+    "none": { "message": "Not marked yet", "note": "No importance level set." }
+  }
+}

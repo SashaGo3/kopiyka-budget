@@ -6,6 +6,7 @@ import { noteText } from "@kopiyka/core";
 import { BigButton, Card, ModalHeader } from "@/components/ui";
 import { markWhatsNewSeen, releasesToRead } from "@/lib/whatsNew";
 import { C, R, S } from "@/constants/theme";
+import { t, type MessageKey } from "@/i18n";
 
 /**
  * What changed since this phone last looked.
@@ -18,11 +19,14 @@ import { C, R, S } from "@/constants/theme";
  * heading rather than being merged, because "this arrived in the update you skipped" is worth
  * knowing and a merged list quietly rewrites history.
  */
-const SECTIONS: { key: "added" | "improved" | "fixed"; title: string; icon: SFSymbol }[] = [
-  { key: "added", title: "Added", icon: "plus.circle.fill" },
-  { key: "improved", title: "Improved", icon: "arrow.up.circle.fill" },
-  { key: "fixed", title: "Fixed", icon: "wrench.and.screwdriver.fill" },
+const SECTIONS: { key: "added" | "improved" | "fixed"; icon: SFSymbol }[] = [
+  { key: "added", icon: "plus.circle.fill" },
+  { key: "improved", icon: "arrow.up.circle.fill" },
+  { key: "fixed", icon: "wrench.and.screwdriver.fill" },
 ];
+
+/** A note's text is a message key (constants/releases.ts); anything else is shown as written. */
+const noteLine = (text: string) => (text.startsWith("whatsNew.") ? t(text as MessageKey & `whatsNew.notes.${string}`) : text);
 
 export default function WhatsNew() {
   // Read once on mount: marking it seen must not empty the list under the reader's feet.
@@ -32,26 +36,26 @@ export default function WhatsNew() {
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       {/* No Done up here: the one at the bottom is where a reader arrives, and two buttons for the
           same thing on one short sheet is one too many. */}
-      <ModalHeader title="What's new" />
+      <ModalHeader title={t("whatsNew.title")} />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         {releases.map((r, i) => (
           <View key={r.version}>
             <View style={styles.head}>
-              <Text style={styles.version}>Version {r.version}</Text>
-              {i > 0 ? <Text style={styles.skipped}>you skipped this one</Text> : null}
+              <Text style={styles.version}>{t("whatsNew.version", { version: r.version })}</Text>
+              {i > 0 ? <Text style={styles.skipped}>{t("whatsNew.skipped")}</Text> : null}
             </View>
             <Card style={styles.card}>
-              {SECTIONS.map(({ key, title, icon }) => {
+              {SECTIONS.map(({ key, icon }) => {
                 const lines = r[key];
                 if (!lines?.length) return null;
                 return (
                   <View key={key} style={styles.section}>
                     <View style={styles.sectionHead}>
                       <SymbolView name={icon} size={14} tintColor={C.tint} />
-                      <Text style={styles.sectionTitle}>{title}</Text>
+                      <Text style={styles.sectionTitle}>{t(`whatsNew.${key}`)}</Text>
                     </View>
                     {lines.map((note) => {
-                      const text = noteText(note);
+                      const text = noteLine(noteText(note));
                       const symbol = typeof note === "string" ? undefined : note.icon;
                       return (
                         <View key={text} style={styles.item}>
@@ -69,7 +73,7 @@ export default function WhatsNew() {
           </View>
         ))}
       </ScrollView>
-      <View style={styles.bar}><BigButton label="Done" onPress={close} /></View>
+      <View style={styles.bar}><BigButton label={t("common.done")} onPress={close} /></View>
     </View>
   );
 }

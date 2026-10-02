@@ -5,15 +5,16 @@ import { File, Paths } from "expo-file-system";
 import { SymbolView } from "expo-symbols";
 import { Card, Empty, Row, SectionHeader } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
-import { todayLocal } from "@/lib/dates";
+import { dayMonth, todayLocal } from "@/lib/dates";
+import { t } from "@/i18n";
 import { clearParseLog, parseLogCsv, readParseLog, type ParseEntry, type ParseOutcome } from "@/lib/parselog";
 
 /** Why nothing was written, in words and in a colour. Red is a purchase that may have been lost. */
-const OUTCOME: Record<ParseOutcome, { label: string; color: string; why: string }> = {
-  unreadable: { label: "Unreadable", color: "#FF453A", why: "Money is named and no amount could be read out of it. This is the one worth working on." },
-  failed: { label: "Failed", color: "#FF453A", why: "Understood, but nothing was written — no account to put it on, or the app refused." },
-  ignored: { label: "Not money", color: "#8E8E93", why: "No amount in it, or money the bank is not charging: a balance, a code, a declined card. Usually right." },
-};
+const outcomes = (): Record<ParseOutcome, { label: string; color: string; why: string }> => ({
+  unreadable: { label: t("automation.log.unreadable"), color: "#FF453A", why: t("automation.log.unreadableWhy") },
+  failed: { label: t("automation.log.failed"), color: "#FF453A", why: t("automation.log.failedWhy") },
+  ignored: { label: t("automation.log.ignored"), color: "#8E8E93", why: t("automation.log.ignoredWhy") },
+});
 
 /**
  * The notifications the automation could not turn into a transaction.
@@ -30,6 +31,7 @@ export default function ParseLogScreen() {
   const [open, setOpen] = useState<string | null>(null);
   // Re-read on every visit: the automation appends to the file while this screen is not on screen.
   useFocusEffect(useCallback(() => { setEntries(readParseLog()); }, []));
+  const OUTCOME = outcomes();
   const missed = useMemo(() => entries.filter((e) => e.outcome !== "ignored").length, [entries]);
 
   const exportCsv = async () => {
@@ -40,23 +42,20 @@ export default function ParseLogScreen() {
       f.write(parseLogCsv(entries));
       const Sharing = require("expo-sharing") as typeof import("expo-sharing"); // eslint-disable-line @typescript-eslint/no-require-imports
       await Sharing.shareAsync(f.uri, { mimeType: "text/csv", UTI: "public.comma-separated-values-text", dialogTitle: name });
-    } catch (e) { Alert.alert("Export failed", (e as Error).message); }
+    } catch (e) { Alert.alert(t("automation.log.exportFailed"), (e as Error).message); }
   };
-  const clear = () => Alert.alert("Clear the log?", "The transactions it already wrote are not touched — only this record of what was read.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Clear", style: "destructive", onPress: () => { clearParseLog(); setEntries([]); } },
+  const clear = () => Alert.alert(t("automation.log.clearTitle"), t("automation.log.clearMessage"), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("automation.log.clearButton"), style: "destructive", onPress: () => { clearParseLog(); setEntries([]); } },
   ]);
 
   return (
     <>
-      <Stack.Screen options={{ title: "Notification log" }} />
+      <Stack.Screen options={{ title: t("automation.log.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 60 }}>
-        <Text style={styles.intro}>
-          Notifications the automation could not turn into a transaction, newest first. The ones it could are not here — the transaction is the record of those. Nothing here left the phone.
-          {missed ? ` ${missed} may be a purchase that was missed.` : ""}
-        </Text>
+        <Text style={styles.intro}>{missed ? t("automation.log.introMissed", { count: missed }) : t("automation.log.intro")}</Text>
 
-        {entries.length ? <SectionHeader>Nothing was written for these</SectionHeader> : null}
+        {entries.length ? <SectionHeader>{t("automation.log.section")}</SectionHeader> : null}
         {entries.map((e, i) => {
           const o = OUTCOME[e.outcome] ?? OUTCOME.ignored;
           const id = `${e.at}-${i}`;
@@ -64,32 +63,32 @@ export default function ParseLogScreen() {
           return (
             <View key={id} style={[styles.entry, i ? styles.divider : undefined]}>
               <Pressable onPress={() => setOpen(expanded ? null : id)} accessibilityRole="button"
-                accessibilityLabel={`${o.label}, ${when(e.at)}. ${expanded ? "Hide" : "Show"} the whole notification.`}>
+                accessibilityLabel={expanded ? t("automation.log.a11yHide", { outcome: o.label, when: when(e.at) }) : t("automation.log.a11yShow", { outcome: o.label, when: when(e.at) })}>
                 <View style={styles.head}>
                   <View style={[styles.badge, { backgroundColor: o.color + "26" }]}><Text style={[styles.badgeText, { color: o.color }]}>{o.label}</Text></View>
                   <Text style={styles.when}>{when(e.at)}</Text>
                   {e.amount ? <Text style={styles.amount}>{e.amount.toFixed(2)} {e.currency ?? ""}</Text> : null}
                   <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={11} tintColor={C.tertiary} />
                 </View>
-                <Text style={styles.text} numberOfLines={expanded ? undefined : 2}>{e.text || "(empty)"}</Text>
+                <Text style={styles.text} numberOfLines={expanded ? undefined : 2}>{e.text || t("automation.log.empty")}</Text>
               </Pressable>
               {expanded ? (
                 <View style={styles.detail}>
                   <Text style={styles.why}>{o.why}</Text>
-                  {[["Shop", e.merchant], ["Card", e.card], ["Account", e.account], ["Note", e.note]].map(([k, v]) =>
-                    v ? <Text key={k} style={styles.field}><Text style={styles.fieldKey}>{k}: </Text>{v}</Text> : null)}
+                  {[[t("automation.log.fieldShop"), e.merchant], [t("automation.log.fieldCard"), e.card], [t("automation.log.fieldAccount"), e.account], [t("automation.log.fieldNote"), e.note]].map(([k, v]) =>
+                    v ? <Text key={k} style={styles.field}><Text style={styles.fieldKey}>{t("automation.log.field", { name: k ?? "" })}</Text>{v}</Text> : null)}
                 </View>
               ) : null}
             </View>
           );
         })}
         {!entries.length ? (
-          <Empty title="Nothing was missed" hint="Every notification the automation was handed became a transaction, or was not about money." />
+          <Empty title={t("automation.log.noneTitle")} hint={t("automation.log.noneHint")} />
         ) : null}
 
         <Card style={{ marginTop: S.lg }}>
-          <Row icon="square.and.arrow.up" iconColor="#0A84FF" title="Export all as CSV" subtitle={`One row per notification, the whole text included${entries.length ? ` · ${entries.length} rows` : ""}`} onPress={exportCsv} />
-          <Row icon="trash" iconColor="#FF453A" title="Clear the log" subtitle="Transactions it already wrote are not touched" onPress={clear} style={styles.divider} destructive />
+          <Row icon="square.and.arrow.up" iconColor="#0A84FF" title={t("automation.log.export")} subtitle={entries.length ? t("automation.log.exportSubCount", { count: entries.length }) : t("automation.log.exportSub")} onPress={exportCsv} />
+          <Row icon="trash" iconColor="#FF453A" title={t("automation.log.clear")} subtitle={t("automation.log.clearSub")} onPress={clear} style={styles.divider} destructive />
         </Card>
       </ScrollView>
     </>
@@ -100,7 +99,7 @@ export default function ParseLogScreen() {
 function when(at: string): string {
   const d = new Date(at);
   if (Number.isNaN(d.getTime())) return at;
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} · ${d.getDate()} ${d.toLocaleString(undefined, { month: "short" })}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} · ${dayMonth(d.getDate(), d.getMonth() + 1)}`;
 }
 
 const styles = StyleSheet.create({

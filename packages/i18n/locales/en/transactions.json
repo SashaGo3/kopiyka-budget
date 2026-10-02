@@ -1,0 +1,249 @@
+{
+  "title": {
+    "message": "Transactions",
+    "max": 24
+  },
+  "searchTitle": {
+    "message": "Search",
+    "max": 24
+  },
+  "selected": {
+    "message": "{count} selected",
+    "note": "Screen title in selection mode.",
+    "max": 24
+  },
+  "selectAll": "Select all",
+  "deselectAll": "Deselect all",
+  "select": {
+    "message": "Select",
+    "note": "Header button that starts choosing several transactions to edit at once."
+  },
+  "searchPlaceholder": "Search notes, categories, amounts",
+  "upcoming": {
+    "message": "Upcoming",
+    "note": "Title when the list shows future-dated entries."
+  },
+  "travel": "Travel",
+  "income": {
+    "message": "Income",
+    "max": 16
+  },
+  "expenses": {
+    "message": "Expenses",
+    "max": 16
+  },
+  "reset": {
+    "title": "Reset the list?",
+    "body": {
+      "message": "Showing {what}.",
+      "note": "what is a comma-separated list of what narrows the list: \"2 filters, an account scope, August 2026\"."
+    },
+    "filters": "{count, plural, one {# filter} other {# filters}}",
+    "scope": {
+      "message": "an account scope",
+      "note": "Part of the reset question: the list shows only some accounts."
+    },
+    "clear": "{count, plural, one {Clear the filter} other {Clear the filters}}",
+    "defaults": "Back to defaults"
+  },
+  "approx": {
+    "incomeTitle": "Income is approximate",
+    "expensesTitle": "Expenses are approximate",
+    "at": {
+      "message": "{amount} {currency} at {rate}",
+      "note": "One converted amount and the rate used."
+    },
+    "noRate": "{amount} {currency} — no rate yet",
+    "incomeBody": "{lines}\n\nConverted into {currency} at today''s rate. Everything else in this income total was already in {currency}.",
+    "expensesBody": "{lines}\n\nConverted into {currency} at today''s rate. Everything else in this expenses total was already in {currency}.",
+    "show": "Show them"
+  },
+  "empty": {
+    "title": "No transactions",
+    "hint": {
+      "message": "Nothing {parts}.",
+      "note": "Why the list is empty; parts are the pieces below joined with commas: \"Nothing from Cash, in August 2026, with 2 filters on.\""
+    },
+    "scope": "from {scope}",
+    "period": "in {period}",
+    "filters": "{count, plural, one {with # filter on} other {with # filters on}}",
+    "action": "Show everything"
+  },
+  "scopeTitle": {
+    "message": "Spending from",
+    "note": "Title of the account-scope picker."
+  },
+  "deleteTitle": "{count, plural, one {Delete this transaction?} other {Delete # transactions?}}",
+  "deleteTransfers": "Both sides of a transfer are deleted together.",
+  "noteTitle": "Note",
+  "rates": {
+    "fetching": "Fetching {currencies} rate…",
+    "missing": "No rate yet for {currencies}, so it is left out. Connect to the internet once."
+  },
+  "due": {
+    "due": "{count, plural, one {# recurring payment due} other {# recurring payments due}}",
+    "expected": "{count, plural, one {# recurring payment expected} other {# recurring payments expected}}",
+    "waiting": "Waiting for the charge to arrive",
+    "tap": "Tap to post or skip",
+    "tapMore": "Tap to post or skip · {count} more expected"
+  },
+  "pending": {
+    "title": "{count, plural, one {# pending entry} other {# pending entries}}",
+    "sub": "Tap to check and approve"
+  },
+  "selectHint": "Tap the transactions to change",
+  "selectHintAll": "Tap the transactions to change, or Select all",
+  "bar": {
+    "category": {
+      "message": "Category",
+      "max": 12
+    },
+    "categoryA11y": "Set category of {count} selected",
+    "tagsA11y": "Edit tags of {count} selected",
+    "dateA11y": "Change date of {count} selected",
+    "noteA11y": "Edit the note of {count} selected",
+    "confirm": {
+      "message": "Confirm",
+      "max": 12
+    },
+    "confirmA11y": "Confirm {count} pending",
+    "deleteA11y": "Delete {count} selected",
+    "filter": {
+      "message": "Filter",
+      "max": 14
+    },
+    "filters": {
+      "message": "Filters · {count}",
+      "max": 14
+    },
+    "filtersA11y": "Filters",
+    "filtersActiveA11y": "Filters, {count} active",
+    "filtersHint": "Hold to clear what the list is narrowed to",
+    "byDate": {
+      "message": "By date",
+      "max": 14
+    },
+    "byAmount": {
+      "message": "By amount",
+      "max": 14
+    },
+    "sortByAmount": "Sort by amount",
+    "sortByDate": "Sort by date"
+  },
+  "list": {
+    "emptyHint": "Tap Log to add one.",
+    "sum": {
+      "message": "Sum:",
+      "note": "Before the day's total under each day of the list."
+    },
+    "transfer": "Transfer",
+    "transferNote": "Transfer · {note}",
+    "entered": {
+      "message": "entered {amount} {currency}",
+      "note": "A payment the bank charged in another currency: the original amount."
+    },
+    "enteredRate": "entered {amount} {currency} @ {rate}",
+    "returned": {
+      "message": "paid {paid}, {back} came back",
+      "note": "Part of the payment was returned; both are formatted amounts."
+    },
+    "tagsA11y": "tags {names}",
+    "pendingA11y": "pending",
+    "pending": {
+      "message": "Pending",
+      "max": 10
+    }
+  },
+  "range": {
+    "allTime": "All time",
+    "until": {
+      "message": "Until {day}",
+      "note": "A range with no start; day is like \"22 Sep\"."
+    },
+    "since": "Since {day}"
+  },
+  "filter": {
+    "title": "Filters",
+    "clear": "Clear",
+    "type": "Type",
+    "all": {
+      "message": "All",
+      "max": 12
+    },
+    "expenses": {
+      "message": "Expenses",
+      "max": 12
+    },
+    "income": {
+      "message": "Income",
+      "max": 12
+    },
+    "transfers": {
+      "message": "Transfers",
+      "max": 12
+    },
+    "status": "Status",
+    "any": {
+      "message": "Any",
+      "max": 12
+    },
+    "completed": {
+      "message": "Completed",
+      "max": 12
+    },
+    "pending": {
+      "message": "Pending",
+      "max": 12
+    },
+    "upcoming": {
+      "message": "Upcoming",
+      "max": 12
+    },
+    "source": "Source",
+    "recurring": {
+      "message": "Recurring",
+      "max": 14
+    },
+    "oneOff": {
+      "message": "One-off",
+      "max": 14
+    },
+    "recurringHint": "Recurring rows are the ones a rule posted, automatically or after you confirmed them.",
+    "period": "Period",
+    "selectedMonth": "Selected month",
+    "thisPeriod": {
+      "message": "This period ({range})",
+      "note": "range is like \"15 Aug – 14 Sep\"."
+    },
+    "lastPeriod": "Last period ({range})",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "thisYear": "This year",
+    "from": "From {day}",
+    "fromEmpty": "From…",
+    "to": "To {day}",
+    "toEmpty": "To…",
+    "where": "Where",
+    "accounts": "Accounts",
+    "anyAccount": "Any account",
+    "account": "Account",
+    "categories": "Categories",
+    "anyCategory": "Any category",
+    "category": "Category",
+    "tags": "Tags",
+    "anyTag": "Any tag",
+    "tag": {
+      "message": "tag",
+      "note": "Stands in for a tag that has been deleted."
+    },
+    "travel": "Travel",
+    "anyTravel": "Any",
+    "tripRange": "{from} → {to}",
+    "tripRangeNow": {
+      "message": "{from} → {to} · now",
+      "note": "A trip that is still running."
+    },
+    "hint": "A folder includes all its categories. Several accounts, categories or tags are combined with “or”.",
+    "show": "Show transactions"
+  }
+}

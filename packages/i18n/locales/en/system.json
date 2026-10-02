@@ -1,0 +1,12 @@
+{
+  "$comment": "Info.plist text, shown by iOS itself. Keys named like an Info.plist key are used as that key; any other key is a string Info.plist names by value (the quick action), and iOS looks it up by its English text. Follows the phone's (or Settings → Kopiyka → Language) language, never the in-app choice — iOS reads these before the app runs.",
+  "CFBundleDisplayName": { "message": "Kopiyka Budget", "note": "The name under the icon on the home screen. Keep it short.", "max": 16 },
+  "NSCameraUsageDescription": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
+  "NSMicrophoneUsageDescription": "Kopiyka doesn't record audio. Receipt photos are taken with sound off.",
+  "NSPhotoLibraryUsageDescription": "Attach a receipt you already photographed.",
+  "NSLocationWhenInUseUsageDescription": "Remember where you log expenses so the category can be suggested next time.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
+  "NSLocationAlwaysUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
+  "NSMotionUsageDescription": "Kopiyka doesn't use motion or fitness data.",
+  "quickActionLog": { "message": "Log expense", "note": "Home-screen quick action (long-press the icon)." }
+}

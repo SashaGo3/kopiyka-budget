@@ -11,6 +11,9 @@ import { ALL_TIME } from "@/lib/filters";
 import { dismissTo } from "@/lib/nav";
 import { C, S } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { catDescription, catName, catNameById } from "@/lib/names";
+import { t } from "@/i18n";
+import { colorLabel } from "@/app/pick/color";
 
 /**
  * Category editor: name at the top, icon auto-suggested from the name. Icon, colour and
@@ -22,14 +25,18 @@ export default function CategoryEdit() {
   const { id, pickKey, parent, name: presetName, folder, kind: presetKind } = useLocalSearchParams<{ id: string; pickKey?: string; parent?: string; name?: string; folder?: string; kind?: string }>();
   const existing = id === "new" ? null : getRow(db, "categories", id) ?? null;
   const parents = useQuery((d) => listRows(d, "categories", "deleted=0 AND parent_id IS NULL", [], "sort, name"));
-  const [name, setName] = useState(existing?.name ?? presetName ?? "");
+  // A ready-made category is shown in the app's language (DATA.md rule 16). Saved untouched, the stored
+  // name goes back as it was, so the row stays a preset and keeps following the language.
+  const shownName = existing ? catName(existing) : null;
+  const shownDescription = existing ? catDescription(existing) ?? "" : null;
+  const [name, setName] = useState(shownName ?? presetName ?? "");
   // For an EXISTING row use its own parent_id verbatim: null means folder, and `??` must not
   // fall through to the "new item" default (a null parent_id would otherwise look "missing").
   const [parentId, setParentId] = useState<string | null>(existing ? existing.parent_id : ((folder === "1" ? null : parent || parents[0]?.id) ?? null));
   const [kind, setKind] = useState<"expense" | "income">(existing?.kind ?? (presetKind === "income" ? "income" : "expense"));
   const [icon, setIcon] = useState<string | null>(existing?.icon ?? null);
   const [color, setColor] = useState<string | null>(existing?.color ?? null);
-  const [description, setDescription] = useState(existing?.description ?? "");
+  const [description, setDescription] = useState(shownDescription ?? "");
   const isFolder = parentId === null;
   const children = useQuery((d) => (existing ? listRows(d, "categories", "deleted=0 AND parent_id=?", [existing.id], "sort, name") : []), [existing?.id]);
   const hasChildren = children.length;
@@ -49,7 +56,7 @@ export default function CategoryEdit() {
   // than a dismissal and a timer — see `lib/nav.ts` for what the timer cost.
   const showTransactions = () => {
     if (!existing) return;
-    dismissTo({ pathname: "/transactions", params: { category: existing.id, name: existing.name, from: ALL_TIME, nonce: String(Date.now()) } });
+    dismissTo({ pathname: "/transactions", params: { category: existing.id, name: catName(existing), from: ALL_TIME, nonce: String(Date.now()) } });
   };
   const parentFolder = parentId ? parents.find((p) => p.id === parentId) ?? null : null;
 
@@ -61,13 +68,14 @@ export default function CategoryEdit() {
   const [converting, setConverting] = useState(false);
   const convert = (moveTo: string | null) => {
     if (!existing) return;
-    const home = moveTo ? getRow(db, "categories", moveTo)?.name ?? "another category" : null;
-    Alert.alert(`Turn “${existing.name}” into a tag?`,
-      `${uses} transaction${uses === 1 ? "" : "s"} will get the tag “${existing.name}” and ${home ? `move to ${home}` : "be left without a category"}. The category is removed.`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Convert", style: "destructive", onPress: () => runBusy(
+    const home = moveTo ? catNameById(moveTo, t("category.convert.another")) ?? t("category.convert.another") : null;
+    // The tag takes the name the category is shown under, so a translated ready-made one stays readable.
+    Alert.alert(t("category.convert.title", { name: catName(existing) }),
+      home ? t("category.convert.bodyMove", { count: uses, tag: catName(existing), home }) : t("category.convert.bodyNone", { count: uses, tag: catName(existing) }), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("category.convert.confirm"), style: "destructive", onPress: () => runBusy(
         () => setConverting(true),
-        () => mutate((d) => convertCategoryToTag(d, existing.id, { moveTo })),
+        () => mutate((d) => convertCategoryToTag(d, existing.id, { moveTo, name: catName(existing) })),
         () => { setConverting(false); leave(); },
       ) },
     ]);
@@ -82,11 +90,11 @@ export default function CategoryEdit() {
   const askWhere = () => {
     if (!existing) return;
     const options = [
-      ...(parentFolder ? [{ value: parentFolder.id, label: parentFolder.name, subtitle: "The folder it is in — which becomes an ordinary category once this is its last one" }] : []),
-      { value: "pick", label: "Another category…", subtitle: "Choose where these transactions belong" },
-      { value: "none", label: "Leave them uncategorised", subtitle: "They keep the tag and nothing else" },
+      ...(parentFolder ? [{ value: parentFolder.id, label: catName(parentFolder), subtitle: t("category.convert.parentSubtitle") }] : []),
+      { value: "pick", label: t("category.convert.pick"), subtitle: t("category.convert.pickSubtitle") },
+      { value: "none", label: t("category.convert.none"), subtitle: t("category.convert.noneSubtitle") },
     ];
-    router.push({ pathname: "/pick/option", params: { key: keys.where, title: `Where do the ${uses} transactions go?`, options: JSON.stringify(options) } });
+    router.push({ pathname: "/pick/option", params: { key: keys.where, title: t("category.convert.where", { count: uses }), options: JSON.stringify(options) } });
   };
   // A category with no colour of its own takes its folder's, so a folder that was given a colour
   // really does colour what is inside it. It is stored on Save, not resolved at display time:
@@ -97,12 +105,15 @@ export default function CategoryEdit() {
   const shownIcon = icon ?? auto?.icon ?? "tag.fill";
   const shownColor = color ?? inherited ?? auto?.color ?? "#8E8E93";
   const colorName = COLORS.find((c) => c.hex === shownColor)?.name;
+  // Untouched fields write back what was stored, so a preset stays one (DATA.md rule 16).
+  const nameToSave = () => (existing && name.trim() === shownName?.trim() ? existing.name : name.trim());
+  const descriptionToSave = () => (existing && description.trim() === shownDescription?.trim() ? existing.description : description.trim() || null);
   const valid = name.trim().length > 0;
   const commit = () => {
     if (!valid) return;
     const c = mutate((d) => {
       const row = existing
-        ? save(d, "categories", { ...existing, name: name.trim(), parent_id: parentId, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null } as Category)
+        ? save(d, "categories", { ...existing, name: nameToSave(), parent_id: parentId, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: descriptionToSave() } as Category)
         : createCategory(d, { name: name.trim(), parent_id: parentId, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null });
       // Same batch as the folder itself: one refresh, and a half-recoloured folder is impossible.
       if (recolour && isFolder) for (const child of children) save(d, "categories", { ...child, color: shownColor });
@@ -124,93 +135,92 @@ export default function CategoryEdit() {
   const archive = () => {
     if (!existing) return;
     if (archived) { mutate((d) => save(d, "categories", { ...existing, archived: 0 } as Category)); leave(); return; }
-    const what = isFolder ? "folder" : "category";
-    Alert.alert(`Archive this ${what}?`,
-      [`Its ${uses} transaction${uses === 1 ? "" : "s"} keep it and still count everywhere.`,
-       hasChildren ? `The ${hasChildren} categories inside go with it.` : "",
-       "It stops being offered for anything new, including to the Shortcut automation, which will leave those payments in Pending for you to file.",
+    Alert.alert(isFolder ? t("category.archive.titleFolder") : t("category.archive.titleCategory"),
+      [t("category.archive.keep", { count: uses }),
+       hasChildren ? t("category.archive.inside", { count: hasChildren }) : "",
+       t("category.archive.offered"),
       ].filter(Boolean).join(" "), [
-      { text: "Cancel", style: "cancel" },
-      { text: "Archive", onPress: () => { mutate((d) => save(d, "categories", { ...existing, archived: 1 } as Category)); leave(); } },
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("category.archive.confirm"), onPress: () => { mutate((d) => save(d, "categories", { ...existing, archived: 1 } as Category)); leave(); } },
     ]);
   };
-  const del = () => existing && Alert.alert(isFolder ? "Delete folder?" : "Delete category?", hasChildren ? `Its ${hasChildren} categories become top-level folders. Transactions keep their data.` : "Transactions keep their data but become uncategorized.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "categories", existing.id)); leave(); } },
+  const del = () => existing && Alert.alert(isFolder ? t("category.delete.titleFolder") : t("category.delete.titleCategory"), hasChildren ? t("category.delete.bodyChildren", { count: hasChildren }) : t("category.delete.body"), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "categories", existing.id)); leave(); } },
   ]);
   const pickFolder = () => {
-    const options = parents.filter((p) => p.id !== existing?.id).map((p) => ({ value: p.id, label: p.name, icon: p.icon, color: p.color, subtitle: p.kind === "income" ? "Income" : undefined }));
-    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: "Which folder?", selected: parentId ?? "", options: JSON.stringify(options) } });
+    const options = parents.filter((p) => p.id !== existing?.id).map((p) => ({ value: p.id, label: catName(p), icon: p.icon, color: p.color, subtitle: p.kind === "income" ? t("category.income") : undefined }));
+    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("category.whichFolder"), selected: parentId ?? "", options: JSON.stringify(options) } });
   };
-  const folderName = parentFolder?.name ?? null;
+  const folderName = parentFolder ? catName(parentFolder) : null;
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={existing ? (isFolder ? "Edit folder" : "Edit category") : isFolder ? "New folder" : "New category"} left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Save", onPress: commit, disabled: !valid }} />
+      <ModalHeader title={existing ? (isFolder ? t("category.title.editFolder") : t("category.title.editCategory")) : isFolder ? t("category.title.newFolder") : t("category.title.newCategory")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.save"), onPress: commit, disabled: !valid }} />
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 60 }}>
         <View style={styles.nameRow}>
           <View style={[styles.preview, { backgroundColor: shownColor + "26" }]}><SymbolView name={shownIcon as SFSymbol} size={26} tintColor={shownColor} /></View>
-          <TextInput value={name} onChangeText={setName} placeholder={isFolder ? "Folder name" : "Category name"} placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing}
-            multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} accessibilityLabel={isFolder ? "Folder name" : "Category name"} />
+          <TextInput value={name} onChangeText={setName} placeholder={isFolder ? t("category.folderName") : t("category.categoryName")} placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing}
+            multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} accessibilityLabel={isFolder ? t("category.folderName") : t("category.categoryName")} />
         </View>
         <View style={{ paddingHorizontal: S.md, gap: S.sm }}>
           <Segmented<"category" | "folder"> value={isFolder ? "folder" : "category"} onChange={(v) => setParentId(v === "folder" ? null : parents.find((p) => p.id !== existing?.id)?.id ?? null)}
-            options={[{ value: "category", label: "Category in a folder" }, { value: "folder", label: "Folder" }]} />
-          <Segmented value={kind} onChange={setKind} options={[{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }]} />
+            options={[{ value: "category", label: t("category.shape.category") }, { value: "folder", label: t("category.shape.folder") }]} />
+          <Segmented value={kind} onChange={setKind} options={[{ value: "expense", label: t("category.expense") }, { value: "income", label: t("category.income") }]} />
         </View>
-        {isFolder && hasChildren ? <Text style={styles.hint}>Contains {hasChildren} categories.</Text> : null}
+        {isFolder && hasChildren ? <Text style={styles.hint}>{t("category.contains", { count: hasChildren })}</Text> : null}
         {!isFolder ? (
           <>
-            <SectionHeader>Description</SectionHeader>
-            <TextInput value={description} onChangeText={setDescription} placeholder="What goes here, e.g. supermarkets, bakery, snacks" placeholderTextColor={C.tertiary} style={styles.desc} multiline accessibilityLabel="Category description" />
-            <Text style={styles.hint}>The receipt scanner reads this to pick the category.</Text>
+            <SectionHeader>{t("category.description.header")}</SectionHeader>
+            <TextInput value={description} onChangeText={setDescription} placeholder={t("category.description.placeholder")} placeholderTextColor={C.tertiary} style={styles.desc} multiline accessibilityLabel={t("category.description.a11y")} />
+            <Text style={styles.hint}>{t("category.description.hint")}</Text>
           </>
         ) : null}
-        <SectionHeader>Appearance</SectionHeader>
+        <SectionHeader>{t("category.appearance")}</SectionHeader>
         <Card>
-          <Row icon="app.fill" iconColor="#8E8E93" title="Icon" subtitle={icon ? icon : "Automatic"} onPress={() => router.push({ pathname: "/pick/icon", params: { key: keys.icon, selected: icon ?? "", color: shownColor } })}
+          <Row icon="app.fill" iconColor="#8E8E93" title={t("category.icon")} subtitle={icon ? icon : t("category.automatic")} onPress={() => router.push({ pathname: "/pick/icon", params: { key: keys.icon, selected: icon ?? "", color: shownColor } })}
             right={<View style={styles.right}><View style={[styles.rowIcon, { backgroundColor: shownColor + "26" }]}><SymbolView name={shownIcon as SFSymbol} size={16} tintColor={shownColor} /></View><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
-          <Row icon="paintpalette.fill" iconColor="#8E8E93" title="Colour" subtitle={color ? (colorName ?? color) : "Automatic"} onPress={() => router.push({ pathname: "/pick/color", params: { key: keys.color, selected: color ?? "" } })}
+          <Row icon="paintpalette.fill" iconColor="#8E8E93" title={t("category.colour")} subtitle={color ? (colorName ? colorLabel(colorName) : color) : t("category.automatic")} onPress={() => router.push({ pathname: "/pick/color", params: { key: keys.color, selected: color ?? "" } })}
             right={<View style={styles.right}><View style={[styles.swatch, { backgroundColor: shownColor }]} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
           {isFolder && hasChildren ? (
-            <ToggleRow icon="paintbrush.fill" iconColor="#8E8E93" title="Use for all categories"
-              subtitle="Applied when you save."
+            <ToggleRow icon="paintbrush.fill" iconColor="#8E8E93" title={t("category.recolour.title")}
+              subtitle={t("category.recolour.subtitle")}
               value={recolour} onChange={setRecolour} style={styles.divider} />
           ) : null}
           {/* The folder's own icon, like the Icon and Colour rows above it: the row is about which
               folder this is, and the folder is a thing with a face everywhere else in the app. */}
-          {!isFolder ? <Row icon="folder.fill" iconColor="#8E8E93" title="Folder" subtitle={folderName ?? "None"} onPress={pickFolder}
-            right={parentFolder ? <View style={styles.right}><CategoryIcon name={parentFolder.name} icon={parentFolder.icon} color={parentFolder.color} size={30} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View> : undefined} /> : null}
+          {!isFolder ? <Row icon="folder.fill" iconColor="#8E8E93" title={t("category.folder")} subtitle={folderName ?? t("common.none")} onPress={pickFolder}
+            right={parentFolder ? <View style={styles.right}><CategoryIcon name={catName(parentFolder)} icon={parentFolder.icon} color={parentFolder.color} size={30} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View> : undefined} /> : null}
         </Card>
-        {!isFolder && inherited && !color ? <Text style={styles.hint}>Automatic uses {folderName}’s colour, because the folder has one.</Text> : null}
-        {isFolder ? <Text style={styles.hint}>A folder groups the list; nothing is ever filed straight into one. Give it a colour and the categories inside it are created in that colour.</Text> : null}
+        {!isFolder && inherited && !color ? <Text style={styles.hint}>{t("category.inheritedColour", { folder: folderName ?? "" })}</Text> : null}
+        {isFolder ? <Text style={styles.hint}>{t("category.folderHint")}</Text> : null}
         {existing ? (
           <>
-            <SectionHeader>Transactions</SectionHeader>
-            <Card><Row icon="list.bullet" iconColor="#8E8E93" title={`${uses} transaction${uses === 1 ? "" : "s"}`} subtitle={isFolder ? "In this folder, all time" : "With this category, all time"} onPress={uses ? showTransactions : undefined} /></Card>
-            <SectionHeader>Convert</SectionHeader>
+            <SectionHeader>{t("category.transactions.header")}</SectionHeader>
+            <Card><Row icon="list.bullet" iconColor="#8E8E93" title={t("category.transactions.count", { count: uses })} subtitle={isFolder ? t("category.transactions.inFolder") : t("category.transactions.inCategory")} onPress={uses ? showTransactions : undefined} /></Card>
+            <SectionHeader>{t("category.convert.header")}</SectionHeader>
             <Card>
-              <Row icon="number" iconColor="#5E5CE6" title="Turn into a tag"
+              <Row icon="number" iconColor="#5E5CE6" title={t("category.convert.row")}
                 subtitle={hasChildren
-                  ? "Not while there are categories inside it — move or convert those first"
-                  : `Its ${uses} transaction${uses === 1 ? "" : "s"} keep their history, gain the tag and move where you choose`}
+                  ? t("category.convert.notWithChildren")
+                  : t("category.convert.rowSubtitle", { count: uses })}
                 onPress={hasChildren ? undefined : askWhere} />
             </Card>
           </>
         ) : null}
         {existing ? (
           <>
-            <SectionHeader>Archive</SectionHeader>
+            <SectionHeader>{t("category.archive.header")}</SectionHeader>
             <Card>
               <Row icon={archived ? "tray.and.arrow.up" : "archivebox"} iconColor="#FF9F0A"
-                title={archived ? `Bring this ${isFolder ? "folder" : "category"} back` : `Archive this ${isFolder ? "folder" : "category"}`}
-                subtitle={archived ? "Offered again everywhere it used to be" : "Keeps every transaction and every number; just stops being offered"}
+                title={archived ? (isFolder ? t("category.archive.restoreFolder") : t("category.archive.restoreCategory")) : (isFolder ? t("category.archive.rowFolder") : t("category.archive.rowCategory"))}
+                subtitle={archived ? t("category.archive.restoreSubtitle") : t("category.archive.rowSubtitle")}
                 onPress={archive} />
             </Card>
           </>
         ) : null}
-        {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label={isFolder ? "Delete folder" : "Delete category"} onPress={del} /></View> : null}
+        {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label={isFolder ? t("category.delete.rowFolder") : t("category.delete.rowCategory")} onPress={del} /></View> : null}
       </ScrollView>
-      {converting ? <BusyOverlay label={`Converting ${uses} transaction${uses === 1 ? "" : "s"}…`} /> : null}
+      {converting ? <BusyOverlay label={t("category.convert.busy", { count: uses })} /> : null}
     </View>
   );
 }

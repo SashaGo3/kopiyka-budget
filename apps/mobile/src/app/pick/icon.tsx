@@ -2,11 +2,21 @@ import { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { ICON_CATALOG, ICON_GROUPS, searchIcons, type CatalogIcon } from "@kopiyka/core";
+import { ICON_CATALOG, ICON_GROUPS, searchIcons, type CatalogIcon, type IconGroup } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 const COLS = 6;
+
+/** Core's group names are English ids; each has a message under pick.icon.group. */
+function groupLabel(group: IconGroup): string {
+  const keys = {
+    "Food & drink": "food", "Shopping": "shopping", "Home & bills": "home", "Transport": "transport", "Travel": "travel", "Health": "health",
+    "Family & pets": "family", "Sport & hobbies": "sport", "Tech & work": "tech", "Money": "money", "Education & documents": "education",
+  } as const satisfies Record<IconGroup, string>;
+  return t(`pick.icon.group.${keys[group]}`);
+}
 
 /** A heading, or one row of up to six symbols. The list is built out of these so a grid can have headings. */
 type Line = { kind: "head"; title: string } | { kind: "row"; icons: CatalogIcon[] };
@@ -40,7 +50,7 @@ export default function PickIcon() {
     for (const group of ICON_GROUPS) {
       const icons = ICON_CATALOG.filter((i) => i.group === group);
       if (!icons.length) continue;
-      out.push({ kind: "head", title: group });
+      out.push({ kind: "head", title: groupLabel(group) });
       out.push(...rows(icons));
     }
     return out;
@@ -59,18 +69,18 @@ export default function PickIcon() {
         <View>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Search icons" placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" accessibilityLabel="Search icons" />
+            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.icon.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" accessibilityLabel={t("pick.icon.search")} />
           </View>
           {!ql ? (
-            <Pressable onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel="Automatic">
+            <Pressable onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
               <View style={styles.autoIcon}><SymbolView name="wand.and.stars" size={16} tintColor={C.tertiary} /></View>
-              <Text style={styles.autoText}>Automatic</Text>
+              <Text style={styles.autoText}>{t("pick.automatic")}</Text>
               {!selected ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
             </Pressable>
           ) : null}
         </View>
       }
-      ListEmptyComponent={ql ? <Text style={styles.none}>No icon for “{ql}”.</Text> : null}
+      ListEmptyComponent={ql ? <Text style={styles.none}>{t("pick.icon.none", { query: ql })}</Text> : null}
       renderItem={({ item }) => {
         if (item.kind === "head") return <Text style={styles.group}>{item.title}</Text>;
         return (
@@ -79,7 +89,7 @@ export default function PickIcon() {
               const on = selected === icon.name;
               return (
                 <Pressable key={icon.name} onPress={() => choose(icon.name)} style={[styles.cell, on && { borderColor: tint, backgroundColor: tint + "1F" }]}
-                  accessibilityRole="button" accessibilityLabel={`${icon.group}: ${icon.keywords.split(" ")[0]}`} accessibilityState={{ selected: on }}>
+                  accessibilityRole="button" accessibilityLabel={`${groupLabel(icon.group)}: ${icon.keywords.split(" ")[0]}`} accessibilityState={{ selected: on }}>
                   <SymbolView name={icon.name as SFSymbol} size={22} tintColor={on ? tint : C.secondary} />
                 </Pressable>
               );

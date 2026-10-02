@@ -9,7 +9,7 @@ set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SHOTS_DIR="$MOBILE_DIR/screenshots"
-RAW_DIR="${RAW_DIR:-$SHOTS_DIR/raw}"
+RAW_ROOT="${RAW_DIR:-$SHOTS_DIR/raw}"   # raw captures land in $RAW_ROOT/<lang>/…
 APP_ID="dev.kopiyka.app"
 WATCH_APP_ID="dev.kopiyka.app.watchkitapp"
 
@@ -80,6 +80,61 @@ pretty_status_bar() {
   local args=(--time "9:41" --batteryState discharging --batteryLevel 100 --wifiBars 3)
   [[ "$radio" == wifi ]] || args+=(--cellularBars 4 --operatorName "")
   xcrun simctl status_bar "$udid" override "${args[@]}" >/dev/null 2>&1 || true
+}
+
+# ------------------------------------------------------------------------------- languages
+# Every language is shot over its own demo data, with the app and iOS both set to it. The list and
+# the App Store code come from langs.mjs (apps/mobile/locales/languages.json + i18n.config.ts).
+
+# "all" or "en,uk" → one line per language: "<code> <App Store code> <locale>".
+lang_lines() { node "$MOBILE_DIR/scripts/screenshots/langs.mjs" "${1:-all}" || die "bad --lang ${1:-}"; }
+# Just the codes, space-separated.
+lang_codes() { lang_lines "${1:-all}" | awk '{ printf "%s%s", (NR > 1 ? " " : ""), $1 }'; }
+# The locale for a code ("uk" → "uk-UA").
+lang_locale() { lang_lines "$1" | awk '{ print $3 }'; }
+
+# Where the persona of each language lives: the simulator's location, so "Remember location" and
+# the place suggestions agree with the demo data's coordinates (demo-data.ts PROFILES).
+lang_location() {
+  case "$1" in
+    uk) echo "50.4501,30.5234" ;;   # Kyiv
+    *)  echo "38.7223,-9.1393" ;;   # Lisbon
+  esac
+}
+
+# iOS itself in the language — system-drawn text in the app (pickers, share sheets, permission
+# alerts) and SpringBoard's own prompts. Written through the simulator's own `defaults`, so its
+# cfprefsd sees it; an app launched afterwards picks it up. `-AppleLanguages`/`-AppleLocale` launch
+# arguments do the same for one launch, but `simctl openurl` (every iPhone/iPad shot) takes none, so
+# the global setting is what holds for a cold start into a deep link.
+set_sim_language() { # <udid> <code>
+  local udid="$1" code="$2" locale
+  locale="$(lang_locale "$code")"; locale="${locale//-/_}"
+  [[ "$code" == en ]] && locale="en_US"   # what the simulators were left at before languages existed
+  xcrun simctl spawn "$udid" defaults write -g AppleLanguages -array "$code" >/dev/null 2>&1 || warn "could not set the language on $udid"
+  xcrun simctl spawn "$udid" defaults write -g AppleLocale -string "$locale" >/dev/null 2>&1 || true
+}
+
+# The same, as launch arguments for `simctl launch` (the watch half launches the apps directly).
+lang_launch_args() { # <code> → prints the arguments, one per line
+  local locale; locale="$(lang_locale "$1")"; locale="${locale//-/_}"
+  [[ "$1" == en ]] && locale="en_US"
+  printf '%s
+' -AppleLanguages "($1)" -AppleLocale "$locale"
+}
+
+# Write a language's demo data into the given simulators (terminates the app first; never sqlite3 —
+# demo-data.ts goes through @kopiyka/core, DATA.md rule 10). The database's meta `language` is the
+# code, so the app opens in it.
+seed_demo() { # <code> <udid…>
+  local code="$1"; shift
+  local udid
+  for udid in "$@"; do
+    log "Seeding the $code demo data into $udid"
+    (cd "$MOBILE_DIR" && bun scripts/screenshots/demo-data.ts --lang="$code" --apply="$udid") >/dev/null \
+      || die "demo-data.ts --lang=$code --apply=$udid failed"
+    xcrun simctl location "$udid" set "$(lang_location "$code")" >/dev/null 2>&1 || true
+  done
 }
 
 # Pixel size of a PNG, "WxH".

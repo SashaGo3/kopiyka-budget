@@ -5,6 +5,7 @@
 import { DEFAULT_WAIT_DAYS, getHome, getMeta, setHome, setMeta } from "@kopiyka/core";
 import { db } from "@/db";
 import { notifyChange } from "@/store";
+import { t } from "@/i18n";
 
 function read(key: string): string | null { return getMeta(db, key); }
 function write(key: string, value: string): void { setMeta(db, key, value); notifyChange(); }
@@ -105,7 +106,10 @@ export function getBackupKeepDays(): number {
 }
 export function setBackupKeepDays(n: number): void { write("backup_keep_days", String(n)); }
 
-export const REMINDER_OPTIONS = [
-  { value: "0", label: "On the day" }, { value: "1", label: "1 day before" }, { value: "2", label: "2 days before" },
-  { value: "3", label: "3 days before" }, { value: "7", label: "A week before" },
-];
+/** How far ahead a reminder fires, in words: "On the day", "2 days before", "A week before". */
+export function reminderLabel(days: number): string { return t("data.reminder.before", { count: days }); }
+
+/** The reminder choices offered for a recurring rule. A function, so the labels are in the language of the moment. */
+export function reminderOptions(): { value: string; label: string }[] {
+  return [0, 1, 2, 3, 7].map((d) => ({ value: String(d), label: reminderLabel(d) }));
+}

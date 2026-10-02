@@ -8,12 +8,19 @@
 #   scripts/screenshots/capture.sh --phone --watch # several flags pick several devices
 #   scripts/screenshots/capture.sh --no-ipad       # everything except the iPad
 #   scripts/screenshots/capture.sh --only log,budgets --theme dark
+#   scripts/screenshots/capture.sh --lang uk       # one language (default: all of them, in turn)
+#
+# Languages: each one is shot over its own demo data (demo-data.ts --lang), with the app's meta
+# `language` and iOS's own language set to it. With one --lang the simulators are expected to hold
+# that language's data already (run.sh --seed does it); with several, each is seeded just before it
+# is shot, since the data cannot be two languages at once. --seed seeds even a single language;
+# --no-seed never seeds.
 #
 # Expects the Release build installed and the demo data seeded (run.sh does both). Every iPhone and
 # iPad shot is a cold start into a deep link, so the navigation stack is identical on every run and
 # a screen never inherits state from the previous one. Output:
-# screenshots/raw/iphone/<theme>/<id>.png (1320×2868), screenshots/raw/ipad/<theme>/<id>.png
-# (2064×2752) and screenshots/raw/watch/<id>.png (422×514). frame.mjs turns them into App Store art.
+# screenshots/raw/<lang>/iphone/<theme>/<id>.png (1320×2868), screenshots/raw/<lang>/ipad/<theme>/<id>.png
+# (2064×2752) and screenshots/raw/<lang>/watch/<id>.png (422×514). frame.mjs turns them into App Store art.
 #
 # iPhone navigation is `xcrun simctl openurl` and nothing else — no taps, see the note below on why
 # agent-device must stay out of the way. The iPad opens the same links but has to have iPadOS's
@@ -25,6 +32,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # No device flag means every device; one or more pick exactly those, so `--phone --watch` is the
 # old two-device run and `--ipad` on its own re-shoots the iPad set.
 DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-3}"
+LANG_SPEC="all"; SEED=auto
 pick() { [[ $PICKED == 1 ]] || { DO_PHONE=0; DO_WATCH=0; DO_IPAD=0; PICKED=1; }; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -35,27 +43,44 @@ while [[ $# -gt 0 ]]; do
     --theme) shift; [[ "$1" == both ]] && THEMES=(light dark) || THEMES=("$1") ;;
     --only) shift; ONLY=",$1," ;;
     --settle) shift; SETTLE="$1" ;;
-    -h|--help) sed -n 2,21p "$0"; exit 0 ;;
+    --lang) shift; LANG_SPEC="$1" ;;
+    --lang=*) LANG_SPEC="${1#--lang=}" ;;
+    --seed) SEED=yes ;;
+    --no-seed) SEED=no ;;
+    -h|--help) sed -n 2,29p "$0"; exit 0 ;;
     *) die "unknown flag $1" ;;
   esac; shift
 done
 
 wanted() { [[ -z "$ONLY" || "$ONLY" == *",$1,"* ]]; }
 
-DEMO_JSON="$SHOTS_DIR/demo/kopiyka-demo.json"
-[[ -f "$DEMO_JSON" ]] || die "No demo data at $DEMO_JSON — run: bun scripts/screenshots/demo-data.ts"
+LANGS=($(lang_codes "$LANG_SPEC"))
+[[ ${#LANGS[@]} -gt 0 ]] || die "no languages to capture"
+[[ "$SEED" == auto ]] && { [[ ${#LANGS[@]} -gt 1 ]] && SEED=yes || SEED=no; }
 
-# Ids the deep links need, read from the demo file so a regenerated dataset keeps working.
-eval "$(node -e '
-  const b = require(process.argv[1]);
-  const cat = (n) => (b.categories.find((c) => c.name === n) || {}).id || "";
-  const trip = b.budgets.find((x) => x.period === "once" && x.tag_id && !x.ended);
-  const tag = trip ? b.tags.find((t) => t.id === trip.tag_id) : null;
-  const q = (s) => JSON.stringify(String(s ?? ""));
-  console.log(`CAT_RESTAURANTS=${q(cat("Restaurants & cafés"))}`);
-  console.log(`TRIP_TAG=${q(trip ? trip.tag_id : "")}`);
-  console.log(`TRIP_NAME=${q(tag ? encodeURIComponent(tag.name) : "")}`);
-' "$DEMO_JSON")"
+# Ids and words the deep links need, read from the language's demo file (so a regenerated dataset
+# keeps working) and its demo text: the Restaurants category by its preset key, the running trip's
+# tag, and the amount and note typed on the entry sheet and the watch.
+load_lang() { # <code>
+  local code="$1" demo="$SHOTS_DIR/demo/kopiyka-demo-$1.json"
+  [[ -f "$demo" ]] || die "No demo data at $demo — run: bun scripts/screenshots/demo-data.ts --lang=$code"
+  eval "$(node -e '
+    const b = require(process.argv[1]);
+    const words = require(process.argv[2]);
+    const cat = (key) => (b.categories.find((c) => c.preset === key) || {}).id || "";
+    const trip = b.budgets.find((x) => x.period === "once" && x.tag_id && !x.ended);
+    const tag = trip ? b.tags.find((t) => t.id === trip.tag_id) : null;
+    const q = (s) => JSON.stringify(String(s ?? ""));
+    if ((b.settings || {}).language !== process.argv[3]) console.error(`warn: ${process.argv[1]} is not the ${process.argv[3]} dataset`);
+    console.log(`CAT_RESTAURANTS=${q(cat("food.restaurants"))}`);
+    console.log(`TRIP_TAG=${q(trip ? trip.tag_id : "")}`);
+    console.log(`TRIP_NAME=${q(tag ? encodeURIComponent(tag.name) : "")}`);
+    console.log(`LOG_AMOUNT=${q(words["demo.capture.logAmount"])}`);
+    console.log(`LOG_NOTE=${q(encodeURIComponent(words["demo.capture.logNote"]))}`);
+  ' "$demo" "$MOBILE_DIR/scripts/screenshots/i18n/$code.json" "$code")"
+  LANG_CODE="$code"
+  RAW_DIR="$RAW_ROOT/$code"
+}
 
 # ------------------------------------------------------------------ iPhone + iPad
 PHONE="$(ensure_sim "$PHONE_NAME" "$PHONE_TYPE" iOS)"
@@ -98,7 +123,8 @@ try:
     els = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
-hit = [e for e in els if e.get("type") == "Button" and (e.get("AXLabel") or "") == "Open"]
+# SpringBoard speaks the simulator language once it has restarted in it (set_sim_language).
+hit = [e for e in els if e.get("type") == "Button" and (e.get("AXLabel") or "") in ("Open", "Відкрити")]
 if hit:
     f = hit[-1]["frame"]
     print(int(f["x"] + f["width"] / 2), int(f["y"] + f["height"] / 2))
@@ -127,7 +153,7 @@ shoot() { # <id>
   mkdir -p "$(dirname "$out")"
   xcrun simctl io "$SIM" screenshot "$out" >/dev/null 2>&1
   size="$(png_size "$out")"
-  log "  $KIND/$THEME/$1  $size"
+  log "  $LANG_CODE/$KIND/$THEME/$1  $size"
   # frame.mjs lays its slides out against the native size; a rotated or differently sized
   # simulator would be resampled into the bezel instead of landing in it 1:1.
   [[ "$size" == "$EXPECT" ]] || warn "    expected $EXPECT — is \"$SIM_NAME\" the right device, in portrait?"
@@ -137,7 +163,7 @@ shoot() { # <id>
 ios_shot() {
   case "$1" in
     welcome)      cold "kopiyka://onboarding" ;;
-    log|watch)    cold "kopiyka://log?amount=14.50&category=$CAT_RESTAURANTS&note=Lunch%20at%20Time%20Out%20Market" ;;  # "watch" = the phone half of the Apple Watch slide
+    log|watch)    cold "kopiyka://log?amount=$LOG_AMOUNT&category=$CAT_RESTAURANTS&note=$LOG_NOTE" ;;  # "watch" = the phone half of the Apple Watch slide
     transactions) cold "kopiyka://transactions" ;;
     budgets)      cold "kopiyka://budgets" ;;
     trip)         cold "kopiyka://transactions?tag=$TRIP_TAG&name=$TRIP_NAME&from=0000&nonce=$(date +%s)" ;;
@@ -173,22 +199,24 @@ capture_ios() { # <udid> <name> <kind: iphone|ipad> <expected WxH> <radio: cellu
            || die "idb cannot connect to \"$SIM_NAME\" (brew install idb-companion; pipx install fb-idb) — the iPad needs it to tap away iPadOS's \"Open in …\" prompt"; }
   fi
   pretty_status_bar "$SIM" "$radio"
+  set_sim_language "$SIM" "$LANG_CODE"
   for THEME in "${THEMES[@]}"; do
-    log "$SIM_NAME · $THEME"
+    log "$SIM_NAME · $LANG_CODE · $THEME"
     xcrun simctl ui "$SIM" appearance "$THEME" >/dev/null 2>&1 || true
     for id in "$@"; do wanted "$id" && ios_shot "$id" || true; done
   done
   xcrun simctl ui "$SIM" appearance light >/dev/null 2>&1 || true
 }
 
-if [[ $DO_PHONE == 1 ]]; then
-  capture_ios "$PHONE" "$PHONE_NAME" iphone "$PHONE_SIZE" cellular "${IOS_SHOTS[@]}"
-fi
-
-if [[ $DO_IPAD == 1 ]]; then
-  IPAD="$(ensure_sim "$IPAD_NAME" "$IPAD_TYPE" iOS)"
-  capture_ios "$IPAD" "$IPAD_NAME" ipad "$IPAD_SIZE" wifi "${IPAD_SHOTS[@]}"
-fi
+capture_phone_ipad() {
+  if [[ $DO_PHONE == 1 ]]; then
+    capture_ios "$PHONE" "$PHONE_NAME" iphone "$PHONE_SIZE" cellular "${IOS_SHOTS[@]}"
+  fi
+  if [[ $DO_IPAD == 1 ]]; then
+    IPAD="$(ensure_sim "$IPAD_NAME" "$IPAD_TYPE" iOS)"
+    capture_ios "$IPAD" "$IPAD_NAME" ipad "$IPAD_SIZE" wifi "${IPAD_SHOTS[@]}"
+  fi
+}
 
 # ---------------------------------------------------------------- watch
 # Points on the 49 mm Ultra (211×257 pt, 2× scale). Calibrated against the Release build on
@@ -203,7 +231,7 @@ FIRST_ROW_Y=96                   # first list row on the category / tag pages
 
 wtap()   { idb ui tap --udid "$WATCH" "$1" "$2" >/dev/null 2>&1; sleep 0.7; }
 wswipe() { idb ui swipe --udid "$WATCH" "$1" "$2" "$3" "$4" --duration 0.25 >/dev/null 2>&1; sleep 1.2; }
-wshoot() { mkdir -p "$RAW_DIR/watch"; xcrun simctl io "$WATCH" screenshot "$RAW_DIR/watch/$1.png" >/dev/null 2>&1; log "  watch/$1  $(png_size "$RAW_DIR/watch/$1.png")"; }
+wshoot() { mkdir -p "$RAW_DIR/watch"; xcrun simctl io "$WATCH" screenshot "$RAW_DIR/watch/$1.png" >/dev/null 2>&1; log "  $LANG_CODE/watch/$1  $(png_size "$RAW_DIR/watch/$1.png")"; }
 wkey() { # digit or "." or "⌫"
   local k="$1" col row
   case "$k" in
@@ -217,25 +245,29 @@ wkey() { # digit or "." or "⌫"
 wrelaunch() {
   xcrun simctl terminate "$WATCH" "$WATCH_APP_ID" 2>/dev/null || true
   sleep 0.5
-  xcrun simctl launch "$WATCH" "$WATCH_APP_ID" >/dev/null
+  # shellcheck disable=SC2046 # one argument per line, none with spaces
+  xcrun simctl launch "$WATCH" "$WATCH_APP_ID" $(lang_launch_args "$LANG_CODE") >/dev/null
   sleep 5
 }
 
-if [[ $DO_WATCH == 1 ]]; then
+capture_watch() {
   WATCH="$(ensure_sim "$WATCH_NAME" "$WATCH_TYPE" watchOS)"
   ensure_pair "$WATCH" "$PHONE"
   boot_sim "$PHONE"; boot_sim "$WATCH"
+  set_sim_language "$PHONE" "$LANG_CODE"; set_sim_language "$WATCH" "$LANG_CODE"
   xcrun simctl get_app_container "$WATCH" "$WATCH_APP_ID" >/dev/null 2>&1 || die "The watch app is not installed on \"$WATCH_NAME\" — run scripts/screenshots/run.sh --install"
   pretty_status_bar "$WATCH"   # watchOS rejects status-bar overrides, so the watch clock is the host's real time
   # The watch gets its data from the phone over WatchConnectivity: the phone app must be up.
   xcrun simctl ui "$PHONE" appearance light >/dev/null 2>&1 || true
   xcrun simctl terminate "$PHONE" "$APP_ID" 2>/dev/null || true
-  xcrun simctl launch "$PHONE" "$APP_ID" >/dev/null; sleep 4
+  # shellcheck disable=SC2046
+  xcrun simctl launch "$PHONE" "$APP_ID" $(lang_launch_args "$LANG_CODE") >/dev/null; sleep 4
   idb connect "$WATCH" >/dev/null 2>&1 || { idb kill >/dev/null 2>&1 || true; idb connect "$WATCH" >/dev/null 2>&1 || die "idb cannot connect to the watch (brew install idb-companion; pipx install fb-idb)"; }
 
-  log "Watch"
+  log "Watch · $LANG_CODE"
   wrelaunch
-  for k in 1 4 . 5 0; do wkey "$k"; done
+  local i
+  for ((i = 0; i < ${#LOG_AMOUNT}; i++)); do wkey "${LOG_AMOUNT:i:1}"; done
   wanted keypad && wshoot keypad || true
   wtap 105 "$AMOUNT_ROW_Y"; sleep 1
   wanted categories && wshoot categories || true
@@ -255,6 +287,20 @@ if [[ $DO_WATCH == 1 ]]; then
   wswipe 200 128 15 128
   wanted status && wshoot status || true
   xcrun simctl terminate "$WATCH" "$WATCH_APP_ID" 2>/dev/null || true
-fi
+}
 
-log "Raw screenshots in $RAW_DIR"
+# ---------------------------------------------------------------- every language in turn
+for code in "${LANGS[@]}"; do
+  load_lang "$code"
+  if [[ "$SEED" == yes ]]; then
+    targets=()
+    [[ $DO_PHONE == 1 || $DO_WATCH == 1 ]] && targets+=("$PHONE")
+    [[ $DO_IPAD == 1 ]] && targets+=("$(ensure_sim "$IPAD_NAME" "$IPAD_TYPE" iOS)")
+    for t in "${targets[@]}"; do boot_sim "$t"; done
+    seed_demo "$code" "${targets[@]}"
+    load_lang "$code"   # the seed rewrote the demo file; read the ids again
+  fi
+  capture_phone_ipad
+  [[ $DO_WATCH == 1 ]] && capture_watch
+  log "Raw screenshots in $RAW_DIR"
+done

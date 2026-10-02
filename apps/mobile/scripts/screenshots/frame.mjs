@@ -13,8 +13,11 @@
  *
  *   node scripts/screenshots/frame.mjs [flags]
  *
- *   --raw=<dir>        raw capture root           (default screenshots/raw)
- *   --out=<dir>        output root                (default screenshots/appstore)
+ *   --lang=<code>|all  which languages to frame   (default all: apps/mobile/locales/languages.json);
+ *                      several as en,uk
+ *   --raw=<dir>        raw capture root           (default screenshots/raw; reads <raw>/<lang>/…)
+ *   --out=<dir>        output root                (default screenshots/appstore; writes
+ *                      <out>/<App Store language>/…, e.g. appstore/en-US, appstore/uk)
  *   --shots=<file>     shot list                  (default screenshots/shots.json)
  *   --only=<id,id>     render only these ids (iPhone, extras or watch)
  *   --contact-sheet    also write <out>/contact-sheet.png (the numbered ten)
@@ -23,6 +26,14 @@
  *   --no-ipad          skip the <out>/ipad-13 set (it is built whenever raw/ipad exists)
  *   --keep-svg         leave the intermediate .svg files next to the PNGs (debugging)
  *   --help
+ *
+ * Captions: shots.json holds message keys ("store.shots.log.title"), not text. The words come from
+ * screenshots/i18n/<lang>.json, which `bun run i18n` writes from packages/i18n/locales/<lang>/store.json;
+ * a key missing there falls back to English (with a warning). A value that is not a key is printed
+ * as it is, so a quick experiment can still put literal text in shots.json.
+ *
+ * Every path below is per language: <out> means <out>/<App Store language>, and the raw captures
+ * are read from <raw>/<lang>.
  *
  * Output: <out>/iphone-6.9, <out>/iphone-6.5, <out>/iphone-6.5-1242 (the numbered App Store set),
  * <out>/ipad-13 (the same slides, laid out for the 13" iPad, from raw/ipad), <out>/extras/…
@@ -42,6 +53,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { languages } from "./langs.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS_DIR = path.resolve(HERE, "../../screenshots");
@@ -78,8 +90,13 @@ const flag = (name, fallback) => {
   const next = args[i + 1];
   return next && !next.startsWith("--") ? next : true;
 };
-const RAW_DIR = path.resolve(String(flag("raw", path.join(SHOTS_DIR, "raw"))));
-const OUT_DIR = path.resolve(String(flag("out", path.join(SHOTS_DIR, "appstore"))));
+const RAW_ROOT = path.resolve(String(flag("raw", path.join(SHOTS_DIR, "raw"))));
+const OUT_ROOT = path.resolve(String(flag("out", path.join(SHOTS_DIR, "appstore"))));
+const LANGS = languages(flag("lang", "all"));
+const I18N_DIR = path.join(SHOTS_DIR, "i18n");
+/** Set per language by main(): <raw>/<lang> and <out>/<App Store language>. */
+let RAW_DIR = RAW_ROOT;
+let OUT_DIR = OUT_ROOT;
 const SHOTS_FILE = path.resolve(String(flag("shots", path.join(SHOTS_DIR, "shots.json"))));
 const ONLY = flag("only", null);
 const ONLY_SET = ONLY && ONLY !== true ? new Set(String(ONLY).split(",").map((s) => s.trim()).filter(Boolean)) : null;
@@ -203,11 +220,19 @@ function readPngSize(file) {
 const W_REG = { " ": 278, "!": 278, '"': 355, "#": 556, $: 556, "%": 889, "&": 667, "'": 191, "(": 333, ")": 333, "*": 389, "+": 584, ",": 278, "-": 333, ".": 278, "/": 278, ":": 278, ";": 278, "<": 584, "=": 584, ">": 584, "?": 556, "@": 1015, "[": 278, "\\": 278, "]": 278, "^": 469, _: 556, "`": 333, "{": 334, "|": 260, "}": 334, "~": 584, A: 667, B: 667, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278, J: 500, K: 667, L: 556, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611, a: 556, b: 556, c: 500, d: 556, e: 556, f: 278, g: 556, h: 556, i: 222, j: 222, k: 500, l: 222, m: 833, n: 556, o: 556, p: 556, q: 556, r: 333, s: 500, t: 278, u: 556, v: 500, w: 722, x: 500, y: 500, z: 500 };
 const W_BOLD = { " ": 278, "!": 333, '"': 474, "#": 556, $: 556, "%": 889, "&": 722, "'": 238, "(": 333, ")": 333, "*": 389, "+": 584, ",": 278, "-": 333, ".": 278, "/": 278, ":": 333, ";": 333, "<": 584, "=": 584, ">": 584, "?": 611, "@": 975, "[": 333, "\\": 278, "]": 333, "^": 584, _: 556, "`": 333, "{": 389, "|": 280, "}": 389, "~": 584, A: 722, B: 722, C: 722, D: 722, E: 667, F: 611, G: 778, H: 722, I: 278, J: 556, K: 722, L: 611, M: 833, N: 722, O: 778, P: 667, Q: 778, R: 722, S: 667, T: 611, U: 722, V: 667, W: 944, X: 667, Y: 667, Z: 611, a: 556, b: 611, c: 556, d: 611, e: 556, f: 333, g: 611, h: 611, i: 278, j: 278, k: 556, l: 278, m: 889, n: 611, o: 611, p: 611, q: 611, r: 389, s: 556, t: 333, u: 611, v: 556, w: 778, x: 556, y: 556, z: 500 };
 const W_EXTRA = { "—": 1000, "–": 556, "…": 1000, "€": 556, "’": 222, "‘": 222, "“": 333, "”": 333, "·": 278 };
+/* Cyrillic (U+0400–U+04FF) plus ʼ « » – — ₴ №, in the same 1/1000 em. AFM files have no Cyrillic,
+   so these come from the font rsvg-convert really draws with — Helvetica Neue Regular and Bold out
+   of /System/Library/Fonts/HelveticaNeue.ttc, read from its hmtx/cmap tables by
+   scripts/screenshots/font-widths.mjs (2026-10-01, macOS 26). Re-run it and paste over these two
+   lines if the font ever changes. Looked up before W_EXTRA, so – and — use Helvetica Neue's own. */
+const W_CYR_REG = { "Ѐ": 611, "Ё": 611, "Ђ": 750, "Ѓ": 550, "Є": 718, "Ѕ": 648, "І": 259, "Ї": 259, "Ј": 519, "Љ": 1105, "Њ": 1124, "Ћ": 750, "Ќ": 667, "Ѝ": 730, "Ў": 611, "Џ": 712, "А": 648, "Б": 675, "В": 685, "Г": 550, "Д": 729, "Е": 611, "Ж": 1011, "З": 654, "И": 730, "Й": 730, "К": 667, "Л": 703, "М": 871, "Н": 722, "О": 760, "П": 712, "Р": 648, "С": 722, "Т": 574, "У": 611, "Ф": 861, "Х": 611, "Ц": 720, "Ч": 658, "Ш": 1011, "Щ": 1032, "Ъ": 778, "Ы": 872, "Ь": 653, "Э": 718, "Ю": 1020, "Я": 671, "а": 537, "б": 573, "в": 540, "г": 424, "д": 589, "е": 537, "ж": 783, "з": 506, "и": 566, "й": 566, "к": 526, "л": 563, "м": 688, "н": 560, "о": 574, "п": 550, "р": 593, "с": 537, "т": 463, "у": 500, "ф": 800, "х": 518, "ц": 564, "ч": 523, "ш": 769, "щ": 831, "ъ": 617, "ы": 708, "ь": 534, "э": 537, "ю": 774, "я": 536, "ѐ": 537, "ё": 537, "ђ": 566, "ѓ": 424, "є": 537, "ѕ": 500, "і": 222, "ї": 242, "ј": 222, "љ": 879, "њ": 876, "ћ": 566, "ќ": 526, "ѝ": 566, "ў": 500, "џ": 550, "Ѣ": 730, "ѣ": 581, "Ѥ": 1017, "ѥ": 735, "Ѧ": 667, "ѧ": 500, "Ѩ": 950, "ѩ": 726, "Ѫ": 935, "ѫ": 729, "Ѭ": 1042, "ѭ": 734, "Ѱ": 832, "ѱ": 722, "Ѳ": 760, "ѳ": 574, "Ѵ": 667, "ѵ": 530, "Ѷ": 667, "ѷ": 589, "Ѹ": 1278, "ѹ": 1056, "Ҍ": 730, "ҍ": 565, "Ґ": 550, "ґ": 424, "Ғ": 611, "ғ": 471, "Җ": 1026, "җ": 797, "Ҙ": 654, "ҙ": 506, "Қ": 684, "қ": 540, "Ҝ": 670, "ҝ": 551, "Ҡ": 792, "ҡ": 614, "Ң": 739, "ң": 582, "Ҥ": 1015, "ҥ": 769, "Ҫ": 722, "ҫ": 537, "Ҭ": 621, "ҭ": 509, "Ү": 648, "ү": 500, "Ұ": 648, "ұ": 500, "Ҳ": 629, "ҳ": 526, "Ҵ": 931, "ҵ": 712, "Ҷ": 675, "ҷ": 545, "Ҹ": 658, "ҹ": 523, "Һ": 665, "һ": 556, "Ҽ": 910, "ҽ": 697, "Ҿ": 910, "ҿ": 697, "Ӏ": 259, "Ӂ": 1011, "ӂ": 783, "Ӈ": 734, "ӈ": 565, "ӏ": 278, "Ӑ": 648, "ӑ": 537, "Ӓ": 648, "ӓ": 537, "Ӕ": 926, "ӕ": 870, "Ӗ": 611, "ӗ": 537, "Ә": 743, "ә": 547, "Ӛ": 751, "ӛ": 556, "Ӝ": 1011, "ӝ": 783, "Ӟ": 654, "ӟ": 506, "Ӡ": 549, "ӡ": 500, "Ӣ": 730, "ӣ": 566, "Ӥ": 730, "ӥ": 566, "Ӧ": 760, "ӧ": 574, "Ө": 760, "ө": 574, "Ӫ": 792, "ӫ": 565, "Ӭ": 734, "ӭ": 509, "Ӯ": 611, "ӯ": 500, "Ӱ": 611, "ӱ": 500, "Ӳ": 611, "ӳ": 500, "Ӵ": 658, "ӵ": 523, "Ӷ": 606, "ӷ": 436, "Ӹ": 877, "ӹ": 708, "Ӿ": 678, "ӿ": 509, "ʼ": 222, "«": 463, "»": 463, "–": 500, "—": 1000, "₴": 655, "№": 1035 };
+const W_CYR_BOLD = { "Ѐ": 648, "Ё": 648, "Ђ": 804, "Ѓ": 574, "Є": 736, "Ѕ": 649, "І": 295, "Ї": 295, "Ј": 556, "Љ": 1125, "Њ": 1123, "Ћ": 804, "Ќ": 722, "Ѝ": 745, "Ў": 647, "Џ": 732, "А": 685, "Б": 702, "В": 704, "Г": 574, "Д": 772, "Е": 648, "Ж": 1061, "З": 647, "И": 745, "Й": 745, "К": 722, "Л": 743, "М": 907, "Н": 741, "О": 778, "П": 732, "Р": 667, "С": 741, "Т": 611, "У": 647, "Ф": 923, "Х": 667, "Ц": 752, "Ч": 680, "Ш": 1041, "Щ": 1061, "Ъ": 814, "Ы": 929, "Ь": 677, "Э": 738, "Ю": 1023, "Я": 725, "а": 574, "б": 607, "в": 581, "г": 453, "д": 624, "е": 574, "ж": 812, "з": 542, "и": 600, "й": 600, "к": 574, "л": 599, "м": 738, "н": 593, "о": 611, "п": 583, "р": 611, "с": 574, "т": 502, "у": 519, "ф": 856, "х": 537, "ц": 603, "ч": 574, "ш": 819, "щ": 834, "ъ": 646, "ы": 778, "ь": 548, "э": 576, "ю": 835, "я": 578, "ѐ": 574, "ё": 574, "ђ": 613, "ѓ": 453, "є": 576, "ѕ": 537, "і": 258, "ї": 300, "ј": 278, "љ": 897, "њ": 891, "ћ": 613, "ќ": 574, "ѝ": 600, "ў": 519, "џ": 583, "Ѣ": 754, "ѣ": 588, "Ѥ": 1017, "ѥ": 735, "Ѧ": 722, "ѧ": 556, "Ѩ": 1005, "ѩ": 782, "Ѫ": 997, "ѫ": 822, "Ѭ": 1067, "ѭ": 831, "Ѱ": 834, "ѱ": 722, "Ѳ": 778, "ѳ": 611, "Ѵ": 670, "ѵ": 540, "Ѷ": 740, "ѷ": 611, "Ѹ": 1334, "ѹ": 1167, "Ҍ": 754, "ҍ": 588, "Ґ": 574, "ґ": 453, "Ғ": 627, "ғ": 495, "Җ": 1082, "җ": 832, "Ҙ": 647, "ҙ": 542, "Қ": 743, "қ": 586, "Ҝ": 752, "ҝ": 615, "Ҡ": 859, "ҡ": 672, "Ң": 761, "ң": 610, "Ҥ": 1015, "ҥ": 791, "Ҫ": 741, "ҫ": 574, "Ҭ": 621, "ҭ": 509, "Ү": 667, "ү": 519, "Ұ": 667, "ұ": 519, "Ҳ": 688, "ҳ": 553, "Ҵ": 919, "ҵ": 658, "Ҷ": 699, "ҷ": 591, "Ҹ": 680, "ҹ": 574, "Һ": 675, "һ": 593, "Ҽ": 925, "ҽ": 746, "Ҿ": 925, "ҿ": 746, "Ӏ": 295, "Ӂ": 1061, "ӂ": 812, "Ӈ": 734, "ӈ": 565, "ӏ": 278, "Ӑ": 685, "ӑ": 574, "Ӓ": 685, "ӓ": 574, "Ӕ": 981, "ӕ": 907, "Ӗ": 648, "ӗ": 574, "Ә": 748, "ә": 574, "Ӛ": 751, "ӛ": 556, "Ӝ": 1061, "ӝ": 812, "Ӟ": 647, "ӟ": 542, "Ӡ": 600, "ӡ": 551, "Ӣ": 745, "ӣ": 600, "Ӥ": 745, "ӥ": 600, "Ӧ": 778, "ӧ": 611, "Ө": 778, "ө": 611, "Ӫ": 792, "ӫ": 565, "Ӭ": 734, "ӭ": 509, "Ӯ": 647, "ӯ": 519, "Ӱ": 647, "ӱ": 519, "Ӳ": 647, "ӳ": 519, "Ӵ": 675, "ӵ": 574, "Ӷ": 606, "ӷ": 436, "Ӹ": 929, "ӹ": 778, "Ӿ": 678, "ӿ": 509, "ʼ": 278, "«": 444, "»": 444, "–": 500, "—": 1000, "₴": 637, "№": 1066 };
 
 function textWidth(str, size, bold, tracking = 0) {
   const table = bold ? W_BOLD : W_REG;
   let units = 0;
-  for (const ch of str) units += table[ch] ?? W_EXTRA[ch] ?? (bold ? 611 : 556);
+  const cyr = bold ? W_CYR_BOLD : W_CYR_REG;
+  for (const ch of str) units += table[ch] ?? cyr[ch] ?? W_EXTRA[ch] ?? (bold ? 611 : 556);
   return (units / 1000) * size + tracking * Math.max(0, [...str].length - 1);
 }
 
@@ -262,6 +287,39 @@ function balancedWrap(text, maxWidth, size, bold, tracking = 0) {
 }
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/* ------------------------------------------------------------------ captions */
+
+const CAPTION_FIELDS = ["title", "subtitle", "note"];
+const isKey = (v) => typeof v === "string" && /^store\.[A-Za-z0-9_.]+$/.test(v);
+
+function readMessages(code) {
+  const file = path.join(I18N_DIR, `${code}.json`);
+  if (!fs.existsSync(file)) throw new Error(`no captions for "${code}" at ${short(file)} — run: bun run i18n`);
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+/** The shot list with every caption key replaced by its text in `code` (English where a key is
+ *  missing there, which is reported rather than printed as a key on a slide). */
+function localize(shots, code, warnings) {
+  const own = readMessages(code);
+  const source = code === "en" ? own : readMessages("en");
+  const text = (v) => {
+    if (!isKey(v)) return v;
+    if (own[v] !== undefined) return own[v];
+    if (source[v] !== undefined) {
+      warnings.push(`${code}: no text for ${v} — the slide uses the English`);
+      return source[v];
+    }
+    throw new Error(`caption key ${v} is in no message file — add it to packages/i18n/locales/en/store.json`);
+  };
+  const each = (list) => (list || []).map((shot) => {
+    const out = { ...shot };
+    for (const f of CAPTION_FIELDS) if (out[f] !== undefined) out[f] = text(out[f]);
+    return out;
+  });
+  return { ...shots, iphone: each(shots.iphone), extras: each(shots.extras), watch: each(shots.watch) };
+}
 
 /* --------------------------------------------------------------------- color */
 
@@ -892,15 +950,30 @@ function main() {
   if (!RSVG) throw new Error("rsvg-convert not found (brew install librsvg)");
   if (!MAGICK) throw new Error("magick not found (brew install imagemagick)");
   if (!fs.existsSync(SHOTS_FILE)) throw new Error(`shot list not found: ${SHOTS_FILE}`);
+  const shotList = JSON.parse(fs.readFileSync(SHOTS_FILE, "utf8"));
+  for (const [i, lang] of LANGS.entries()) {
+    if (i) console.log("");
+    RAW_DIR = path.join(RAW_ROOT, lang.code);
+    OUT_DIR = path.join(OUT_ROOT, lang.store);
+    if (!fs.existsSync(RAW_DIR)) {
+      console.warn(`warn ${lang.code}: no raw captures in ${short(RAW_DIR)} — capture them with scripts/screenshots/capture.sh --lang ${lang.code}`);
+      continue;
+    }
+    frameLanguage(shotList, lang);
+  }
+}
 
-  const shots = JSON.parse(fs.readFileSync(SHOTS_FILE, "utf8"));
+/** One language's whole set, from <raw>/<lang> into <out>/<App Store language>. */
+function frameLanguage(shotList, lang) {
+  const warnings = [];
+  const shots = localize(shotList, lang.code, warnings);
   const watchShots = (shots.watch || []).filter((s) => !ONLY_SET || ONLY_SET.has(s.id));
 
+  console.log(`lang  ${lang.code} (App Store: ${lang.store})`);
   console.log(`raw   ${RAW_DIR}`);
   console.log(`out   ${OUT_DIR}`);
   console.log(`shots ${SHOTS_FILE}\n`);
 
-  const warnings = [];
   const frames = { phone: loadFrame(PHONE_FRAME, warnings), watch: loadFrame(WATCH_FRAME, warnings) };
   const madeSixNine = [];
   const madeExtras = [];
@@ -1122,11 +1195,11 @@ function main() {
     console.log("");
     for (const w of warnings) console.warn(`warn ${w}`);
   }
-  fs.rmSync(TMP, { recursive: true, force: true });
 }
 
 try {
   main();
+  fs.rmSync(TMP, { recursive: true, force: true });
 } catch (err) {
   fs.rmSync(TMP, { recursive: true, force: true });
   console.error(`\nframe.mjs: ${err.message}`);

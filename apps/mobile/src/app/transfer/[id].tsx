@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { accountBalanceMinor, createTransfer, formatMinor, getRow, jsonIds, listRows, remove, toMinor, fromMinor, rateOrFallback } from "@kopiyka/core";
+import { accountBalanceMinor, createTransfer, formatMinor, getRow, jsonIds, listRows, numberFormat, remove, toMinor, fromMinor, rateOrFallback } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -12,6 +12,8 @@ import { C, S } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { getCurrentAccount } from "@/lib/settings";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
+import { catName, acctName } from "@/lib/names";
 
 /**
  * Transfer between two accounts. When currencies differ, the destination amount
@@ -57,7 +59,7 @@ export default function TransferSheet() {
   // Closing with changes asks first (lib/discard.ts).
   const exit = useDiscardGuard(useDirty([fromId, toId, fromExpr, toExpr, date, note, categoryId, tagIds]));
   const category = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) ?? null : null), [categoryId]);
-  const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((t) => tagIds.includes(t.id)), [tagIds.join(",")]);
+  const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((x) => tagIds.includes(x.id)), [tagIds.join(",")]);
 
   const keys = useMemo(() => ({ from: newPickKey("from"), to: newPickKey("to"), date: newPickKey("date"), cat: newPickKey("tcat"), tags: newPickKey("ttags") }), []);
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => setCategoryId(v), []));
@@ -89,9 +91,9 @@ export default function TransferSheet() {
     });
     exit(() => { if (stacked) router.dismiss(2); else router.back(); });
   };
-  const del = () => Alert.alert("Delete transfer?", undefined, [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => { for (const l of legs) remove(d, "transactions", l.id); }); exit(() => router.back()); } },
+  const del = () => Alert.alert(t("transfer.deleteTitle"), undefined, [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => { for (const l of legs) remove(d, "transactions", l.id); }); exit(() => router.back()); } },
   ]);
 
   const effRate = fromValue && toValue ? toValue / fromValue : rate?.rate;
@@ -103,19 +105,19 @@ export default function TransferSheet() {
       top={
         <View style={styles.top}>
           <View style={styles.headRow}>
-            <Subtle style={{ flex: 1 }}>Transfer</Subtle>
-            {stacked ? <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to expense" style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><Text style={styles.backText}>Back</Text></Pressable> : null}
+            <Subtle style={{ flex: 1 }}>{t("transfer.title")}</Subtle>
+            {stacked ? <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("transfer.backA11y")} style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><Text style={styles.backText} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("common.back")}</Text></Pressable> : null}
           </View>
-          <Leg role="From" account={from?.name} amount={fromValue !== null && from ? formatMinor(toMinor(fromValue, from.currency), from.currency) : "0"} currency={from?.currency ?? ""}
+          <Leg role={t("transfer.from")} account={acctName(from)} amount={fromValue !== null && from ? formatMinor(toMinor(fromValue, from.currency), from.currency) : "0"} currency={from?.currency ?? ""}
             active={side === "from"} onPress={() => setSide("from")} onPickAccount={pickFrom} negative
             balance={balances.from} after={fromValue !== null && from ? balances.from - toMinor(fromValue, from.currency) : null} />
           <View style={styles.arrow}><SymbolView name="arrow.down" size={18} tintColor={C.tertiary} /></View>
-          <Leg role="To" account={to?.name} amount={toValue !== null && to ? formatMinor(toMinor(toValue, to.currency), to.currency) : cross ? "…" : "0"} currency={to?.currency ?? ""}
+          <Leg role={t("transfer.to")} account={acctName(to)} amount={toValue !== null && to ? formatMinor(toMinor(toValue, to.currency), to.currency) : cross ? "…" : "0"} currency={to?.currency ?? ""}
             active={side === "to"} onPress={() => cross && setSide("to")} onPickAccount={pickTo}
             balance={balances.to} after={toValue !== null && to ? balances.to + toMinor(toValue, to.currency) : null} />
           <CalcLine expr={side === "from" ? fromExpr : toExpr} style={{ textAlign: "left" }} />
           <Text style={styles.meta}>
-            {cross && effRate ? `1 ${from!.currency} = ${effRate.toFixed(4)} ${to!.currency}${rate?.stale ? " (cached rate)" : toExpr ? " (manual)" : rate ? " (ECB)" : ""}` : cross ? "Fetching rate…" : " "}
+            {cross && effRate ? rateLine(from!.currency, to!.currency, effRate, rate?.stale ? "cached" : toExpr ? "manual" : rate ? "ecb" : "plain") : cross ? t("transfer.rate.fetching") : " "}
           </Text>
         </View>
       }
@@ -123,16 +125,16 @@ export default function TransferSheet() {
         <>
           <ChipRow>
             <Chip icon="calendar" label={dayLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
-            {cross ? <Chip icon="arrow.triangle.2.circlepath" label={toExpr ? "ECB rate" : "Auto rate"} active={!toExpr} onPress={() => setToExpr("")} /> : null}
+            {cross ? <Chip icon="arrow.triangle.2.circlepath" label={toExpr ? t("transfer.ecbRate") : t("transfer.autoRate")} active={!toExpr} onPress={() => setToExpr("")} /> : null}
           </ChipRow>
           <ChipRow>
-            <Chip icon="folder" label={category?.name ?? "Category"} active={!!category} onPress={() => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: "expense", selected: categoryId ?? "" } })} />
-            <Chip icon="number" label={tags.length ? tags.map((t) => `#${t.name}`).join(" ") : "Tags"} active={tags.length > 0} onPress={() => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } })} />
+            <Chip icon="folder" label={category ? catName(category) : t("transfer.category")} active={!!category} onPress={() => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: "expense", selected: categoryId ?? "" } })} />
+            <Chip icon="number" label={tags.length ? tags.map((x) => `#${x.name}`).join(" ") : t("transfer.tags")} active={tags.length > 0} onPress={() => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } })} />
           </ChipRow>
           <Keypad value={side === "from" ? fromExpr : toExpr} onChange={side === "from" ? setFromExpr : setToExpr} allowSign={false}
-            extra={{ label: side === "from" ? (cross ? "Edit receiving" : "Same amount") : "Edit sending", icon: "arrow.up.arrow.down", active: side === "to", onPress: () => cross && setSide((s) => (s === "from" ? "to" : "from")) }} />
-          <ConfirmBar amount={fromValue !== null && from ? `${formatMinor(toMinor(fromValue, from.currency), from.currency)} ${from.currency}${cross && toValue !== null && to ? ` → ${formatMinor(toMinor(toValue, to.currency), to.currency)} ${to.currency}` : ""}` : "0"} label={valid ? (legs.length ? "Tap to save" : "Tap to transfer") : "Enter an amount"} onPress={commit} disabled={!valid} />
-          {legs.length ? <DeleteRow label="Delete transfer" onPress={del} /> : null}
+            extra={{ label: side === "from" ? (cross ? t("transfer.editReceiving") : t("transfer.sameAmount")) : t("transfer.editSending"), icon: "arrow.up.arrow.down", active: side === "to", onPress: () => cross && setSide((s) => (s === "from" ? "to" : "from")) }} />
+          <ConfirmBar amount={fromValue !== null && from ? `${formatMinor(toMinor(fromValue, from.currency), from.currency)} ${from.currency}${cross && toValue !== null && to ? ` → ${formatMinor(toMinor(toValue, to.currency), to.currency)} ${to.currency}` : ""}` : "0"} label={valid ? (legs.length ? t("transfer.tapToSave") : t("transfer.tapToTransfer")) : t("transfer.enterAmount")} onPress={commit} disabled={!valid} />
+          {legs.length ? <DeleteRow label={t("transfer.delete")} onPress={del} /> : null}
         </>
       }
     />
@@ -148,20 +150,20 @@ export default function TransferSheet() {
  * picker. Two jobs, two targets, because the card is also a big button.
  */
 function Leg({ role, account, amount, currency, active, onPress, onPickAccount, negative, balance, after }: {
-  role: "From" | "To"; account?: string; amount: string; currency: string; active: boolean;
+  role: string; account?: string; amount: string; currency: string; active: boolean;
   onPress: () => void; onPickAccount: () => void; negative?: boolean; balance: number; after: number | null;
 }) {
   const moved = after !== null && after !== balance;
   return (
     <Pressable onPress={onPress} style={[styles.leg, active && styles.legActive]} accessibilityRole="button"
-      accessibilityLabel={`${role} ${account ?? "no account"}: ${amount} ${currency}`} accessibilityState={{ selected: active }}>
-      <Pressable onPress={onPickAccount} style={styles.legHead} accessibilityRole="button" accessibilityLabel={`${role}: ${account ?? "choose an account"}`}>
+      accessibilityLabel={t("transfer.legA11y", { role, account: account ?? t("transfer.noAccount"), amount, currency })} accessibilityState={{ selected: active }}>
+      <Pressable onPress={onPickAccount} style={styles.legHead} accessibilityRole="button" accessibilityLabel={t("transfer.pickA11y", { role, account: account ?? t("transfer.chooseAccount") })}>
         <Text style={styles.legLabel} numberOfLines={1}>{role}{account ? ` · ${account}` : ""}</Text>
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
       </Pressable>
       <Text style={[styles.legAmount, negative ? null : { color: C.green }]} numberOfLines={1} adjustsFontSizeToFit>{negative ? "−" : "+"}{amount} <Text style={styles.legCur}>{currency}</Text></Text>
       {currency ? (
-        <View style={styles.legBalance} accessibilityLabel={moved ? `Balance ${formatMinor(balance, currency)}, after ${formatMinor(after, currency)} ${currency}` : `Balance ${formatMinor(balance, currency)} ${currency}`}>
+        <View style={styles.legBalance} accessibilityLabel={moved ? t("transfer.balanceAfterA11y", { balance: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("transfer.balanceA11y", { balance: formatMinor(balance, currency), currency })}>
           <Text style={styles.balanceText}>{formatMinor(balance, currency)}</Text>
           {moved ? <>
             <SymbolView name="arrow.right" size={10} tintColor={C.tertiary} />
@@ -172,6 +174,17 @@ function Leg({ role, account, amount, currency, active, onPress, onPickAccount, 
       ) : null}
     </Pressable>
   );
+}
+
+/** "1 EUR = 41,2345 UAH (ECB)": the rate in the language's decimal separator, and where it came from. */
+function rateLine(from: string, to: string, value: number, source: "cached" | "manual" | "ecb" | "plain"): string {
+  const vars = { from, to, rate: value.toFixed(4).replace(".", numberFormat().decimal) };
+  switch (source) {
+    case "cached": return t("transfer.rate.cached", vars);
+    case "manual": return t("transfer.rate.manual", vars);
+    case "ecb": return t("transfer.rate.ecb", vars);
+    default: return t("transfer.rate.plain", vars);
+  }
 }
 
 const styles = StyleSheet.create({

@@ -1,0 +1,27 @@
+{
+  "pill": {
+    "label": "Період {title}",
+    "labelRange": "Період {title}, {range}",
+    "previous": "Попередній період",
+    "next": "Наступний період",
+    "choose": "{title}, вибрати місяць",
+    "chooseHint": "Утримуйте, щоб повернутися до сьогодні"
+  },
+  "scope": {
+    "all": "Усі рахунки",
+    "allCurrency": "Усі в {currency}",
+    "accounts": "{count, plural, one {# рахунок} few {# рахунки} many {# рахунків} other {# рахунку}}",
+    "group": "Група · {count, plural, one {# рахунок} few {# рахунки} many {# рахунків} other {# рахунку}}",
+    "label": "Витрати з: {scope}",
+    "hint": "Виберіть рахунок або групу"
+  },
+  "calendar": {
+    "previous": "Попередній місяць",
+    "next": "Наступний місяць"
+  },
+  "netWorth": {
+    "title": "Чисті активи",
+    "fetching": "Отримуємо курс {currencies}…",
+    "noRate": "Ще немає курсу для {currencies}. Підʼєднайтеся до інтернету хоча б раз."
+  }
+}

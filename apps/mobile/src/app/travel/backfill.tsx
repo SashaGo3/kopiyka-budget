@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, S } from "@/constants/theme";
 import { EMPTY_FILTER, activeCount, buildWhere, type TxFilter } from "@/lib/filters";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
 
 /**
  * Right after travel mode starts: pick earlier purchases that belong to the trip (flights, hotels),
@@ -48,24 +49,24 @@ export default function TravelBackfill() {
   const filters = activeCount(filter);
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={from ? `What was ${name ?? "it"}?` : `Already paid for ${name ?? "it"}?`} left={{ label: "Skip", onPress: () => router.back() }}
-        right={rows.length ? (n === rows.length ? { label: "None", bold: false, onPress: () => setSelected(new Set()) } : { label: "Select all", bold: false, onPress: () => setSelected(new Set(rows.map((r) => r.id))) }) : undefined} />
+      <ModalHeader title={from ? (name ? t("travel.backfill.whatWasName", { name }) : t("travel.backfill.whatWas")) : (name ? t("travel.backfill.paidName", { name }) : t("travel.backfill.paid"))} left={{ label: t("travel.backfill.skip"), onPress: () => router.back() }}
+        right={rows.length ? (n === rows.length ? { label: t("travel.backfill.selectNone"), bold: false, onPress: () => setSelected(new Set()) } : { label: t("travel.backfill.selectAll"), bold: false, onPress: () => setSelected(new Set(rows.map((r) => r.id))) }) : undefined} />
       <View style={styles.searchRow}>
         <View style={styles.search}>
           <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-          <TextInput value={q} onChangeText={setQ} placeholder="Search notes, shops, amounts" placeholderTextColor={C.tertiary} style={styles.input}
-            autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing" accessibilityLabel="Search transactions" />
+          <TextInput value={q} onChangeText={setQ} placeholder={t("travel.backfill.search")} placeholderTextColor={C.tertiary} style={styles.input}
+            autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing" accessibilityLabel={t("travel.backfill.searchLabel")} />
         </View>
         <Pressable onPress={() => router.push({ pathname: "/filter", params: { key, value: JSON.stringify(filter) } })} hitSlop={6}
-          style={[styles.filter, filters > 0 && styles.filterOn]} accessibilityRole="button" accessibilityLabel={filters ? `Filters, ${filters} on` : "Filters"}>
+          style={[styles.filter, filters > 0 && styles.filterOn]} accessibilityRole="button" accessibilityLabel={filters ? t("travel.backfill.filtersOn", { count: filters }) : t("travel.backfill.filters")}>
           <SymbolView name="line.3.horizontal.decrease" size={17} tintColor={filters ? C.onTint : C.tint} />
           {filters ? <Text style={styles.filterCount}>{filters}</Text> : null}
         </Pressable>
       </View>
       <TransactionList rows={rows} selected={selected} onToggle={toggle}
-        header={<Text style={styles.hint}>{from ? "The expenses from those days. Tick the ones that were the trip." : "Flights, hotels or tickets bought before leaving: tick them and they belong to the trip. You can add the tag to anything later too."}</Text>} />
+        header={<Text style={styles.hint}>{from ? t("travel.backfill.hintPast") : t("travel.backfill.hint")}</Text>} />
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, S.md) }]}>
-        <ConfirmBar amount={n ? `${n} selected` : "None selected"} label={n ? `Tap to add to ${name ?? "the travel"}` : "Tick the ones that belong to it"} onPress={apply} disabled={!n} />
+        <ConfirmBar amount={n ? t("travel.backfill.selected", { count: n }) : t("travel.backfill.noneSelected")} label={n ? (name ? t("travel.backfill.addToName", { name }) : t("travel.backfill.addTo")) : t("travel.backfill.tick")} onPress={apply} disabled={!n} />
       </View>
     </View>
   );

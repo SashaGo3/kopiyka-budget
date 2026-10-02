@@ -9,6 +9,7 @@ import { KPBridge, type ReceiptParse } from "@/lib/bridge";
 import { resolvePick } from "@/store/pick";
 import { BigButton } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 /**
  * Hands-free receipt capture: once the camera is ready the screen keeps taking a photo every
@@ -22,7 +23,7 @@ export default function ReceiptScan() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [ready, setReady] = useState(false);
-  const [status, setStatus] = useState("Lay the receipt flat and hold still");
+  const [status, setStatus] = useState(() => t("photo.receipt.hold"));
   const [attempts, setAttempts] = useState(0);
   const cam = useRef<CameraView>(null);
   const busy = useRef(false);
@@ -32,51 +33,51 @@ export default function ReceiptScan() {
   const attempt = async (manual: boolean) => {
     if (busy.current || done.current || !cam.current) return;
     busy.current = true;
-    setStatus(manual ? "Reading…" : "Looking for the receipt…");
+    setStatus(manual ? t("photo.receipt.reading") : t("photo.receipt.looking"));
     try {
       const photo = await cam.current.takePictureAsync({ quality: 0.7, shutterSound: false });
-      if (!photo?.uri) throw new Error("No photo");
+      if (!photo?.uri) throw new Error(t("photo.receipt.noPhoto"));
       const parse: ReceiptParse = await KPBridge.scanReceipt(photo.uri);
-      if (!(parse.total > 0)) throw new Error("No total");
+      if (!(parse.total > 0)) throw new Error(t("photo.receipt.noTotal"));
       done.current = true;
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       resolvePick(key, parse);
       router.back();
     } catch (e) {
       setAttempts((n) => n + 1);
-      setStatus(manual ? `Could not read it: ${(e as Error).message}` : "Looking for the receipt…");
+      setStatus(manual ? t("photo.receipt.failed", { error: (e as Error).message }) : t("photo.receipt.looking"));
     } finally { busy.current = false; }
   };
   // Automatic attempts start a moment after the camera is up and repeat until one succeeds or the screen closes.
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => void attempt(false), 1200);
+    const timer = setTimeout(() => void attempt(false), 1200);
     const i = setInterval(() => void attempt(false), 2500);
-    return () => { clearTimeout(t); clearInterval(i); done.current = true; };
+    return () => { clearTimeout(timer); clearInterval(i); done.current = true; };
   }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!permission?.granted) {
     return (
       <View style={styles.center}>
-        <Text style={styles.text}>Camera access is needed to photograph the receipt.</Text>
-        <BigButton label="Allow camera" onPress={() => void requestPermission()} />
-        <BigButton label="Close" onPress={() => router.back()} />
+        <Text style={styles.text}>{t("photo.receipt.cameraNeeded")}</Text>
+        <BigButton label={t("photo.allowCamera")} onPress={() => void requestPermission()} />
+        <BigButton label={t("common.close")} onPress={() => router.back()} />
       </View>
     );
   }
   return (
     <View style={{ flex: 1, backgroundColor: "black" }}>
       <CameraView ref={cam} style={{ flex: 1 }} facing="back" onCameraReady={() => setReady(true)} />
-      <Pressable onPress={() => { done.current = true; router.back(); }} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel="Close">
+      <Pressable onPress={() => { done.current = true; router.back(); }} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
         <SymbolView name="xmark" size={18} tintColor="white" weight="bold" />
       </Pressable>
       <View style={styles.frame} pointerEvents="none" />
       <View style={[styles.overlay, { bottom: insets.bottom + S.xl }]}>
         <View style={styles.hintRow}>
           {ready ? <ActivityIndicator color="white" /> : null}
-          <Text style={styles.hint}>{status}{attempts > 2 ? " · more light or closer helps" : ""}</Text>
+          <Text style={styles.hint}>{attempts > 2 ? `${status} · ${t("photo.receipt.lightTip")}` : status}</Text>
         </View>
-        <Pressable onPress={() => void attempt(true)} style={styles.shutter} accessibilityRole="button" accessibilityLabel="Take photo now">
+        <Pressable onPress={() => void attempt(true)} style={styles.shutter} accessibilityRole="button" accessibilityLabel={t("photo.receipt.takeNow")}>
           <SymbolView name="camera.fill" size={26} tintColor="black" />
         </Pressable>
       </View>

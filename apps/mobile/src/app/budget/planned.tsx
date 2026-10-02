@@ -10,6 +10,7 @@ import { scopeAccount, scopeAccountIds } from "@/lib/scope";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { todayLocal } from "@/lib/dates";
 import { currentPeriod } from "@/lib/period";
+import { t } from "@/i18n";
 
 /**
  * What the Planned number is made of, and a switch per budget.
@@ -46,7 +47,7 @@ export default function BudgetPlanned() {
     <Card>
       {list.map((r, i) => (
         <ToggleRow key={r.b.id} title={r.title} value={on} onChange={(v) => toggle(r.b, v)} style={i > 0 ? styles.divider : undefined}
-          subtitle={`${formatMinor(r.b.amount_minor, r.b.currency)} ${r.b.currency}${on ? ` · ${formatMinor(r.b.amount_minor - r.spent, r.b.currency)} left` : ""}`} />
+          subtitle={on ? t("budgets.planned.rowLeft", { amount: `${formatMinor(r.b.amount_minor, r.b.currency)} ${r.b.currency}`, left: formatMinor(r.b.amount_minor - r.spent, r.b.currency) }) : `${formatMinor(r.b.amount_minor, r.b.currency)} ${r.b.currency}`} />
       ))}
     </Card>
   );
@@ -55,20 +56,20 @@ export default function BudgetPlanned() {
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ModalHeader title="Planned" left={{ label: "Done", onPress: () => router.back() }} />
+      <ModalHeader title={t("budgets.planned.title")} left={{ label: t("common.done"), onPress: () => router.back() }} />
       <ScrollView contentContainerStyle={{ paddingBottom: S.xl }}>
         <StatPair stats={[
-          { label: "Planned", minor: planned.minor, currency: base, color: C.green },
-          { label: "Available", minor: available.minor, currency: base, color: available.minor < 0 ? C.red : undefined },
+          { label: t("budgets.planned.title"), minor: planned.minor, currency: base, color: C.green },
+          { label: t("budgets.available"), minor: available.minor, currency: base, color: available.minor < 0 ? C.red : undefined },
         ]} />
         <Text style={styles.intro}>
-          {counted.length === 1 ? "One budget is" : `${counted.length} budgets are`} counted{off.length ? `, ${off.length} left out` : ""}. A budget you switch off keeps its place and its bar on Budgets — it just stops counting towards these two numbers.
+          {off.length ? t("budgets.planned.countedOff", { count: counted.length, off: off.length }) : t("budgets.planned.counted", { count: counted.length })} {t("budgets.planned.intro")}
         </Text>
-        {counted.length ? <Text style={styles.sh}>Counted</Text> : null}
+        {counted.length ? <Text style={styles.sh}>{t("budgets.planned.countedHeader")}</Text> : null}
         {counted.length ? section(counted, true) : null}
-        {off.length ? <Text style={styles.sh}>Not counted</Text> : null}
+        {off.length ? <Text style={styles.sh}>{t("budgets.planned.notCountedHeader")}</Text> : null}
         {off.length ? section(off, false) : null}
-        {rows.length === 0 ? <Text style={styles.intro}>No budgets yet.</Text> : null}
+        {rows.length === 0 ? <Text style={styles.intro}>{t("budgets.planned.empty")}</Text> : null}
       </ScrollView>
     </View>
   );

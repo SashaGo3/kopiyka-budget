@@ -1,0 +1,82 @@
+{
+  "title": {
+    "message": "Transfer",
+    "note": "Small heading at the top of the transfer sheet."
+  },
+  "backA11y": {
+    "message": "Back to expense",
+    "note": "Button on a transfer opened from the entry sheet: go back to it."
+  },
+  "from": {
+    "message": "From",
+    "note": "Label of the card for the account the money leaves.",
+    "max": 12
+  },
+  "to": {
+    "message": "To",
+    "note": "Label of the card for the account the money arrives in.",
+    "max": 12
+  },
+  "legA11y": {
+    "message": "{role} {account}: {amount} {currency}",
+    "note": "VoiceOver label of one side; role is \"From\" or \"To\"."
+  },
+  "noAccount": "no account",
+  "chooseAccount": "choose an account",
+  "pickA11y": "{role}: {account}",
+  "balanceA11y": "Balance {balance} {currency}",
+  "balanceAfterA11y": "Balance {balance}, after {after} {currency}",
+  "rate": {
+    "plain": {
+      "message": "1 {from} = {rate} {to}",
+      "note": "Exchange rate line; from/to are currency codes."
+    },
+    "cached": "1 {from} = {rate} {to} (cached rate)",
+    "manual": {
+      "message": "1 {from} = {rate} {to} (manual)",
+      "note": "The receiving amount was typed by hand, so this is the rate it implies."
+    },
+    "ecb": {
+      "message": "1 {from} = {rate} {to} (ECB)",
+      "note": "ECB is the European Central Bank, where the rate comes from."
+    },
+    "fetching": "Fetching rate…"
+  },
+  "ecbRate": {
+    "message": "ECB rate",
+    "note": "Chip that goes back to the fetched rate after the receiving amount was typed by hand.",
+    "max": 16
+  },
+  "autoRate": {
+    "message": "Auto rate",
+    "max": 16
+  },
+  "category": {
+    "message": "Category",
+    "max": 16
+  },
+  "tags": {
+    "message": "Tags",
+    "max": 16
+  },
+  "editReceiving": {
+    "message": "Edit receiving",
+    "note": "Keypad key: type the amount that arrives instead.",
+    "max": 16
+  },
+  "sameAmount": {
+    "message": "Same amount",
+    "note": "Keypad key while both accounts share a currency: the amount arriving is the same.",
+    "max": 16
+  },
+  "editSending": {
+    "message": "Edit sending",
+    "note": "Keypad key: type the amount that leaves instead.",
+    "max": 16
+  },
+  "tapToSave": "Tap to save",
+  "tapToTransfer": "Tap to transfer",
+  "enterAmount": "Enter an amount",
+  "delete": "Delete transfer",
+  "deleteTitle": "Delete transfer?"
+}

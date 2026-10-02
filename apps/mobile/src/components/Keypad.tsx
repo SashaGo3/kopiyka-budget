@@ -2,8 +2,9 @@ import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Alert, Animated, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
-import { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr } from "@kopiyka/core";
+import { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr, numberFormat } from "@kopiyka/core";
 import { C, R, S } from "@/constants/theme";
+import { getLanguage, t } from "@/i18n";
 export { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr };
 
 /**
@@ -91,7 +92,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
     if (k === "±") { onToggleSign?.(); return; }
     if (k === "C") {
       if (!value) return;
-      Alert.alert("Clear amount?", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Clear", style: "destructive", onPress: () => { setOnWhole(false); onChange(""); } }]);
+      Alert.alert(t("keypad.clearTitle"), undefined, [{ text: t("common.cancel"), style: "cancel" }, { text: t("keypad.clear"), style: "destructive", onPress: () => { setOnWhole(false); onChange(""); } }]);
       return;
     }
     const decimals = (value.split(/[+−×÷]/).pop() ?? "").includes(".");
@@ -105,10 +106,13 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
     } else setOnWhole(false);
     onChange(applyKey(value, k), k);
   }, [value, onChange, onToggleSign, onWhole]);
+  // The key types "." whatever the language — the expression is the app's own — and only shows the
+  // decimal separator the amounts above it are written with.
+  const decimalChar = getLanguage() === "en" ? "." : ",";
   return (
     <View style={styles.wrap}>
       <View style={styles.ops}>
-        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? "Divide" : o === "×" ? "Multiply" : o === "−" ? "Subtract" : "Add"} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
+        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("keypad.divide") : o === "×" ? t("keypad.multiply") : o === "−" ? t("keypad.subtract") : t("keypad.add")} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
       </View>
       {GRID.map((row, i) => (
         <View key={i} style={styles.row}>
@@ -137,7 +141,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             const wide = k === "0";
             const fn = k === "⌫" || k === "C" || k === "±";
             if (k === "±" && !allowSign) return (
-              <View key={k} style={[styles.keySlot, styles.key, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel="Change sign" accessibilityState={{ disabled: true }}>
+              <View key={k} style={[styles.keySlot, styles.key, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel={t("keypad.changeSign")} accessibilityState={{ disabled: true }}>
                 <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
               </View>
             );
@@ -146,11 +150,11 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
               <View key={k} style={wide ? styles.wide : styles.keySlot}>
                 <AnimatedKey on={dot && dotOn} onPress={() => press(k)} onLongPress={k === "⌫" ? () => { setOnWhole(false); onChange(""); } : undefined}
                   style={styles.key} onStyle={dot ? styles.dotKey : undefined}
-                  a11y={k === "⌫" ? "Delete" : k === "C" ? "Clear" : k === "±" ? "Change sign" : dot ? (dotOn ? "Decimal point, typing decimals" : tail.includes(".") ? "Decimal point, typing whole units" : "Decimal point") : k}
+                  a11y={k === "⌫" ? t("keypad.delete") : k === "C" ? t("keypad.clear") : k === "±" ? t("keypad.changeSign") : dot ? (dotOn ? t("keypad.decimalTyping") : tail.includes(".") ? t("keypad.decimalWhole") : t("keypad.decimal")) : k}
                   a11yState={dot ? { selected: dotOn } : undefined}>
                   {k === "⌫" ? <SymbolView name="delete.left" size={22} tintColor={C.label} />
                     : k === "±" ? <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
-                    : <Text style={[styles.keyText, k === "C" && styles.clear, fn && styles.fnText, dot && dotOn && styles.dotText]} maxFontSizeMultiplier={1.3}>{k}</Text>}
+                    : <Text style={[styles.keyText, k === "C" && styles.clear, fn && styles.fnText, dot && dotOn && styles.dotText]} maxFontSizeMultiplier={1.3}>{dot ? decimalChar : k}</Text>}
                 </AnimatedKey>
               </View>
             );
@@ -167,7 +171,9 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
  * One line, shrinking to fit, because a long sum must stay readable next to a large amount.
  */
 export function CalcLine({ expr, style }: { expr: string; style?: StyleProp<TextStyle> }) {
-  const calc = formatExpr(expr);
+  // Display only: the expression keeps its ".", the line shows the language's separator.
+  const decimal = numberFormat().decimal;
+  const calc = decimal === "." ? formatExpr(expr) : formatExpr(expr).replace(/\./g, decimal);
   return <Text style={[styles.calc, style]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} accessibilityLabel={calc || undefined}>{calc || " "}</Text>;
 }
 

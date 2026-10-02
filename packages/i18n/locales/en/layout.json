@@ -1,0 +1,6 @@
+{
+  "$comment": "Screen titles set by the root navigator (src/app/_layout.tsx), and the screen shown when a screen crashes.",
+  "pending": "Pending",
+  "recurringDue": "Recurring due",
+  "error": { "title": "Something went wrong" }
+}

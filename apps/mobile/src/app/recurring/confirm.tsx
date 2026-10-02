@@ -6,6 +6,8 @@ import { BigButton, Money, Subtle, Title } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { catName, acctName } from "@/lib/names";
+import { t } from "@/i18n";
 
 /** Opened from a notification or the recurring list: post the due occurrence(s). */
 export default function RecurringConfirm() {
@@ -21,7 +23,7 @@ export default function RecurringConfirm() {
   }, [id, occurrence]);
   if (!data) return null;
   const { rule, account, cat, due } = data;
-  const title = rule.payee || cat?.name || "Recurring transaction";
+  const title = rule.payee || (cat ? catName(cat) : null) || t("recurring.confirmSheet.fallbackTitle");
 
   const post = (days: string[]) => {
     mutate((db) => {
@@ -37,13 +39,13 @@ export default function RecurringConfirm() {
       <View style={styles.top}>
         <Title>{title}</Title>
         <Money minor={rule.amount_minor} currency={account?.currency ?? ""} style={styles.amount} colored />
-        <Subtle>{account?.name} · {due.length > 1 ? `${due.length} occurrences due (${humanDayTime(due[0]!)} → ${humanDayTime(due[due.length - 1]!)})` : `due ${humanDayTime(due[0] ?? rule.next_date, rule.time_of_day)}`}</Subtle>
+        <Subtle>{acctName(account)} · {due.length > 1 ? t("recurring.confirmSheet.manyDue", { count: due.length, from: humanDayTime(due[0]!), to: humanDayTime(due[due.length - 1]!) }) : t("recurring.confirmSheet.due", { date: humanDayTime(due[0] ?? rule.next_date, rule.time_of_day) })}</Subtle>
       </View>
       <View style={{ gap: S.sm }}>
-        <BigButton label={due.length > 1 ? `Post all ${due.length}` : "Post transaction"} onPress={() => post(due.length ? due : [rule.next_date])} />
-        {due.length > 1 ? <BigButton label="Post only the latest" onPress={() => post([due[due.length - 1]!])} /> : null}
-        <BigButton label="Skip" destructive onPress={skip} />
-        <Text style={styles.hint}>Skipping moves the next date forward without adding a transaction.</Text>
+        <BigButton label={due.length > 1 ? t("recurring.postAll", { count: due.length }) : t("recurring.confirmSheet.post")} onPress={() => post(due.length ? due : [rule.next_date])} />
+        {due.length > 1 ? <BigButton label={t("recurring.confirmSheet.postLatest")} onPress={() => post([due[due.length - 1]!])} /> : null}
+        <BigButton label={t("recurring.skip")} destructive onPress={skip} />
+        <Text style={styles.hint}>{t("recurring.confirmSheet.skipHint")}</Text>
       </View>
     </View>
   );

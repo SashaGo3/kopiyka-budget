@@ -7,11 +7,14 @@ import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { catName } from "@/lib/names";
+import { t } from "@/i18n";
 
 /** How many recently used categories get a shortcut at the top before the full list starts. */
 const RECENT = 6;
 
-type Pickable = Category & { folder: Category | null; uses: number; isFolder: boolean };
+/** `label` and `folderLabel` are the names as shown (DATA.md rule 16); search matches them and the stored ones. */
+type Pickable = Category & { folder: Category | null; uses: number; isFolder: boolean; label: string; folderLabel: string | null };
 type Item =
   | { row: "header"; id: string; title: string; folder?: Category }
   | { row: "cat"; id: string; cat: Pickable; showFolder: boolean; indent?: boolean };
@@ -51,13 +54,16 @@ export default function PickCategory() {
     // transaction has no category at all.
     const list: Pickable[] = all
       .filter((c) => c.id === selected || (!retired.has(c.id) && (allowFolders || !folders.has(c.id)) && (c.kind === wanted || (c.parent_id && byId.get(c.parent_id)?.kind === wanted))))
-      .map((c) => ({ ...c, folder: c.parent_id ? byId.get(c.parent_id) ?? null : null, uses: usage.get(c.id) ?? 0, isFolder: folders.has(c.id) }));
+      .map((c) => {
+        const folder = c.parent_id ? byId.get(c.parent_id) ?? null : null;
+        return { ...c, folder, uses: usage.get(c.id) ?? 0, isFolder: folders.has(c.id), label: catName(c), folderLabel: folder ? catName(folder) : null };
+      });
 
     const out: Item[] = [];
     const current = list.find((c) => c.id === selected);
-    if (current) { out.push({ row: "header", id: "h-assigned", title: "Assigned" }, { row: "cat", id: `a-${current.id}`, cat: current, showFolder: true }); }
-    const recent = list.filter((c) => c.uses > 0 && c.id !== selected).sort((a, b) => b.uses - a.uses || a.name.localeCompare(b.name)).slice(0, RECENT);
-    if (recent.length) { out.push({ row: "header", id: "h-recent", title: "Recent" }); for (const c of recent) out.push({ row: "cat", id: `r-${c.id}`, cat: c, showFolder: true }); }
+    if (current) { out.push({ row: "header", id: "h-assigned", title: t("pick.category.assigned") }, { row: "cat", id: `a-${current.id}`, cat: current, showFolder: true }); }
+    const recent = list.filter((c) => c.uses > 0 && c.id !== selected).sort((a, b) => b.uses - a.uses || a.label.localeCompare(b.label)).slice(0, RECENT);
+    if (recent.length) { out.push({ row: "header", id: "h-recent", title: t("pick.category.recent") }); for (const c of recent) out.push({ row: "cat", id: `r-${c.id}`, cat: c, showFolder: true }); }
     // Then every category again, this time where it lives: one block per folder, in the folder
     // order of the Categories screen, with the loose ones last under a heading of their own. Where
     // a folder may be chosen it leads its own block as a row rather than a heading, and its
@@ -68,16 +74,16 @@ export default function PickCategory() {
       if (!kids.length) continue;
       const whole = list.find((c) => c.id === f.id);
       if (allowFolders && whole) out.push({ row: "cat", id: `g-${f.id}`, cat: whole, showFolder: false });
-      else out.push({ row: "header", id: `h-${f.id}`, title: f.name, folder: f });
+      else out.push({ row: "header", id: `h-${f.id}`, title: catName(f), folder: f });
       for (const c of kids) out.push({ row: "cat", id: `f-${c.id}`, cat: c, showFolder: false, indent: allowFolders });
     }
     const loose = list.filter((c) => !c.parent_id && !c.isFolder);
-    if (loose.length) { out.push({ row: "header", id: "h-loose", title: "No folder" }); for (const c of loose) out.push({ row: "cat", id: `l-${c.id}`, cat: c, showFolder: false }); }
+    if (loose.length) { out.push({ row: "header", id: "h-loose", title: t("pick.category.noFolder") }); for (const c of loose) out.push({ row: "cat", id: `l-${c.id}`, cat: c, showFolder: false }); }
     return { pickable: list, sections: out };
   }, [kind, selected, allowFolders]);
 
   const ql = q.trim().toLowerCase();
-  const found = useMemo(() => pickable.filter((c) => c.name.toLowerCase().includes(ql) || c.folder?.name.toLowerCase().includes(ql)), [pickable, ql]);
+  const found = useMemo(() => pickable.filter((c) => [c.label, c.name, c.folderLabel, c.folder?.name].some((n) => n?.toLowerCase().includes(ql))), [pickable, ql]);
   const data: Item[] = ql ? found.map((c) => ({ row: "cat" as const, id: `s-${c.id}`, cat: c, showFolder: true })) : sections;
   const chosen = useRef(false);
   const choose = (id: string | null) => { if (chosen.current) return; chosen.current = true; resolvePick(key, id); router.back(); };
@@ -87,7 +93,7 @@ export default function PickCategory() {
     if (ql.length < 3) return;
     // Never a folder: "the whole of Food" is a deliberate choice, not something to be jumped to.
     const leaves = pickable.filter((c) => !c.isFolder);
-    const starts = leaves.filter((c) => c.name.toLowerCase().startsWith(ql));
+    const starts = leaves.filter((c) => c.label.toLowerCase().startsWith(ql) || c.name.toLowerCase().startsWith(ql));
     const inc = found.filter((c) => !c.isFolder);
     const hit = starts.length === 1 ? starts[0] : starts.length === 0 ? (inc.length === 1 ? inc[0] : undefined) : undefined;
     if (hit) choose(hit.id);
@@ -106,30 +112,30 @@ export default function PickCategory() {
         <View>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Search categories" placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel="Search categories" />
+            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.category.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.category.search")} />
           </View>
-          {!ql ? <Pressable onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel="No category"><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>No category</Text>{!selected ? <Check /> : null}</Pressable> : null}
+          {!ql ? <Pressable onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("common.noCategory")}><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>{t("common.noCategory")}</Text>{!selected ? <Check /> : null}</Pressable> : null}
         </View>
       }
       renderItem={({ item }) => {
         if (item.row === "header") return (
           <View style={styles.headerRow}>
-            {item.folder ? <CategoryIcon name={item.folder.name} icon={item.folder.icon} color={item.folder.color} size={18} /> : null}
+            {item.folder ? <CategoryIcon name={catName(item.folder)} icon={item.folder.icon} color={item.folder.color} size={18} /> : null}
             <Text style={styles.header} numberOfLines={1}>{item.title}</Text>
           </View>
         );
         const c = item.cat;
         return (
-          <Pressable onPress={() => choose(c.id)} style={[styles.row, item.indent && styles.indent]} accessibilityRole="button" accessibilityLabel={c.isFolder ? `${c.name}, the whole folder` : c.folder ? `${c.name}, in ${c.folder.name}` : c.name} accessibilityState={{ selected: selected === c.id }}>
-            <CategoryIcon name={c.name} icon={c.icon} color={c.color} size={32} />
+          <Pressable onPress={() => choose(c.id)} style={[styles.row, item.indent && styles.indent]} accessibilityRole="button" accessibilityLabel={c.isFolder ? t("pick.category.wholeA11y", { name: c.label }) : c.folderLabel ? t("pick.category.inA11y", { name: c.label, folder: c.folderLabel }) : c.label} accessibilityState={{ selected: selected === c.id }}>
+            <CategoryIcon name={c.label} icon={c.icon} color={c.color} size={32} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.name} numberOfLines={1}>{c.name}</Text>
+              <Text style={styles.name} numberOfLines={1}>{c.label}</Text>
               {/* Only a budget may take a whole folder; elsewhere a folder can still appear as the
                   category an older row was filed under, and there it is just named for what it is. */}
-              {c.isFolder ? <Text style={styles.folder}>{allowFolders ? "Everything in this folder" : "Folder"}</Text> : item.showFolder && c.folder ? (
+              {c.isFolder ? <Text style={styles.folder}>{allowFolders ? t("pick.category.everything") : t("pick.category.folder")}</Text> : item.showFolder && c.folder ? (
                 <View style={styles.folderRow}>
-                  <CategoryIcon name={c.folder.name} icon={c.folder.icon} color={c.folder.color} size={14} />
-                  <Text style={styles.folder} numberOfLines={1}>{c.folder.name}</Text>
+                  <CategoryIcon name={c.folderLabel ?? c.folder.name} icon={c.folder.icon} color={c.folder.color} size={14} />
+                  <Text style={styles.folder} numberOfLines={1}>{c.folderLabel}</Text>
                 </View>
               ) : null}
             </View>
@@ -137,8 +143,8 @@ export default function PickCategory() {
           </Pressable>
         );
       }}
-      ListEmptyComponent={ql ? <Text style={styles.empty}>Nothing matches “{q.trim()}”.</Text> : null}
-      ListFooterComponent={<Pressable onPress={() => router.replace({ pathname: "/category/edit", params: { id: "new", pickKey: key, name: q.trim(), kind: kind === "income" ? "income" : "expense" } })} style={styles.row} accessibilityRole="button" accessibilityLabel={q.trim() ? `New category “${q.trim()}”` : "New category"}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{q.trim() ? `New category “${q.trim()}”` : "New category…"}</Text></Pressable>}
+      ListEmptyComponent={ql ? <Text style={styles.empty}>{t("pick.nothingMatches", { query: q.trim() })}</Text> : null}
+      ListFooterComponent={<Pressable onPress={() => router.replace({ pathname: "/category/edit", params: { id: "new", pickKey: key, name: q.trim(), kind: kind === "income" ? "income" : "expense" } })} style={styles.row} accessibilityRole="button" accessibilityLabel={q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.new")}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.newEllipsis")}</Text></Pressable>}
     />
   );
 }

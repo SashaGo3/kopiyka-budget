@@ -18,10 +18,24 @@ extension CLPlacemark {
   }
 }
 
+/// A dialog from text already in the app's language (`L10n`). Static metadata — titles, parameter
+/// names, descriptions — names its key as a literal instead, which iOS resolves in the phone's language.
+extension IntentDialog {
+  static func text(_ s: String) -> IntentDialog { IntentDialog(.verbatim(s)) }
+}
+
+extension LocalizedStringResource {
+  /// Finished text, shown as it is. There is no verbatim initialiser: `stringLiteral:` would treat the
+  /// text as a key (and a message that happened to equal one would be swapped for it), so the text is
+  /// the single argument of a "%@" looked up in a table that does not exist — which always falls back
+  /// to that format.
+  static func verbatim(_ s: String) -> LocalizedStringResource { LocalizedStringResource("\(s)", table: "KPVerbatim") }
+}
+
 enum KPKind: String, AppEnum {
   case expense, income
-  static var typeDisplayRepresentation: TypeDisplayRepresentation = "Type"
-  static var caseDisplayRepresentations: [KPKind: DisplayRepresentation] = [.expense: "Expense", .income: "Income"]
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "native.intents.kind.type"
+  static var caseDisplayRepresentations: [KPKind: DisplayRepresentation] = [.expense: "native.intents.kind.expense", .income: "native.intents.kind.income"]
 }
 
 // MARK: - Entities
@@ -30,7 +44,7 @@ struct KPAccountEntity: AppEntity {
   let id: String
   let name: String
   let currency: String
-  static var typeDisplayRepresentation: TypeDisplayRepresentation = "Account"
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "native.intents.entity.account"
   static var defaultQuery = KPAccountQuery()
   var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)", subtitle: "\(currency)") }
   init(_ a: KPWatchState.Account) { id = a.id; name = a.name; currency = a.currency }
@@ -48,13 +62,14 @@ struct KPCategoryEntity: AppEntity {
   let id: String
   let name: String
   let folder: String?
-  static var typeDisplayRepresentation: TypeDisplayRepresentation = "Category"
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "native.intents.entity.category"
   static var defaultQuery = KPCategoryQuery()
   var displayRepresentation: DisplayRepresentation {
-    DisplayRepresentation(title: "\(name)", subtitle: folder.map { "\($0)" } ?? (id == KPCategoryEntity.noneId ? "" : "Folder"))
+    DisplayRepresentation(title: "\(name)", subtitle: "\(folder ?? (id == KPCategoryEntity.noneId ? "" : L10n.Intents.folder))")
   }
   static let noneId = "none"
-  static let none = KPCategoryEntity(id: noneId, name: "No category", folder: nil)
+  /// Computed so its name is in the app's language at the time it is offered.
+  static var none: KPCategoryEntity { KPCategoryEntity(id: noneId, name: L10n.Intents.noCategory, folder: nil) }
   init(id: String, name: String, folder: String?) { self.id = id; self.name = name; self.folder = folder }
   init(_ c: KPWatchState.Category) { id = c.id; name = c.name; folder = c.parent_name }
   /// nil for the "No category" choice.
@@ -84,14 +99,14 @@ struct KPCategoryOptions: DynamicOptionsProvider {
 struct KPTagEntity: AppEntity {
   let id: String
   let name: String
-  static var typeDisplayRepresentation: TypeDisplayRepresentation = "Tag"
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "native.intents.entity.tag"
   static var defaultQuery = KPTagQuery()
   var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
   init(_ t: KPWatchState.Tag) { id = t.id; name = t.name }
   init(id: String, name: String) { self.id = id; self.name = name }
   /// Sentinel offered while asking for tags one by one.
   static let doneId = "done"
-  static let done = KPTagEntity(id: doneId, name: "No more tags")
+  static var done: KPTagEntity { KPTagEntity(id: doneId, name: L10n.Intents.noMoreTags) }
 }
 
 struct KPTagQuery: EntityStringQuery {
@@ -123,29 +138,29 @@ struct KPTagOptions: DynamicOptionsProvider {
 
 /// "Add expense": amount → category → tags. Works with the app closed (runs in the app process in the background).
 struct AddTransactionIntent: AppIntent {
-  static var title: LocalizedStringResource = "Add expense (no app open)"
-  static var description = IntentDescription("Log an expense or income: amount, then category, then tags — without opening the app.", categoryName: "Logging")
+  static var title: LocalizedStringResource = "native.intents.add.title"
+  static var description = IntentDescription("native.intents.add.description", categoryName: "native.intents.category.logging")
   static var openAppWhenRun = false
 
-  @Parameter(title: "Amount", requestValueDialog: "How much?")
+  @Parameter(title: "native.intents.param.amount", requestValueDialog: "native.intents.add.howMuch")
   var amount: Double
 
-  @Parameter(title: "Type", default: .expense)
+  @Parameter(title: "native.intents.param.type", default: .expense)
   var kind: KPKind
 
-  @Parameter(title: "Category", optionsProvider: KPCategoryOptions())
+  @Parameter(title: "native.intents.param.category", optionsProvider: KPCategoryOptions())
   var category: KPCategoryEntity?
 
-  @Parameter(title: "Tags", optionsProvider: KPTagOptions())
+  @Parameter(title: "native.intents.param.tags", optionsProvider: KPTagOptions())
   var tags: [KPTagEntity]?
 
-  @Parameter(title: "Account")
+  @Parameter(title: "native.intents.param.account")
   var account: KPAccountEntity?
 
-  @Parameter(title: "Note")
+  @Parameter(title: "native.intents.param.note")
   var note: String?
 
-  @Parameter(title: "Ask for category and tags", default: true)
+  @Parameter(title: "native.intents.param.ask", default: true)
   var ask: Bool
 
   private func trimmed(_ s: String?) -> String? {
@@ -167,14 +182,14 @@ struct AddTransactionIntent: AppIntent {
     WatchBridge.shared.activate()
     let state = KPStore.buildState()
     guard let acc = account.flatMap({ a in state.accounts.first { $0.id == a.id } }) ?? state.defaultAccount else {
-      return .result(dialog: "No accounts yet. Open Kopiyka on your iPhone first.")
+      return .result(dialog: .text(L10n.Intents.noAccounts))
     }
-    guard amount > 0 else { throw $amount.needsValueError("How much?") }
+    guard amount > 0 else { throw $amount.needsValueError(.text(L10n.Intents.Add.howMuch)) }
 
     var chosen = category
     if chosen == nil && ask {
       let options = KPRank.categories(state.categories, kind: kind.rawValue).map(KPCategoryEntity.init) + [.none]
-      if options.count > 1 { chosen = try await $category.requestDisambiguation(among: options, dialog: "Which category?") }
+      if options.count > 1 { chosen = try await $category.requestDisambiguation(among: options, dialog: .text(L10n.Intents.whichCategory)) }
     }
     // An unattended shortcut ("Ask for category and tags" off) whose note the database has seen before
     // files itself: the category, tags and place of the last entry filed under that same name. Nothing
@@ -192,7 +207,7 @@ struct AddTransactionIntent: AppIntent {
     if tags == nil && ask {
       var pool = KPRank.tags(state.tags, category: cat, categories: state.categories, together: state.together).map { KPTagEntity($0.tag) }
       while !pool.isEmpty {
-        let pick = try await $tags.requestDisambiguation(among: [.done] + pool, dialog: chosenTags.isEmpty ? "Any tags?" : "Another tag?")
+        let pick = try await $tags.requestDisambiguation(among: [.done] + pool, dialog: .text(chosenTags.isEmpty ? L10n.Intents.anyTags : L10n.Intents.anotherTag))
         if pick.id == KPTagEntity.doneId { break }
         chosenTags.append(pick)
         pool.removeAll { $0.id == pick.id }
@@ -203,16 +218,22 @@ struct AddTransactionIntent: AppIntent {
     let minor = KPFormat.minor(amount, acc.currency)
     let saved = await KPWrites.addTransaction(accountId: acc.id, amountMinor: kind == .expense ? -minor : minor, categoryId: cat?.id, tagIds: chosenTags.map(\.id),
                                               note: note, lat: history.lat, lon: history.lon, place: history.place, source: "siri")
-    guard saved.ok else { return .result(dialog: "Could not save\(saved.error.map { ": \($0)" } ?? ""). Open Kopiyka and try again.") }
+    guard saved.ok else { return .result(dialog: .text(saved.error.map { L10n.Intents.saveFailedWhy(reason: $0) } ?? L10n.Intents.saveFailed)) }
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)
     WatchBridge.shared.pushState()
 
-    var parts = ["Added \(KPFormat.money(amount, acc.currency))"]
-    if let c = cat { parts.append("for \(c.name)") }
-    if !chosenTags.isEmpty { parts.append(chosenTags.map { "#\($0.name)" }.joined(separator: " ")) }
-    if state.accounts.count > 1 { parts.append("to \(acc.name)") }
-    return .result(dialog: IntentDialog(stringLiteral: parts.joined(separator: " ") + "."))
+    let money = KPFormat.money(amount, acc.currency)
+    let toAccount = state.accounts.count > 1
+    var said: String
+    switch (cat, toAccount) {
+    case (let c?, true): said = L10n.Intents.addedCategoryAccount(amount: money, category: c.name, account: acc.name)
+    case (let c?, false): said = L10n.Intents.addedCategory(amount: money, category: c.name)
+    case (nil, true): said = L10n.Intents.addedAccount(amount: money, account: acc.name)
+    case (nil, false): said = L10n.Intents.added(amount: money)
+    }
+    if !chosenTags.isEmpty { said += " " + L10n.Intents.addedTags(tags: chosenTags.map { "#\($0.name)" }.joined(separator: " ")) }
+    return .result(dialog: .text(said))
   }
 }
 
@@ -220,14 +241,14 @@ struct AddTransactionIntent: AppIntent {
 /// receipt with Vision and the on-device model (KPReceipt); saved straight away as *pending* so a
 /// batch of receipts can be checked and confirmed together in the app (Transactions → Select → Confirm).
 struct ScanReceiptIntent: AppIntent {
-  static var title: LocalizedStringResource = "Scan receipt"
-  static var description = IntentDescription("Photograph a receipt: the amount, shop, items and category are read on the device and saved as a pending expense.", categoryName: "Logging")
+  static var title: LocalizedStringResource = "native.intents.scan.title"
+  static var description = IntentDescription("native.intents.scan.description", categoryName: "native.intents.category.logging")
   static var openAppWhenRun = false
 
-  @Parameter(title: "Receipt photo", supportedContentTypes: [.image])
+  @Parameter(title: "native.intents.param.photo", supportedContentTypes: [.image])
   var photo: IntentFile
 
-  @Parameter(title: "Account")
+  @Parameter(title: "native.intents.param.account")
   var account: KPAccountEntity?
 
   static var parameterSummary: some ParameterSummary {
@@ -238,21 +259,22 @@ struct ScanReceiptIntent: AppIntent {
     WatchBridge.shared.activate()
     let state = KPStore.buildState()
     guard let acc = account.flatMap({ a in state.accounts.first { $0.id == a.id } }) ?? state.defaultAccount else {
-      return .result(dialog: "No accounts yet. Open Kopiyka on your iPhone first.")
+      return .result(dialog: .text(L10n.Intents.noAccounts))
     }
-    guard let image = UIImage(data: photo.data) else { return .result(dialog: "That file is not a photo.") }
+    guard let image = UIImage(data: photo.data) else { return .result(dialog: .text(L10n.Intents.notAPhoto)) }
     let parse: KPReceipt.Parse
-    do { parse = try await KPReceipt.analyze(image: image) } catch { return .result(dialog: IntentDialog(stringLiteral: error.localizedDescription)) }
-    guard parse.total > 0 else { return .result(dialog: "Could not find the total on this receipt.") }
-    guard let saved = await KPReceipt.save(parse, account: (acc.id, acc.currency)) else { return .result(dialog: "Could not save. Open Kopiyka and try again.") }
+    do { parse = try await KPReceipt.analyze(image: image) } catch { return .result(dialog: .text(error.localizedDescription)) }
+    guard parse.total > 0 else { return .result(dialog: .text(L10n.Intents.noTotal)) }
+    guard let saved = await KPReceipt.save(parse, account: (acc.id, acc.currency)) else { return .result(dialog: .text(L10n.Intents.saveFailed)) }
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)
     WatchBridge.shared.pushState()
-    var parts = ["Saved \(KPFormat.money(KPFormat.major(saved.amountMinor, acc.currency), acc.currency)) at \(parse.merchant)"]
-    if let c = parse.category_name { parts.append("as \(c)") }
-    if saved.converted, let rc = parse.currency { parts.append("(\(String(format: "%.2f", parse.total)) \(rc))") }
-    parts.append("— pending, confirm it in Kopiyka.")
-    return .result(dialog: IntentDialog(stringLiteral: parts.joined(separator: " ")))
+    let money = KPFormat.money(KPFormat.major(saved.amountMinor, acc.currency), acc.currency)
+    var parts = [parse.category_name.map { L10n.Intents.scanSavedCategory(amount: money, merchant: parse.merchant, category: $0) }
+                 ?? L10n.Intents.scanSaved(amount: money, merchant: parse.merchant)]
+    if saved.converted, let rc = parse.currency { parts.append(L10n.Intents.scanOriginal(amount: KPFormat.money(parse.total, rc))) }
+    parts.append(L10n.Intents.scanPending)
+    return .result(dialog: .text(parts.joined(separator: " ")))
   }
 }
 
@@ -260,8 +282,8 @@ struct ScanReceiptIntent: AppIntent {
 /// that replaces itself with the app's own Log sheet, so Siri, the Action button and Shortcuts all
 /// land in exactly the same UI as the "+" button.
 struct OpenLogIntent: AppIntent {
-  static var title: LocalizedStringResource = "Add expense in the app"
-  static var description = IntentDescription("Opens Kopiyka on the new-expense sheet.", categoryName: "Logging")
+  static var title: LocalizedStringResource = "native.intents.open.title"
+  static var description = IntentDescription("native.intents.open.description", categoryName: "native.intents.category.logging")
   static var openAppWhenRun = true
   // `OpenURLIntent` refuses custom schemes ("URL scheme `kopiyka` is unsupported; launch is prohibited"),
   // so `openAppWhenRun` brings the app forward and the deep link is handed to React Native from
@@ -280,7 +302,7 @@ struct OpenLogIntent: AppIntent {
 struct KPIntentError: Error, CustomLocalizedStringResourceConvertible {
   let message: String
   init(_ message: String) { self.message = message }
-  var localizedStringResource: LocalizedStringResource { LocalizedStringResource(stringLiteral: message) }
+  var localizedStringResource: LocalizedStringResource { .verbatim(message) }
 }
 
 /// "Log payment from an app notification": the action a Shortcuts automation runs when the bank
@@ -314,42 +336,42 @@ struct KPIntentError: Error, CustomLocalizedStringResourceConvertible {
 /// itself never asks for a fix — it runs in the background off a notification, where Kopiyka's
 /// when-in-use permission grants nothing.
 struct LogPaymentIntent: AppIntent {
-  static var title: LocalizedStringResource = "Log payment from an app notification"
-  static var description = IntentDescription("Log a payment from a bank or Wallet notification. Made for the Shortcuts “When I receive a notification” automation: pass its Notification variable.", categoryName: "Logging")
+  static var title: LocalizedStringResource = "native.intents.payment.title"
+  static var description = IntentDescription("native.intents.payment.description", categoryName: "native.intents.category.logging")
   static var openAppWhenRun = false
 
-  @Parameter(title: "Notification")
+  @Parameter(title: "native.intents.param.notification")
   var notification: String?
 
-  @Parameter(title: "Title")
+  @Parameter(title: "native.intents.param.title")
   var alertTitle: String?
 
-  @Parameter(title: "Subtitle")
+  @Parameter(title: "native.intents.param.subtitle")
   var alertSubtitle: String?
 
-  @Parameter(title: "Message")
+  @Parameter(title: "native.intents.param.body")
   var alertBody: String?
 
-  @Parameter(title: "Amount")
+  @Parameter(title: "native.intents.param.amount")
   var amount: Double?
 
-  @Parameter(title: "Merchant")
+  @Parameter(title: "native.intents.param.merchant")
   var merchant: String?
 
-  @Parameter(title: "Card")
+  @Parameter(title: "native.intents.param.card")
   var card: String?
 
-  @Parameter(title: "Account")
+  @Parameter(title: "native.intents.param.account")
   var account: KPAccountEntity?
 
   /// Where the phone is, handed over by the automation. The intent never takes a fix of its own: it
   /// runs in the background on a notification, where when-in-use permission buys nothing, and a
   /// location request there would either hang or come back empty. Shortcuts' own "Get Current
   /// Location" action runs in the foreground of the automation and can, so it does the asking.
-  @Parameter(title: "Location", description: "Optional. Add “Get Current Location” before this action and put its result here, so the entry remembers where you paid.")
+  @Parameter(title: "native.intents.param.location", description: "native.intents.param.locationHelp")
   var location: CLPlacemark?
 
-  @Parameter(title: "Pending", default: true)
+  @Parameter(title: "native.intents.param.pending", default: true)
   var pending: Bool
 
   static var parameterSummary: some ParameterSummary {
@@ -389,7 +411,7 @@ struct LogPaymentIntent: AppIntent {
     guard let value else {
       if case .unreadable = outcome {
         KPParseLog.record(.unreadable, text: raw, note: "money named, no amount read")
-        throw KPIntentError("Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.")
+        throw KPIntentError(L10n.Intents.Payment.unreadable)
       }
       KPParseLog.record(.ignored, text: raw, note: "no amount, or money the bank is not charging")
       return .result()   // not a payment: the ordinary outcome, and it says nothing
@@ -400,7 +422,7 @@ struct LogPaymentIntent: AppIntent {
     let (accounts, currentAccount) = KPStore.accountList()
     guard let acc = resolveAccount(accounts, current: currentAccount, parsed: parsed) else {
       KPParseLog.record(.failed, text: raw, parse: parsed, note: "no account to put it on")
-      throw KPIntentError("No accounts in Kopiyka yet. Open it on your iPhone first.")
+      throw KPIntentError(L10n.Intents.Payment.noAccounts)
     }
 
     let shop = trimmed(merchant) ?? parsed?.merchant
@@ -431,7 +453,7 @@ struct LogPaymentIntent: AppIntent {
         // typed (the sheet's Save stays disabled at zero), and it cannot quietly distort a total in
         // the meantime — which writing the foreign number as if it were the account's currency did.
         charged = 0
-        currencyNote = "\(KPFormat.money(paid, from)) — no exchange rate, set the amount"
+        currencyNote = L10n.Intents.Payment.noRate(amount: KPFormat.money(paid, from))
       }
     }
     let minor = KPFormat.minor(charged, acc.currency)
@@ -542,7 +564,7 @@ struct LogPaymentIntent: AppIntent {
                                               enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, timeout: 4)
     guard saved.ok else {
       KPParseLog.record(.failed, text: raw, parse: parsed, account: acc.name, note: saved.error ?? "the app refused the write")
-      throw KPIntentError("Kopiyka could not save that payment\(saved.error.map { ": \($0)" } ?? ""). Open the app and add it by hand.")
+      throw KPIntentError(saved.error.map { L10n.Intents.Payment.saveFailedWhy(reason: $0) } ?? L10n.Intents.Payment.saveFailed)
     }
 
     // Say so, unless the user has turned it off. The automation runs with the app closed and used to
@@ -551,10 +573,11 @@ struct LogPaymentIntent: AppIntent {
     // sure it is — a guess and a pending row are exactly what wants a second pair of eyes.
     if KPStore.meta("shortcut_notify") != "0" {
       let name = categoryId.flatMap { id in KPStore.categories().first { $0.id == id }?.name }
-      let marks = [name, guessed ? "guess" : nil, pending && !known ? "pending" : nil].compactMap { $0 }
-      let body = ([KPFormat.money(abs(KPFormat.major(minor, acc.currency)), acc.currency) + " " + acc.currency, acc.name] + marks).joined(separator: " · ")
+      let marks = [name, guessed ? L10n.Notify.guess : nil, pending && !known ? L10n.Notify.pending : nil].compactMap { $0 }
+      // `money` already ends in the currency code.
+      let body = ([KPFormat.money(abs(KPFormat.major(minor, acc.currency)), acc.currency), acc.name] + marks).joined(separator: " · ")
       await KPNotify.payment(id: rowId,
-                             title: shop ?? (income ? "Payment received" : "Payment logged"),
+                             title: shop ?? (income ? L10n.Notify.received : L10n.Notify.logged),
                              body: body,
                              badge: saved.reply["pending"] as? Int ?? KPStore.pendingCount())
     }
@@ -630,9 +653,9 @@ struct KopiykaShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(intent: AddTransactionIntent(),
                 phrases: ["Add expense in \(.applicationName)", "Log expense in \(.applicationName)", "Add a transaction in \(.applicationName)"],
-                shortTitle: "Add expense", systemImageName: "plus.circle")
-    AppShortcut(intent: OpenLogIntent(), phrases: ["New expense in \(.applicationName)", "Open \(.applicationName) expense"], shortTitle: "Expense in app", systemImageName: "square.and.pencil")
-    AppShortcut(intent: ScanReceiptIntent(), phrases: ["Scan receipt in \(.applicationName)", "Scan a receipt with \(.applicationName)"], shortTitle: "Scan receipt", systemImageName: "doc.text.viewfinder")
-    AppShortcut(intent: LogPaymentIntent(), phrases: ["Log a payment in \(.applicationName)", "Log card payment in \(.applicationName)"], shortTitle: "Log payment", systemImageName: "creditcard")
+                shortTitle: "native.intents.shortcut.addExpense", systemImageName: "plus.circle")
+    AppShortcut(intent: OpenLogIntent(), phrases: ["New expense in \(.applicationName)", "Open \(.applicationName) expense"], shortTitle: "native.intents.shortcut.expenseInApp", systemImageName: "square.and.pencil")
+    AppShortcut(intent: ScanReceiptIntent(), phrases: ["Scan receipt in \(.applicationName)", "Scan a receipt with \(.applicationName)"], shortTitle: "native.intents.shortcut.scanReceipt", systemImageName: "doc.text.viewfinder")
+    AppShortcut(intent: LogPaymentIntent(), phrases: ["Log a payment in \(.applicationName)", "Log card payment in \(.applicationName)"], shortTitle: "native.intents.shortcut.logPayment", systemImageName: "creditcard")
   }
 }

@@ -9,8 +9,9 @@ import { Card, DeleteRow, Row, SectionHeader } from "@/components/ui";
 import { TripCard } from "@/components/TripCard";
 import { C, S } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
-import { endTravel, tripLine } from "@/lib/travel";
+import { endTravel, tripLine, tripName } from "@/lib/travel";
 import { nextDay } from "@/lib/filters";
+import { t } from "@/i18n";
 
 /**
  * One trip, and everything that can be changed about it: its budget (a trip rarely costs what was
@@ -34,56 +35,57 @@ export default function TripSettings() {
     const b = getRow(db, "budgets", id);
     if (!b || next === b.currency) return;
     void rateOrFallback(db, b.currency, next).then((r) => {
-      if (!r) { Alert.alert(`No exchange rate for ${next}`, "Connect to the internet once, or keep the budget in its currency."); return; }
+      if (!r) { Alert.alert(t("travel.start.noRateTitle", { currency: next }), t("travel.trip.noRateBody")); return; }
       change({ currency: next, amount_minor: toMinor(Math.round(fromMinor(b.amount_minor, b.currency) * r.rate * 100) / 100, next) });
-    }).catch(() => Alert.alert(`No exchange rate for ${next}`));
+    }).catch(() => Alert.alert(t("travel.start.noRateTitle", { currency: next })));
   }, [id, change]));
 
-  if (!trip || trip.deleted || !s) return <Stack.Screen options={{ title: "Travel" }} />;
+  if (!trip || trip.deleted || !s) return <Stack.Screen options={{ title: t("travel.settings.title") }} />;
   const active = !trip.ended;
+  const tripTitle = tripName(s);
   const outsideCount = jsonIds(trip.outside_ids).length;
   const fmt = (m: number) => `${formatMinor(m, trip.currency)} ${trip.currency}`;
   const last = trip.ended ?? trip.ends ?? trip.starts;
   // A past trip's purchases are looked for in its own days; a running one's in the months before it.
-  const addPurchases = () => router.push({ pathname: "/travel/backfill", params: { tag: trip.tag_id ?? "", name: s.name,
+  const addPurchases = () => router.push({ pathname: "/travel/backfill", params: { tag: trip.tag_id ?? "", name: tripTitle,
     ...(active ? {} : { from: trip.starts, to: nextDay(last) }) } });
-  const end = () => Alert.alert(`End travel mode for ${s.name}?`, `${tripLine(s)}. New expenses stop getting the “${s.name}” tag; it stays here as history.`, [
-    { text: "Keep travelling", style: "cancel" },
-    { text: "End it", style: "destructive", onPress: () => endTravel(trip.id) },
+  const end = () => Alert.alert(t("travel.trip.endTitle", { name: tripTitle }), t("travel.trip.endBody", { line: tripLine(s), name: tripTitle }), [
+    { text: t("travel.trip.keep"), style: "cancel" },
+    { text: t("travel.trip.endIt"), style: "destructive", onPress: () => endTravel(trip.id) },
   ]);
-  const del = () => Alert.alert(`Remove ${s.name}?`, "Only the travel budget goes. The tag and every transaction with it stay.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Remove", style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", trip.id)); router.back(); } },
+  const del = () => Alert.alert(t("travel.trip.removeTitle", { name: tripTitle }), t("travel.trip.removeBody"), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("travel.trip.remove"), style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", trip.id)); router.back(); } },
   ]);
 
   return (
     <>
-      <Stack.Screen options={{ title: s.name }} />
+      <Stack.Screen options={{ title: tripTitle }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingTop: S.md, paddingBottom: 120 }}>
         <TripCard budget={trip} />
-        <SectionHeader>Budget</SectionHeader>
+        <SectionHeader>{t("travel.trip.budget")}</SectionHeader>
         <Card>
-          <Row icon="banknote" iconColor="#34C759" title="Amount" subtitle={fmt(trip.amount_minor)}
-            onPress={() => router.push({ pathname: "/pick/amount", params: { key: keys.amount, title: `Budget for ${s.name}`, currency: trip.currency, value: String(trip.amount_minor) } })} />
-          <Row icon="dollarsign.circle" iconColor="#0A84FF" title="Currency" subtitle={`${trip.currency} · payments in any currency are converted`} style={styles.divider}
-            onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: trip.currency, title: "Budget currency" } })} />
-          <Row icon="calendar" iconColor="#FF9F0A" title="Dates" subtitle={`${humanDayTime(trip.starts, null, undefined, true)} → ${humanDayTime(last, null, undefined, true)}`} style={styles.divider}
+          <Row icon="banknote" iconColor="#34C759" title={t("travel.trip.amount")} subtitle={fmt(trip.amount_minor)}
+            onPress={() => router.push({ pathname: "/pick/amount", params: { key: keys.amount, title: t("travel.trip.amountTitle", { name: tripTitle }), currency: trip.currency, value: String(trip.amount_minor) } })} />
+          <Row icon="dollarsign.circle" iconColor="#0A84FF" title={t("travel.trip.currency")} subtitle={t("travel.trip.currencyHint", { currency: trip.currency })} style={styles.divider}
+            onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: trip.currency, title: t("travel.start.currency") } })} />
+          <Row icon="calendar" iconColor="#FF9F0A" title={t("travel.trip.dates")} subtitle={`${humanDayTime(trip.starts, null, undefined, true)} → ${humanDayTime(last, null, undefined, true)}`} style={styles.divider}
             onPress={() => router.push({ pathname: "/travel/dates", params: { budget: trip.id } })} />
         </Card>
-        <SectionHeader>Transactions</SectionHeader>
+        <SectionHeader>{t("travel.trip.transactions")}</SectionHeader>
         <Card>
-          <Row icon="plus.circle" iconColor="#0A84FF" title="Add purchases to it" subtitle={active ? "Flights, hotels, tickets bought beforehand" : "Pick the ones from those days"} onPress={addPurchases} />
-          <Row icon="rectangle.portrait.and.arrow.right" iconColor="#5E5CE6" title="Outside the budget" style={styles.divider}
-            subtitle={outsideCount ? `${outsideCount} payment${outsideCount === 1 ? "" : "s"} · ${fmt(s.outside_minor)}` : "Everything counts"}
+          <Row icon="plus.circle" iconColor="#0A84FF" title={t("travel.trip.addPurchases")} subtitle={active ? t("travel.trip.addPurchasesHint") : t("travel.trip.addPurchasesPast")} onPress={addPurchases} />
+          <Row icon="rectangle.portrait.and.arrow.right" iconColor="#5E5CE6" title={t("travel.outside.title")} style={styles.divider}
+            subtitle={outsideCount ? t("travel.trip.outsideCount", { count: outsideCount, amount: fmt(s.outside_minor) }) : t("travel.outside.everything")}
             onPress={() => router.push({ pathname: "/travel/outside", params: { id: trip.id } })} />
         </Card>
-        <Text style={styles.hint}>Paid for the trip but not from its budget — the flights booked months ago, say. Choose them one by one.</Text>
+        <Text style={styles.hint}>{t("travel.trip.outsideHint")}</Text>
         {active ? (
           <Card style={{ marginTop: S.xl }}>
-            <Row icon="stop.circle" iconColor="#FF3B30" title="End travel mode" subtitle="New expenses stop getting the travel tag" destructive onPress={end} />
+            <Row icon="stop.circle" iconColor="#FF3B30" title={t("travel.trip.end")} subtitle={t("travel.trip.endHint")} destructive onPress={end} />
           </Card>
         ) : (
-          <View style={{ marginTop: S.xl }}><DeleteRow label="Remove this travel" onPress={del} /></View>
+          <View style={{ marginTop: S.xl }}><DeleteRow label={t("travel.trip.removeThis")} onPress={del} /></View>
         )}
       </ScrollView>
     </>

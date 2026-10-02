@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
@@ -14,7 +14,9 @@ import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
 import { maybeShowWhatsNew } from "@/lib/whatsNew";
+import { needsOnboarding } from "@/lib/onboarding";
 import { isPad, screenContentStyle } from "@/constants/layout";
+import { t, useLanguage } from "@/i18n";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
 markAppCodeStart();
@@ -64,6 +66,22 @@ export default function RootLayout() {
   const scheme = useColorScheme();
   // `+native-intent` navigates warm deep links itself, and needs the navigation state to do it.
   registerNavigationRef(useNavigationContainerRef());
+  // A new language mounts the whole tree again (see src/i18n): every screen, every memoised label.
+  // The navigator starts over with it, so go back to where languages are changed — Settings, or the
+  // restore that brought a different one in, which also lives there — or, before the welcome flow is
+  // finished, to its first step, which has a language switch of its own.
+  // What this layout wrote outside the tree is in the old language too: the widget snapshot and the
+  // watch state carry names, and JS-scheduled reminders carry their text.
+  const lang = useLanguage();
+  const firstLang = useRef(lang);
+  useEffect(() => {
+    if (lang === firstLang.current) return;
+    firstLang.current = lang;
+    const id = setTimeout(() => router.navigate(needsOnboarding() ? "/onboarding" : "/settings"), 0);
+    writeWidgetSnapshot();
+    void (require("@/lib/notifications") as typeof import("@/lib/notifications")).rescheduleRecurringNotifications(); // eslint-disable-line @typescript-eslint/no-require-imports
+    return () => clearTimeout(id);
+  }, [lang]);
   useEffect(() => {
     // Startup-only work waits for the first frame (and any deep-linked sheet on top of it) to paint,
     // so a cold launch is never delayed by it. BootSkeleton's safety timeout guarantees this still
@@ -108,15 +126,15 @@ export default function RootLayout() {
   }, []);
   return (
     <ThemeProvider value={scheme === "dark" ? darkTheme : lightTheme}>
-      <View style={{ flex: 1 }}>
+      <View key={lang} style={{ flex: 1 }}>
         <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
           {/* A short read of variable length: a half sheet that can be dragged up, not a full card. */}
           <Stack.Screen name="whats-new" options={medium} />
-          <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: "Back" }} />
-          <Stack.Screen name="pending" options={{ ...pushed, title: "Pending", headerBackTitle: "Back" }} />
+          <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: t("common.back") }} />
+          <Stack.Screen name="pending" options={{ ...pushed, title: t("layout.pending"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
           <Stack.Screen name="transaction/split" options={modal} />
           {/* A list that has to be read before it is agreed to, so a full card rather than a sheet. */}
@@ -142,7 +160,7 @@ export default function RootLayout() {
           <Stack.Screen name="photo/view" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="recurring/[id]" options={modal} />
           <Stack.Screen name="recurring/confirm" options={fit} />
-          <Stack.Screen name="recurring/due" options={{ ...pushed, title: "Recurring due", headerBackTitle: "Back" }} />
+          <Stack.Screen name="recurring/due" options={{ ...pushed, title: t("layout.recurringDue"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="pick/category" options={picker} />
           <Stack.Screen name="pick/icon" options={picker} />
           <Stack.Screen name="pick/color" options={picker} />
@@ -182,10 +200,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   useEffect(() => { recordCrash(error, false); }, [error]);
   return (
     <View style={errorStyles.screen}>
-      <Text style={errorStyles.title}>Something went wrong</Text>
+      <Text style={errorStyles.title}>{t("layout.error.title")}</Text>
       <Text style={errorStyles.message}>{error.message}</Text>
-      <Pressable onPress={() => void retry()} accessibilityRole="button" accessibilityLabel="Try again" style={({ pressed }) => [errorStyles.button, pressed && { opacity: 0.7 }]}>
-        <Text style={errorStyles.buttonText}>Try again</Text>
+      <Pressable onPress={() => void retry()} accessibilityRole="button" accessibilityLabel={t("common.retry")} style={({ pressed }) => [errorStyles.button, pressed && { opacity: 0.7 }]}>
+        <Text style={errorStyles.buttonText}>{t("common.retry")}</Text>
       </Pressable>
     </View>
   );

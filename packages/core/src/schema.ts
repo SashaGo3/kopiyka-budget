@@ -1,4 +1,5 @@
 import type { SqlDriver } from "./db";
+import { presetBackfillSql } from "./presetData";
 
 const SYNC_COLS = `id TEXT PRIMARY KEY, updated_at INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0`;
 
@@ -151,6 +152,19 @@ export const MIGRATIONS: string[][] = [
     // v17: a trip's payments that stay outside its budget — the flights booked months ago, say —
     // chosen one by one, because whether something paid beforehand belongs in it depends. JSON ids.
     `ALTER TABLE budgets ADD COLUMN outside_ids TEXT NOT NULL DEFAULT '[]'`,
+  ],
+  [
+    // v18: which ready-made category a row was created from ("food.groceries"), so it can be shown in
+    // the app's language for as long as it keeps the preset's name (presets.ts, DATA.md rule 16).
+    // NULL for everything the user made. The rest tags what earlier builds seeded in English, without
+    // touching updated_at.
+    `ALTER TABLE categories ADD COLUMN preset TEXT`,
+    ...presetBackfillSql(),
+    // `language` means a choice made in Settings from v18 on. Nothing in 1.0.2 wrote it; 1.0.1 did,
+    // with the phone's language at first launch whether or not anyone picked it, so whatever a
+    // database reaching v18 still holds is that leftover — and would pin the app to it. A choice
+    // made in 1.0.3 is written to a database already at v18, which never runs this again.
+    `DELETE FROM meta WHERE key='language'`,
   ],
 ];
 

@@ -1,0 +1,18 @@
+{
+  "discard": {
+    "flowTitle": "Відкинути введене?",
+    "flowBody": "Нічого ще не збережено.",
+    "keepGoing": "Продовжити",
+    "discard": "Відкинути",
+    "changesTitle": "Відкинути зміни?",
+    "changesBody": "Зміни тут ще не збережено.",
+    "keepEditing": "Редагувати далі"
+  },
+  "watch": {
+    "transfer": "Переказ",
+    "uncategorized": "Без категорії"
+  },
+  "widget": {
+    "everything": "Усе"
+  }
+}

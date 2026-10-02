@@ -5,8 +5,9 @@ import { SymbolView } from "expo-symbols";
 import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { TagPill } from "@/components/ui";
+import { HeaderBar, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 /**
  * Multi-select tags in a half sheet. With a category chosen, tags assigned to that
@@ -26,7 +27,7 @@ export default function PickTags() {
     // A retired tag is not offered, but one already on this transaction stays in the list so it can
     // still be seen — and taken off, which is the only thing left to do with it.
     const keep = new Set(selected ? selected.split(",").filter(Boolean) : []);
-    const rows = listRows(db, "tags", "deleted=0", [], "name").filter((t) => !t.archived || keep.has(t.id));
+    const rows = listRows(db, "tags", "deleted=0", [], "name").filter((tg) => !tg.archived || keep.has(tg.id));
     const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
     const recent = db.all<{ tag_ids: string }>(`SELECT tag_ids FROM transactions WHERE deleted=0 AND date>=? AND tag_ids<>'[]'`, [since]);
     const usage = new Map<string, number>();
@@ -38,11 +39,11 @@ export default function PickTags() {
     if (category) for (const r of db.all<{ tag_ids: string }>(`SELECT t.tag_ids FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE t.deleted=0 AND t.tag_ids<>'[]' AND (t.category_id=? OR c.parent_id=? OR t.category_id=?)`, [category, category, cat?.parent_id ?? ""])) {
       for (const id of jsonIds(r.tag_ids)) withCat.set(id, (withCat.get(id) ?? 0) + 1);
     }
-    const rank = (t: { id: string; category_ids: string }) => { const ids = jsonIds(t.category_ids); return ids.length && !ids.some((id) => scope.has(id)) ? 2 : ids.length || withCat.has(t.id) ? 0 : 1; };
+    const rank = (tg: { id: string; category_ids: string }) => { const ids = jsonIds(tg.category_ids); return ids.length && !ids.some((id) => scope.has(id)) ? 2 : ids.length || withCat.has(tg.id) ? 0 : 1; };
     // Tags the transaction already has come first so the ticks are visible without scrolling.
     const initial = new Set(selected ? selected.split(",").filter(Boolean) : []);
     const trips = new Set(tripTagIds(db));
-    return rows.map((t) => ({ ...t, rank: rank(t), together: withCat.get(t.id) ?? 0, travel: trips.has(t.id) && !initial.has(t.id) })).filter((t) => t.rank < 2 || chosen.includes(t.id))
+    return rows.map((tg) => ({ ...tg, rank: rank(tg), together: withCat.get(tg.id) ?? 0, travel: trips.has(tg.id) && !initial.has(tg.id) })).filter((tg) => tg.rank < 2 || chosen.includes(tg.id))
       .sort((a, b) => Number(initial.has(b.id)) - Number(initial.has(a.id)) || Number(a.travel) - Number(b.travel) || a.rank - b.rank || b.together - a.together || (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.name.localeCompare(b.name));
   }, [category, selected]);
   // Sorted after the query so the rest of the order is untouched (Array#sort is stable).
@@ -51,56 +52,51 @@ export default function PickTags() {
     const at = (id: string) => { const i = created.indexOf(id); return i < 0 ? created.length : created.length - 1 - i; }; // newest first, everything else after
     return [...tags].sort((a, b) => at(a.id) - at(b.id));
   }, [tags, created]);
-  const filtered = q ? ordered.filter((t) => t.name.toLowerCase().includes(q.toLowerCase())) : ordered;
+  const filtered = q ? ordered.filter((tg) => tg.name.toLowerCase().includes(q.toLowerCase())) : ordered;
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
-  const canCreate = !!q.trim() && !tags.some((t) => t.name.toLowerCase() === q.trim().toLowerCase());
+  const canCreate = !!q.trim() && !tags.some((tg) => tg.name.toLowerCase() === q.trim().toLowerCase());
   const make = () => mutate((db) => createTag(db, { name: q.trim(), ...(category ? { category_ids: JSON.stringify([category]) } : null) }));
   const create = () => {
     if (!q.trim()) return;
-    const t = make();
-    setChosen((c) => [...c, t.id]); setCreated((c) => [...c, t.id]); setQ("");
+    const tag = make();
+    setChosen((c) => [...c, tag.id]); setCreated((c) => [...c, tag.id]); setQ("");
   };
   // A name typed that matches nothing is the tag being asked for: Done makes it rather than leaving
   // it behind in the search field, where it would be thrown away with the sheet.
   const done = () => { resolvePick(key, canCreate ? [...chosen, make().id] : chosen); router.back(); };
   return (
-    <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={filtered} keyExtractor={(t) => t.id} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets stickyHeaderIndices={[0]}
+    <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={filtered} keyExtractor={(tg) => tg.id} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets stickyHeaderIndices={[0]}
       ListHeaderComponent={
         <View style={{ backgroundColor: C.bgGrouped }}>
-          <View style={styles.head}>
-            <View style={styles.side} />
-            <Text style={styles.title}>Tags</Text>
-            <View style={[styles.side, { alignItems: "flex-end" }]}><Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done" style={styles.doneBtn}><Text style={styles.done}>Done{chosen.length + (canCreate ? 1 : 0) ? ` (${chosen.length + (canCreate ? 1 : 0)})` : ""}</Text></Pressable></View>
-          </View>
+          <HeaderBar style={styles.head} title={t("pick.tags.title")}
+            right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><Text style={styles.done} numberOfLines={1} maxFontSizeMultiplier={1.3}>{chosen.length + (canCreate ? 1 : 0) ? t("pick.doneCount", { count: chosen.length + (canCreate ? 1 : 0) }) : t("common.done")}</Text></Pressable>} />
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Search or type a new tag" placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel="Search tags" />
+            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.tags.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel={t("pick.tags.searchA11y")} />
           </View>
-          {canCreate ? <Pressable onPress={create} style={styles.row} accessibilityRole="button"><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>Create “{q.trim()}”</Text></Pressable> : null}
+          {canCreate ? <Pressable onPress={create} style={styles.row} accessibilityRole="button"><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{t("pick.tags.create", { name: q.trim() })}</Text></Pressable> : null}
         </View>
       }
-      renderItem={({ item: t, index }) => (
+      renderItem={({ item: tg, index }) => (
         <>
-          {category && !t.travel && index === 0 && t.rank === 0 ? <Text style={styles.section}>Used with this category</Text> : null}
-          {category && !t.travel && t.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>Other tags</Text> : null}
-          {t.travel && (index === 0 || !filtered[index - 1]!.travel) ? <Text style={styles.section}>Travel</Text> : null}
-          <Pressable onPress={() => toggle(t.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={t.name} accessibilityState={{ selected: chosen.includes(t.id) }}>
-            <TagPill name={t.name} color={t.color} />
-            <Text style={styles.count}>{t.together ? `${t.together}×` : ""}</Text>
+          {category && !tg.travel && index === 0 && tg.rank === 0 ? <Text style={styles.section}>{t("pick.tags.usedWith")}</Text> : null}
+          {category && !tg.travel && tg.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>{t("pick.tags.other")}</Text> : null}
+          {tg.travel && (index === 0 || !filtered[index - 1]!.travel) ? <Text style={styles.section}>{t("pick.tags.travel")}</Text> : null}
+          <Pressable onPress={() => toggle(tg.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={tg.name} accessibilityState={{ selected: chosen.includes(tg.id) }}>
+            <TagPill name={tg.name} color={tg.color} />
+            <Text style={styles.count}>{tg.together ? `${tg.together}×` : ""}</Text>
             <View style={{ flex: 1 }} />
-            <SymbolView name={chosen.includes(t.id) ? "checkmark.circle.fill" : "circle"} size={22} tintColor={chosen.includes(t.id) ? C.tint : C.tertiary} />
+            <SymbolView name={chosen.includes(tg.id) ? "checkmark.circle.fill" : "circle"} size={22} tintColor={chosen.includes(tg.id) ? C.tint : C.tertiary} />
           </Pressable>
         </>
       )}
-      ListEmptyComponent={<Text style={styles.empty}>No tags yet. Type a name above to create one.</Text>}
+      ListEmptyComponent={<Text style={styles.empty}>{t("pick.tags.empty")}</Text>}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg, paddingTop: S.md },
-  side: { width: 90 },
-  title: { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: C.label },
+  head: { paddingTop: S.md },
   count: { fontSize: 12, color: C.tertiary },
   doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
   done: { color: C.onTint, fontSize: 15, fontWeight: "700" },

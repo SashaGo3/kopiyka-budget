@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kopiyka",
     "slug": "kopiyka",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kopiyka",
@@ -35,7 +35,7 @@
         "UIApplicationShortcutItems": [
           {
             "UIApplicationShortcutItemType": "dev.kopiyka.log",
-            "UIApplicationShortcutItemTitle": "Log expense",
+            "UIApplicationShortcutItemTitle": "quickActionLog",
             "UIApplicationShortcutItemIconSymbolName": "plus.circle"
           }
         ]
@@ -54,7 +54,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "42"
+      "buildNumber": "43"
     },
     "android": {
       "package": "dev.kopiyka.app",

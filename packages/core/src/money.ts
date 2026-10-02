@@ -23,15 +23,24 @@ export function parseAmount(text: string, currency: string): number | null {
   return toMinor(n, currency);
 }
 
+/**
+ * The separators `formatMinor` uses unless told otherwise: "1 234.56" in English, "1 234,56" in
+ * Ukrainian. Set by the app when its language changes; a file format (CSV, a backup) passes its own
+ * explicitly and never depends on what the screen happens to be showing.
+ */
+let defaults = { decimal: ".", grouping: " " };
+export function setNumberFormat(f: { decimal: string; grouping: string }): void { defaults = { ...f }; }
+export function numberFormat(): { decimal: string; grouping: string } { return defaults; }
+
 /** Plain formatting without Intl so it behaves identically in Hermes and Bun. */
-export function formatMinor(minor: number, currency: string, opts: { sign?: boolean; grouping?: string } = {}): string {
+export function formatMinor(minor: number, currency: string, opts: { sign?: boolean; grouping?: string; decimal?: string } = {}): string {
   const d = currencyDecimals(currency);
   const neg = minor < 0;
   const abs = Math.abs(minor).toString().padStart(d + 1, "0");
   const int = d ? abs.slice(0, -d) : abs;
   const frac = d ? abs.slice(-d) : "";
-  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, opts.grouping ?? " ");
-  const body = frac ? `${grouped}.${frac}` : grouped;
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, opts.grouping ?? defaults.grouping);
+  const body = frac ? `${grouped}${opts.decimal ?? defaults.decimal}${frac}` : grouped;
   const sign = neg ? "-" : opts.sign ? "+" : "";
   return `${sign}${body}`;
 }

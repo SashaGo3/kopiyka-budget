@@ -1,0 +1,95 @@
+{
+  "categories": {
+    "title": "Categories, ready to go",
+    "subtitle": "{categories, plural, one {# category} other {# categories}} in {folders, plural, one {# folder} other {# folders}}, each with a short description so Siri and the watch can match them. Rename, add or remove any later.",
+    "add": "Add these categories",
+    "none": "Start with none",
+    "income": {
+      "message": "income",
+      "note": "Small lowercase label after a folder name: this folder holds income, not spending."
+    }
+  },
+  "stepA11y": {
+    "message": "Step {step} of {count}",
+    "note": "VoiceOver label of the progress dots at the top of the welcome flow."
+  },
+  "continue": "Continue",
+  "restore": {
+    "busy": "Restoring…",
+    "done": "Backup restored",
+    "failed": "Could not restore",
+    "continue": "Continue"
+  },
+  "welcome": {
+    "title": {
+      "message": "Kopiyka",
+      "note": "The app's name, as the big title of the first screen."
+    },
+    "subtitle": "Local-first budgeting. Set up in under a minute.",
+    "localTitle": "Yours, on your phone",
+    "localText": "Every number stays on the device. No sign-up, no servers.",
+    "quickTitle": "Log in two taps",
+    "quickText": "From the watch, Siri, a Shortcut or a photo of the receipt.",
+    "quickTextNoReceipt": "From the watch, Siri or a Shortcut.",
+    "icloudTitle": "Backed up to iCloud",
+    "icloudText": "A copy is saved to your iCloud Drive every day, up to seven times a day.",
+    "start": "Get started",
+    "restoringCloud": "Restoring from iCloud…",
+    "restore": "Restore from a backup",
+    "cloudRestored": "Restored from iCloud",
+    "cloudRestoredBody": {
+      "message": "Your data as of {date}.\n\n{summary}",
+      "note": "date is when the backup was made (\"22 Sep\"); summary is what was imported, already translated."
+    },
+    "startFresh": "Start fresh instead",
+    "languageA11y": {
+      "message": "Language: {name}",
+      "note": "VoiceOver label of the language switch on the first screen; name is the language in its own language (\"English\")."
+    }
+  },
+  "location": {
+    "title": "Remember where you spend",
+    "subtitle": "Kopiyka can offer the category you used at the same place last time. iOS asks next — either answer is fine, and the app works fully without it.",
+    "homeTitle": "Where is home?",
+    "homeSubtitle": {
+      "message": "Anything gets bought at home, so nothing is suggested within {radius} m of it. Set it now if you are there, or later in Settings.",
+      "note": "radius is a number of metres."
+    },
+    "asking": "Asking…",
+    "pickedTitle": "The category, already picked",
+    "pickedText": "Log something where you logged something before and that category is waiting on the keypad.",
+    "openTitle": "Only while the app is open",
+    "openText": "Kopiyka never asks for background location and cannot see where you are once it is closed.",
+    "localTitle": "It stays on this phone",
+    "localText": "The place is saved beside the entry in the local database, like every other number here.",
+    "notSet": "Not set yet",
+    "homeHere": "Nothing is suggested within {radius} m of here.",
+    "homeNone": "Nothing is left out until you set it.",
+    "useInsteadA11y": "Use current location as home instead",
+    "useA11y": "Use my current location as home",
+    "reading": "Reading location…",
+    "useInstead": "Use current location instead",
+    "use": "Use my current location",
+    "noFixTitle": "No location yet",
+    "noFixBody": "The phone has not got a fix yet. It usually comes within a few seconds of granting access, and works best away from thick walls — try again in a moment, or set home later in Settings."
+  },
+  "account": {
+    "title": "Your main account",
+    "subtitle": "What is on it right now becomes the opening balance. More accounts can be added later in Settings.",
+    "continueWith": {
+      "message": "Continue with {amount} {currency}",
+      "note": "amount is formatted, currency is a code (\"UAH\")."
+    },
+    "continueZero": "Continue with 0",
+    "restore": "I have a backup to restore",
+    "namePlaceholder": "Account name",
+    "currencyA11y": {
+      "message": "Currency: {currency}",
+      "note": "currency is a code (\"UAH\")."
+    },
+    "balanceIn": {
+      "message": "Balance now in",
+      "note": "Followed by the currency code and name: \"Balance now in UAH · Ukrainian hryvnia\"."
+    }
+  }
+}

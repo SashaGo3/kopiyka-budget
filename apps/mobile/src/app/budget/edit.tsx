@@ -12,12 +12,14 @@ import { monthBounds, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
 import { getPeriodStartDay } from "@/lib/period";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
+import { catName, acctName } from "@/lib/names";
 
 export default function BudgetEdit() {
   const { id, account } = useLocalSearchParams<{ id: string; account?: string }>();
   const existing = id === "new" ? null : getRow(db, "budgets", id) ?? null;
   const accountId = existing ? existing.account_id : account || null;
-  const accountName = useQuery((d) => (accountId ? getRow(d, "accounts", accountId)?.name ?? null : null), [accountId]);
+  const accountName = useQuery((d) => (accountId ? acctName(getRow(d, "accounts", accountId)) ?? null : null), [accountId]);
   const [categoryIds, setCategoryIds] = useState<string[]>(() => (existing ? budgetCategoryIds(existing) : []));
   const [tagId, setTagId] = useState<string | null>(existing?.tag_id ?? null);
   // A name of its own, for the budget whose categories do not explain it. Empty falls back to the
@@ -33,11 +35,12 @@ export default function BudgetEdit() {
   const startDay = getPeriodStartDay();
   // One name reads better than a count, so the names are spelled out until there are too many of them.
   const catNames = useQuery((d) => {
-    const cats = new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, c.name]));
-    return categoryIds.map((cid) => (cid === "none" ? "Uncategorized" : cats.get(cid) ?? "?"));
+    const cats = new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, catName(c)]));
+    return categoryIds.map((cid) => (cid === "none" ? t("budgets.title.uncategorized") : cats.get(cid) ?? "?"));
   }, [categoryIds.join(",")]);
-  const scopeLabel = catNames.length === 0 ? null : catNames.length <= 2 ? catNames.join(", ") : `${catNames.length} categories`;
+  const scopeLabel = catNames.length === 0 ? null : catNames.length <= 2 ? catNames.join(", ") : t("budgets.edit.categoriesCount", { count: catNames.length });
   const suggestion = useQuery((d) => suggestBudget(d, { categoryIds, tagId, currency, accountIds: accountId ? [accountId] : undefined, startDay }), [categoryIds.join(","), tagId, currency, accountId, startDay]);
+  const covers = tag ? `#${tag.name}` : scopeLabel ?? t("budgets.title.everything");
   const roundToWhole = (m: number) => Math.round(fromMinor(m, currency));
   const pick = (label: string, minor: number) => (
     <Chip key={label} compact label={`${label} · ${group(roundToWhole(minor))}`} onPress={() => setExpr(String(roundToWhole(minor)))} />
@@ -50,8 +53,8 @@ export default function BudgetEdit() {
   usePickResult<string>(tagKey, (v: string) => { setTagId(v); setCategoryIds([]); });
   const pickTag = () => {
     const tags = listRows(db, "tags", "deleted=0", [], "name");
-    if (!tags.length) { Alert.alert("No tags yet", "Create a tag in Settings → Tags first."); return; }
-    router.push({ pathname: "/pick/option", params: { key: tagKey, title: "Budget for a tag", selected: tagId ?? "", options: JSON.stringify(tags.map((t) => ({ value: t.id, label: t.name, subtitle: "Every expense with this tag counts" }))) } });
+    if (!tags.length) { Alert.alert(t("budgets.edit.noTagsTitle"), t("budgets.edit.noTagsBody")); return; }
+    router.push({ pathname: "/pick/option", params: { key: tagKey, title: t("budgets.edit.tagPickerTitle"), selected: tagId ?? "", options: JSON.stringify(tags.map((x) => ({ value: x.id, label: x.name, subtitle: t("budgets.edit.tagPickerSubtitle") }))) } });
   };
   // `evalPartial`, as on the Log sheet: "900−" already means 900, and the field shows what is saved.
   const value = evalPartial(expr);
@@ -66,30 +69,36 @@ export default function BudgetEdit() {
     });
     leave();
   };
-  const del = () => existing && Alert.alert("Delete budget?", undefined, [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", existing.id)); leave(); } },
+  const del = () => existing && Alert.alert(t("budgets.edit.deleteTitle"), undefined, [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", existing.id)); leave(); } },
   ]);
   return (
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title numberOfLines={2}>{name.trim() || (tag ? `#${tag.name}` : scopeLabel ?? "Everything")}</Title>
-          <Subtle>{name.trim() ? `${tag ? `#${tag.name}` : scopeLabel ?? "Everything"} · ` : ""}Monthly limit in {currency}{startDay > 1 ? ` · periods start on the ${startDay}th` : ""}{accountName ? ` · only for ${accountName}` : ""}{counted ? "" : " · not counted in Planned"}</Subtle>
+          <Title numberOfLines={2}>{name.trim() || covers}</Title>
+          <Subtle>{[
+            name.trim() ? covers : null,
+            t("budgets.edit.monthlyLimit", { currency }),
+            startDay > 1 ? t("budgets.edit.periodStart", { day: startDay }) : null,
+            accountName ? t("budgets.edit.onlyFor", { account: accountName }) : null,
+            counted ? null : t("budgets.edit.notCounted"),
+          ].filter(Boolean).join(" · ")}</Subtle>
           {suggestion ? (
             <View style={styles.suggest}>
-              <Subtle>Suggested</Subtle>
+              <Subtle>{t("budgets.edit.suggested")}</Subtle>
               {/* The averages first, shortest window to longest, then the two extremes. Each chip
                   names the number of months it covers rather than claiming "a year" or "all time"
                   over whatever history happens to exist; the longer ones are dropped when they would
                   only repeat a shorter one. */}
               <ChipRow>
-                {pick(`Avg ${months(suggestion.periods)}`, suggestion.average_minor)}
-                {suggestion.year_minor !== null ? pick(`Avg ${months(suggestion.year_periods)}`, suggestion.year_minor) : null}
-                {suggestion.all_periods > Math.max(suggestion.year_periods, suggestion.periods) ? pick(`Avg all ${months(suggestion.all_periods)}`, suggestion.all_minor) : null}
-                {pick("Last month", suggestion.last_minor)}
-                {pick("Highest", suggestion.max_minor)}
-                {suggestion.min_minor !== suggestion.max_minor ? pick("Lowest", suggestion.min_minor) : null}
+                {pick(t("budgets.edit.avg", { count: suggestion.periods }), suggestion.average_minor)}
+                {suggestion.year_minor !== null ? pick(t("budgets.edit.avg", { count: suggestion.year_periods }), suggestion.year_minor) : null}
+                {suggestion.all_periods > Math.max(suggestion.year_periods, suggestion.periods) ? pick(t("budgets.edit.avgAll", { count: suggestion.all_periods }), suggestion.all_minor) : null}
+                {pick(t("budgets.edit.lastMonth"), suggestion.last_minor)}
+                {pick(t("budgets.edit.highest"), suggestion.max_minor)}
+                {suggestion.min_minor !== suggestion.max_minor ? pick(t("budgets.edit.lowest"), suggestion.min_minor) : null}
               </ChipRow>
             </View>
           ) : null}
@@ -102,21 +111,21 @@ export default function BudgetEdit() {
           <ChipRow>
             {/* The multi-picker resolves a fully ticked folder back to the folder's own id, which is
                 exactly what a budget wants: "this folder, including categories added later". */}
-            <Chip icon="folder" label={scopeLabel ?? "Categories"} active={categoryIds.length > 0}
-              onPress={() => router.push({ pathname: "/pick/categories", params: { key, selected: categoryIds.join(","), title: "Budget for" } })} />
-            <Chip icon="number" label={tag?.name ?? "Tag"} active={!!tag} onPress={pickTag} />
-            <Chip icon="asterisk" label="All spending" active={!categoryIds.length && !tag} onPress={() => { setCategoryIds([]); setTagId(null); }} />
+            <Chip icon="folder" label={scopeLabel ?? t("budgets.edit.categories")} active={categoryIds.length > 0}
+              onPress={() => router.push({ pathname: "/pick/categories", params: { key, selected: categoryIds.join(","), title: t("budgets.edit.categoryPickerTitle") } })} />
+            <Chip icon="number" label={tag?.name ?? t("budgets.edit.tag")} active={!!tag} onPress={pickTag} />
+            <Chip icon="asterisk" label={t("budgets.edit.allSpending")} active={!categoryIds.length && !tag} onPress={() => { setCategoryIds([]); setTagId(null); }} />
           </ChipRow>
           <ChipRow>
-            <Chip icon="textformat" label={name.trim() || "Name"} active={!!name.trim()}
-              onPress={() => router.push({ pathname: "/pick/text", params: { key: nameKey, title: "Budget name", value: name } })} />
+            <Chip icon="textformat" label={name.trim() || t("budgets.edit.name")} active={!!name.trim()}
+              onPress={() => router.push({ pathname: "/pick/text", params: { key: nameKey, title: t("budgets.edit.nameTitle"), value: name } })} />
             {/* A limit you keep as a yardstick still shows its own bar; it just stays out of the two
                 numbers at the top, where it would otherwise read as money set aside. */}
-            <Chip icon={counted ? "sum" : "eye.slash"} label={counted ? "In Planned" : "Not in Planned"} active={counted} onPress={() => setCounted((v) => !v)} />
+            <Chip icon={counted ? "sum" : "eye.slash"} label={counted ? t("budgets.edit.inPlanned") : t("budgets.edit.notInPlanned")} active={counted} onPress={() => setCounted((v) => !v)} />
           </ChipRow>
           <Keypad value={expr} onChange={setExpr} allowSign={false} />
-          <ConfirmBar amount={`${shown} ${currency}`} label={existing ? "Tap to save" : "Tap to add budget"} onPress={commit} disabled={!valid} />
-          {existing ? <DeleteRow label="Delete budget" onPress={del} /> : null}
+          <ConfirmBar amount={`${shown} ${currency}`} label={existing ? t("budgets.edit.tapToSave") : t("budgets.edit.tapToAdd")} onPress={commit} disabled={!valid} />
+          {existing ? <DeleteRow label={t("budgets.edit.delete")} onPress={del} /> : null}
         </>
       }
     />
@@ -124,7 +133,6 @@ export default function BudgetEdit() {
 }
 
 function group(n: number): string { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
-function months(n: number): string { return `${n} month${n === 1 ? "" : "s"}`; }
 
 const styles = StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.md, gap: 4 },

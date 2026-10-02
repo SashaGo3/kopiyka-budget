@@ -1,0 +1,31 @@
+{
+  "title": "Переказ",
+  "backA11y": "Назад до витрати",
+  "from": "Звідки",
+  "to": "Куди",
+  "legA11y": "{role} {account}: {amount} {currency}",
+  "noAccount": "без рахунку",
+  "chooseAccount": "виберіть рахунок",
+  "pickA11y": "{role}: {account}",
+  "balanceA11y": "Баланс {balance} {currency}",
+  "balanceAfterA11y": "Баланс {balance}, після — {after} {currency}",
+  "rate": {
+    "plain": "1 {from} = {rate} {to}",
+    "cached": "1 {from} = {rate} {to} (збережений курс)",
+    "manual": "1 {from} = {rate} {to} (вручну)",
+    "ecb": "1 {from} = {rate} {to} (ЄЦБ)",
+    "fetching": "Отримуємо курс…"
+  },
+  "ecbRate": "Курс ЄЦБ",
+  "autoRate": "Автокурс",
+  "category": "Категорія",
+  "tags": "Теги",
+  "editReceiving": "Сума зарахування",
+  "sameAmount": "Та сама сума",
+  "editSending": "Сума списання",
+  "tapToSave": "Торкніться, щоб зберегти",
+  "tapToTransfer": "Торкніться, щоб переказати",
+  "enterAmount": "Введіть суму",
+  "delete": "Видалити переказ",
+  "deleteTitle": "Видалити переказ?"
+}

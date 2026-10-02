@@ -1,0 +1,110 @@
+{
+  "$comment": "The invented dataset the App Store screenshots are taken over (apps/mobile/scripts/screenshots/demo-data.ts). Every name, shop, note and person a screenshot shows comes from here; the numbers, dates and coordinates live in the script, per language. A key is a slot, not a word: `shop.groceries1` is whichever supermarket the persona of that language shops at most, so a translation picks a local shop rather than translating the English one. Plain text only.",
+  "account": {
+    "main": "Main",
+    "cash": "Cash",
+    "savings": "Savings",
+    "card": { "message": "Revolut", "note": "The card in US dollars." },
+    "joint": "Joint",
+    "group": { "message": "Family", "note": "The account group the joint account sits in." }
+  },
+  "tag": {
+    "lunch": "Lunch",
+    "work": "Work",
+    "weekend": "Weekend",
+    "gift": "Gift",
+    "kids": "Kids",
+    "coffee": "Coffee"
+  },
+  "category": {
+    "classes": { "name": "Portuguese classes", "description": "Portuguese language classes" },
+    "padel": { "name": "Padel", "description": "padel court booking" }
+  },
+  "home": { "message": "Rua da Prata, Lisboa", "note": "The persona's home address, shown as the home location." },
+  "shop": {
+    "groceries1": { "name": "Pingo Doce", "place": "Pingo Doce, Av. da Liberdade" },
+    "groceries2": { "name": "Continente", "place": "Continente, Almirante Reis" },
+    "groceries3": { "name": "Lidl", "place": "Lidl, Alcântara" },
+    "groceries4": { "name": "Mercado da Ribeira", "place": "Mercado da Ribeira, Cais do Sodré" },
+    "coffee1": { "name": "Starbucks", "place": "Starbucks, Rossio" },
+    "coffee2": { "name": "A Brasileira", "place": "A Brasileira, Chiado" },
+    "lunch1": { "name": "Time Out Market", "place": "Time Out Market, Cais do Sodré" },
+    "lunch2": { "name": "Cervejaria Ramiro", "place": "Cervejaria Ramiro, Intendente" },
+    "dinner1": { "name": "Time Out Market", "place": "Time Out Market, Cais do Sodré" },
+    "dinner2": { "name": "Cervejaria Ramiro", "place": "Cervejaria Ramiro, Intendente" },
+    "dinner3": { "name": "A Brasileira", "place": "A Brasileira, Chiado" },
+    "taxi1": { "name": "Uber", "place": "Uber" },
+    "taxi2": { "name": "Bolt", "place": "Bolt" },
+    "metro": { "name": "Metro Lisboa", "place": "Metro Lisboa, Baixa-Chiado" },
+    "fuel": { "name": "Galp", "place": "Galp, Av. Almirante Reis" },
+    "clothes": { "name": "Zara", "place": "Zara, Chiado" },
+    "electronics": { "name": "FNAC", "place": "FNAC, Chiado" },
+    "hobbies": { "name": "Decathlon", "place": "Decathlon, Amoreiras" },
+    "furniture": { "name": "IKEA", "place": "IKEA, Alfragide" },
+    "household": { "name": "IKEA", "place": "IKEA, Alfragide" },
+    "pharmacy": { "name": "Farmácia", "place": "Farmácia, Baixa" },
+    "cinema": { "name": "Cinema São Jorge", "place": "Cinema São Jorge, Av. da Liberdade" },
+    "presents1": { "name": "Florista", "place": "Florista, Chiado" },
+    "presents2": { "name": "Livraria Bertrand", "place": "Livraria Bertrand, Chiado" },
+    "kids1": { "name": "H&M Kids", "place": "H&M, Chiado" },
+    "kids2": { "name": "Chicco", "place": "Chicco, Colombo" }
+  },
+  "card": {
+    "$comment": "Online shops charging the US-dollar card.",
+    "apple": "Apple",
+    "amazon": "Amazon.com",
+    "adobe": "Adobe"
+  },
+  "trip": {
+    "past": {
+      "name": { "message": "Madrid", "note": "A finished trip, two months ago. Doubles as its tag's name.", "max": 30 },
+      "hotel": "Hotel Madrid",
+      "dinner": "Dinner, Madrid",
+      "museum": "Museo del Prado",
+      "metro": "Metro Madrid"
+    },
+    "current": {
+      "name": { "message": "Porto weekend", "note": "The trip running today, shown on the travel screenshot. Doubles as its tag's name.", "max": 30 },
+      "train": "Train CP",
+      "hotel": "Hotel",
+      "dinner": "Dinner, Porto",
+      "tasting": "Port wine tasting",
+      "lunch": "Francesinha",
+      "extra": { "message": "Vinho verde", "note": "An extra trip expense only the Ukrainian set shows; English leaves it out." }
+    }
+  },
+  "transfer": { "message": "Savings", "note": "The note on the monthly transfer to savings." },
+  "rule": {
+    "rent": "Rent",
+    "icloud": "iCloud",
+    "spotify": "Spotify",
+    "netflix": "Netflix",
+    "gym": "Gym",
+    "phone": "Vodafone",
+    "energy": "EDP energy",
+    "salary": "Salary",
+    "carInsurance": "Car insurance"
+  },
+  "debt": {
+    "d1": { "person": "Oleksandr", "note": "Concert tickets" },
+    "d2": { "person": "Daryna", "note": "Bike" },
+    "d3": { "person": "Olga", "note": "Dinner in NYC" },
+    "d4": { "person": "Maksym", "note": "Padel court" },
+    "d5": { "person": "Oleski", "note": "Lunch" },
+    "d6": { "person": "Azuki", "note": "Festival ticket" },
+    "d7": { "person": "Pusik" },
+    "d8": { "person": "Siri", "note": "Cinema" }
+  },
+  "goal": { "message": "Emergency fund", "note": "The savings goal card on Insights." },
+  "extra": {
+    "$comment": "Entries only the Ukrainian set shows (the user asked for these exact words there). English leaves them out, so these English values never reach a screenshot.",
+    "trousers": "Trousers for 40 hryvnias",
+    "chocolate": "Chocolate bar",
+    "gambler": "Young gambler starter kit",
+    "teeth": "Treating milk teeth after the chocolate"
+  },
+  "capture": {
+    "logAmount": { "message": "14.50", "note": "The amount typed on the entry-sheet and Apple Watch screenshots: digits and a dot only, in the language's own currency." },
+    "logNote": { "message": "Lunch at Time Out Market", "note": "The note on the entry-sheet screenshot." }
+  }
+}

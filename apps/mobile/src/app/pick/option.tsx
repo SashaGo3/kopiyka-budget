@@ -4,6 +4,7 @@ import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, Row } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 export interface Option {
   value: string; label: string; subtitle?: string;
@@ -19,7 +20,7 @@ export default function PickOption() {
   try { list = JSON.parse(options ?? "[]"); } catch { list = []; }
   return (
     <FlatList style={{ backgroundColor: C.bgGrouped }} data={list} keyExtractor={(o) => o.value} contentContainerStyle={{ paddingTop: S.sm, paddingBottom: 40 }}
-      ListHeaderComponent={<Text style={styles.title}>{title ?? "Choose"}</Text>}
+      ListHeaderComponent={<Text style={styles.title}>{title ?? t("pick.option.title")}</Text>}
       renderItem={({ item: o }) => (
         <Row title={o.label} subtitle={o.subtitle} style={[{ backgroundColor: "transparent" }, o.indent && styles.indent]} onPress={() => { resolvePick(key, o.value); router.back(); }}
           left={o.icon !== undefined || o.color !== undefined ? <CategoryIcon name={o.label} icon={o.icon} color={o.color} size={28} /> : undefined}

@@ -16,6 +16,8 @@ import { getBaseCurrency, useRates } from "@/lib/rates";
 import { useCloudRefresh } from "@/lib/backup";
 import { getBudgetScope, getBudgetsSections, setBudgetScope, type BudgetsSection } from "@/lib/settings";
 import { scopeAccount, scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
+import { catName } from "@/lib/names";
+import { t } from "@/i18n";
 
 type Line = { id: string | null; name: string; spent: number; icon: string | null; color: string | null };
 /** A line of the Spending list: a folder, or — with `trip` set to its tag — everything a trip paid for. */
@@ -41,18 +43,19 @@ export default function BudgetsScreen() {
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
   usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), []));
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: "Spending from", options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
+  const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: t("budgets.scopePicker"), options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
   // The same gesture as on Transactions, and the same hook behind it: re-read the database and look
   // in iCloud for what another device has backed up.
   const { refreshing, onRefresh } = useCloudRefresh();
   // The running trip lives on Transactions now, at the top of the list it is filling; what stays here
   // is the history, at the bottom.
-  const pastTrips = useQuery((db) => listTrips(db)).filter((t) => t.ended);
+  const pastTrips = useQuery((db) => listTrips(db)).filter((x) => x.ended);
   const [pastOpen, setPastOpen] = useState(false);
   const data = useQuery((db) => {
     const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
-    const tags = new Map(listRows(db, "tags", "1=1").map((t) => [t.id, t]));
+    const tags = new Map(listRows(db, "tags", "1=1").map((x) => [x.id, x]));
+    const nm = (c: { name: string; preset?: string | null } | undefined) => (c ? catName(c) : undefined);
     const rows = budgetRows(db, { start, end, accountIds: scopeIds, budgetAccount }).map((r) => {
       const b = r.budget;
       const ids = budgetCategoryIds(b);
@@ -69,21 +72,21 @@ export default function BudgetsScreen() {
         const id = scoped ? sc?.id ?? null : top?.id ?? null;
         // "Direct" only makes sense against a single named scope — with several, each line is named.
         const name = scoped
-          ? (one && sc?.id === one.id ? "Direct" : sc?.name ?? "Uncategorized")
-          : top?.name ?? "Uncategorized";
+          ? (one && sc?.id === one.id ? t("budgets.direct") : nm(sc) ?? t("budgets.title.uncategorized"))
+          : nm(top) ?? t("budgets.title.uncategorized");
         const e = merged.get(id ?? "none") ?? { id, name, spent: 0, icon: ref?.icon ?? null, color: ref?.color ?? null };
         e.spent += ch.spent_minor; merged.set(id ?? "none", e);
       }
-      const scopeName = ids.map((cid) => (cid === "none" ? "Uncategorized" : cats.get(cid)?.name ?? "?")).join(", ");
+      const scopeName = ids.map((cid) => (cid === "none" ? t("budgets.title.uncategorized") : nm(cats.get(cid)) ?? "?")).join(", ");
       // One entry per thing the budget was scoped to, in the order it was picked. A folder is one
       // entry wearing its own icon: a budget on a folder is not a budget on a list of categories.
       const scopeIcons = ids.map((cid) => {
         const sc = cid === "none" ? undefined : cats.get(cid);
-        return { name: sc?.name ?? "Uncategorized", icon: sc?.icon ?? null, color: sc?.color ?? null };
+        return { name: nm(sc) ?? t("budgets.title.uncategorized"), icon: sc?.icon ?? null, color: sc?.color ?? null };
       });
-      return { id: b.id, name: b.name?.trim() || (tag ? tag.name : scopeName || "Everything"), named: !!b.name?.trim(), counted: b.in_planned !== 0, tag: tag?.id ?? null,
+      return { id: b.id, name: b.name?.trim() || (tag ? tag.name : scopeName || t("budgets.title.everything")), named: !!b.name?.trim(), counted: b.in_planned !== 0, tag: tag?.id ?? null,
         // The folder above it places a single category; several of them place themselves.
-        parent: tag ? "Tag" : one?.parent_id ? cats.get(one.parent_id)?.name ?? null : null,
+        parent: tag ? t("budgets.edit.tag") : one?.parent_id ? nm(cats.get(one.parent_id)) ?? null : null,
         currency: b.currency, limit: b.amount_minor, spent: r.spent_minor,
         icon: tag ? "number" : one?.icon ?? null, color: tag ? tagColor(tag.name, tag.color) : one?.color ?? null,
         // Several categories have no one icon between them, so the row shows the pile (a tag has its own).
@@ -97,9 +100,9 @@ export default function BudgetsScreen() {
       const c = s.category_id ? cats.get(s.category_id) : undefined;
       const top = c?.parent_id ? cats.get(c.parent_id) : c;
       const key = `${top?.id ?? "none"}|${s.currency}`;
-      const g = groups.get(key) ?? { id: top?.id ?? null, name: top?.name ?? "Uncategorized", currency: s.currency, spent: 0, icon: top?.icon ?? null, color: top?.color ?? null, children: [] };
+      const g = groups.get(key) ?? { id: top?.id ?? null, name: nm(top) ?? t("budgets.title.uncategorized"), currency: s.currency, spent: 0, icon: top?.icon ?? null, color: top?.color ?? null, children: [] };
       g.spent += -s.spent_minor;
-      g.children.push({ id: c?.id ?? null, name: c ? (c.id === top?.id ? "Direct" : c.name) : "Uncategorized", spent: -s.spent_minor, icon: c?.icon ?? null, color: c?.color ?? null });
+      g.children.push({ id: c?.id ?? null, name: c ? (c.id === top?.id ? t("budgets.direct") : catName(c)) : t("budgets.title.uncategorized"), spent: -s.spent_minor, icon: c?.icon ?? null, color: c?.color ?? null });
       groups.set(key, g);
     }
     for (const tagId of trips) {
@@ -107,9 +110,9 @@ export default function BudgetsScreen() {
       for (const s of tagSpend(db, tagId, { fromIso: start, toIso: end, accountIds: scopeIds, oneOff: true })) {
         const c = s.category_id ? cats.get(s.category_id) : undefined;
         const key = `trip:${tagId}|${s.currency}`;
-        const g = groups.get(key) ?? { id: null, trip: tagId, name: tag?.name ?? "Travel", currency: s.currency, spent: 0, icon: "airplane", color: "#0A84FF", children: [] };
+        const g = groups.get(key) ?? { id: null, trip: tagId, name: tag?.name ?? t("budgets.travel"), currency: s.currency, spent: 0, icon: "airplane", color: "#0A84FF", children: [] };
         g.spent += -s.spent_minor;
-        g.children.push({ id: c?.id ?? null, name: c?.name ?? "Uncategorized", spent: -s.spent_minor, icon: c?.icon ?? null, color: c?.color ?? null });
+        g.children.push({ id: c?.id ?? null, name: nm(c) ?? t("budgets.title.uncategorized"), spent: -s.spent_minor, icon: c?.icon ?? null, color: c?.color ?? null });
         groups.set(key, g);
       }
     }
@@ -144,22 +147,22 @@ export default function BudgetsScreen() {
       <>
           {data.rows.length ? (
             <StatPair stats={[
-              { label: data.rows.length > counted.length ? `Planned · ${counted.length} of ${data.rows.length}` : "Planned", minor: planned.minor, currency: base, color: C.green, onPress: () => router.push("/budget/planned") },
-              { label: "Available", minor: available.minor, currency: base, color: available.minor < 0 ? C.orange : undefined, onPress: () => router.push("/budget/planned") },
+              { label: data.rows.length > counted.length ? t("budgets.plannedOf", { counted: counted.length, total: data.rows.length }) : t("budgets.planned.title"), minor: planned.minor, currency: base, color: C.green, onPress: () => router.push("/budget/planned") },
+              { label: t("budgets.available"), minor: available.minor, currency: base, color: available.minor < 0 ? C.orange : undefined, onPress: () => router.push("/budget/planned") },
             ]} />
           ) : null}
           {/* Worth knowing, not a scolding: going over one line is usually made up somewhere else. */}
           {exceeded ? (
             <View style={[styles.note, styles.noteRow]}>
               <SymbolView name="lightbulb" size={16} tintColor={C.orange} />
-              <Text style={[styles.noteText, { flex: 1 }]}>{exceeded === 1 ? (ended ? "One budget went over" : "One budget has gone over") : ended ? `${exceeded} budgets went over` : `${exceeded} budgets have gone over`}{ended ? " — something to keep in mind next time." : " — worth keeping in mind for the rest of the month."}</Text>
+              <Text style={[styles.noteText, { flex: 1 }]}>{ended ? t("budgets.exceededEnded", { count: exceeded }) : t("budgets.exceeded", { count: exceeded })}</Text>
             </View>
           ) : null}
-          {data.rows.length === 0 ? <Empty title={budgetAccount ? `No budgets for ${scopeName} yet` : "No budgets yet"} hint="Set a limit for a category or for everything; it renews every period." /> : null}
+          {data.rows.length === 0 ? <Empty title={budgetAccount ? t("budgets.emptyFor", { account: scopeName }) : t("budgets.empty")} hint={t("budgets.emptyHint")} /> : null}
           {data.rows.length ? (
             <SectionHeader right={data.rows.length > 1 || data.spending.length || pastTrips.length
-              ? <Pressable onPress={() => router.push("/budget/reorder")} hitSlop={8} accessibilityRole="button" accessibilityLabel="Reorder budgets"><Text style={styles.addText}>Reorder</Text></Pressable>
-              : undefined}>Monthly · {period.subtitle ?? period.title}{scope ? ` · ${scopeName}` : ""}</SectionHeader>
+              ? <Pressable onPress={() => router.push("/budget/reorder")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("budgets.reorder.title")}><Text style={styles.addText}>{t("budgets.reorder.button")}</Text></Pressable>
+              : undefined}>{scope ? t("budgets.monthlyScoped", { period: period.subtitle ?? period.title, scope: scopeName }) : t("budgets.monthly", { period: period.subtitle ?? period.title })}</SectionHeader>
           ) : null}
           {data.rows.map((b, bi) => {
             const ratio = b.limit > 0 ? Math.min(1, b.spent / b.limit) : 0;
@@ -171,20 +174,20 @@ export default function BudgetsScreen() {
             const exact = b.spent === b.limit && b.limit > 0;
             const kept = ended && !over;
             const saved = b.limit - b.spent;
-            const status = over ? "Exceeded" : exact ? "Spent exactly the budget" : kept ? `Saved ${formatMinor(saved, b.currency)} ${b.currency}` : "Available";
+            const status = over ? t("budgets.status.exceeded") : exact ? t("budgets.status.exact") : kept ? t("budgets.status.saved", { amount: `${formatMinor(saved, b.currency)} ${b.currency}` }) : t("budgets.available");
             return (
               <FadeIn key={b.id} delay={bi * 40} style={styles.budget}>
                 <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: b.id } })} onLongPress={data.rows.length > 1 ? () => router.push("/budget/reorder") : undefined}
-                  style={styles.budgetHead} accessibilityRole="button" accessibilityLabel={`Edit budget ${b.name}`} accessibilityHint={data.rows.length > 1 ? "Long press to reorder the budgets" : undefined}>
+                  style={styles.budgetHead} accessibilityRole="button" accessibilityLabel={t("budgets.editLabel", { name: b.name })} accessibilityHint={data.rows.length > 1 ? t("budgets.reorderHint") : undefined}>
                   {b.icons.length > 1
                     ? <CategoryIconStack items={b.icons} size={34} />
                     : <CategoryIcon name={b.name} icon={b.icon} color={b.color} size={34} />}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.budgetName} numberOfLines={2}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
-                    <Text style={styles.budgetSub}>{periodLabel(start, end)} · {status}{b.counted ? "" : " · not in Planned"}</Text>
+                    <Text style={styles.budgetSub}>{periodLabel(start, end)} · {status}{b.counted ? "" : ` · ${t("budgets.notInPlanned")}`}</Text>
                   </View>
                   {exact || kept ? (
-                    <View style={styles.celebrate} accessibilityLabel={exact ? "Budget met exactly" : `Budget kept, ${formatMinor(saved, b.currency)} ${b.currency} saved`}>
+                    <View style={styles.celebrate} accessibilityLabel={exact ? t("budgets.status.metLabel") : t("budgets.status.keptLabel", { amount: `${formatMinor(saved, b.currency)} ${b.currency}` })}>
                       <SymbolView name="party.popper.fill" size={18} tintColor={C.green} />
                       {saved > 0 ? <Money minor={saved} currency={b.currency} sign style={styles.celebrateText} /> : null}
                     </View>
@@ -196,14 +199,14 @@ export default function BudgetsScreen() {
                     toggle, so it is a comfortable target rather than a small arrow to aim for. */}
                 {b.children.length ? (
                   <Pressable onPress={() => toggle(`budget:${b.id}`)} style={styles.foldRow} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button"
-                    accessibilityLabel={`${fmt(b.spent)} of ${fmt(b.limit)} ${b.currency}. ${expanded.has(`budget:${b.id}`) ? "Hide" : "Show"} the ${b.children.length} categor${b.children.length === 1 ? "y" : "ies"} it was spent on`}
+                    accessibilityLabel={`${t("budgets.spentOf", { spent: fmt(b.spent), limit: fmt(b.limit), currency: b.currency })}. ${expanded.has(`budget:${b.id}`) ? t("budgets.hideCategories", { count: b.children.length }) : t("budgets.showCategories", { count: b.children.length })}`}
                     accessibilityState={{ expanded: expanded.has(`budget:${b.id}`) }}>
-                    <Text style={[styles.budgetSub, { flex: 1 }]}>{fmt(b.spent)} of {fmt(b.limit)} {b.currency} · {b.children.length} categor{b.children.length === 1 ? "y" : "ies"}</Text>
+                    <Text style={[styles.budgetSub, { flex: 1 }]}>{t("budgets.spentOf", { spent: fmt(b.spent), limit: fmt(b.limit), currency: b.currency })} · {t("budgets.edit.categoriesCount", { count: b.children.length })}</Text>
                     <SymbolView name={expanded.has(`budget:${b.id}`) ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
                   </Pressable>
-                ) : <Text style={styles.budgetSub}>{fmt(b.spent)} of {fmt(b.limit)} {b.currency}</Text>}
+                ) : <Text style={styles.budgetSub}>{t("budgets.spentOf", { spent: fmt(b.spent), limit: fmt(b.limit), currency: b.currency })}</Text>}
                 {expanded.has(`budget:${b.id}`) && b.children.map((ch) => (
-                  <Pressable key={ch.id ?? "none"} onPress={() => openCategory(ch.id, b.tag ? `${b.name} · ${ch.name}` : ch.name, b.tag)} style={styles.child} accessibilityRole="button" accessibilityLabel={`${ch.name} transactions${b.tag ? ` tagged ${b.name}` : ""}`}>
+                  <Pressable key={ch.id ?? "none"} onPress={() => openCategory(ch.id, b.tag ? `${b.name} · ${ch.name}` : ch.name, b.tag)} style={styles.child} accessibilityRole="button" accessibilityLabel={b.tag ? t("budgets.childTaggedLabel", { name: ch.name, tag: b.name }) : t("budgets.childLabel", { name: ch.name })}>
                     <CategoryIcon name={ch.name} icon={ch.icon} color={ch.color} size={24} />
                     <Text style={styles.childName}>{ch.name}</Text>
                     <Money minor={-ch.spent} currency={b.currency} style={styles.childAmt} />
@@ -215,13 +218,13 @@ export default function BudgetsScreen() {
           })}
           <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button">
             <SymbolView name="plus.circle" size={18} tintColor={C.tint} />
-            <Text style={styles.addText}>Add budget{budgetAccount ? ` for ${scopeName}` : ""}</Text>
+            <Text style={styles.addText}>{budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}</Text>
           </Pressable>
       </>
     ),
     spending: (
       <>
-          {data.spending.length ? <SectionHeader>Spending · {period.subtitle ?? period.title}{scope ? ` · ${scopeName}` : ""}</SectionHeader> : null}
+          {data.spending.length ? <SectionHeader>{scope ? t("budgets.spending.headerScoped", { period: period.subtitle ?? period.title, scope: scopeName }) : t("budgets.spending.header", { period: period.subtitle ?? period.title })}</SectionHeader> : null}
           {data.spending.length ? (
             <Card>
               {data.spending.map((g, i) => {
@@ -239,13 +242,13 @@ export default function BudgetsScreen() {
                     </Pressable>
                     {open ? (
                       <View style={styles.children}>
-                        <Pressable onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={`All ${g.name} transactions`}>
+                        <Pressable onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.spending.allLabel", { name: g.name })}>
                           <SymbolView name={g.trip ? "airplane" : "folder"} size={14} tintColor={C.tint} />
-                          <Text style={[styles.childText, { color: C.tint, fontWeight: "600" }]}>All in {g.name}</Text>
+                          <Text style={[styles.childText, { color: C.tint, fontWeight: "600" }]}>{t("budgets.spending.allIn", { name: g.name })}</Text>
                           <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
                         </Pressable>
                         {g.children.map((ch) => (
-                          <Pressable key={ch.id ?? "none"} onPress={() => openCategory(ch.id, ch.name, g.trip)} style={styles.childRow} accessibilityRole="button" accessibilityLabel={`${ch.name} transactions`}>
+                          <Pressable key={ch.id ?? "none"} onPress={() => openCategory(ch.id, ch.name, g.trip)} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.childLabel", { name: ch.name })}>
                             <CategoryIcon name={ch.name} icon={ch.icon} color={ch.color} size={20} />
                             <Text style={styles.childText}>{ch.name}</Text>
                             <Money minor={-ch.spent} currency={g.currency} style={styles.childAmt} />
@@ -259,28 +262,28 @@ export default function BudgetsScreen() {
               })}
               {/* Only worth a line when there is more than one thing to add up. */}
               {data.spending.length > 1 ? (
-                <View accessible style={[styles.spendRow, styles.divider]} accessibilityLabel={`Total spending ${spendingTotal.totals[0]!.minor / 100} ${spendingTotal.currency}`}>
-                  <Text style={[styles.spendName, styles.totalName]}>Total</Text>
+                <View accessible style={[styles.spendRow, styles.divider]} accessibilityLabel={t("budgets.spending.totalLabel", { amount: `${formatMinor(spendingTotal.totals[0]!.minor, spendingTotal.currency)} ${spendingTotal.currency}` })}>
+                  <Text style={[styles.spendName, styles.totalName]}>{t("budgets.spending.total")}</Text>
                   <Money minor={spendingTotal.totals[0]!.minor} currency={spendingTotal.currency} approx={spendingTotal.totals[0]!.approx} style={styles.totalAmt} />
                 </View>
               ) : null}
             </Card>
           ) : null}
-          {spendingTotal.missing.length ? <Text style={styles.ratesWarn}>No rate yet for {spendingTotal.missing.join(", ")}, so it is left out of the total.</Text> : null}
+          {spendingTotal.missing.length ? <Text style={styles.ratesWarn}>{t("budgets.spending.noRate", { currencies: spendingTotal.missing.join(", ") })}</Text> : null}
       </>
     ),
     travel: (
       <>
           {pastTrips.length ? (
-            <SectionHeader right={pastTrips.length > 3 ? <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? "Hide travel history" : "Show travel history"}><Text style={styles.addText}>{pastOpen ? "Hide" : `Show ${pastTrips.length}`}</Text></Pressable> : undefined}>Travel history</SectionHeader>
+            <SectionHeader right={pastTrips.length > 3 ? <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><Text style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</Text></Pressable> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
           ) : null}
-          {(pastTrips.length > 3 ? (pastOpen ? pastTrips : []) : pastTrips).map((t) => <TripCard key={t.id} budget={t} compact />)}
+          {(pastTrips.length > 3 ? (pastOpen ? pastTrips : []) : pastTrips).map((x) => <TripCard key={x.id} budget={x} compact />)}
       </>
     ),
   };
   return (
     <>
-      <Stack.Screen options={{ title: "Budgets", headerLargeTitle: true }} />
+      <Stack.Screen options={{ title: t("budgets.screenTitle"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Period and scope live in the content, not the native header: once scrolled they leave with the large title instead of crowding the compact "Budgets" bar. */}

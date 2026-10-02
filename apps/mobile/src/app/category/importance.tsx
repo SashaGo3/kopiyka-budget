@@ -10,6 +10,8 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { BigButton, Card, Empty, ModalHeader, CategoryIcon } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
+import { catName } from "@/lib/names";
+import { t } from "@/i18n";
 
 /**
  * Marking every category with how much it matters, in one sitting.
@@ -29,22 +31,14 @@ import { C, R, S } from "@/constants/theme";
  * performs another (the `bulk.ts` rule).
  */
 
-const STEPS = [
-  {
-    title: "Which could you not live without?",
-    hint: "If the money got tight, these are the ones you would still be paying. The roof, the food, the bills with consequences.",
-  },
-  {
-    title: "Which could you stop tomorrow?",
-    hint: "From what is left. Nothing breaks if these stop — you would miss them, and that is all.",
-  },
-  {
-    title: "Everything else is in between",
-    hint: "The third answer is what was left over rather than a box anyone ticked. Tap any category to move it.",
-  },
+const steps = () => [
+  { title: t("category.importance.high.title"), hint: t("category.importance.high.hint") },
+  { title: t("category.importance.low.title"), hint: t("category.importance.low.hint") },
+  { title: t("category.importance.review.title"), hint: t("category.importance.review.hint") },
 ] as const;
 
-const LEVEL_TITLE: Record<Exclude<Importance, 0>, string> = { 3: "Could not live without", 2: "In between", 1: "Could stop tomorrow" };
+const levelTitle = (level: Exclude<Importance, 0>): string =>
+  level === 3 ? t("category.importance.level.high") : level === 2 ? t("category.importance.level.medium") : t("category.importance.level.low");
 const LEVEL_TINT: Record<Exclude<Importance, 0>, ColorValue> = { 3: C.green, 2: C.secondary, 1: C.orange };
 
 type Group = { folder: Category | null; kids: Category[] };
@@ -130,17 +124,17 @@ export default function ImportanceFlow() {
           <Card key={folder?.id ?? "loose"} style={styles.group}>
             {folder ? (
               <Pressable onPress={() => toggleFolder(rows)} style={[styles.row, styles.folderRow]} accessibilityRole="button"
-                accessibilityLabel={`${folder.name} folder`} accessibilityState={{ selected: full }}>
-                <CategoryIcon name={folder.name} icon={folder.icon} color={folder.color} size={28} />
-                <Text style={[styles.name, { fontWeight: "600" }]}>{folder.name} <Text style={styles.all}>· all {rows.length}</Text></Text>
+                accessibilityLabel={t("category.importance.folderA11y", { name: catName(folder) })} accessibilityState={{ selected: full }}>
+                <CategoryIcon name={catName(folder)} icon={folder.icon} color={folder.color} size={28} />
+                <Text style={[styles.name, { fontWeight: "600" }]}>{catName(folder)} <Text style={styles.all}>{t("category.importance.all", { count: rows.length })}</Text></Text>
                 <Check state={full ? "full" : half ? "half" : "off"} />
               </Pressable>
-            ) : <Text style={styles.looseHead}>No folder</Text>}
+            ) : <Text style={styles.looseHead}>{t("category.importance.noFolder")}</Text>}
             {rows.map((c) => (
               <Pressable key={c.id} onPress={() => toggle(c.id)} style={[styles.row, folder ? styles.child : null]} accessibilityRole="button"
-                accessibilityLabel={c.name} accessibilityState={{ selected: chosen.has(c.id) }}>
-                <CategoryIcon name={c.name} icon={c.icon} color={c.color} size={26} />
-                <Text style={styles.name}>{c.name}</Text>
+                accessibilityLabel={catName(c)} accessibilityState={{ selected: chosen.has(c.id) }}>
+                <CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={26} />
+                <Text style={styles.name}>{catName(c)}</Text>
                 <Check state={chosen.has(c.id) ? "full" : "off"} />
               </Pressable>
             ))}
@@ -148,7 +142,7 @@ export default function ImportanceFlow() {
         );
       })}
       {step === 1 && groups.every(({ kids }) => !offered(kids).length) ? (
-        <Text style={styles.none}>Nothing left to ask about — the first question took everything.</Text>
+        <Text style={styles.none}>{t("category.importance.nothingLeft")}</Text>
       ) : null}
     </View>
   );
@@ -160,34 +154,34 @@ export default function ImportanceFlow() {
         const rows = leaves.filter((c) => levelOf(c.id) === level);
         return (
           <View key={level}>
-            <Text style={[styles.levelHead, { color: LEVEL_TINT[level] }]}>{LEVEL_TITLE[level]} · {rows.length}</Text>
+            <Text style={[styles.levelHead, { color: LEVEL_TINT[level] }]}>{levelTitle(level)} · {rows.length}</Text>
             {rows.length ? (
               <Card style={styles.group}>
                 {rows.map((c) => (
                   <Pressable key={c.id} onPress={() => cycle(c.id)} style={styles.row} accessibilityRole="button"
-                    accessibilityLabel={`${c.name}, ${LEVEL_TITLE[level]}. Tap to move.`}>
-                    <CategoryIcon name={c.name} icon={c.icon} color={c.color} size={26} />
-                    <Text style={styles.name}>{c.name}</Text>
+                    accessibilityLabel={t("category.importance.rowA11y", { name: catName(c), level: levelTitle(level) })}>
+                    <CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={26} />
+                    <Text style={styles.name}>{catName(c)}</Text>
                     <SymbolView name="arrow.triangle.2.circlepath" size={13} tintColor={C.tertiary} />
                   </Pressable>
                 ))}
               </Card>
-            ) : <Text style={styles.emptyLevel}>None.</Text>}
+            ) : <Text style={styles.emptyLevel}>{t("category.importance.none")}</Text>}
           </View>
         );
       })}
       <Text style={styles.foot}>
-        {affected.length ? `${affected.length} ${affected.length === 1 ? "row changes" : "rows change"}` : "Nothing changes: they already say this"}
-        {folderRows ? ` · ${folderRows === 1 ? "one folder answers" : `${folderRows} folders answer`} for what is inside, so anything added to them later is already marked` : ""}
+        {affected.length ? t("category.importance.changes", { count: affected.length }) : t("category.importance.noChanges")}
+        {folderRows ? ` · ${t("category.importance.folders", { count: folderRows })}` : ""}
       </Text>
     </View>
   );
 
-  const nextLabel = step < 2 ? "Next" : affected.length ? `Mark ${affected.length} ${affected.length === 1 ? "row" : "rows"}` : "Nothing to change";
+  const nextLabel = step < 2 ? t("common.next") : affected.length ? t("category.importance.mark", { count: affected.length }) : t("category.importance.nothingToChange");
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title="Set what matters"
-        left={step === 0 ? { label: "Cancel", onPress: () => router.back() } : { label: "Back", onPress: () => setStep((s) => s - 1) }} />
+      <ModalHeader title={t("category.importance.title")}
+        left={step === 0 ? { label: t("common.cancel"), onPress: () => router.back() } : { label: t("common.back"), onPress: () => setStep((s) => s - 1) }} />
       {leaves.length ? (
         <FlatList
           data={[0]}
@@ -195,15 +189,15 @@ export default function ImportanceFlow() {
           contentContainerStyle={{ paddingBottom: 140 }}
           ListHeaderComponent={
             <View style={styles.head}>
-              <Text style={styles.step}>Step {step + 1} of 3</Text>
-              <Text style={styles.question}>{STEPS[step]!.title}</Text>
-              <Text style={styles.hint}>{STEPS[step]!.hint}</Text>
+              <Text style={styles.step}>{t("category.importance.step", { step: step + 1, total: 3 })}</Text>
+              <Text style={styles.question}>{steps()[step]!.title}</Text>
+              <Text style={styles.hint}>{steps()[step]!.hint}</Text>
             </View>
           }
           renderItem={() => (step === 2 ? review : picking)}
         />
       ) : (
-        <Empty title="No categories to mark" hint="Importance is asked about expense categories that are not archived. Add some first." />
+        <Empty title={t("category.importance.empty.title")} hint={t("category.importance.empty.hint")} />
       )}
       {leaves.length ? (
         <View style={styles.bar}>

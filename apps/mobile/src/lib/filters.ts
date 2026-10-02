@@ -1,5 +1,6 @@
 /** Transaction filters: everything combinable. Serialised through picker results. */
 import { humanDayTime, todayLocal } from "./dates";
+import { t } from "@/i18n";
 export type TxType = "expense" | "income" | "transfer";
 export interface TxFilter {
   type: TxType | null;
@@ -25,9 +26,9 @@ export const ALL_TIME = "0000";
 export function rangeLabel(from: string | null, to: string | null): string {
   const open = !from || from === ALL_TIME;
   const last = to ? humanDayTime(prevDay(to)) : null;
-  if (open && !last) return from === ALL_TIME ? "All time" : "";
-  if (open) return `Until ${last}`;
-  if (!last) return `Since ${humanDayTime(from!)}`;
+  if (open && !last) return from === ALL_TIME ? t("transactions.range.allTime") : "";
+  if (open) return t("transactions.range.until", { day: last! });
+  if (!last) return t("transactions.range.since", { day: humanDayTime(from!) });
   return `${humanDayTime(from!)} → ${last}`;
 }
 
@@ -61,7 +62,7 @@ export function activeCount(f: TxFilter, defaults?: { accounts?: string[]; perio
 }
 
 /** SQL for the transactions query in TransactionList (aliases t, a, c, p). */
-export function buildWhere(f: TxFilter, period: { start: string; end: string } | null, today = todayLocal()): { where: string; params: (string | number)[] } {
+export function buildWhere(f: TxFilter, period: { start: string; end: string } | null, today = todayLocal(), shownNameMatches: string[] = [], shownAccountMatches: string[] = []): { where: string; params: (string | number)[] } {
   const conds: string[] = []; const params: (string | number)[] = [];
   // Upcoming looks past the selected month: only an explicit "to" bounds it.
   const from = f.from ?? period?.start ?? null, to = f.to ?? (f.upcoming ? null : period?.end ?? null);
@@ -84,6 +85,16 @@ export function buildWhere(f: TxFilter, period: { start: string; end: string } |
   if (f.q.trim()) {
     const q = f.q.trim(); const like = `%${q}%`;
     const parts = ["t.notes LIKE ?", "t.payee LIKE ?", "c.name LIKE ?", "p.name LIKE ?", "a.name LIKE ?"]; const qparams: (string | number)[] = [like, like, like, like, like];
+    // A ready-made category is shown translated while its stored name stays as seeded (DATA.md rule
+    // 16), so the caller passes the ids whose *shown* name matches as well.
+    if (shownNameMatches.length) {
+      const ph = shownNameMatches.map(() => "?").join(",");
+      parts.push(`t.category_id IN (${ph})`, `c.parent_id IN (${ph})`); qparams.push(...shownNameMatches, ...shownNameMatches);
+    }
+    // And an account still under its default name ("Main") by the name it is shown under (rule 17).
+    if (shownAccountMatches.length) {
+      parts.push(`t.account_id IN (${shownAccountMatches.map(() => "?").join(",")})`); qparams.push(...shownAccountMatches);
+    }
     // A typed number also matches amounts: exact match in major units, or (with no decimals typed) a prefix match on the integer part.
     const amt = /^-?\d+([.,]\d{1,2})?$/.exec(q);
     if (amt) {

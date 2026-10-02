@@ -1,0 +1,232 @@
+{
+  "common": {
+    "today": "Сьогодні",
+    "yesterday": "Учора",
+    "transfer": "Переказ",
+    "uncategorized": "Без категорії",
+    "noDatabase": "На iPhone ще немає бази даних"
+  },
+  "budget": {
+    "left": "залишилось {amount}",
+    "namedLeft": "{name}: залишилось {amount}",
+    "fallback": "Бюджет",
+    "perDay": "{amount}/день",
+    "day": "День {day}",
+    "dayOf": "День {day} з {days}"
+  },
+  "sample": {
+    "account": "Рахунок",
+    "food": "Їжа",
+    "fun": "Розваги"
+  },
+  "intents": {
+    "category": {
+      "logging": "Облік"
+    },
+    "kind": {
+      "type": "Тип",
+      "expense": "Витрата",
+      "income": "Дохід"
+    },
+    "entity": {
+      "account": "Рахунок",
+      "category": "Категорія",
+      "tag": "Тег"
+    },
+    "param": {
+      "amount": "Сума",
+      "type": "Тип",
+      "category": "Категорія",
+      "tags": "Теги",
+      "account": "Рахунок",
+      "note": "Нотатка",
+      "ask": "Питати категорію й теги",
+      "photo": "Фото чека",
+      "notification": "Сповіщення",
+      "title": "Заголовок",
+      "subtitle": "Підзаголовок",
+      "body": "Повідомлення",
+      "merchant": "Магазин",
+      "card": "Картка",
+      "location": "Розташування",
+      "locationHelp": "Необовʼязково. Додайте перед цією дією «Отримати поточне розташування» і передайте сюди її результат, щоб запис памʼятав, де ви платили.",
+      "pending": "Очікує перевірки"
+    },
+    "add": {
+      "title": "Додати витрату (без відкриття застосунку)",
+      "description": "Запишіть витрату чи дохід: сума, потім категорія, потім теги — не відкриваючи застосунок.",
+      "howMuch": "Скільки?"
+    },
+    "scan": {
+      "title": "Сканувати чек",
+      "description": "Сфотографуйте чек: сума, магазин, позиції й категорія розпізнаються на пристрої, а витрата зберігається як така, що очікує перевірки."
+    },
+    "open": {
+      "title": "Додати витрату в застосунку",
+      "description": "Відкриває Копійку на екрані нової витрати."
+    },
+    "payment": {
+      "title": "Записати платіж зі сповіщення застосунку",
+      "description": "Записує платіж зі сповіщення банку або Wallet. Для автоматизації «Коли я отримую сповіщення» у Швидких командах: передайте її змінну «Сповіщення».",
+      "unreadable": "Копійка не змогла прочитати суму в цьому сповіщенні. Що вона очікує, показано в «Налаштування → Автоматизація зі швидкою командою».",
+      "noAccounts": "У Копійці ще немає рахунків. Спершу відкрийте її на iPhone.",
+      "saveFailed": "Копійка не змогла зберегти цей платіж. Відкрийте застосунок і додайте його вручну.",
+      "saveFailedWhy": "Копійка не змогла зберегти цей платіж: {reason}. Відкрийте застосунок і додайте його вручну.",
+      "noRate": "{amount} — немає курсу, вкажіть суму"
+    },
+    "shortcut": {
+      "addExpense": "Додати витрату",
+      "expenseInApp": "Витрата в застосунку",
+      "scanReceipt": "Сканувати чек",
+      "logPayment": "Записати платіж"
+    },
+    "noAccounts": "Рахунків ще немає. Спершу відкрийте Копійку на iPhone.",
+    "noCategory": "Без категорії",
+    "noMoreTags": "Більше без тегів",
+    "folder": "Папка",
+    "whichCategory": "Яка категорія?",
+    "anyTags": "Додати теги?",
+    "anotherTag": "Ще тег?",
+    "saveFailed": "Не вдалося зберегти. Відкрийте Копійку і спробуйте ще раз.",
+    "saveFailedWhy": "Не вдалося зберегти: {reason}. Відкрийте Копійку і спробуйте ще раз.",
+    "added": "Додано {amount}.",
+    "addedCategory": "Додано {amount} у категорію «{category}».",
+    "addedAccount": "Додано {amount} на рахунок «{account}».",
+    "addedCategoryAccount": "Додано {amount} у категорію «{category}» на рахунок «{account}».",
+    "addedTags": "Теги: {tags}.",
+    "notAPhoto": "Цей файл — не фото.",
+    "noTotal": "Не вдалося знайти суму на цьому чеку.",
+    "scanSaved": "Збережено {amount}, {merchant}.",
+    "scanSavedCategory": "Збережено {amount}, {merchant}, у категорію «{category}».",
+    "scanOriginal": "На чеку — {amount}.",
+    "scanPending": "Операція очікує перевірки — підтвердьте її в Копійці."
+  },
+  "notify": {
+    "received": "Платіж отримано",
+    "logged": "Платіж записано",
+    "guess": "припущення",
+    "pending": "очікує"
+  },
+  "receipt": {
+    "noImage": "Не вдалося прочитати фото.",
+    "noText": "Текст не знайдено. Тримайте телефон рівно над чеком при доброму освітленні.",
+    "untitled": "Чек",
+    "items": "{count, plural, one {# позиція} few {# позиції} many {# позицій} other {# позиції}}",
+    "total": "разом {amount}",
+    "paid": "сплачено {amount}",
+    "noRate": "{note} (у {currency}, немає курсу)"
+  },
+  "writes": {
+    "reloaded": "застосунок перезапустився",
+    "noAnswer": "застосунок не відповів",
+    "notRunning": "застосунок не запущено",
+    "notFound": "не знайдено",
+    "nothingToFill": "нічого заповнювати"
+  },
+  "backup": {
+    "downloading": "{name} ще завантажується з iCloud. Спробуйте трохи згодом.",
+    "badName": "Неправильна назва резервної копії"
+  },
+  "watch": {
+    "syncOnce": "Відкрийте Копійку на iPhone для синхронізації.",
+    "addExpense": "Додати витрату",
+    "amount": "Сума {amount}",
+    "hintNext": "Далі: виберіть категорію",
+    "hintType": "Введіть суму на клавіатурі нижче",
+    "deleteDigit": "Стерти останню цифру",
+    "decimalPoint": "Десяткова кома",
+    "category": {
+      "title": "Категорія",
+      "empty": "Категорії надходять з iPhone.",
+      "none": "Без категорії",
+      "noneHint": "Зберегти без категорії",
+      "folder": "Папка",
+      "inFolder": "{name}, у папці {folder}",
+      "isFolder": "Папка {name}",
+      "near": "Поруч: {label}",
+      "hint": "Вибрати цю категорію"
+    },
+    "tags": {
+      "title": "Теги",
+      "none": "Без тегів",
+      "tripOnly": "Лише тег подорожі",
+      "usedWith": "З категорією {category}",
+      "other": "Інші теги",
+      "save": "Зберегти {amount}",
+      "saveFor": "Зберегти {amount} · {category}",
+      "saveCount": "{count, plural, one {Зберегти · # тег} few {Зберегти · # теги} many {Зберегти · # тегів} other {Зберегти · # тега}}",
+      "count": "{count, plural, one {# тег} few {# теги} many {# тегів} other {# тега}}",
+      "selected": "вибрано",
+      "notSelected": "не вибрано",
+      "hintAdd": "Торкніться двічі, щоб додати тег",
+      "hintRemove": "Торкніться двічі, щоб прибрати тег"
+    },
+    "history": {
+      "empty": "Сьогодні й учора нічого.",
+      "waiting": "Чекає на iPhone",
+      "a11yWaiting": "чекає на iPhone",
+      "a11yTags": "теги {list}",
+      "a11yAt": "о {time}"
+    },
+    "write": {
+      "added": "Додано {amount}",
+      "addedFor": "Додано {amount} · {category}",
+      "queued": "У черзі для iPhone: {amount}",
+      "queuedFor": "У черзі для iPhone: {amount} · {category}",
+      "deleted": "Видалено",
+      "deleteQueued": "Видалення в черзі для iPhone",
+      "notPaired": "iPhone не підключено",
+      "failed": "iPhone не зміг зберегти",
+      "failedWhy": "iPhone не зміг зберегти: {reason}"
+    },
+    "budgets": {
+      "travel": "Режим подорожі",
+      "travelA11y": "Подорож {name}, залишилось {amount}, {day}",
+      "budgetA11y": "{name}, залишилось {amount}",
+      "empty": "Бюджетів ще немає. Додайте на iPhone."
+    },
+    "status": {
+      "title": "Стан",
+      "refresh": "Оновити",
+      "refreshing": "Оновлення…",
+      "refreshHint": "Запитує в iPhone актуальні рахунки, категорії та історію",
+      "never": "ніколи",
+      "connected": "iPhone підключено",
+      "connectedDetail": "Записи одразу зберігаються на iPhone",
+      "unreachable": "iPhone недоступний",
+      "unreachableDetail": "Записи чекатимуть на годиннику до звʼязку",
+      "data": "Дані з iPhone",
+      "nothingWaiting": "Нічого не чекає",
+      "nothingWaitingDetail": "Усі записи з годинника доставлено",
+      "waiting": "{count, plural, one {# чекає на iPhone} few {# чекають на iPhone} many {# чекають на iPhone} other {# чекає на iPhone}}",
+      "waitingDetail": "Доставляються самі, коли iPhone поруч",
+      "lastEntry": "Останній запис"
+    },
+    "intent": {
+      "title": "Додати витрату",
+      "description": "Відкриває Копійку на годиннику, готову до введення суми."
+    }
+  },
+  "complication": {
+    "name": "Додати витрату",
+    "description": "Відкриває Копійку, готову до введення суми.",
+    "label": "Витрата",
+    "a11y": "Додати витрату"
+  },
+  "widget": {
+    "netWorth": {
+      "name": "Чисті активи",
+      "description": "Баланси всіх ваших рахунків.",
+      "title": "Чисті активи"
+    },
+    "budgets": {
+      "name": "Бюджети",
+      "description": "Скільки залишилось у кожному бюджеті цього місяця.",
+      "empty": "Бюджетів ще немає"
+    },
+    "lock": {
+      "name": "Залишок бюджету",
+      "description": "Скільки залишилось у вашому першому бюджеті."
+    }
+  }
+}

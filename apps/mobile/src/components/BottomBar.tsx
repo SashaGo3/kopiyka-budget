@@ -9,6 +9,7 @@ import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { PAD_BUTTON_WIDTH, columnOverhang, contentWidth, isPad } from "@/constants/layout";
 import type { ReceiptParse } from "@/lib/bridge";
+import { t } from "@/i18n";
 
 /**
  * Floating controls in the thumb zone: bottom left of the screen, where a right hand reaches most
@@ -91,10 +92,10 @@ export function LogButton({ account }: { account?: string } = {}) {
       onLongPress={scan}
       // Half the screen on a phone, where it is the whole width of the thumb's reach. In the iPad
       // column it is one button among several standing above it, so it takes their width instead.
-      style={({ pressed }) => [styles.fab, { width: isPad ? PAD_BUTTON_WIDTH : Math.round(contentWidth(width) / 2) }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Log a transaction" accessibilityHint={scan ? "Long press to photograph a receipt" : undefined}>
+      style={({ pressed }) => [styles.fab, { width: isPad ? PAD_BUTTON_WIDTH : Math.round(contentWidth(width) / 2) }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ui.logA11y")} accessibilityHint={scan ? t("ui.logHint") : undefined}>
       <Glass style={styles.fabFill} solid={styles.fabSolid} tint={tint} interactive />
       <SymbolView name="plus" size={22} tintColor={C.onTint} weight="bold" />
-      <Text style={styles.text} maxFontSizeMultiplier={1.4}>Log</Text>
+      <Text style={styles.text} maxFontSizeMultiplier={1.4}>{t("ui.log")}</Text>
     </Pressable>
   );
 }

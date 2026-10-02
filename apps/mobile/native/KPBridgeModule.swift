@@ -29,6 +29,7 @@ private enum KPLaunch {
 ///  - "externalChange" event: a Shortcut, Siri or the watch wrote to the database; JS refreshes
 ///  - "nativeWrite" event: a write the native side wants JS to make on its behalf (KPWrites)
 ///  - launchTimestamps(): boot-trace marks for Settings → Diagnostics (src/lib/boot.ts)
+///  - setLanguage(code): the app's language, for every Swift surface (native/KPLocale.swift)
 final class KPBridgeModule: Module {
   private var observer: NSObjectProtocol?
   /// The moment this module instance was created — Expo builds it while setting up the bridge,
@@ -68,6 +69,13 @@ final class KPBridgeModule: Module {
     /// happened, there's nothing to await.
     Function("launchTimestamps") { [weak self] () -> [String: Double] in
       ["processStart": KPLaunch.processStart(), "didFinishLaunching": KPLaunch.didFinishLaunching ?? self?.jsStart ?? 0, "jsStart": self?.jsStart ?? 0]
+    }
+
+    /// The app's language (src/i18n). Stored in the App Group for every Swift surface (KPLocale);
+    /// widgets redraw now, and the watch hears it with the next state push.
+    Function("setLanguage") { (code: String) in
+      guard KPL.store(code) else { return }
+      WidgetCenter.shared.reloadAllTimelines()
     }
 
     Function("reloadWidgets") { WidgetCenter.shared.reloadAllTimelines() }

@@ -7,6 +7,7 @@ import { C, S } from "@/constants/theme";
 import { getShortcutNotify, setShortcutNotify } from "@/lib/settings";
 import { ensureNotificationPermission, notificationStatus, syncBadge } from "@/lib/notifications";
 import { parseLogCount } from "@/lib/parselog";
+import { t } from "@/i18n";
 
 /**
  * What the Shortcut automation does once it is set up — as opposed to how to set it up, which is
@@ -35,37 +36,33 @@ export default function AutomationSettings() {
   };
 
   const notifySubtitle = !notify
-    ? "It logs the payment and says nothing"
-    : perm === "granted" ? "One notification per payment, replacing the last one"
-    : perm === "denied" ? "Notifications are off in the Settings app, so it stays silent"
-    : "Allow notifications and it will say what it logged";
+    ? t("automation.settings.silent")
+    : perm === "granted" ? t("automation.settings.granted")
+    : perm === "denied" ? t("automation.settings.denied")
+    : t("automation.settings.ask");
 
   return (
     <>
-      <Stack.Screen options={{ title: "Shortcut settings" }} />
+      <Stack.Screen options={{ title: t("automation.settings.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 60 }}>
-        <SectionHeader>When it logs a payment</SectionHeader>
+        <SectionHeader>{t("automation.settings.whenLogs")}</SectionHeader>
         <Card>
-          <ToggleRow icon="bell.badge" iconColor="#FF9F0A" title="Tell me" subtitle={notifySubtitle} value={notify} onChange={(v) => void toggle(v)} />
+          <ToggleRow icon="bell.badge" iconColor="#FF9F0A" title={t("automation.settings.tellMe")} subtitle={notifySubtitle} value={notify} onChange={(v) => void toggle(v)} />
           {notify && perm === "denied" ? (
-            <Row icon="gear" iconColor="#8E8E93" title="Open the Settings app" subtitle="Notifications are turned off for Kopiyka" onPress={() => void Linking.openSettings()} style={styles.divider} />
+            <Row icon="gear" iconColor="#8E8E93" title={t("automation.settings.openSettings")} subtitle={t("automation.settings.openSettingsSubtitle")} onPress={() => void Linking.openSettings()} style={styles.divider} />
           ) : null}
         </Card>
-        <Text style={styles.hint}>
-          Only one is ever on screen: a new payment takes the place of the one before it, so a busy Saturday does not leave a pile of them. Tapping opens the entry itself — the amount, the shop, the account and the category it was filed under, with “guess” when nobody has agreed to that category yet. The number on the app icon is how many entries are waiting to be approved.
-        </Text>
-        <SectionHeader>When it gets one wrong</SectionHeader>
+        <Text style={styles.hint}>{t("automation.settings.hintNotify")}</Text>
+        <SectionHeader>{t("automation.settings.whenWrong")}</SectionHeader>
         <Card>
-          <Row icon="doc.text.magnifyingglass" iconColor="#0A84FF" title="Notification log"
-            subtitle={missed ? `${missed} notification${missed === 1 ? "" : "s"} could not be turned into a transaction` : "Nothing it could not read"}
+          <Row icon="doc.text.magnifyingglass" iconColor="#0A84FF" title={t("automation.settings.log")}
+            subtitle={missed ? t("automation.settings.logMissed", { count: missed }) : t("automation.settings.logNone")}
             onPress={() => router.push("/settings/parselog")} />
         </Card>
-        <Text style={styles.hint}>
-          A bank whose wording it does not know yet loses purchases quietly, so the ones it could not use are kept here — with the text, which is the only way to fix the reading afterwards. Exports as CSV.
-        </Text>
-        <SectionHeader>Setting it up</SectionHeader>
+        <Text style={styles.hint}>{t("automation.settings.hintLog")}</Text>
+        <SectionHeader>{t("automation.settings.setup")}</SectionHeader>
         <Card>
-          <Row icon="bell.badge" iconColor="#FF9F0A" title="Automate with Shortcut" subtitle="How to set it up" onPress={() => router.push("/settings/shortcut")} />
+          <Row icon="bell.badge" iconColor="#FF9F0A" title={t("automation.settings.automate")} subtitle={t("automation.settings.automateSubtitle")} onPress={() => router.push("/settings/shortcut")} />
         </Card>
       </ScrollView>
     </>

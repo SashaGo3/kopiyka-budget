@@ -5,8 +5,10 @@ import { SymbolView } from "expo-symbols";
 import { archivedCategoryIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { CategoryIcon } from "@/components/ui";
+import { CategoryIcon, HeaderBar } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { catName } from "@/lib/names";
+import { t } from "@/i18n";
 
 type Item = { kind: "none" } | { kind: "folder"; c: Category; kids: Category[] } | { kind: "child"; c: Category; parent: Category };
 
@@ -73,35 +75,33 @@ export default function PickCategories() {
   return (
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={items} keyExtractor={(i) => (i.kind === "none" ? "none" : i.c.id)} stickyHeaderIndices={[0]} contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
-        <View style={styles.head}>
-          <View style={styles.side}><Pressable onPress={() => setChosen(new Set())} hitSlop={10} accessibilityRole="button" accessibilityLabel="Any category"><Text style={[styles.link, !chosen.size && { fontWeight: "700" }]}>Any</Text></Pressable></View>
-          <Text style={styles.title} numberOfLines={1}>{title ?? "Categories"}</Text>
-          <View style={[styles.side, { alignItems: "flex-end" }]}><Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel="Done" style={styles.doneBtn}><Text style={styles.done}>Done{catCount ? ` (${catCount})` : ""}</Text></Pressable></View>
-        </View>
+        <HeaderBar style={styles.head} title={title ?? t("pick.categories.title")}
+          left={<Pressable onPress={() => setChosen(new Set())} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.categories.anyA11y")}><Text style={[styles.link, !chosen.size && { fontWeight: "700" }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("pick.any")}</Text></Pressable>}
+          right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><Text style={styles.done} numberOfLines={1} maxFontSizeMultiplier={1.3}>{catCount ? t("pick.doneCount", { count: catCount }) : t("common.done")}</Text></Pressable>} />
       }
       renderItem={({ item }) => {
         if (item.kind === "none") return (
-          <Pressable onPress={() => toggle("none")} style={styles.row} accessibilityRole="button" accessibilityLabel="Uncategorized" accessibilityState={{ selected: chosen.has("none") }}>
+          <Pressable onPress={() => toggle("none")} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.categories.uncategorized")} accessibilityState={{ selected: chosen.has("none") }}>
             <View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View>
-            <Text style={[styles.name, { color: C.secondary }]}>Uncategorized</Text><Check state={chosen.has("none") ? "full" : "off"} />
+            <Text style={[styles.name, { color: C.secondary }]}>{t("pick.categories.uncategorized")}</Text><Check state={chosen.has("none") ? "full" : "off"} />
           </Pressable>
         );
         if (item.kind === "folder") {
           const full = item.kids.length ? item.kids.every((k) => chosen.has(k.id)) : chosen.has(item.c.id);
           const half = item.kids.length ? !full && item.kids.some((k) => chosen.has(k.id)) : false;
           return (
-            <Pressable onPress={() => (item.kids.length ? toggleFolder(item.kids) : toggle(item.c.id))} style={[styles.row, styles.folder]} accessibilityRole="button" accessibilityLabel={`${item.c.name} folder`} accessibilityState={{ selected: full }}>
-              <CategoryIcon name={item.c.name} icon={item.c.icon} color={item.c.color} size={28} />
-              <Text style={[styles.name, { fontWeight: "600" }]}>{item.c.name} <Text style={styles.all}>· whole folder</Text></Text>
+            <Pressable onPress={() => (item.kids.length ? toggleFolder(item.kids) : toggle(item.c.id))} style={[styles.row, styles.folder]} accessibilityRole="button" accessibilityLabel={t("pick.categories.folderA11y", { name: catName(item.c) })} accessibilityState={{ selected: full }}>
+              <CategoryIcon name={catName(item.c)} icon={item.c.icon} color={item.c.color} size={28} />
+              <Text style={[styles.name, { fontWeight: "600" }]}>{catName(item.c)} <Text style={styles.all}>{t("pick.categories.wholeFolder")}</Text></Text>
               <Check state={full ? "full" : half ? "half" : "off"} />
             </Pressable>
           );
         }
         const on = chosen.has(item.c.id);
         return (
-          <Pressable onPress={() => toggle(item.c.id)} style={[styles.row, styles.child]} accessibilityRole="button" accessibilityLabel={item.c.name} accessibilityState={{ selected: on }}>
-            <CategoryIcon name={item.c.name} icon={item.c.icon} color={item.c.color} size={26} />
-            <Text style={styles.name}>{item.c.name}</Text>
+          <Pressable onPress={() => toggle(item.c.id)} style={[styles.row, styles.child]} accessibilityRole="button" accessibilityLabel={catName(item.c)} accessibilityState={{ selected: on }}>
+            <CategoryIcon name={catName(item.c)} icon={item.c.icon} color={item.c.color} size={26} />
+            <Text style={styles.name}>{catName(item.c)}</Text>
             <Check state={on ? "full" : "off"} />
           </Pressable>
         );
@@ -110,9 +110,7 @@ export default function PickCategories() {
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.sm, backgroundColor: C.bgGrouped },
-  side: { width: 90 },
-  title: { flex: 1, fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center" },
+  head: { paddingTop: S.md, paddingBottom: S.sm, backgroundColor: C.bgGrouped },
   link: { color: C.tint, fontSize: 15 },
   doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
   done: { color: C.onTint, fontSize: 15, fontWeight: "700" },

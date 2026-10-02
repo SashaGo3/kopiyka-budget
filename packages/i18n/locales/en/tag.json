@@ -1,0 +1,62 @@
+{
+  "$comment": "The tag editor (app/tag/edit.tsx).",
+  "title": {
+    "new": "New tag",
+    "edit": "Edit tag",
+    "archived": "Archived tag"
+  },
+  "name": "Tag name",
+  "pillPlaceholder": { "message": "tag", "note": "Shown in the preview pill while the name is empty. Lowercase." },
+  "appearance": "Appearance",
+  "colour": "Colour",
+  "automatic": "Automatic",
+  "automaticHint": "Automatic picks a colour from the tag’s name, so no two tags next to each other look alike. Renaming the tag picks another one.",
+  "anyCategory": "Any category",
+  "scope": {
+    "header": "Where it is offered",
+    "categories": "Categories",
+    "pickTitle": "Offer this tag for",
+    "some": "Offered only when one of these categories (or a category in a selected folder) is chosen.",
+    "all": "Nothing selected: the tag is offered for every category."
+  },
+  "transactions": {
+    "header": "Transactions",
+    "count": "{count, plural, one {# transaction} other {# transactions}}",
+    "subtitle": "With this tag, all time"
+  },
+  "convert": {
+    "header": "Convert",
+    "row": "Turn into a category",
+    "rowSubtitle": "{count, plural, one {Moves # transaction to a new category and removes the tag} other {Moves # transactions to a new category and removes the tag}}",
+    "whichFolder": "Which folder?",
+    "inFolder": "Category inside this folder",
+    "top": "Top level",
+    "topSubtitle": "Becomes a folder of its own",
+    "theFolder": { "message": "the folder", "note": "Stands in for a folder name that cannot be found." },
+    "title": { "message": "Turn “{name}” into a category?", "note": "name is the tag." },
+    "body": { "message": "{count, plural, one {# transaction will get the category “{name}” and lose the tag.} other {# transactions will get the category “{name}” and lose the tag.}} The tag is removed.", "note": "name is the tag, which becomes the category's name." },
+    "bodyFolder": { "message": "{count, plural, one {# transaction will get the category “{name}” in {folder} and lose the tag.} other {# transactions will get the category “{name}” in {folder} and lose the tag.}} The tag is removed.", "note": "name is the tag, folder the folder the new category goes into." },
+    "confirm": "Convert",
+    "busy": "{count, plural, one {Converting # transaction…} other {Converting # transactions…}}"
+  },
+  "archive": {
+    "header": "Archive",
+    "row": "Archive this tag",
+    "rowSubtitle": "Keeps every transaction and every budget; just stops being offered",
+    "restore": "Bring this tag back",
+    "restoreSubtitle": "Offered again everywhere it used to be",
+    "tripSubtitle": "Not while travel mode is using it — end travel mode first",
+    "tripTitle": "Travel mode is using this tag",
+    "tripBody": "It is being put on everything you log right now. End travel mode first — on its card at the top of Transactions, or in Settings — then archive the tag.",
+    "title": "Archive this tag?",
+    "keep": "{count, plural, one {Its # transaction keeps it, and a budget on it still counts.} other {Its # transactions keep it, and a budget on it still counts.}}",
+    "rules": "{count, plural, one {# recurring rule still puts it on what it posts — open it if that is not what you want.} other {# recurring rules still put it on what they post — open those if that is not what you want.}}",
+    "offered": "It stops being offered for anything new.",
+    "confirm": "Archive"
+  },
+  "delete": {
+    "row": "Delete tag",
+    "title": "Delete tag?",
+    "body": "Transactions keep everything else."
+  }
+}

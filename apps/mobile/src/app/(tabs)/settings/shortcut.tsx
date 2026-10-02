@@ -4,15 +4,16 @@ import { SymbolView } from "expo-symbols";
 import { Card, Row, SectionHeader } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED, IOS_VERSION } from "@/constants/features";
+import { t } from "@/i18n";
 
 /** Setup steps, worded as what you actually tap, in the order the Shortcuts app puts them in. */
-const STEPS: { title: string; subtitle: string }[] = [
-  { title: "Shortcuts → Automation → +", subtitle: "The Automation tab, then + in the top right." },
-  { title: "“When I receive a notification”", subtitle: "Pick your bank’s app. No bank notifications? Pick Wallet (Apple Pay). Both is fine." },
-  { title: "Add a filter, choose Run Immediately", subtitle: "A word every payment notification has, like “Amount”. Turn off “Notify When Run”." },
-  { title: "Add “Log payment from an app notification”", subtitle: "Search for it; it is under Kopiyka Budget." },
-  { title: "Put Notification in its field", subtitle: "Tap the field → Select Variable → Notification." },
-  { title: "Optional: where you paid", subtitle: "Add “Get Current Location” above it, then pass it to Location under Show More." },
+const steps = (): { title: string; subtitle: string }[] => [
+  { title: t("automation.shortcut.step1"), subtitle: t("automation.shortcut.step1Sub") },
+  { title: t("automation.shortcut.step2"), subtitle: t("automation.shortcut.step2Sub") },
+  { title: t("automation.shortcut.step3"), subtitle: t("automation.shortcut.step3Sub") },
+  { title: t("automation.shortcut.step4"), subtitle: t("automation.shortcut.step4Sub") },
+  { title: t("automation.shortcut.step5"), subtitle: t("automation.shortcut.step5Sub") },
+  { title: t("automation.shortcut.step6"), subtitle: t("automation.shortcut.step6Sub") },
 ];
 
 /**
@@ -24,29 +25,27 @@ const STEPS: { title: string; subtitle: string }[] = [
  */
 export default function ShortcutScreen() {
   const openShortcuts = () => {
-    Linking.openURL("shortcuts://").catch(() => Alert.alert("Shortcuts not available", "Install the Shortcuts app from the App Store, then come back."));
+    Linking.openURL("shortcuts://").catch(() => Alert.alert(t("automation.shortcut.unavailableTitle"), t("automation.shortcut.unavailableMessage")));
   };
 
   return (
     <>
-      <Stack.Screen options={{ title: "Automate with Shortcut" }} />
+      <Stack.Screen options={{ title: t("automation.shortcut.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 60 }}>
-        <Text style={styles.intro}>
-          Your bank already notifies you about every payment. Pass that notification to Kopiyka and it logs the payment for you. Set it up once.
-        </Text>
+        <Text style={styles.intro}>{t("automation.shortcut.intro")}</Text>
 
         <View style={[styles.need, !AUTOMATION_SUPPORTED && styles.needStrong]}>
           <SymbolView name={AUTOMATION_SUPPORTED ? "info.circle" : "exclamationmark.triangle.fill"} size={18} tintColor={AUTOMATION_SUPPORTED ? C.secondary : C.orange} />
           <Text style={[styles.needText, !AUTOMATION_SUPPORTED && { color: C.label }]}>
             {AUTOMATION_SUPPORTED
-              ? `Needs iOS ${AUTOMATION_MIN_IOS} or later.`
-              : `Needs iOS ${AUTOMATION_MIN_IOS} or later${IOS_VERSION ? ` — this device runs iOS ${IOS_VERSION}` : ""}. Everything else in Kopiyka works as it is.`}
+              ? t("automation.shortcut.needs", { version: AUTOMATION_MIN_IOS })
+              : IOS_VERSION ? t("automation.shortcut.needsOld", { version: AUTOMATION_MIN_IOS, current: IOS_VERSION }) : t("automation.shortcut.needsUnknown", { version: AUTOMATION_MIN_IOS })}
           </Text>
         </View>
 
-        <SectionHeader>Set it up once</SectionHeader>
+        <SectionHeader>{t("automation.shortcut.setUp")}</SectionHeader>
         <Card>
-          {STEPS.map((s, i) => (
+          {steps().map((s, i) => (
             <View key={s.title} style={[styles.step, i ? styles.divider : undefined]}>
               <View style={styles.num}><Text style={styles.numText}>{i + 1}</Text></View>
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -58,19 +57,19 @@ export default function ShortcutScreen() {
         </Card>
 
         <Card style={{ marginTop: S.lg }}>
-          <Row icon="arrow.up.forward.app" title="Open Shortcuts" onPress={openShortcuts} />
+          <Row icon="arrow.up.forward.app" title={t("automation.shortcut.open")} onPress={openShortcuts} />
         </Card>
 
-        <SectionHeader>What to expect</SectionHeader>
+        <SectionHeader>{t("automation.shortcut.expect")}</SectionHeader>
         <Card>
-          <Row icon="hourglass" iconColor="#FF9F0A" title="New shops wait in Pending" subtitle="Check the category once and approve." />
-          <Row icon="wand.and.stars" iconColor="#30D158" title="Shops you know file themselves" subtitle="Same category and tags as last time." style={styles.divider} />
-          <Row icon="creditcard" iconColor="#0A84FF" title="The right account" subtitle="Picked from the card, or the currency." style={styles.divider} />
-          <Row icon="line.3.horizontal.decrease.circle" iconColor="#8E8E93" title="Only payments" subtitle="Codes, deliveries and declined payments are ignored." style={styles.divider} />
-          <Row icon="slider.horizontal.3" iconColor="#5E5CE6" title="Shortcut settings" subtitle="Notifications, and anything it could not read." onPress={() => router.push("/settings/automation")} style={styles.divider} />
+          <Row icon="hourglass" iconColor="#FF9F0A" title={t("automation.shortcut.pending")} subtitle={t("automation.shortcut.pendingSub")} />
+          <Row icon="wand.and.stars" iconColor="#30D158" title={t("automation.shortcut.known")} subtitle={t("automation.shortcut.knownSub")} style={styles.divider} />
+          <Row icon="creditcard" iconColor="#0A84FF" title={t("automation.shortcut.account")} subtitle={t("automation.shortcut.accountSub")} style={styles.divider} />
+          <Row icon="line.3.horizontal.decrease.circle" iconColor="#8E8E93" title={t("automation.shortcut.only")} subtitle={t("automation.shortcut.onlySub")} style={styles.divider} />
+          <Row icon="slider.horizontal.3" iconColor="#5E5CE6" title={t("automation.shortcut.settings")} subtitle={t("automation.shortcut.settingsSub")} onPress={() => router.push("/settings/automation")} style={styles.divider} />
         </Card>
 
-        <Text style={styles.hint}>Works with Kopiyka closed. Nothing leaves your phone.</Text>
+        <Text style={styles.hint}>{t("automation.shortcut.hint")}</Text>
       </ScrollView>
     </>
   );

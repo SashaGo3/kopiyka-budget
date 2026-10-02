@@ -6,6 +6,8 @@ import { useQuery } from "@/store";
 import { Card, Empty, Money, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
+import { t } from "@/i18n";
+import { acctName } from "@/lib/names";
 
 type DebtWithAccount = Debt & { accountName?: string };
 
@@ -13,7 +15,7 @@ export default function DebtsSettings() {
   // Add sits at the bottom like on Categories, and slides away while scrolling down.
   const { visible, onScroll } = useScrollHide();
   const data = useQuery((db) => {
-    const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a.name]));
+    const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, acctName(a)]));
     const debts = listDebts(db).map((d): DebtWithAccount => ({ ...d, accountName: d.account_id ? accounts.get(d.account_id) : undefined }));
     return { debts, totals: debtTotals(debts) };
   });
@@ -24,18 +26,18 @@ export default function DebtsSettings() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Debts", headerLargeTitle: true }} />
+      <Stack.Screen options={{ title: t("settingsLists.debts.title"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>Money lent to someone, or borrowed from them. A debt is not a transaction and touches no balance — it becomes one only when it is actually paid, which settling it here writes for you. Give it a due date and a reminder fires the day before and on the day, at a time you choose.</ScreenNote>
-        {data.totals.length ? <Summary totals={data.totals} /> : <Empty title="Nothing owed either way" hint="Tap Add to record one." />}
-        {owedToMe.length ? <SectionHeader>Owed to you</SectionHeader> : null}
+        <ScreenNote>{t("settingsLists.debts.intro")}</ScreenNote>
+        {data.totals.length ? <Summary totals={data.totals} /> : <Empty title={t("settingsLists.debts.emptyTitle")} hint={t("settingsLists.debts.emptyHint")} />}
+        {owedToMe.length ? <SectionHeader>{t("settingsLists.debts.owedToYou")}</SectionHeader> : null}
         {owedToMe.length ? <Card>{owedToMe.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} />)}</Card> : null}
-        {iOwe.length ? <SectionHeader>You owe</SectionHeader> : null}
+        {iOwe.length ? <SectionHeader>{t("settingsLists.debts.youOwe")}</SectionHeader> : null}
         {iOwe.length ? <Card>{iOwe.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} />)}</Card> : null}
-        {settled.length ? <SectionHeader>Settled</SectionHeader> : null}
+        {settled.length ? <SectionHeader>{t("settingsLists.debts.settled")}</SectionHeader> : null}
         {settled.length ? <Card>{settled.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} settled />)}</Card> : null}
       </ScrollView>
-      <BottomBar visible={visible}><BarButton icon="plus" label="Add" onPress={() => router.push({ pathname: "/debt/edit", params: { id: "new" } })} a11y="Add a debt" /></BottomBar>
+      <BottomBar visible={visible}><BarButton icon="plus" label={t("settingsLists.debts.add")} onPress={() => router.push({ pathname: "/debt/edit", params: { id: "new" } })} a11y={t("settingsLists.debts.addA11y")} /></BottomBar>
     </>
   );
 }
@@ -44,18 +46,18 @@ export default function DebtsSettings() {
 function Summary({ totals }: { totals: DebtTotal[] }) {
   return (
     <View style={styles.summary}>
-      {totals.map((t) => (
-        <View key={t.currency} style={styles.summaryRow}>
-          {t.owed_to_me_minor ? (
+      {totals.map((tot) => (
+        <View key={tot.currency} style={styles.summaryRow}>
+          {tot.owed_to_me_minor ? (
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Owed to you</Text>
-              <Money minor={t.owed_to_me_minor} currency={t.currency} colored style={styles.summaryMoney} />
+              <Text style={styles.summaryLabel}>{t("settingsLists.debts.owedToYou")}</Text>
+              <Money minor={tot.owed_to_me_minor} currency={tot.currency} colored style={styles.summaryMoney} />
             </View>
           ) : null}
-          {t.i_owe_minor ? (
+          {tot.i_owe_minor ? (
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>You owe</Text>
-              <Money minor={-t.i_owe_minor} currency={t.currency} style={[styles.summaryMoney, { color: C.red }]} />
+              <Text style={styles.summaryLabel}>{t("settingsLists.debts.youOwe")}</Text>
+              <Money minor={-tot.i_owe_minor} currency={tot.currency} style={[styles.summaryMoney, { color: C.red }]} />
             </View>
           ) : null}
         </View>
@@ -66,8 +68,8 @@ function Summary({ totals }: { totals: DebtTotal[] }) {
 
 function DebtRow({ d, first, today, settled }: { d: DebtWithAccount; first: boolean; today: string; settled?: boolean }) {
   const overdue = !settled && isOverdue(d, today);
-  const due = d.due_date ? humanDayTime(d.due_date) : "No due date";
-  const when = settled && d.settled_date ? `Paid back ${humanDayTime(d.settled_date)}` : overdue ? `Overdue · was due ${due}` : due;
+  const due = d.due_date ? humanDayTime(d.due_date) : t("settingsLists.debts.noDue");
+  const when = settled && d.settled_date ? t("settingsLists.debts.paidBack", { date: humanDayTime(d.settled_date) }) : overdue ? t("settingsLists.debts.overdue", { date: due }) : due;
   const subtitle = [when, d.accountName].filter(Boolean).join(" · ");
   return (
     <Row title={d.person} subtitle={subtitle} subtitleColor={overdue ? (C.red as unknown as string) : undefined}

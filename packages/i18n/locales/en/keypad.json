@@ -1,0 +1,50 @@
+{
+  "divide": "Divide",
+  "multiply": "Multiply",
+  "subtract": "Subtract",
+  "add": {
+    "message": "Add",
+    "note": "VoiceOver name of the + operator key."
+  },
+  "changeSign": "Change sign",
+  "delete": {
+    "message": "Delete",
+    "note": "VoiceOver name of the backspace key: removes the last digit."
+  },
+  "clear": {
+    "message": "Clear",
+    "note": "The C key, and the button in the alert it opens."
+  },
+  "clearTitle": "Clear amount?",
+  "decimal": {
+    "message": "Decimal point",
+    "note": "VoiceOver name of the decimal key (shown as \",\" in languages that write a comma)."
+  },
+  "decimalTyping": "Decimal point, typing decimals",
+  "decimalWhole": "Decimal point, typing whole units",
+  "category": {
+    "message": "Category",
+    "note": "Wide keypad key that opens the category picker.",
+    "max": 16
+  },
+  "categoryA11y": "Category: {name}",
+  "categoryNone": "Category: none",
+  "tags": "Tags",
+  "tagsA11y": {
+    "message": "Tags: {names}",
+    "note": "names is a comma-separated list of tag names."
+  },
+  "amount": {
+    "title": {
+      "message": "Amount",
+      "note": "Default title over the calculator screen."
+    },
+    "tooMuch": "That is more than there is to give",
+    "available": {
+      "message": "{amount} {currency} available",
+      "note": "Under the amount: the most this part can be."
+    },
+    "tooMuchShort": "More than there is to give",
+    "use": "Use this amount"
+  }
+}

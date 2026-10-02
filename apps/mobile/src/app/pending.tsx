@@ -5,11 +5,13 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { getRow, remove, save } from "@kopiyka/core";
 import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { groupByDay, useTransactions, type TxRow } from "@/components/TransactionList";
+import { groupByDay, rowCategory, useTransactions, type TxRow } from "@/components/TransactionList";
 import { BarButton, BottomBar } from "@/components/BottomBar";
 import { AmountPill, CategoryIcon, Empty, Money } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { timeLabel } from "@/lib/dates";
+import { Trans, t } from "@/i18n";
+import { acctName } from "@/lib/names";
 
 /**
  * The queue behind the Pending row on Transactions: everything a Shortcut automation or a receipt
@@ -45,91 +47,103 @@ export default function PendingScreen() {
   usePickResult<string | null>(catKey, useCallback((id: string | null) => {
     const rowId = editing.current;
     editing.current = null;
-    if (rowId) mutate((d) => { const t = getRow(d, "transactions", rowId); if (t) save(d, "transactions", { ...t, category_id: id }); });
+    if (rowId) mutate((d) => { const tx = getRow(d, "transactions", rowId); if (tx) save(d, "transactions", { ...tx, category_id: id }); });
   }, []));
 
   const approve = (ids: string[]) => mutate((d) => {
-    for (const id of ids) { const t = getRow(d, "transactions", id); if (t) save(d, "transactions", { ...t, pending: 0 }); }
+    for (const id of ids) { const tx = getRow(d, "transactions", id); if (tx) save(d, "transactions", { ...tx, pending: 0 }); }
   });
-  const approveAll = () => approve(rows.map((t) => t.id));
-  const pickCategory = (t: TxRow) => {
-    editing.current = t.id;
-    router.push({ pathname: "/pick/category", params: { key: catKey, kind: t.amount_minor > 0 ? "income" : "expense", selected: t.category_id ?? "" } });
+  const approveAll = () => approve(rows.map((tx) => tx.id));
+  const pickCategory = (tx: TxRow) => {
+    editing.current = tx.id;
+    router.push({ pathname: "/pick/category", params: { key: catKey, kind: tx.amount_minor > 0 ? "income" : "expense", selected: tx.category_id ?? "" } });
   };
-  const del = (t: TxRow) => Alert.alert("Delete this transaction?", t.payee ?? undefined, [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => mutate((d) => remove(d, "transactions", t.id)) },
+  const del = (tx: TxRow) => Alert.alert(t("pending.deleteTitle"), tx.payee ?? undefined, [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("common.delete"), style: "destructive", onPress: () => mutate((d) => remove(d, "transactions", tx.id)) },
   ]);
 
   // Same-currency accounts only: mixing currencies into one number would be a lie.
-  const total = rows.reduce((a, t) => (t.currency === base && !t.transfer_id ? a + t.amount_minor : a), 0);
+  const total = rows.reduce((a, tx) => (tx.currency === base && !tx.transfer_id ? a + tx.amount_minor : a), 0);
 
   return (
     <>
-      <Stack.Screen options={{ title: "Pending", headerLargeTitle: true, headerBackTitle: "Back" }} />
+      <Stack.Screen options={{ title: t("pending.title"), headerLargeTitle: true, headerBackTitle: t("common.back") }} />
       <SectionList
         sections={sections}
-        keyExtractor={(t) => t.id}
+        keyExtractor={(tx) => tx.id}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingBottom: 200 }}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={rows.length ? (
           <Text style={styles.intro}>
-            {rows.length === 1 ? "One entry is" : `${rows.length} entries are`} waiting to be checked{total ? <> — <Money minor={Math.abs(total)} currency={base} style={styles.introSum} /></> : null}. Tap a row to change anything; approve it when it is right.
+            {total
+              ? <Trans k="pending.introSum" vars={{ count: rows.length }} tags={{ sum: () => <Money minor={Math.abs(total)} currency={base} style={styles.introSum} /> }} />
+              : t("pending.intro", { count: rows.length })}
           </Text>
         ) : null}
-        ListEmptyComponent={<Empty title="Nothing pending" hint="Card payments and scanned receipts land here first." />}
+        ListEmptyComponent={<Empty title={t("pending.emptyTitle")} hint={t("pending.emptyHint")} />}
         renderSectionHeader={({ section }) => <Text style={styles.sh}>{section.title}</Text>}
         renderItem={({ item, index, section }) => (
-          <PendingItem t={item} first={index === 0} last={index === section.data.length - 1}
+          <PendingItem tx={item} first={index === 0} last={index === section.data.length - 1}
             onApprove={() => approve([item.id])} onCategory={() => pickCategory(item)} onDelete={() => del(item)} />
         )}
       />
       {rows.length ? (
         <BottomBar>
-          <BarButton icon="checkmark.circle" label={`Approve all ${rows.length}`} active onPress={approveAll} a11y={`Approve all ${rows.length} pending`} />
+          <BarButton icon="checkmark.circle" label={t("pending.approveAll", { count: rows.length })} active onPress={approveAll} a11y={t("pending.approveAllA11y", { count: rows.length })} />
         </BottomBar>
       ) : null}
     </>
   );
 }
 
-const SOURCE_LABEL: Record<string, string> = { shortcut: "Shortcut", "shortcut-guess": "Shortcut", receipt: "Receipt", watch: "Watch", siri: "Siri" };
+const sourceLabel = (source: string | null): string | undefined => {
+  switch (source) {
+    case "shortcut": case "shortcut-guess": return t("pending.source.shortcut");
+    case "receipt": return t("pending.source.receipt");
+    case "watch": return t("pending.source.watch");
+    case "siri": return t("pending.source.siri");
+    default: return undefined;
+  }
+};
 
 /** A category nobody has agreed to: the automation guessed it from the shop's name (see KopiykaIntents). */
 const GUESSED = "shortcut-guess";
 
-function PendingItem({ t, first, last, onApprove, onCategory, onDelete }: {
-  t: TxRow; first: boolean; last: boolean; onApprove: () => void; onCategory: () => void; onDelete: () => void;
+function PendingItem({ tx, first, last, onApprove, onCategory, onDelete }: {
+  tx: TxRow; first: boolean; last: boolean; onApprove: () => void; onCategory: () => void; onDelete: () => void;
 }) {
-  const title = t.payee || (t.notes ? t.notes.split("\n")[0]! : "") || t.category_name || t.parent_name || "Uncategorized";
+  const names = rowCategory(tx);
+  const catLabel = names.name ?? names.parent;
+  const title = tx.payee || (tx.notes ? tx.notes.split("\n")[0]! : "") || catLabel || t("common.noCategory");
   // Where it came from matters here more than anywhere else in the app: a Shortcut authorisation
   // and a scanned receipt are both guesses in different ways, and that's worth a glance before approving.
-  const origin = SOURCE_LABEL[t.source ?? ""];
-  const where = [t.account_name, t.place, origin].filter(Boolean).join(" · ");
-  const categorised = !!(t.category_name || t.parent_name);
+  const origin = sourceLabel(tx.source);
+  const where = [acctName({ name: tx.account_name }), tx.place, origin].filter(Boolean).join(" · ");
+  const categorised = !!(tx.category_name || tx.parent_name);
   // A guessed category is shown, because a row that is nearly right is quicker to confirm than an
   // empty one — but it is shown in the tint colour and says so, because approving it as it stands
   // files a decision nobody made. Confirming the row clears the queue and the doubt with it.
-  const guessed = categorised && t.source === GUESSED;
+  const guessed = categorised && tx.source === GUESSED;
   return (
     <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={`Edit ${title}`}
-        onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: t.id } })}>
-        <CategoryIcon name={t.category_name ?? t.parent_name ?? "?"} icon={t.cat_icon ?? t.parent_icon} color={t.cat_color ?? t.parent_color} size={34} />
+      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.editA11y", { title })}
+        onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: tx.id } })}>
+        <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={34} />
         <View style={styles.text}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          <Text style={styles.sub} numberOfLines={1}>{where}{where ? " · " : ""}{timeLabel(t.date)}</Text>
+          <Text style={styles.sub} numberOfLines={1}>{where}{where ? " · " : ""}{timeLabel(tx.date)}</Text>
         </View>
-        <AmountPill minor={t.amount_minor} currency={t.currency} />
+        <AmountPill minor={tx.amount_minor} currency={tx.currency} />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
       </Pressable>
       <View style={styles.actions}>
-        <Action icon="checkmark.circle.fill" label="Approve" color={C.green} onPress={onApprove} grow />
+        <Action icon="checkmark.circle.fill" label={t("pending.approve")} color={C.green} onPress={onApprove} grow />
         <Action icon={categorised ? "folder.fill" : "folder.badge.plus"} color={categorised && !guessed ? C.secondary : C.tint} onPress={onCategory}
-          label={guessed ? `${t.category_name ?? t.parent_name} · guess` : t.category_name ?? t.parent_name ?? "Category"}
-          a11y={guessed ? `Category guessed as ${t.category_name ?? t.parent_name}, tap to change it` : categorised ? `Change category, now ${t.category_name ?? t.parent_name}` : "Set category"} grow />
-        <Action icon="trash" label="Delete" color={C.red} onPress={onDelete} />
+          label={guessed ? t("pending.guess", { category: catLabel ?? "" }) : catLabel ?? t("pending.category")}
+          a11y={guessed ? t("pending.guessA11y", { category: catLabel ?? "" }) : categorised ? t("pending.changeA11y", { category: catLabel ?? "" }) : t("pending.setCategory")} grow />
+        <Action icon="trash" label={t("common.delete")} color={C.red} onPress={onDelete} />
       </View>
     </View>
   );

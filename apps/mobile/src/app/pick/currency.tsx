@@ -7,7 +7,8 @@ import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { Row } from "@/components/ui";
 import { C, S } from "@/constants/theme";
-import { CURRENCY_LIST, type CurrencyInfo } from "@/lib/currencies";
+import { CURRENCY_LIST, currencyName, type CurrencyInfo } from "@/lib/currencies";
+import { t } from "@/i18n";
 
 /** Currency sheet: the ones your accounts already use first, then every supported currency; searchable by code or name. Resolves the ISO code. */
 export default function PickCurrency() {
@@ -16,12 +17,12 @@ export default function PickCurrency() {
   const used = useQuery((db) => [...new Set(listRows(db, "accounts", "deleted=0").map((a) => a.currency))]);
   const sections = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const match = (c: CurrencyInfo) => !needle || c.code.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle) || c.symbol.toLowerCase() === needle;
+    const match = (c: CurrencyInfo) => !needle || c.code.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle) || currencyName(c.code).toLowerCase().includes(needle) || c.symbol.toLowerCase() === needle;
     const mine = CURRENCY_LIST.filter((c) => used.includes(c.code) && match(c));
     const rest = CURRENCY_LIST.filter((c) => !used.includes(c.code) && match(c));
     const out: { title: string; data: CurrencyInfo[] }[] = [];
-    if (mine.length) out.push({ title: "Your accounts", data: mine });
-    if (rest.length) out.push({ title: mine.length ? "All currencies" : "Currencies", data: rest });
+    if (mine.length) out.push({ title: t("pick.currency.yours"), data: mine });
+    if (rest.length) out.push({ title: mine.length ? t("pick.currency.all") : t("pick.currency.currencies"), data: rest });
     return out;
   }, [q, used]);
   const pick = (code: string) => { resolvePick(key, code); router.back(); };
@@ -30,19 +31,19 @@ export default function PickCurrency() {
       contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
         <View>
-          <Text style={styles.title}>{title ?? "Currency"}</Text>
+          <Text style={styles.title}>{title ?? t("pick.currency.title")}</Text>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Search code or name" placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} autoCapitalize="characters" clearButtonMode="while-editing" accessibilityLabel="Search currencies" />
+            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.currency.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} autoCapitalize="characters" clearButtonMode="while-editing" accessibilityLabel={t("pick.currency.searchA11y")} />
           </View>
         </View>
       }
       renderSectionHeader={({ section }) => <Text style={styles.section}>{section.title}</Text>}
       renderItem={({ item: c }) => (
-        <Row title={`${c.code} · ${c.name}`} subtitle={c.symbol} style={{ backgroundColor: "transparent" }} onPress={() => pick(c.code)}
+        <Row title={`${c.code} · ${currencyName(c.code)}`} subtitle={c.symbol} style={{ backgroundColor: "transparent" }} onPress={() => pick(c.code)}
           right={selected === c.code ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : <SymbolView name="circle" size={1} tintColor="transparent" />} />
       )}
-      ListEmptyComponent={<Text style={styles.empty}>No currency matches “{q}”.</Text>} />
+      ListEmptyComponent={<Text style={styles.empty}>{t("pick.currency.none", { query: q })}</Text>} />
   );
 }
 

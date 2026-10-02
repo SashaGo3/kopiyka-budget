@@ -1,0 +1,281 @@
+{
+  "$comment": "The picker sheets (app/pick/*) and currency names (src/lib/currencies.ts).",
+  "any": {
+    "message": "Any",
+    "note": "Header link that clears a multi-select: any account, any category."
+  },
+  "doneCount": {
+    "message": "Done ({count})",
+    "note": "Done button with how many are selected."
+  },
+  "automatic": {
+    "message": "Automatic",
+    "note": "Icon/colour picker row: back to the colour or icon chosen from the name."
+  },
+  "nothingMatches": {
+    "message": "Nothing matches “{query}”.",
+    "note": "Empty search result; query is what was typed."
+  },
+  "account": {
+    "title": "Account"
+  },
+  "accounts": {
+    "title": "Accounts",
+    "all": "All accounts",
+    "other": {
+      "message": "Other",
+      "note": "Section for accounts with no group."
+    },
+    "anyA11y": "Any account",
+    "groupA11y": {
+      "message": "{count, plural, one {{group}, # account} other {{group}, # accounts}}",
+      "note": "VoiceOver label of a group header; group is its name."
+    },
+    "archived": {
+      "message": "archived",
+      "note": "Lowercase, after the currency code."
+    }
+  },
+  "categories": {
+    "title": "Categories",
+    "anyA11y": "Any category",
+    "uncategorized": "Uncategorized",
+    "folderA11y": {
+      "message": "{name} folder",
+      "note": "VoiceOver label of a folder row."
+    },
+    "wholeFolder": {
+      "message": "· whole folder",
+      "note": "After a folder name."
+    }
+  },
+  "category": {
+    "search": "Search categories",
+    "assigned": {
+      "message": "Assigned",
+      "note": "Section: the category the entry already has."
+    },
+    "recent": "Recent",
+    "noFolder": "No folder",
+    "folder": {
+      "message": "Folder",
+      "note": "Under a folder that an older entry was filed into."
+    },
+    "everything": "Everything in this folder",
+    "wholeA11y": {
+      "message": "{name}, the whole folder",
+      "note": "VoiceOver."
+    },
+    "inA11y": {
+      "message": "{name}, in {folder}",
+      "note": "VoiceOver; folder is the folder's name."
+    },
+    "new": "New category",
+    "newEllipsis": "New category…",
+    "newNamed": {
+      "message": "New category “{name}”",
+      "note": "Creates a category named what was typed."
+    }
+  },
+  "color": {
+    "a11y": {
+      "message": "Colour {name}",
+      "note": "VoiceOver on a swatch; name is a colour name, lowercase."
+    },
+    "names": {
+      "red": {
+        "message": "red",
+        "note": "Colour name, lowercase."
+      },
+      "orange": "orange",
+      "amber": "amber",
+      "yellow": "yellow",
+      "lime": "lime",
+      "green": "green",
+      "teal": "teal",
+      "cyan": "cyan",
+      "blue": "blue",
+      "indigo": "indigo",
+      "violet": "violet",
+      "pink": "pink",
+      "tealDark": "dark teal",
+      "redDark": "dark red",
+      "limePastel": "pastel lime",
+      "indigoDark": "dark indigo",
+      "yellowPastel": "pastel yellow",
+      "violetDark": "dark violet",
+      "orangePastel": "pastel orange",
+      "blueDark": "dark blue",
+      "pinkPastel": "pastel pink",
+      "greenDark": "dark green",
+      "grey": "grey",
+      "brown": "brown"
+    }
+  },
+  "icon": {
+    "search": "Search icons",
+    "none": {
+      "message": "No icon for “{query}”.",
+      "note": "query is what was typed."
+    },
+    "group": {
+      "food": "Food & drink",
+      "shopping": "Shopping",
+      "home": "Home & bills",
+      "transport": "Transport",
+      "travel": "Travel",
+      "health": "Health",
+      "family": "Family & pets",
+      "sport": "Sport & hobbies",
+      "tech": "Tech & work",
+      "money": "Money",
+      "education": "Education & documents"
+    }
+  },
+  "currency": {
+    "title": "Currency",
+    "yours": "Your accounts",
+    "all": "All currencies",
+    "currencies": "Currencies",
+    "search": "Search code or name",
+    "searchA11y": "Search currencies",
+    "none": {
+      "message": "No currency matches “{query}”.",
+      "note": "query is what was typed."
+    },
+    "names": {
+      "pln": "Polish złoty",
+      "eur": "Euro",
+      "usd": "US dollar",
+      "uah": "Ukrainian hryvnia",
+      "gbp": "British pound",
+      "chf": "Swiss franc",
+      "czk": "Czech koruna",
+      "sek": "Swedish krona",
+      "nok": "Norwegian krone",
+      "dkk": "Danish krone",
+      "huf": "Hungarian forint",
+      "ron": "Romanian leu",
+      "bgn": "Bulgarian lev",
+      "try": "Turkish lira",
+      "gel": "Georgian lari",
+      "mdl": "Moldovan leu",
+      "rsd": "Serbian dinar",
+      "isk": "Icelandic króna",
+      "cad": "Canadian dollar",
+      "aud": "Australian dollar",
+      "nzd": "New Zealand dollar",
+      "jpy": "Japanese yen",
+      "cny": "Chinese yuan",
+      "krw": "South Korean won",
+      "inr": "Indian rupee",
+      "sgd": "Singapore dollar",
+      "hkd": "Hong Kong dollar",
+      "thb": "Thai baht",
+      "vnd": "Vietnamese dong",
+      "idr": "Indonesian rupiah",
+      "myr": "Malaysian ringgit",
+      "php": "Philippine peso",
+      "aed": "UAE dirham",
+      "sar": "Saudi riyal",
+      "ils": "Israeli new shekel",
+      "egp": "Egyptian pound",
+      "zar": "South African rand",
+      "mxn": "Mexican peso",
+      "brl": "Brazilian real",
+      "ars": "Argentine peso",
+      "clp": "Chilean peso",
+      "cop": "Colombian peso",
+      "kzt": "Kazakhstani tenge",
+      "amd": "Armenian dram",
+      "azn": "Azerbaijani manat"
+    }
+  },
+  "date": {
+    "use": "Use this date"
+  },
+  "time": {
+    "now": "Now",
+    "use": {
+      "message": "Use {time}",
+      "note": "time is HH:MM."
+    }
+  },
+  "group": {
+    "title": {
+      "message": "Group",
+      "note": "An account group (\"Main\", \"Savings\")."
+    },
+    "search": "Search or create a group",
+    "searchA11y": "Search groups",
+    "create": {
+      "message": "Create “{name}”",
+      "note": "name is what was typed."
+    },
+    "count": "{count, plural, one {# account} other {# accounts}}",
+    "empty": "Empty"
+  },
+  "month": {
+    "previousYear": "Previous year",
+    "nextYear": "Next year",
+    "thisMonth": "This month"
+  },
+  "option": {
+    "title": {
+      "message": "Choose",
+      "note": "Default title of a single-choice sheet."
+    }
+  },
+  "text": {
+    "title": {
+      "message": "Text",
+      "note": "Default title of the text entry sheet."
+    }
+  },
+  "tags": {
+    "title": "Tags",
+    "search": "Search or type a new tag",
+    "searchA11y": "Search tags",
+    "create": {
+      "message": "Create “{name}”",
+      "note": "name is what was typed."
+    },
+    "usedWith": "Used with this category",
+    "other": "Other tags",
+    "travel": {
+      "message": "Travel",
+      "note": "Section of trip tags."
+    },
+    "empty": "No tags yet. Type a name above to create one."
+  },
+  "location": {
+    "title": "Location",
+    "search": "Search for a place",
+    "here": {
+      "message": "Here",
+      "note": "Map pin title when the place has no name."
+    },
+    "none": "No places found.",
+    "tapMap": "Tap the map to place the pin",
+    "current": {
+      "message": "Current",
+      "note": "Button: use the current location."
+    },
+    "currentA11y": "Use current location",
+    "remove": "Remove",
+    "removeA11y": "Remove location",
+    "use": "Use this location"
+  },
+  "transaction": {
+    "title": "Choose a transaction",
+    "search": "Search notes, categories",
+    "searchA11y": "Search transactions",
+    "uncategorized": "Uncategorized",
+    "returnA11y": {
+      "message": "{name}, {amount} becomes {after}, {date}",
+      "note": "VoiceOver when booking a return into a past entry; amounts with currency codes."
+    },
+    "none": "Nothing matches.",
+    "noneReturn": "Nothing here is big enough to take this back. Try a smaller amount."
+  }
+}

@@ -11,8 +11,11 @@ import { C, S } from "@/constants/theme";
 import { currencyName } from "@/lib/currencies";
 import { getCurrentAccount, setCurrentAccount } from "@/lib/settings";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
+import { acctName, groupName } from "@/lib/names";
 
-const TYPES: { v: AccountType; l: string }[] = [{ v: "bank", l: "Bank" }, { v: "cash", l: "Cash" }, { v: "card", l: "Card" }, { v: "savings", l: "Savings" }, { v: "investment", l: "Investment" }, { v: "other", l: "Other" }];
+const TYPES: AccountType[] = ["bank", "cash", "card", "savings", "investment", "other"];
+const typeLabel = (v: AccountType) => t(`account.type.${v}`);
 
 /**
  * New account: the keypad sets the opening balance. Existing account: the keypad shows the
@@ -24,7 +27,10 @@ const TYPES: { v: AccountType; l: string }[] = [{ v: "bank", l: "Bank" }, { v: "
 export default function AccountEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const existing = id === "new" ? null : getRow(db, "accounts", id) ?? null;
-  const [name, setName] = useState(existing?.name ?? "");
+  // A default name ("Main") is edited as it is shown, in the app's language; left alone, it goes
+  // back as stored, so it keeps following the language (DATA.md rule 17).
+  const shownName = existing ? acctName(existing) : null;
+  const [name, setName] = useState(shownName ?? "");
   const [currency, setCurrency] = useState(existing?.currency ?? "PLN");
   const [type, setType] = useState<AccountType>(existing?.type ?? "bank");
   const [group, setGroup] = useState(existing?.group_name || DEFAULT_ACCOUNT_GROUP);   // an account always belongs to one
@@ -42,6 +48,7 @@ export default function AccountEdit() {
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const value = evalExpr(amount.replace(/−/g, "-")) ?? 0;
   const valid = name.trim().length > 0;
+  const nameToSave = () => (existing && name.trim() === shownName?.trim() ? existing.name : name.trim());
 
   // First digit typed into the prefilled balance replaces it; anything else (⌫, C, an operator) edits it.
   const onKeypad = (next: string) => {
@@ -58,7 +65,7 @@ export default function AccountEdit() {
     if (!valid) return;
     const saved = mutate((d) => {
       const opening = existing ? existing.opening_balance_minor + (toMinor(value, currency) - balanceNow) : toMinor(value, currency);
-      const base = { name: name.trim(), currency, type, group_name: group.trim() || DEFAULT_ACCOUNT_GROUP, opening_balance_minor: opening, include_in_net_worth: inNet ? 1 : 0 } as const;
+      const base = { name: nameToSave(), currency, type, group_name: group.trim() || DEFAULT_ACCOUNT_GROUP, opening_balance_minor: opening, include_in_net_worth: inNet ? 1 : 0 } as const;
       return existing ? save(d, "accounts", { ...existing, ...base } as Account) : createAccount(d, base);
     });
     if (current) setCurrentAccount(saved.id); else if (getCurrentAccount() === saved.id) setCurrentAccount("");
@@ -73,15 +80,15 @@ export default function AccountEdit() {
     if (on && getCurrentAccount() === existing.id) setCurrentAccount("");
     leave();
   };
-  const archive = () => existing && Alert.alert("Archive account?", `${txCount} transaction${txCount === 1 ? "" : "s"} stay where they are. The account is hidden from logging, Budgets and net worth and shown as disabled under Accounts. You can unarchive it any time.`, [
-    { text: "Cancel", style: "cancel" },
-    { text: "Archive", style: "destructive", onPress: () => setArchived(true) },
+  const archive = () => existing && Alert.alert(t("account.archive.title"), t("account.archive.body", { count: txCount }), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("account.archive.confirm"), style: "destructive", onPress: () => setArchived(true) },
   ]);
-  const del = () => existing && Alert.alert("Delete account?", "It has no transactions, so nothing else is removed.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "accounts", existing.id)); exit(() => router.dismissAll()); } },
+  const del = () => existing && Alert.alert(t("account.delete.title"), t("account.delete.body"), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "accounts", existing.id)); exit(() => router.dismissAll()); } },
   ]);
-  const pickName = () => router.push({ pathname: "/pick/text", params: { key: keys.name, title: "Account name", value: name } });
+  const pickName = () => router.push({ pathname: "/pick/text", params: { key: keys.name, title: t("account.nameTitle"), value: name } });
   const shown = `${amount || "0"} ${currency}`;
   const changed = existing ? toMinor(value, currency) !== balanceNow : false;
 
@@ -89,13 +96,13 @@ export default function AccountEdit() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>{name || (existing ? "Edit account" : "New account")}</Title>
-          <Text style={styles.balanceLabel}>{existing ? "Balance now" : "Opening balance"}</Text>
-          <Text style={[styles.balance, untouched && { color: C.tint }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={`${existing ? "Balance" : "Opening balance"} ${shown}`}>{shown}</Text>
+          <Title>{name || (existing ? t("account.editTitle") : t("account.newTitle"))}</Title>
+          <Text style={styles.balanceLabel}>{existing ? t("account.balanceNow") : t("account.openingBalance")}</Text>
+          <Text style={[styles.balance, untouched && { color: C.tint }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={existing ? t("account.balanceA11y", { amount: shown }) : t("account.openingA11y", { amount: shown })}>{shown}</Text>
           <Subtle>
             {existing
-              ? changed ? `Opening balance becomes ${formatMinor(existing.opening_balance_minor + (toMinor(value, currency) - balanceNow), currency)} ${currency}; transactions are not changed` : untouched ? "Type to replace, ⌫ to edit" : `Opening balance ${formatMinor(existing.opening_balance_minor, currency)} ${currency}`
-              : `${group ? `${group} · ` : ""}${TYPES.find((t) => t.v === type)?.l}`}
+              ? changed ? t("account.openingBecomes", { amount: `${formatMinor(existing.opening_balance_minor + (toMinor(value, currency) - balanceNow), currency)} ${currency}` }) : untouched ? t("account.typeToReplace") : t("account.openingIs", { amount: `${formatMinor(existing.opening_balance_minor, currency)} ${currency}` })
+              : `${group ? `${groupName(group)} · ` : ""}${typeLabel(type)}`}
           </Subtle>
         </View>
       }
@@ -103,20 +110,20 @@ export default function AccountEdit() {
         <>
           <ChipRow>
             <Chip icon="coloncurrencysign.circle" label={`${currency} · ${currencyName(currency)}`} active onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: currency } })} />
-            {TYPES.map((t) => <Chip key={t.v} label={t.l} active={t.v === type} onPress={() => setType(t.v)} />)}
-            <Chip label={inNet ? "In net worth" : "Excluded"} icon={inNet ? "checkmark.circle" : "circle"} onPress={() => setInNet((v) => !v)} />
-            <Chip label="Current account" icon={current ? "star.fill" : "star"} active={current} onPress={() => setCurrent((v) => !v)} />
+            {TYPES.map((v) => <Chip key={v} label={typeLabel(v)} active={v === type} onPress={() => setType(v)} />)}
+            <Chip label={inNet ? t("account.inNetWorth") : t("account.excluded")} icon={inNet ? "checkmark.circle" : "circle"} onPress={() => setInNet((v) => !v)} />
+            <Chip label={t("account.current")} icon={current ? "star.fill" : "star"} active={current} onPress={() => setCurrent((v) => !v)} />
           </ChipRow>
-          {current ? <Subtle style={{ paddingHorizontal: S.xl }}>Logging defaults to this account and Budgets shows it with its own budgets.</Subtle> : null}
+          {current ? <Subtle style={{ paddingHorizontal: S.xl }}>{t("account.currentHint")}</Subtle> : null}
           <ChipRow>
-            <Chip icon="textformat" label={name || "Name"} active={!!name} onPress={pickName} />
-            <Chip icon="folder" label={group} active onPress={() => router.push({ pathname: "/pick/group", params: { key: keys.group, selected: group } })} />
+            <Chip icon="textformat" label={name || t("account.name")} active={!!name} onPress={pickName} />
+            <Chip icon="folder" label={groupName(group)} active onPress={() => router.push({ pathname: "/pick/group", params: { key: keys.group, selected: group } })} />
           </ChipRow>
           <Keypad value={amount} onChange={onKeypad} onToggleSign={toggleSign} />
           {/* Nameless is not a dead end: the bar opens the name field instead of sitting there greyed out. */}
-          <ConfirmBar amount={shown} label={valid ? (existing ? (changed ? "Tap to set the balance" : "Tap to save") : "Tap to add account") : "Tap to name it"} onPress={valid ? commit : pickName} />
-          {existing ? (existing.archived ? <DeleteRow icon="tray.and.arrow.up" label="Unarchive account" onPress={() => setArchived(false)} /> : <DeleteRow icon="archivebox" label="Archive account" onPress={archive} />) : null}
-          {existing && txCount === 0 ? <DeleteRow label="Delete account" onPress={del} /> : null}
+          <ConfirmBar amount={shown} label={valid ? (existing ? (changed ? t("account.confirm.setBalance") : t("account.confirm.save")) : t("account.confirm.add")) : t("account.confirm.name")} onPress={valid ? commit : pickName} />
+          {existing ? (existing.archived ? <DeleteRow icon="tray.and.arrow.up" label={t("account.unarchive")} onPress={() => setArchived(false)} /> : <DeleteRow icon="archivebox" label={t("account.archive.row")} onPress={archive} />) : null}
+          {existing && txCount === 0 ? <DeleteRow label={t("account.delete.row")} onPress={del} /> : null}
         </>
       }
     />

@@ -8,11 +8,13 @@ import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, Subtle, Title } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
+import { errorText } from "@/lib/errors";
 import { nextDay } from "@/lib/filters";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { DISMISS_MS } from "@/lib/nav";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { cityName, countryCode, quickLocation } from "@/lib/location";
+import { t } from "@/i18n";
 
 /**
  * Turn travel mode on, first half: the name (prefilled with the current city when location is on)
@@ -37,7 +39,9 @@ export default function TravelStart() {
   const chosenRef = useRef(false);               // the same, for the location lookup that lands later
   const curKey = useMemo(() => newPickKey("tripcur"), []);
   const [name, setName] = useState("");
-  const [placeholder, setPlaceholder] = useState(past ? "Where did you go?" : "Where to?");
+  // The city the phone is in, when it could tell; it is both the placeholder and the name if none is typed.
+  const [city, setCity] = useState<string | null>(null);
+  const placeholder = city ?? (past ? t("travel.start.wherePast") : t("travel.start.where"));
   const nameRef = useRef<TextInput>(null);
   const [expr, setExpr] = useState("");
   const exit = useDiscardGuard(useDirty([name, expr, chosen]));
@@ -48,7 +52,7 @@ export default function TravelStart() {
       if (!c) return;
       const [p, cc] = await Promise.all([cityName(c), countryCode(c)]);
       if (!alive) return;
-      if (p) setPlaceholder(p);
+      if (p) setCity(p);
       const local = countryCurrency(cc);
       if (local && !chosenRef.current) setCurrency(local);
     });
@@ -64,14 +68,14 @@ export default function TravelStart() {
     if (c === home) return;
     void rateOrFallback(db, home, c).then((r) => {
       if (r) return;
-      Alert.alert(`No exchange rate for ${c}`, `Payments from your ${home} accounts could not be counted towards a ${c} budget. Keep it in ${home} instead?`, [
-        { text: `Keep ${c}`, style: "cancel" },
-        { text: `Use ${home}`, onPress: () => setCurrency(home) },
+      Alert.alert(t("travel.start.noRateTitle", { currency: c }), t("travel.start.noRateBody", { home, currency: c }), [
+        { text: t("travel.start.keep", { currency: c }), style: "cancel" },
+        { text: t("travel.start.use", { currency: home }), onPress: () => setCurrency(home) },
       ]);
     });
   }, []));
   const value = evalPartial(expr);
-  const finalName = name.trim() || (placeholder !== "Where to?" && placeholder !== "Where did you go?" ? placeholder : "");
+  const finalName = name.trim() || city || "";
   const valid = value !== null && value > 0 && !!finalName;
   const shown = value !== null ? formatMinor(toMinor(value, currency), currency) : "0";
   const key = useMemo(() => newPickKey("tripdates"), []);
@@ -91,23 +95,23 @@ export default function TravelStart() {
         setTimeout(() => router.push({ pathname: "/travel/backfill", params: { tag: tag.id, name: finalName, ...range } }), DISMISS_MS);
       });
     } catch (e) {
-      Alert.alert(past ? "Could not add it" : "Could not start travel mode", (e as Error).message);
+      Alert.alert(past ? t("travel.start.addFailed") : t("travel.start.startFailed"), errorText(e));
     }
   }, [finalName, currency, value, exit, past]));
   return (
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>{past ? "A past travel" : "Travel mode"}</Title>
-          <Subtle>{past ? "Name it and say what it was meant to cost; its purchases come next." : "Every new expense gets the travel tag; the budget counts everything with it, whatever currency it was paid in."}</Subtle>
+          <Title>{past ? t("travel.start.pastTitle") : t("travel.start.title")}</Title>
+          <Subtle>{past ? t("travel.start.pastSubtitle") : t("travel.start.subtitle")}</Subtle>
           <View style={styles.nameRow}>
             <TextInput ref={nameRef} value={name} onChangeText={setName} placeholder={placeholder} placeholderTextColor={C.tertiary} style={styles.input}
-              returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} accessibilityLabel={past ? "Where you went" : "Where you are going"} />
+              returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} accessibilityLabel={past ? t("travel.start.nameLabelPast") : t("travel.start.nameLabel")} />
           </View>
           <View style={styles.amountRow}>
             <Text style={[styles.amount, !expr && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{shown}</Text>
-            <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency, title: "Budget currency" } })} hitSlop={8}
-              style={styles.curPill} accessibilityRole="button" accessibilityLabel={`Budget currency: ${currency}. Tap to change.`}>
+            <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency, title: t("travel.start.currency") } })} hitSlop={8}
+              style={styles.curPill} accessibilityRole="button" accessibilityLabel={t("travel.start.currencyLabel", { currency })}>
               <Text style={styles.cur}>{currency}</Text>
               <SymbolView name="chevron.down" size={11} tintColor={C.secondary} />
             </Pressable>
@@ -119,7 +123,7 @@ export default function TravelStart() {
         <>
           {/* Typing on the keypad puts the name field's keyboard away: the two never share the sheet. */}
           <Keypad value={expr} onChange={(e) => { nameRef.current?.blur(); setExpr(e); }} allowSign={false} />
-          <ConfirmBar amount={`${shown} ${currency}`} label={!finalName ? "Name it first" : valid ? "Tap to choose the dates" : "Enter the budget"} onPress={next} disabled={!valid} />
+          <ConfirmBar amount={`${shown} ${currency}`} label={!finalName ? t("travel.start.nameFirst") : valid ? t("travel.start.toDates") : t("travel.start.enterBudget")} onPress={next} disabled={!valid} />
         </>
       }
     />

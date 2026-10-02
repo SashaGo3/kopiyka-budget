@@ -1,9 +1,10 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, R, S } from "@/constants/theme";
-import { iconFor, tagColor } from "@kopiyka/core";
+import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
+import { t } from "@/i18n";
 
 /** Sheet skeleton: informational top, inputs pinned to the bottom. */
 export function SheetFrame({ top, bottom, onLayout }: { top: ReactNode; bottom: ReactNode; onLayout?: (e: LayoutChangeEvent) => void }) {
@@ -112,12 +113,14 @@ export function Money({ minor, currency, style, colored, sign, approx }: { minor
   const neg = minor < 0;
   const abs = Math.abs(minor);
   const d = 2;
-  const int = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  // The separators follow the language ("1 234.56" / "1 234,56"), as `formatMinor` does.
+  const { decimal, grouping } = numberFormat();
+  const int = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, grouping);
   const frac = String(abs % 100).padStart(d, "0");
   const color = colored ? (neg ? C.label : C.green) : C.label;
   return (
     <Text style={[styles.money, { color }, style]} maxFontSizeMultiplier={1.6}>
-      {approx ? "≈" : ""}{neg ? "−" : sign ? "+" : ""}{int}.{frac} <Text style={{ opacity: 0.55, fontSize: 13 }}>{currency}</Text>
+      {approx ? "≈" : ""}{neg ? "−" : sign ? "+" : ""}{int}{decimal}{frac} <Text style={{ opacity: 0.55, fontSize: 13 }}>{currency}</Text>
     </Text>
   );
 }
@@ -145,20 +148,42 @@ export function TagPill({ name, color, onPress }: { name: string; color?: string
   // No colour of its own: one derived from the name, so a row of tags is not a row of identical pills.
   const tint = tagColor(name, color);
   return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={`Tag ${name}`} style={[styles.tag, { backgroundColor: tint + "22", borderColor: tint + "55" }]}>
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={t("ui.tagA11y", { name })} style={[styles.tag, { backgroundColor: tint + "22", borderColor: tint + "55" }]}>
       <Text style={[styles.tagText, { color: tint }]} numberOfLines={1}>#{name}</Text>
     </Pressable>
+  );
+}
+
+/**
+ * Three-slot sheet header: the actions on either side always get their full width and never wrap, in
+ * any language; the title is what gives way (shrinks a little, then truncates). While there is room
+ * both side slots are as wide as the wider action, so the title stays centred on the sheet.
+ */
+export function HeaderBar({ title, left, right, style }: { title: string; left?: ReactNode; right?: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const [w, setW] = useState({ row: 0, l: 0, r: 0 });
+  const measure = (k: "row" | "l" | "r") => (e: LayoutChangeEvent) => {
+    const v = Math.ceil(e.nativeEvent.layout.width);
+    setW((p) => (p[k] === v ? p : { ...p, [k]: v }));
+  };
+  // Equal sides centre the title, but only while that still leaves it a usable width; past that the
+  // title takes whatever the actions leave and sits off-centre rather than vanishing.
+  const side = Math.max(w.l, w.r);
+  const balance = w.row > 0 && w.row - 2 * S.lg - 2 * side - 2 * S.sm >= 96;
+  return (
+    <View style={[styles.headerBar, style]} onLayout={measure("row")}>
+      <View style={[styles.headerSide, { alignItems: "flex-start" }, balance && { width: side }]}><View onLayout={measure("l")}>{left}</View></View>
+      <Text style={styles.modalTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} maxFontSizeMultiplier={1.3}>{title}</Text>
+      <View style={[styles.headerSide, { alignItems: "flex-end" }, balance && { width: side }]}><View onLayout={measure("r")}>{right}</View></View>
+    </View>
   );
 }
 
 /** Plain header for card modals: text actions only, no native glass bubbles. */
 export function ModalHeader({ title, left, right }: { title: string; left?: { label: string; onPress: () => void }; right?: { label: string; onPress: () => void; disabled?: boolean; bold?: boolean } }) {
   return (
-    <View style={styles.modalHeader}>
-      <View style={styles.modalSide}>{left ? <Pressable onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><Text style={styles.modalLink}>{left.label}</Text></Pressable> : null}</View>
-      <Text style={styles.modalTitle} numberOfLines={1}>{title}</Text>
-      <View style={[styles.modalSide, { alignItems: "flex-end" }]}>{right ? <Pressable onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><Text style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]}>{right.label}</Text></Pressable> : null}</View>
-    </View>
+    <HeaderBar title={title} style={styles.modalHeader}
+      left={left ? <Pressable onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><Text style={styles.modalLink} numberOfLines={1} maxFontSizeMultiplier={1.3}>{left.label}</Text></Pressable> : null}
+      right={right ? <Pressable onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><Text style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{right.label}</Text></Pressable> : null} />
   );
 }
 
@@ -244,7 +269,7 @@ export function StatPair({ stats }: { stats: { label: string; minor: number; cur
     <View style={styles.stats}>
       {stats.map((s) => (
         <Pressable key={s.label} onPress={s.onPress} disabled={!s.onPress} style={({ pressed }) => [styles.stat, pressed && { opacity: 0.6 }]}
-          accessibilityRole={s.onPress ? "button" : undefined} accessibilityLabel={s.onPress ? `${s.label}, approximate. Tap to see what was converted.` : undefined}>
+          accessibilityRole={s.onPress ? "button" : undefined} accessibilityLabel={s.onPress ? t("ui.approxA11y", { label: s.label }) : undefined}>
           <Text style={styles.statLabel} maxFontSizeMultiplier={1.4}>{s.label}</Text>
           <Money minor={s.minor} currency={s.currency} approx={s.approx} style={[styles.statValue, s.color ? { color: s.color } : null]} />
         </Pressable>
@@ -353,9 +378,10 @@ const styles = StyleSheet.create({
   deleteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 40 },
   tag: { paddingHorizontal: 8, minHeight: 24, paddingVertical: 2, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", maxWidth: 200 },
   tagText: { fontSize: 13, fontWeight: "600" },
-  modalHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg, minHeight: 52 },
-  modalSide: { width: 70 },
-  modalTitle: { flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: C.label },
+  headerBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg },
+  modalHeader: { minHeight: 52 },
+  headerSide: { flexShrink: 0, flexGrow: 0 },
+  modalTitle: { flex: 1, flexShrink: 1, minWidth: 0, marginHorizontal: S.sm, textAlign: "center", fontSize: 17, fontWeight: "600", color: C.label },
   modalLink: { color: C.tint, fontSize: 17 },
   deleteText: { color: C.red, fontSize: 15, fontWeight: "500" },
   big: { marginHorizontal: S.md, minHeight: 50, paddingVertical: 10, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },

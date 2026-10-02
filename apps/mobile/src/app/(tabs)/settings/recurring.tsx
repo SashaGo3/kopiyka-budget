@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { REMINDER_OPTIONS, WAIT_DAYS_OPTIONS, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
+import { WAIT_DAYS_OPTIONS, reminderLabel, reminderOptions, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
 import { Stack, router } from "expo-router";
 import { listRows, dueOccurrences, detectRecurring, adoptCandidate, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
@@ -11,21 +11,23 @@ import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
+import { catName, catNameById, acctName } from "@/lib/names";
+import { t } from "@/i18n";
 
-type RuleRowData = RecurringRule & { account?: { name: string; currency: string }; category?: { name: string }; due: number; waitingSince: string | null; wait: number };
+type RuleRowData = RecurringRule & { account?: { name: string; currency: string }; category?: { name: string; preset?: string | null }; due: number; waitingSince: string | null; wait: number };
 
-const dayCount = (d: number) => (d === 1 ? "1 day" : `${d} days`);
+const dayCount = (count: number) => t("settingsLists.recurring.days", { count });
 
 /** Where the amount and cadence come from, asked after the posting question. */
-const SOURCE_CHOICE = [
-  { value: "tx", label: "From a past transaction", subtitle: "Pick one you already logged — title, amount, category, tags and how often are filled in" },
-  { value: "new", label: "Enter it myself", subtitle: "Amount and name, then the rest on the rule screen" },
+const sourceChoice = () => [
+  { value: "tx", label: t("settingsLists.recurring.source.tx"), subtitle: t("settingsLists.recurring.source.txSubtitle") },
+  { value: "new", label: t("settingsLists.recurring.source.new"), subtitle: t("settingsLists.recurring.source.newSubtitle") },
 ];
 
 /** The first question: it decides whether the rule ever asks you anything again. */
-const POSTING_CHOICE = [
-  { value: "auto", label: "Automatic", subtitle: "It leaves your account by itself — a subscription or standing order on a fixed day. Kopiyka adds it for you and tells you it did." },
-  { value: "manual", label: "Manual", subtitle: "The day or the amount moves around, so Kopiyka asks first and you post it once it has actually gone out." },
+const postingChoice = () => [
+  { value: "auto", label: t("settingsLists.recurring.posting.auto"), subtitle: t("settingsLists.recurring.posting.autoSubtitle") },
+  { value: "manual", label: t("settingsLists.recurring.posting.manual"), subtitle: t("settingsLists.recurring.posting.manualSubtitle") },
 ];
 
 /** The sheet is still dismissing when its answer arrives, so the next one waits for it to be gone. */
@@ -66,34 +68,34 @@ export default function RecurringList() {
   const remindKey = useMemo(() => newPickKey("remind"), []);
   const waitKey = useMemo(() => newPickKey("wait"), []);
   usePickResult<string>(waitKey, useCallback((v: string) => setRecurringWaitDays(Number(v)), []));
-  const pickWait = () => router.push({ pathname: "/pick/option", params: { key: waitKey, title: "Wait for the charge", selected: String(waitDays), options: JSON.stringify(WAIT_DAYS_OPTIONS.map((d) => ({ value: String(d), label: dayCount(d) }))) } });
+  const pickWait = () => router.push({ pathname: "/pick/option", params: { key: waitKey, title: t("settingsLists.recurring.wait"), selected: String(waitDays), options: JSON.stringify(WAIT_DAYS_OPTIONS.map((d) => ({ value: String(d), label: dayCount(d) }))) } });
   // Adding a rule: pick where it comes from, enter the amount, then the rule screen for the rest.
   const w = useMemo(() => ({ post: newPickKey("wpost"), src: newPickKey("wsrc"), tx: newPickKey("wtx"), amount: newPickKey("wamt"), name: newPickKey("wname") }), []);
   const newAmount = useRef(0);
   const newAuto = useRef(false);
   usePickResult<string>(remindKey, useCallback((v: string) => setReminderDaysBefore(Number(v)), []));
-  const pickRemind = () => router.push({ pathname: "/pick/option", params: { key: remindKey, title: "Default reminder for new rules", selected: String(remind), options: JSON.stringify(REMINDER_OPTIONS) } });
+  const pickRemind = () => router.push({ pathname: "/pick/option", params: { key: remindKey, title: t("settingsLists.recurring.defaultReminderTitle"), selected: String(remind), options: JSON.stringify(reminderOptions()) } });
   const accounts = useQuery((db) => listRows(db, "accounts", "deleted=0 AND archived=0", [], "sort, name"));
   usePickResult<string>(w.post, useCallback((v: string) => {
     newAuto.current = v === "auto";
-    then(() => router.push({ pathname: "/pick/option", params: { key: w.src, title: "Where does it come from?", options: JSON.stringify(SOURCE_CHOICE) } }));
+    then(() => router.push({ pathname: "/pick/option", params: { key: w.src, title: t("settingsLists.recurring.source.title"), options: JSON.stringify(sourceChoice()) } }));
   }, [w.src]));
   usePickResult<string>(w.src, useCallback((v: string) => {
     then(() => v === "tx"
-      ? router.push({ pathname: "/pick/transaction", params: { key: w.tx, title: "Which transaction repeats?" } })
-      : router.push({ pathname: "/pick/amount", params: { key: w.amount, title: "How much?", currency: accounts[0]?.currency ?? "" } }));
+      ? router.push({ pathname: "/pick/transaction", params: { key: w.tx, title: t("settingsLists.recurring.whichTx") } })
+      : router.push({ pathname: "/pick/amount", params: { key: w.amount, title: t("settingsLists.recurring.howMuch"), currency: accounts[0]?.currency ?? "" } }));
   }, [w.tx, w.amount, accounts]));
   // A past transaction fills everything in; a fresh one carries the amount and the rest is set on the
   // rule screen, which already has a row for each of them.
   usePickResult<string>(w.tx, useCallback((id: string) => { then(() => toEditor({ tx: id, auto: newAuto.current ? "1" : "0" })); }, []));
   usePickResult<number>(w.amount, useCallback((minor: number) => {
     newAmount.current = minor;
-    then(() => router.push({ pathname: "/pick/text", params: { key: w.name, title: "What is it called?" } }));
+    then(() => router.push({ pathname: "/pick/text", params: { key: w.name, title: t("settingsLists.recurring.name") } }));
   }, [w.name]));
   usePickResult<string>(w.name, useCallback((v: string) => {
     then(() => toEditor({ amount: String(newAmount.current), name: v, auto: newAuto.current ? "1" : "0" }));
   }, []));
-  const addRule = () => router.push({ pathname: "/pick/option", params: { key: w.post, title: "How does it get paid?", options: JSON.stringify(POSTING_CHOICE) } });
+  const addRule = () => router.push({ pathname: "/pick/option", params: { key: w.post, title: t("settingsLists.recurring.posting.title"), options: JSON.stringify(postingChoice()) } });
 
   const adopt = async (cs: RecurringCandidate[]) => {
     await ensureNotificationPermission();
@@ -102,70 +104,72 @@ export default function RecurringList() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Recurring" }} />
+      <Stack.Screen options={{ title: t("settingsLists.recurring.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         {perCurrency.length ? (
           <StatPair stats={[
-            { label: "Per month", minor: Math.round(yearly.minor / 12), currency: base, color: yearly.minor < 0 ? C.red : C.green },
-            { label: "Per year", minor: yearly.minor, currency: base, color: yearly.minor < 0 ? C.red : C.green },
+            { label: t("settingsLists.recurring.perMonth"), minor: Math.round(yearly.minor / 12), currency: base, color: yearly.minor < 0 ? C.red : C.green },
+            { label: t("settingsLists.recurring.perYear"), minor: yearly.minor, currency: base, color: yearly.minor < 0 ? C.red : C.green },
           ]} />
         ) : null}
-        {yearly.missing.length ? <Text style={styles.warn}>No rate yet for {yearly.missing.join(", ")} — those rules are not counted.</Text> : null}
+        {yearly.missing.length ? <Text style={styles.warn}>{t("settingsLists.recurring.noRate", { currencies: yearly.missing.join(", ") })}</Text> : null}
         <Card style={{ marginTop: S.sm }}>
-          <Row icon="bell" iconColor="#FF375F" title="Default reminder" subtitle={REMINDER_OPTIONS.find((o) => o.value === String(remind))?.label ?? `${remind} days before`} onPress={pickRemind} />
-          <ToggleRow icon="hourglass" iconColor="#64D2FF" title="Wait for the charge" style={styles.divider}
-            subtitle="Let the real payment arrive and settle the rule, instead of adding one on the day"
+          <Row icon="bell" iconColor="#FF375F" title={t("settingsLists.recurring.defaultReminder")} subtitle={reminderLabel(remind)} onPress={pickRemind} />
+          <ToggleRow icon="hourglass" iconColor="#64D2FF" title={t("settingsLists.recurring.wait")} style={styles.divider}
+            subtitle={t("settingsLists.recurring.waitSubtitle")}
             value={wait} onChange={setRecurringWait} />
-          {wait ? <Row icon="clock.badge.exclamationmark" iconColor="#FF9F0A" title="Wait up to" subtitle={dayCount(waitDays)} onPress={pickWait} style={styles.divider} /> : null}
+          {wait ? <Row icon="clock.badge.exclamationmark" iconColor="#FF9F0A" title={t("settingsLists.recurring.waitUpTo")} subtitle={dayCount(waitDays)} onPress={pickWait} style={styles.divider} /> : null}
         </Card>
-        <ScreenNote>
-          A rule for money that comes back: rent, subscriptions, salary.{" "}
-          {wait
-            ? "With waiting on, a rule keeps quiet on its day: the payment your bank notifies — or one you log yourself — is taken as that month's, with the rule's category and the amount actually charged. Only if nothing turns up within the window does the rule act: automatic ones post their own amount, manual ones ask. Individual rules can wait longer or less."
-            : "An automatic rule posts itself on the day and tells you it did; a manual one waits and asks first, for a payment whose day or amount moves around. If the Shortcut automation already logs these payments, turn on waiting above so they are not added twice."}
-          {" "}Kopiyka also spots repeats in what you have already logged and offers them below.
-        </ScreenNote>
-        {rules.length === 0 && suggestions.length === 0 ? <Empty title="No recurring transactions" hint="Tap Add to make one." /> : null}
-        {expecting.length ? <SectionHeader>Waiting for the charge</SectionHeader> : null}
+        <ScreenNote>{wait ? t("settingsLists.recurring.noteWait") : t("settingsLists.recurring.noteNoWait")}</ScreenNote>
+        {rules.length === 0 && suggestions.length === 0 ? <Empty title={t("settingsLists.recurring.emptyTitle")} hint={t("settingsLists.recurring.emptyHint")} /> : null}
+        {expecting.length ? <SectionHeader>{t("settingsLists.recurring.expecting")}</SectionHeader> : null}
         {expecting.length ? <Card>{expecting.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
-        {due.length ? <SectionHeader>Due now · confirm</SectionHeader> : null}
+        {due.length ? <SectionHeader>{t("settingsLists.recurring.due")}</SectionHeader> : null}
         {due.length ? <Card>{due.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} confirm />)}</Card> : null}
-        {manual.length ? <SectionHeader>Manual · asks before posting</SectionHeader> : null}
+        {manual.length ? <SectionHeader>{t("settingsLists.recurring.manual")}</SectionHeader> : null}
         {manual.length ? <Card>{manual.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
-        {auto.length ? <SectionHeader>Automatic</SectionHeader> : null}
+        {auto.length ? <SectionHeader>{t("settingsLists.recurring.auto")}</SectionHeader> : null}
         {auto.length ? <Card>{auto.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
-        {paused.length ? <SectionHeader>Paused</SectionHeader> : null}
+        {paused.length ? <SectionHeader>{t("settingsLists.recurring.paused")}</SectionHeader> : null}
         {paused.length ? <Card>{paused.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
         {suggestions.length ? (
-          <SectionHeader right={<Pressable onPress={() => void adopt(suggestions)} hitSlop={8}><Text style={styles.addAll}>Add all</Text></Pressable>}>Suggested from your history</SectionHeader>
+          <SectionHeader right={<Pressable onPress={() => void adopt(suggestions)} hitSlop={8}><Text style={styles.addAll}>{t("settingsLists.recurring.addAll")}</Text></Pressable>}>{t("settingsLists.recurring.suggested")}</SectionHeader>
         ) : null}
         {suggestions.length ? (
           <Card>
             {suggestions.map((c, i) => (
-              <Row key={c.key} title={c.title ?? c.category_name ?? "Recurring"}
-                subtitle={`${freqLabel(c.frequency, c.interval)} · next ${humanDayTime(c.next_date, c.time_of_day, todayLocal(), c.frequency === "yearly")} · ${c.source === "planned" ? "planned in Budget Flow → automatic" : `seen ${c.occurrences}× → manual`}`}
-                right={<View style={styles.right}><AmountPill minor={c.amount_minor} currency={c.currency} /><Chip label="Add" onPress={() => void adopt([c])} /></View>}
+              <Row key={c.key} title={c.title ?? catNameById(c.category_id, c.category_name) ?? t("settingsLists.recurring.fallbackTitle")}
+                subtitle={c.source === "planned"
+                  ? t("settingsLists.recurring.suggestionPlanned", { freq: freqLabel(c.frequency, c.interval), date: humanDayTime(c.next_date, c.time_of_day, todayLocal(), c.frequency === "yearly") })
+                  : t("settingsLists.recurring.suggestionSeen", { freq: freqLabel(c.frequency, c.interval), date: humanDayTime(c.next_date, c.time_of_day, todayLocal(), c.frequency === "yearly"), count: c.occurrences })}
+                right={<View style={styles.right}><AmountPill minor={c.amount_minor} currency={c.currency} /><Chip label={t("settingsLists.recurring.add")} onPress={() => void adopt([c])} /></View>}
                 style={i > 0 ? styles.divider : undefined} />
             ))}
           </Card>
         ) : null}
-        <Text style={styles.foot}>Totals cover active rules only, every cadence normalised to a year. Reminders are local notifications on this phone; {wait ? "a rule acts only once its window has closed without a charge." : "automatic rules post on the day, manual ones wait for your tap."}</Text>
+        <Text style={styles.foot}>{wait ? t("settingsLists.recurring.footWait") : t("settingsLists.recurring.footNoWait")}</Text>
       </ScrollView>
-      <BottomBar visible={visible}><BarButton icon="plus" label="Add" onPress={addRule} a11y="Add a recurring rule" /></BottomBar>
+      <BottomBar visible={visible}><BarButton icon="plus" label={t("settingsLists.recurring.add")} onPress={addRule} a11y={t("settingsLists.recurring.addA11y")} /></BottomBar>
     </>
   );
 }
 
+/** "monthly", "every 2 weeks" — how often a rule repeats, in words. */
 export function freqLabel(f: string, interval: number): string {
-  if (interval > 1) return `every ${interval} ${f === "daily" ? "days" : f === "weekly" ? "weeks" : f === "monthly" ? "months" : "years"}`;
-  return f === "daily" ? "daily" : f === "weekly" ? "weekly" : f === "monthly" ? "monthly" : "yearly";
+  const count = Math.max(1, interval);
+  return f === "daily" ? t("settingsLists.recurring.freq.daily", { count })
+    : f === "weekly" ? t("settingsLists.recurring.freq.weekly", { count })
+    : f === "monthly" ? t("settingsLists.recurring.freq.monthly", { count })
+    : t("settingsLists.recurring.freq.yearly", { count });
 }
 
 function RuleRow({ r, first, confirm }: { r: RuleRowData; first: boolean; confirm?: boolean }) {
-  const title = r.payee || r.category?.name || "Recurring";
+  const category = r.category ? catName(r.category) : null;
+  const title = r.payee || category || t("settingsLists.recurring.fallbackTitle");
+  const expected = { date: r.waitingSince ? humanDayTime(r.waitingSince) : "", days: dayCount(r.wait) };
   const sub = r.waitingSince
-    ? `Expected ${humanDayTime(r.waitingSince)} · ${r.auto_post ? "posts" : "asks"} if nothing arrives within ${dayCount(r.wait)}`
-    : `${freqLabel(r.frequency, r.interval)} · ${r.account?.name ?? ""}${r.category && r.payee ? ` · ${r.category.name}` : ""}`;
+    ? (r.auto_post ? t("settingsLists.recurring.expectedPosts", expected) : t("settingsLists.recurring.expectedAsks", expected))
+    : `${freqLabel(r.frequency, r.interval)} · ${acctName(r.account) ?? ""}${category && r.payee ? ` · ${category}` : ""}`;
   return (
     <Row title={title}
       subtitle={sub}

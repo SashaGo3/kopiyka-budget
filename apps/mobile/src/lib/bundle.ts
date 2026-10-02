@@ -14,6 +14,8 @@ import { exportBackupJson, importBackup, packBundle, unpackBundle, type ImportMo
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { localPhotoNames, photosDirectory } from "@/lib/photos";
+import { importSummary } from "@/lib/backup";
+import { t } from "@/i18n";
 
 /** Photos any row points at. A file nothing references is left out — a bundle is the data, not the litter. */
 function referencedPhotos(): string[] {
@@ -52,10 +54,8 @@ export function importBundle(bytes: Uint8Array, mode: ImportMode = "merge"): Bun
   const { json, photos } = unpackBundle(bytes);
   const r = mutate((d) => importBackup(d, json, { mode }));
   const written = writePhotos(photos);
-  const rows = Object.values(r.imported).reduce((a, b) => a + b, 0);
-  const tail = mode === "replace" ? `${r.removed} removed` : `${r.skipped} already up to date`;
   return {
-    summary: `${r.imported.transactions} transactions, ${r.imported.accounts} accounts, ${r.imported.categories} categories, ${r.imported.tags} tags · ${rows} rows in total, ${tail}. ${written} photo${written === 1 ? "" : "s"} added.`,
+    summary: t("data.summary.photosAdded", { summary: importSummary(r, mode), count: written }),
     photos: written,
   };
 }

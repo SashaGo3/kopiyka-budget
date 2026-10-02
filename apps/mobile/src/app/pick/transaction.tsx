@@ -2,9 +2,12 @@ import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { formatMinor } from "@kopiyka/core";
+import { formatMinor, listRows } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
-import { useTransactions } from "@/components/TransactionList";
+import { rowCategory, useTransactions } from "@/components/TransactionList";
+import { useQuery } from "@/store";
+import { catName, acctName } from "@/lib/names";
+import { t } from "@/i18n";
 import { AmountPill, CategoryIcon } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
@@ -30,33 +33,42 @@ export default function PickTransaction() {
   const conds = ["t.transfer_id IS NULL"];
   const params: (string | number)[] = [];
   if (forReturn) { conds.push("a.currency = ?", "ABS(t.amount_minor) >= ?"); params.push(currency!, back); }
-  if (q.trim()) { conds.push("(t.notes LIKE ? OR t.payee LIKE ? OR c.name LIKE ? OR p.name LIKE ?)"); params.push(like, like, like, like); }
+  // Category names are matched as shown too (DATA.md rule 16): a preset stored in English is found by
+  // its Ukrainian name, which SQL cannot see, so those ids are worked out here and handed to it.
+  const ql = q.trim().toLowerCase();
+  const shownIds = useQuery((d) => (ql ? listRows(d, "categories", "deleted=0").filter((c) => catName(c).toLowerCase().includes(ql)).map((c) => c.id) : []), [ql]);
+  if (q.trim()) {
+    const ids = shownIds.length ? ` OR t.category_id IN (${shownIds.map(() => "?").join(",")}) OR c.parent_id IN (${shownIds.map(() => "?").join(",")})` : "";
+    conds.push(`(t.notes LIKE ? OR t.payee LIKE ? OR c.name LIKE ? OR p.name LIKE ?${ids})`);
+    params.push(like, like, like, like, ...shownIds, ...shownIds);
+  }
   const rows = useTransactions(conds.join(" AND "), params, 300);
   return (
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={rows} keyExtractor={(tx) => tx.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
         <View>
-          <Text style={styles.title}>{title ?? "Choose a transaction"}</Text>
+          <Text style={styles.title}>{title ?? t("pick.transaction.title")}</Text>
           {desc ? <Text style={styles.desc}>{desc}</Text> : null}
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder="Search notes, categories" placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel="Search transactions" />
+            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.transaction.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.transaction.searchA11y")} />
           </View>
         </View>
       }
       renderItem={({ item: tx }) => {
-        const name = tx.notes?.split("\n")[0] || tx.payee || tx.category_name || tx.parent_name || "Uncategorized";
+        const shown = rowCategory(tx);
+        const name = tx.notes?.split("\n")[0] || tx.payee || shown.name || shown.parent || t("pick.transaction.uncategorized");
         // Towards zero, whichever way the row points, exactly as the entry sheet books it.
         const after = forReturn ? tx.amount_minor + (tx.amount_minor < 0 ? back : -back) : null;
         return (
           <Pressable onPress={() => { resolvePick(key, tx.id); router.back(); }} style={styles.row} accessibilityRole="button"
             accessibilityLabel={after !== null
-              ? `${name}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency} becomes ${formatMinor(after, tx.currency)} ${tx.currency}, ${humanDayTime(tx.date.slice(0, 10))}`
+              ? t("pick.transaction.returnA11y", { name, amount: `${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}`, after: `${formatMinor(after, tx.currency)} ${tx.currency}`, date: humanDayTime(tx.date.slice(0, 10)) })
               : `${name}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}, ${humanDayTime(tx.date.slice(0, 10))}`}>
-            <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={30} />
+            <CategoryIcon name={shown.name ?? shown.parent ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={30} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.name} numberOfLines={1}>{name}</Text>
-              <Text style={styles.sub} numberOfLines={1}>{humanDayTime(tx.date.slice(0, 10))} · {tx.account_name}{tx.category_name ? ` · ${tx.category_name}` : ""}</Text>
+              <Text style={styles.sub} numberOfLines={1}>{humanDayTime(tx.date.slice(0, 10))} · {acctName({ name: tx.account_name })}{shown.name ? ` · ${shown.name}` : ""}</Text>
             </View>
             {after !== null ? (
               <View style={styles.change}>
@@ -68,7 +80,7 @@ export default function PickTransaction() {
           </Pressable>
         );
       }}
-      ListEmptyComponent={<Text style={styles.empty}>{forReturn ? "Nothing here is big enough to take this back. Try a smaller amount." : "Nothing matches."}</Text>} />
+      ListEmptyComponent={<Text style={styles.empty}>{forReturn ? t("pick.transaction.noneReturn") : t("pick.transaction.none")}</Text>} />
   );
 }
 

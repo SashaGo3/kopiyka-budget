@@ -1,6 +1,7 @@
 /** Currencies offered by the picker: ISO code, name and symbol. Frequent European ones first, then the rest alphabetically. */
 import { currencyForCountry, currencyForLocale } from "@kopiyka/core";
 import { deviceLocales } from "./device";
+import { t } from "@/i18n";
 
 export interface CurrencyInfo { code: string; name: string; symbol: string }
 
@@ -52,7 +53,19 @@ export const CURRENCY_LIST: CurrencyInfo[] = [
   { code: "AZN", name: "Azerbaijani manat", symbol: "₼" },
 ];
 
-export function currencyName(code: string): string { return CURRENCY_LIST.find((c) => c.code === code)?.name ?? code; }
+const CODES = ["pln", "eur", "usd", "uah", "gbp", "chf", "czk", "sek", "nok", "dkk", "huf", "ron", "bgn", "try", "gel", "mdl", "rsd", "isk", "cad", "aud", "nzd", "jpy", "cny", "krw", "inr", "sgd", "hkd", "thb", "vnd", "idr", "myr", "php", "aed", "sar", "ils", "egp", "zar", "mxn", "brl", "ars", "clp", "cop", "kzt", "amd", "azn"] as const;
+type Code = (typeof CODES)[number];
+
+/**
+ * The currency's name in the app's language ("польський злотий"). From the message catalogue rather
+ * than Intl.DisplayNames, which Hermes does not reliably provide; a code the catalogue does not know
+ * keeps the English name, and an unknown code is shown as itself.
+ */
+export function currencyName(code: string): string {
+  const k = code.toLowerCase();
+  if ((CODES as readonly string[]).includes(k)) return t(`pick.currency.names.${k as Code}`);
+  return CURRENCY_LIST.find((c) => c.code === code)?.name ?? code;
+}
 
 export function isKnownCurrency(code: string): boolean { return CURRENCY_LIST.some((c) => c.code === code); }
 

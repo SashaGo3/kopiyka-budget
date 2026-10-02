@@ -4,6 +4,8 @@
  * ("currency:<code>" is still understood for scopes saved earlier, but no longer offered.)
  */
 import type { Option } from "@/app/pick/option";
+import { t } from "@/i18n";
+import { acctName, groupName } from "@/lib/names";
 
 export interface ScopedAccount { id: string; name: string; group_name: string; currency: string }
 
@@ -20,10 +22,11 @@ export function scopeAccount(scope: string): string | null {
 }
 
 export function scopeLabel(scope: string, accounts: ScopedAccount[]): string {
-  if (!scope) return "All accounts";
-  if (scope.startsWith("group:")) return scope.slice(6);
-  if (scope.startsWith("currency:")) return `All ${scope.slice(9)}`;
-  return accounts.find((a) => a.id === scope)?.name ?? "All accounts";
+  if (!scope) return t("period.scope.all");
+  if (scope.startsWith("group:")) return groupName(scope.slice(6));
+  if (scope.startsWith("currency:")) return t("period.scope.allCurrency", { currency: scope.slice(9) });
+  const a = accounts.find((a) => a.id === scope);
+  return a ? acctName(a) : t("period.scope.all");
 }
 
 /**
@@ -33,17 +36,17 @@ export function scopeLabel(scope: string, accounts: ScopedAccount[]): string {
  * so the accounts are listed under "All accounts" directly.
  */
 export function scopeOptions(accounts: ScopedAccount[]): Option[] {
-  const n = (k: number) => `${k} account${k === 1 ? "" : "s"}`;
+  const n = (count: number) => t("period.scope.accounts", { count });
   const allGroups = [...new Set(accounts.map((a) => a.group_name))];
   const single = allGroups.length === 1;
   const groups = single ? [] : allGroups.filter(Boolean);
-  const account = (a: ScopedAccount, indent: boolean): Option => ({ value: a.id, label: a.name, subtitle: a.currency, indent });
+  const account = (a: ScopedAccount, indent: boolean): Option => ({ value: a.id, label: acctName(a), subtitle: a.currency, indent });
   return [
-    { value: "all", label: "All accounts", subtitle: single && allGroups[0] ? `${allGroups[0]} · ${n(accounts.length)}` : n(accounts.length) },
+    { value: "all", label: t("period.scope.all"), subtitle: single && allGroups[0] ? `${groupName(allGroups[0])} · ${n(accounts.length)}` : n(accounts.length) },
     ...(single ? accounts.map((a) => account(a, true)) : []),
     ...groups.flatMap((g) => {
       const members = accounts.filter((a) => a.group_name === g);
-      return [{ value: `group:${g}`, label: g, subtitle: `Group · ${n(members.length)}` }, ...members.map((a) => account(a, true))];
+      return [{ value: `group:${g}`, label: groupName(g), subtitle: t("period.scope.group", { count: members.length }) }, ...members.map((a) => account(a, true))];
     }),
     ...(single ? [] : accounts.filter((a) => !a.group_name).map((a) => account(a, false))),
   ];

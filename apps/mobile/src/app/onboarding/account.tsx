@@ -12,8 +12,10 @@ import { currencyName, isKnownCurrency, suggestedCurrency } from "@/lib/currenci
 import { countryCode, locationStatus, quickLocation } from "@/lib/location";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { pickAndImport } from "@/lib/importers";
+import { errorText } from "@/lib/errors";
 import { setOnboarded } from "@/lib/onboarding";
 import { setCurrentAccount } from "@/lib/settings";
+import { t } from "@/i18n";
 
 /**
  * Step 3: the main account with what is on it right now (becomes the opening balance).
@@ -25,7 +27,7 @@ import { setCurrentAccount } from "@/lib/settings";
  * picker one tap away, and the guess stops the moment the user picks for themselves.
  */
 export default function OnboardingAccount() {
-  const [name, setName] = useState("Main");
+  const [name, setName] = useState(() => t("preset.account.name"));
   const [currency, setCurrency] = useState<string>(() => suggestedCurrency());
   const [chosenByHand, setChosenByHand] = useState(false);
   const [curKey] = useState(() => newPickKey("obcur"));
@@ -64,19 +66,19 @@ export default function OnboardingAccount() {
       if (!summary) return;
       setOnboarded();
       const hasAccounts = listRows(db, "accounts", "deleted=0").length > 0;
-      Alert.alert("Backup restored", summary, [{ text: "Continue", onPress: () => { if (hasAccounts) router.replace("/transactions"); } }]);
-    } catch (e) { Alert.alert("Could not restore", (e as Error).message); }
+      Alert.alert(t("onboarding.restore.done"), summary, [{ text: t("onboarding.restore.continue"), onPress: () => { if (hasAccounts) router.replace("/transactions"); } }]);
+    } catch (e) { Alert.alert(t("onboarding.restore.failed"), errorText(e)); }
     finally { setBusy(false); }
   };
   return (
-    <OnboardingFrame step={3} title="Your main account" subtitle="What is on it right now becomes the opening balance. More accounts can be added later in Settings."
-      primary={{ label: expr ? `Continue with ${shown} ${currency}` : "Continue with 0", onPress: next, disabled: !valid }}
-      secondary={{ label: busy ? "Restoring…" : "I have a backup to restore", onPress: () => void restore() }}>
+    <OnboardingFrame step={3} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
+      primary={{ label: expr ? t("onboarding.account.continueWith", { amount: shown, currency }) : t("onboarding.account.continueZero"), onPress: next, disabled: !valid }}
+      secondary={{ label: busy ? t("onboarding.restore.busy") : t("onboarding.account.restore"), onPress: () => void restore() }}>
       <View style={styles.form}>
-        <TextInput value={name} onChangeText={setName} placeholder="Account name" placeholderTextColor={C.tertiary} style={styles.input} returnKeyType="done" accessibilityLabel="Account name" />
+        <TextInput value={name} onChangeText={setName} placeholder={t("onboarding.account.namePlaceholder")} placeholderTextColor={C.tertiary} style={styles.input} returnKeyType="done" accessibilityLabel={t("onboarding.account.namePlaceholder")} />
         <View style={styles.balance}>
-          <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency } })} style={styles.currencyRow} accessibilityRole="button" accessibilityLabel={`Currency: ${currency}`}>
-            <Text style={styles.balanceLabel}>Balance now in</Text>
+          <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency } })} style={styles.currencyRow} accessibilityRole="button" accessibilityLabel={t("onboarding.account.currencyA11y", { currency })}>
+            <Text style={styles.balanceLabel}>{t("onboarding.account.balanceIn")}</Text>
             <Text style={styles.currencyText}>{currency} · {currencyName(currency)}</Text>
             <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
           </Pressable>

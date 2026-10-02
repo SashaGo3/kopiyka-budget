@@ -3,9 +3,14 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { C, S } from "@/constants/theme";
-import { monthBounds, shiftMonth } from "@/lib/dates";
+import { humanDayTime, monthBounds, shiftMonth } from "@/lib/dates";
+import { getLocale, t } from "@/i18n";
 
-const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
+/** One-letter weekday headers, Monday first, in the app's language (1 Jan 2024 was a Monday). */
+function weekdays(): string[] {
+  const locale = getLocale();
+  return Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: "narrow" }));
+}
 
 /** YYYY-MM-DD of a day in a month, however far out of range `d` is (JS dates carry it over). */
 function day(y: number, m: number, d: number): string {
@@ -47,16 +52,16 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Pressable onPress={() => setMonth(shiftMonth(month, -1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel="Previous month">
+        <Pressable onPress={() => setMonth(shiftMonth(month, -1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.previous")}>
           <SymbolView name="chevron.left" size={16} tintColor={C.tint} />
         </Pressable>
         <Text style={styles.month}>{monthBounds(month).label}</Text>
-        <Pressable onPress={() => setMonth(shiftMonth(month, 1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel="Next month">
+        <Pressable onPress={() => setMonth(shiftMonth(month, 1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.next")}>
           <SymbolView name="chevron.right" size={16} tintColor={C.tint} />
         </Pressable>
       </View>
       <View style={styles.week}>
-        {WEEKDAYS.map((w, i) => <Text key={i} style={styles.weekday}>{w}</Text>)}
+        {weekdays().map((w, i) => <Text key={i} style={styles.weekday}>{w}</Text>)}
       </View>
       {weeks.map((w, i) => (
         <View key={i} style={styles.week}>
@@ -71,7 +76,7 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
             const off = !!maxEnd && d > maxEnd;
             return (
               <Pressable key={j} onPress={() => tap(d)} disabled={off} style={[styles.cell, off && { opacity: 0.3 }]} accessibilityRole="button"
-                accessibilityLabel={d} accessibilityState={{ selected: edge || inside, disabled: off }}>
+                accessibilityLabel={humanDayTime(d)} accessibilityState={{ selected: edge || inside, disabled: off }}>
                 {bandLeft ? <View style={[styles.band, { left: 0, right: "50%" }]} /> : null}
                 {bandRight ? <View style={[styles.band, { left: "50%", right: 0 }]} /> : null}
                 <View style={[styles.dot, edge && styles.dotOn]}>

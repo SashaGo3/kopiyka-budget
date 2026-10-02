@@ -3,6 +3,7 @@ import { SymbolView } from "expo-symbols";
 import { C, R } from "@/constants/theme";
 import { Glass } from "@/components/glass";
 import type { Period } from "@/lib/period";
+import { t } from "@/i18n";
 
 /**
  * "Aug 2026" with "15 Aug – 14 Sep" underneath when periods start mid-month. Tap opens the month
@@ -12,14 +13,14 @@ import type { Period } from "@/lib/period";
  */
 export function PeriodPill({ period, onPrev, onNext, onReset, onPick, disabled }: { period: Period; onPrev: () => void; onNext: () => void; onReset?: () => void; onPick?: () => void; disabled?: boolean }) {
   return (
-    <View style={[styles.pill, disabled && { opacity: 0.4 }]} accessibilityRole="adjustable" accessibilityLabel={`Period ${period.title}${period.subtitle ? `, ${period.subtitle}` : ""}`}>
+    <View style={[styles.pill, disabled && { opacity: 0.4 }]} accessibilityRole="adjustable" accessibilityLabel={period.subtitle ? t("period.pill.labelRange", { title: period.title, range: period.subtitle }) : t("period.pill.label", { title: period.title })}>
       <Glass style={styles.fill} solid={styles.solid} />
-      <Pressable onPress={onPrev} disabled={disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel="Previous period"><SymbolView name="chevron.left" size={14} tintColor={C.tint} /></Pressable>
-      <Pressable onPress={onPick} onLongPress={onReset} disabled={disabled} style={{ alignItems: "center" }} accessibilityRole="button" accessibilityLabel={`${period.title}, choose month`} accessibilityHint="Long press for today">
+      <Pressable onPress={onPrev} disabled={disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("period.pill.previous")}><SymbolView name="chevron.left" size={14} tintColor={C.tint} /></Pressable>
+      <Pressable onPress={onPick} onLongPress={onReset} disabled={disabled} style={{ alignItems: "center" }} accessibilityRole="button" accessibilityLabel={t("period.pill.choose", { title: period.title })} accessibilityHint={t("period.pill.chooseHint")}>
         <Text style={styles.title} maxFontSizeMultiplier={1.3}>{period.title}</Text>
         {period.subtitle ? <Text style={styles.sub} maxFontSizeMultiplier={1.3}>{period.subtitle}</Text> : null}
       </Pressable>
-      <Pressable onPress={onNext} disabled={disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel="Next period"><SymbolView name="chevron.right" size={14} tintColor={C.tint} /></Pressable>
+      <Pressable onPress={onNext} disabled={disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("period.pill.next")}><SymbolView name="chevron.right" size={14} tintColor={C.tint} /></Pressable>
     </View>
   );
 }

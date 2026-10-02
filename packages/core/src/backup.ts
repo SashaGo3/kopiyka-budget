@@ -12,6 +12,8 @@ import { nowMs } from "./db";
 import type { RowByTable, Synced, SyncedTable } from "./models";
 import { DEFAULT_DEBT_NOTIFY_TIME, SYNCED_TABLES } from "./models";
 import { getMeta, setMeta } from "./schema";
+import { presetBackfillSql } from "./presetData";
+import { KopiykaError } from "./errors";
 import { getRow, listRows, upsertRaw } from "./repo";
 
 export const BACKUP_FORMAT = "kopiyka-backup";
@@ -35,14 +37,26 @@ export const BACKUP_VERSION = 1;
  * up in a diff. A preference that is removed from the app comes off this list too (`handedness`,
  * 2026-09-12; `backup_per_day`, replaced by `backup_keep_days` on 2026-09-18; `language`, dropped
  * with the app's language picker on 2026-09-18 — the app is English only): an old backup still
- * carrying the key is simply ignored on import.
+ * carrying the key is simply ignored on import. `language` came back in 1.0.3 with a new meaning;
+ * see `LANGUAGE_SINCE_SCHEMA` for why an older file's copy of it is still ignored.
  */
 export const BACKUP_META_KEYS = [
   "period_start_day", "base_currency", "recurring_notify_days_before",
   "location_enabled", "home_lat", "home_lon", "home_place",
   "current_account", "budget_scope", "hide_income", "show_balance", "backup_keep_days",
-  "shortcut_notify", "recurring_wait", "recurring_wait_days", "budgets_sections",
+  "shortcut_notify", "recurring_wait", "recurring_wait_days", "budgets_sections", "language",
 ] as const;
+
+/**
+ * `language` came back in 1.0.3 (schema v18) meaning "" = follow the phone, a code = picked in
+ * Settings. 1.0.1 wrote the same key with a different meaning — the phone's language at first
+ * launch, stored whether or not anyone chose it — and its backups still carry it. A file that does
+ * not say it was written at v18 or later (`schema`, which older builds never wrote) has its
+ * `language` ignored, or restoring a 1.0.1 backup would pin the app to whatever the phone spoke then.
+ */
+const LANGUAGE_SINCE_SCHEMA = 18;
+/** `categories.preset` exists from v18; a file from before it gets the v18 backfill on import. */
+const PRESET_SINCE_SCHEMA = 18;
 
 /**
  * One cached exchange rate. These look like a cache and are not one: `cachedRate` looks a rate up
@@ -56,6 +70,8 @@ export interface BackupRate { base: string; quote: string; day: string; rate: nu
 export interface Backup {
   format: typeof BACKUP_FORMAT;
   version: number;
+  /** `schema_version` of the database that wrote the file. Absent before 1.0.3. */
+  schema?: number;
   exported_at: string;
   settings: Record<string, string>;
   accounts: RowByTable["accounts"][];
@@ -90,7 +106,7 @@ export function exportBackup(db: SqlDriver, opts: { includeDeleted?: boolean; no
     return opts.compact ? rows.map((r) => compactRow(r, tombstoneCutoff)) : rows;
   };
   return {
-    format: BACKUP_FORMAT, version: BACKUP_VERSION, exported_at: now.toISOString(), settings,
+    format: BACKUP_FORMAT, version: BACKUP_VERSION, schema: Number(getMeta(db, "schema_version") ?? 0) || undefined, exported_at: now.toISOString(), settings,
     accounts: pick("accounts"), categories: pick("categories"), tags: pick("tags"),
     transactions: pick("transactions"), recurring_rules: pick("recurring_rules"), budgets: pick("budgets"), insights: pick("insights"),
     debts: pick("debts"),
@@ -147,9 +163,12 @@ export type ImportMode = "merge" | "replace";
 
 /** Bring a backup in. See `ImportMode` for what `merge` and `replace` each mean. */
 export function importBackup(db: SqlDriver, input: string | Backup, opts: { applySettings?: boolean; mode?: ImportMode } = {}): BackupReport {
-  const b = (typeof input === "string" ? JSON.parse(input) : input) as Partial<Backup>;
-  if (b.format !== BACKUP_FORMAT || !Array.isArray(b.accounts)) throw new Error("Not a Kopiyka backup");
+  let b: Partial<Backup>;
+  try { b = (typeof input === "string" ? JSON.parse(input) : input) as Partial<Backup>; }
+  catch { throw new KopiykaError("not_a_backup", "Not a Kopiyka backup (not JSON)"); }
+  if (!b || b.format !== BACKUP_FORMAT || !Array.isArray(b.accounts)) throw new KopiykaError("not_a_backup", "Not a Kopiyka backup");
   const replace = opts.mode === "replace";
+  const fileSchema = Number(b.schema) || 0;
   const report: BackupReport = { imported: { accounts: 0, categories: 0, tags: 0, transactions: 0, recurring_rules: 0, budgets: 0, insights: 0, debts: 0 }, skipped: 0, settings: 0, rates: 0, removed: 0 };
   db.transaction(() => {
     for (const t of SYNCED_TABLES) {
@@ -176,6 +195,12 @@ export function importBackup(db: SqlDriver, input: string | Backup, opts: { appl
         }
       }
     }
+    // A file from a build before v18 has no `preset` on its categories, so a ready-made category
+    // restored into a fresh database would never be translated. The same backfill the v18 migration
+    // ran: only rows still NULL, matched by English name and folder, and `updated_at` left alone
+    // (DATA.md rule 16). A file from v18 on says what each row is (a compact one by omitting NULL),
+    // so it is taken at its word.
+    if (fileSchema < PRESET_SINCE_SCHEMA && report.imported.categories) for (const stmt of presetBackfillSql()) db.run(stmt);
     if (replace) { db.run(`DELETE FROM sync_outbox`); db.run(`DELETE FROM change_log`); db.run(`DELETE FROM meta WHERE key='last_pulled_seq'`); }
     // Rates are keyed by (base, quote, day) rather than by id, so "newer wins" is `fetched_at`:
     // a rate this phone looked up (or was given) more recently is not overwritten by an older backup.
@@ -186,7 +211,12 @@ export function importBackup(db: SqlDriver, input: string | Backup, opts: { appl
       db.run(`INSERT OR REPLACE INTO exchange_rates(base, quote, day, rate, fetched_at) VALUES (?,?,?,?,?)`, [r.base, r.quote, r.day, r.rate, r.fetched_at ?? 0]);
       report.rates++;
     }
-    if (opts.applySettings !== false) for (const [k, v] of Object.entries(b.settings ?? {})) { if ((BACKUP_META_KEYS as readonly string[]).includes(k)) { setMeta(db, k, String(v)); report.settings++; } }
+    const languageMeansPick = fileSchema >= LANGUAGE_SINCE_SCHEMA;
+    if (opts.applySettings !== false) for (const [k, v] of Object.entries(b.settings ?? {})) {
+      if (!(BACKUP_META_KEYS as readonly string[]).includes(k)) continue;
+      if (k === "language" && !languageMeansPick) continue;
+      setMeta(db, k, String(v)); report.settings++;
+    }
   });
   return report;
 }

@@ -9,6 +9,9 @@ import { AmountPill, CategoryIcon, Money, ProgressBar } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useRates } from "@/lib/rates";
+import { catName } from "@/lib/names";
+import { tripName } from "@/lib/travel";
+import { t } from "@/i18n";
 
 /**
  * A trip (travel mode budget). Ignores the account scope: a trip is paid from anywhere. Tapping the
@@ -29,27 +32,28 @@ export function TripCard({ budget, compact, onPress }: { budget: Budget; compact
   const [open, setOpen] = useState(false);
   // Recomputed on every render: a couple of tiny queries, and `rateFor` changes once rates arrive.
   const s = tripStats(db, budget, { rateFor, today });
+  const tripTitle = tripName(s);
   const ratio = s.limit_minor > 0 ? Math.min(1, s.spent_minor / s.limit_minor) : 0;
-  const show = (category?: string | null) => router.push({ pathname: "/transactions", params: { tag: budget.tag_id ?? "", name: s.name, ...(category !== undefined ? { category: category ?? "none" } : {}), from: "0000", nonce: String(Date.now()) } });
+  const show = (category?: string | null) => router.push({ pathname: "/transactions", params: { tag: budget.tag_id ?? "", name: tripTitle, ...(category !== undefined ? { category: category ?? "none" } : {}), from: "0000", nonce: String(Date.now()) } });
   const cats = new Map(s.by_category.map((c) => [c.category_id, c.category_id ? getRow(db, "categories", c.category_id) : null]));
   const when = s.active
-    ? (s.days_left ? `Day ${s.day} of ${s.days}` : `Day ${s.day} · planned until ${humanDayTime(budget.ends ?? budget.starts)}`)
-    : `${humanDayTime(budget.starts, null, undefined, true)} → ${humanDayTime(budget.ended ?? budget.ends ?? budget.starts, null, undefined, true)} · ${s.days} day${s.days === 1 ? "" : "s"}`;
+    ? (s.days_left ? t("travel.card.dayOf", { day: s.day, days: s.days }) : t("travel.card.dayPlanned", { day: s.day, date: humanDayTime(budget.ends ?? budget.starts) }))
+    : t("travel.card.span", { from: humanDayTime(budget.starts, null, undefined, true), to: humanDayTime(budget.ended ?? budget.ends ?? budget.starts, null, undefined, true), count: s.days });
   const fmt = (m: number) => formatMinor(m, s.currency);
   const over = s.remaining_minor < 0;
   // The one number worth a glance while away: what each day may still cost, or that it is gone.
   const hero = !s.active || compact ? null
-    : over ? { value: `${fmt(-s.remaining_minor)} ${s.currency}`, label: "over the budget", color: C.orange }
-    : s.allowance_minor !== null ? { value: `${fmt(s.allowance_minor)} ${s.currency}`, label: s.days_left === 1 ? "left for today" : `a day for the ${s.days_left} days left`, color: C.label }
+    : over ? { value: `${fmt(-s.remaining_minor)} ${s.currency}`, label: t("travel.card.over"), color: C.orange }
+    : s.allowance_minor !== null ? { value: `${fmt(s.allowance_minor)} ${s.currency}`, label: s.days_left === 1 ? t("travel.card.leftToday") : t("travel.card.perDayLeft", { count: s.days_left ?? 0 }), color: C.label }
     : null;
-  const line = [`${fmt(s.spent_minor)} of ${fmt(s.limit_minor)} ${s.currency} spent`, s.outside_minor ? `+ ${fmt(s.outside_minor)} outside the budget` : ""].filter(Boolean).join(" · ");
+  const line = [t("travel.card.spent", { spent: fmt(s.spent_minor), limit: fmt(s.limit_minor), currency: s.currency }), s.outside_minor ? t("travel.card.outside", { amount: fmt(s.outside_minor) }) : ""].filter(Boolean).join(" · ");
   const plannedPerDay = Math.round(s.limit_minor / s.days);
   return (
     <View style={[styles.card, compact && styles.compact]}>
-      <Pressable onPress={onPress ?? (() => show())} style={styles.head} accessibilityRole="button" accessibilityLabel={`Travel ${s.name}, ${fmt(s.remaining_minor)} ${s.currency} left`}>
+      <Pressable onPress={onPress ?? (() => show())} style={styles.head} accessibilityRole="button" accessibilityLabel={t("travel.card.label", { name: tripTitle, amount: `${fmt(s.remaining_minor)} ${s.currency}` })}>
         <View style={styles.icon}><SymbolView name="airplane" size={18} tintColor="#fff" /></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{s.name}</Text>
+          <Text style={styles.name}>{tripTitle}</Text>
           <Text style={styles.sub}>{when}</Text>
         </View>
         {hero ? null : <AmountPill minor={s.remaining_minor} currency={s.currency} warn />}
@@ -67,25 +71,25 @@ export function TripCard({ budget, compact, onPress }: { budget: Budget; compact
           <SymbolView name={s.over ? "exclamationmark.circle.fill" : "party.popper.fill"} size={18} tintColor={s.over ? C.orange : C.green} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.verdictText, { color: s.over ? C.orange : C.green }]}>
-              {s.over ? `${fmt(-s.remaining_minor)} ${s.currency} over the plan` : s.remaining_minor ? `${fmt(s.remaining_minor)} ${s.currency} left of the plan` : "Exactly as planned"}
+              {s.over ? t("travel.card.overPlan", { amount: `${fmt(-s.remaining_minor)} ${s.currency}` }) : s.remaining_minor ? t("travel.card.leftOfPlan", { amount: `${fmt(s.remaining_minor)} ${s.currency}` }) : t("travel.card.exact")}
             </Text>
-            <Text style={styles.sub}>{fmt(s.per_day_minor)} {s.currency} a day · planned {fmt(plannedPerDay)}</Text>
+            <Text style={styles.sub}>{t("travel.card.pace", { amount: `${fmt(s.per_day_minor)} ${s.currency}`, planned: fmt(plannedPerDay) })}</Text>
           </View>
         </View>
       ) : null}
-      {s.unconverted.length ? <Text style={styles.warn}>Not counted (no exchange rate yet): {s.unconverted.map((u) => `${formatMinor(u.minor, u.currency)} ${u.currency}`).join(", ")}</Text> : null}
+      {s.unconverted.length ? <Text style={styles.warn}>{t("travel.card.unconverted", { amounts: s.unconverted.map((u) => `${formatMinor(u.minor, u.currency)} ${u.currency}`).join(", ") })}</Text> : null}
       {!compact && s.by_category.length ? (
         <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v); }} style={styles.fold}
-          accessibilityRole="button" accessibilityLabel={`${open ? "Hide" : "Show"} what it was spent on`} accessibilityState={{ expanded: open }}>
-          <Text style={[styles.sub, { flex: 1 }]}>By category</Text>
+          accessibilityRole="button" accessibilityLabel={open ? t("travel.card.hideSpent") : t("travel.card.showSpent")} accessibilityState={{ expanded: open }}>
+          <Text style={[styles.sub, { flex: 1 }]}>{t("travel.card.byCategory")}</Text>
           <SymbolView name={open ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
         </Pressable>
       ) : null}
       {!compact && open && s.by_category.map((ch) => {
         const c = cats.get(ch.category_id);
-        const name = c?.name ?? "Uncategorized";
+        const name = c ? catName(c) : t("budgets.title.uncategorized");
         return (
-          <Pressable key={ch.category_id ?? "none"} onPress={() => show(ch.category_id)} style={styles.child} accessibilityRole="button" accessibilityLabel={`${name} on ${s.name}`}>
+          <Pressable key={ch.category_id ?? "none"} onPress={() => show(ch.category_id)} style={styles.child} accessibilityRole="button" accessibilityLabel={t("travel.card.categoryLabel", { name, trip: tripTitle })}>
             <CategoryIcon name={name} icon={c?.icon} color={c?.color} size={24} />
             <Text style={styles.childName}>{name}</Text>
             {s.spent_minor > 0 ? <Text style={styles.share}>{Math.round((ch.spent_minor / s.spent_minor) * 100)}%</Text> : null}

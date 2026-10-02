@@ -6,6 +6,8 @@ import { useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S } from "@/constants/theme";
+import { catName } from "@/lib/names";
+import { t } from "@/i18n";
 
 /** Folders and their categories; tap any row to edit it. Add lives in the thumb zone. */
 export default function CategoriesScreen() {
@@ -34,54 +36,54 @@ export default function CategoriesScreen() {
     const leaves = markableLeaves(asked);
     return { total: leaves.length, unmarked: unmarkedCount(asked), marked: leaves.filter((c) => level.get(c.id)).length };
   });
-  const add = () => Alert.alert("Add", undefined, [
-    { text: "New category", onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", parent: groups.list[0]?.parent.id ?? "" } }) },
-    { text: "New folder", onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", folder: "1" } }) },
-    { text: "Cancel", style: "cancel" },
+  const add = () => Alert.alert(t("settingsLists.categories.add"), undefined, [
+    { text: t("settingsLists.categories.newCategory"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", parent: groups.list[0]?.parent.id ?? "" } }) },
+    { text: t("settingsLists.categories.newFolder"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", folder: "1" } }) },
+    { text: t("common.cancel"), style: "cancel" },
   ]);
   return (
     <>
-      <Stack.Screen options={{ title: "Categories" }} />
+      <Stack.Screen options={{ title: t("settingsLists.categories.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>A category is what money was spent on, and it is what budgets and every chart are built from. A folder groups categories and is never filed into: a transaction always goes to one of the categories inside it. Give a folder a colour and the categories created in it take that colour.</ScreenNote>
+        <ScreenNote>{t("settingsLists.categories.intro")}</ScreenNote>
         {matters.total ? (
           <Card>
-            <Row title="Set what matters" icon="heart.text.square"
-              subtitle={matters.marked === 0 ? "Not set yet · two questions, five minutes"
-                : matters.unmarked ? `${matters.marked} marked · ${matters.unmarked} not marked yet`
-                : `All ${matters.marked} marked`}
+            <Row title={t("settingsLists.categories.matters")} icon="heart.text.square"
+              subtitle={matters.marked === 0 ? t("settingsLists.categories.mattersNone")
+                : matters.unmarked ? t("settingsLists.categories.mattersPartial", { marked: matters.marked, unmarked: matters.unmarked })
+                : t("settingsLists.categories.mattersAll", { count: matters.marked })}
               subtitleColor={matters.unmarked && matters.marked ? C.orange : undefined}
               onPress={() => router.push("/category/importance")} />
           </Card>
         ) : null}
-        {groups.list.length === 0 ? <Empty title="No categories" hint="Add a folder, then categories inside it." /> : null}
+        {groups.list.length === 0 ? <Empty title={t("settingsLists.categories.emptyTitle")} hint={t("settingsLists.categories.emptyHint")} /> : null}
         {groups.list.map(({ parent, children }) => (
           <Card key={parent.id} style={{ marginTop: S.lg }}>
-            <Row title={parent.name} subtitle={`Folder${parent.kind === "income" ? " · income" : ""} · ${children.length} categor${children.length === 1 ? "y" : "ies"}`}
+            <Row title={catName(parent)} subtitle={parent.kind === "income" ? t("settingsLists.categories.folderIncome", { count: children.length }) : t("settingsLists.categories.folder", { count: children.length })}
               onPress={() => router.push({ pathname: "/category/edit", params: { id: parent.id } })}
-              right={<View style={styles.right}><CategoryIcon name={parent.name} icon={parent.icon} color={parent.color} size={30} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
-            {children.map((c) => <Row key={c.id} title={c.name} onPress={() => router.push({ pathname: "/category/edit", params: { id: c.id } })} style={[styles.divider, styles.child]}
-              right={<View style={styles.right}><CategoryIcon name={c.name} icon={c.icon} color={c.color} size={26} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />)}
-            <Row title="Add category here" onPress={() => router.push({ pathname: "/category/edit", params: { id: "new", parent: parent.id } })} style={[styles.divider, styles.child, { opacity: 0.7 }]} />
+              right={<View style={styles.right}><CategoryIcon name={catName(parent)} icon={parent.icon} color={parent.color} size={30} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
+            {children.map((c) => <Row key={c.id} title={catName(c)} onPress={() => router.push({ pathname: "/category/edit", params: { id: c.id } })} style={[styles.divider, styles.child]}
+              right={<View style={styles.right}><CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={26} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />)}
+            <Row title={t("settingsLists.categories.addHere")} onPress={() => router.push({ pathname: "/category/edit", params: { id: "new", parent: parent.id } })} style={[styles.divider, styles.child, { opacity: 0.7 }]} />
           </Card>
         ))}
         {groups.orphans.length ? (
           <Card style={{ marginTop: S.lg }}>
-            {groups.orphans.map((c, i) => <Row key={c.id} title={c.name} subtitle="No folder" onPress={() => router.push({ pathname: "/category/edit", params: { id: c.id } })} style={i > 0 ? styles.divider : undefined} />)}
+            {groups.orphans.map((c, i) => <Row key={c.id} title={catName(c)} subtitle={t("settingsLists.categories.noFolder")} onPress={() => router.push({ pathname: "/category/edit", params: { id: c.id } })} style={i > 0 ? styles.divider : undefined} />)}
           </Card>
         ) : null}
-        {groups.archived.length ? <SectionHeader>Archived</SectionHeader> : null}
+        {groups.archived.length ? <SectionHeader>{t("settingsLists.categories.archived")}</SectionHeader> : null}
         {groups.archived.length ? (
           <Card>
             {groups.archived.map(({ c, byFolder }, i) => (
-              <Row key={c.id} title={c.name} subtitle={byFolder ? "In an archived folder" : "Archived"} onPress={() => router.push({ pathname: "/category/edit", params: { id: c.id } })} style={[i > 0 ? styles.divider : undefined, { opacity: 0.6 }]}
-                right={<View style={styles.right}><CategoryIcon name={c.name} icon={c.icon} color={c.color} size={26} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
+              <Row key={c.id} title={catName(c)} subtitle={byFolder ? t("settingsLists.categories.inArchivedFolder") : t("settingsLists.categories.archived")} onPress={() => router.push({ pathname: "/category/edit", params: { id: c.id } })} style={[i > 0 ? styles.divider : undefined, { opacity: 0.6 }]}
+                right={<View style={styles.right}><CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={26} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
             ))}
           </Card>
         ) : null}
-        {groups.archived.length ? <ScreenNote>Everything already filed under these keeps its category and still counts in budgets and charts; they are simply not offered when anything new is filed. Open one to bring it back.</ScreenNote> : null}
+        {groups.archived.length ? <ScreenNote>{t("settingsLists.categories.archivedNote")}</ScreenNote> : null}
       </ScrollView>
-      <BottomBar visible={visible}><BarButton icon="plus" label="Add" onPress={add} a11y="Add" /></BottomBar>
+      <BottomBar visible={visible}><BarButton icon="plus" label={t("settingsLists.categories.add")} onPress={add} a11y={t("settingsLists.categories.add")} /></BottomBar>
     </>
   );
 }

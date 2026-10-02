@@ -8,22 +8,24 @@
  */
 import { budgetCategoryIds, listRows, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
+import { t } from "@/i18n";
+import { catName } from "@/lib/names";
 
 export function budgetTitle(b: Budget, names?: { cats: Map<string, string>; tags: Map<string, string> }): string {
   const n = b.name?.trim();
   if (n) return n;
-  const cats = names?.cats ?? new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c.name]));
-  const tags = names?.tags ?? new Map(listRows(db, "tags", "1=1").map((t) => [t.id, t.name]));
-  if (b.tag_id) return `#${tags.get(b.tag_id) ?? "tag"}`;
+  const cats = names?.cats ?? new Map(listRows(db, "categories", "1=1").map((c) => [c.id, catName(c)]));
+  const tags = names?.tags ?? new Map(listRows(db, "tags", "1=1").map((x) => [x.id, x.name]));
+  if (b.tag_id) return `#${tags.get(b.tag_id) ?? t("budgets.title.tag")}`;
   const ids = budgetCategoryIds(b);
-  if (!ids.length) return "Everything";
-  return ids.map((id) => (id === "none" ? "Uncategorized" : cats.get(id) ?? "?")).join(", ");
+  if (!ids.length) return t("budgets.title.everything");
+  return ids.map((id) => (id === "none" ? t("budgets.title.uncategorized") : cats.get(id) ?? "?")).join(", ");
 }
 
 /** The name maps `budgetTitle` wants, read once for a whole list. */
 export function nameMaps(d: typeof db): { cats: Map<string, string>; tags: Map<string, string> } {
   return {
-    cats: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, c.name])),
-    tags: new Map(listRows(d, "tags", "1=1").map((t) => [t.id, t.name])),
+    cats: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, catName(c)])),
+    tags: new Map(listRows(d, "tags", "1=1").map((x) => [x.id, x.name])),
   };
 }

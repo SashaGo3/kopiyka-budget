@@ -4,6 +4,7 @@ import { migrate, getMeta, setMeta } from "../src/schema";
 import { cachedRate } from "../src/rates";
 import { createAccount, createCategory, createTag, createTransaction, createRecurring, createBudget, listRows, getRow, remove, tagsForCategory, suggestCategoryNear, getHome, setHome } from "../src/repo";
 import { BACKUP_META_KEYS, exportBackup, exportBackupJson, importBackup } from "../src/backup";
+import { kopiykaError } from "../src/errors";
 
 function fresh() { const db = openBunDb(); migrate(db); return db; }
 
@@ -14,12 +15,42 @@ describe("backup", () => {
   test("carries every preference the app stores, and no identity of the device it came from", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
       "backup_keep_days", "base_currency", "budget_scope", "budgets_sections", "current_account",
-      "hide_income", "home_lat", "home_lon", "home_place", "location_enabled",
+      "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled",
       "period_start_day", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
       "shortcut_notify", "show_balance",
     ]);
     // These describe the install, not the data, and must never travel with a backup.
     for (const k of ["device_id", "last_pulled_seq", "onboarded"]) expect(BACKUP_META_KEYS as readonly string[]).not.toContain(k);
+  });
+
+  // 1.0.1 stored `language` as the phone's language at first launch; from v18 it is a choice made
+  // in Settings. A file that does not say it was written at v18 keeps its stale value to itself.
+  test("a language from a file older than v18 is ignored, a current one is restored", () => {
+    const a = fresh();
+    setMeta(a, "language", "uk");
+    const file = exportBackup(a);
+    expect(file.schema).toBe(Number(getMeta(a, "schema_version")));
+    const b = fresh();
+    importBackup(b, file);
+    expect(getMeta(b, "language")).toBe("uk");
+
+    const c = fresh();
+    const { schema: _s, ...old } = file;
+    importBackup(c, { ...old, settings: { ...old.settings, language: "pl", period_start_day: "5" } });
+    expect(getMeta(c, "language")).toBeNull();
+    expect(getMeta(c, "period_start_day")).toBe("5");
+  });
+
+  test("upgrading to v18 forgets the language 1.0.1 stored on its own", () => {
+    const db = fresh();
+    setMeta(db, "language", "en");
+    db.run(`UPDATE meta SET value='17' WHERE key='schema_version'`);
+    migrate(db);
+    expect(getMeta(db, "language")).toBeNull();
+    // A choice made at v18 survives the next launch.
+    setMeta(db, "language", "uk");
+    migrate(db);
+    expect(getMeta(db, "language")).toBe("uk");
   });
 
   test("replace makes the file the whole truth: removed categories go, edits win, rates stay", () => {
@@ -235,5 +266,16 @@ describe("tags per category and place suggestions", () => {
     setHome(db, null);
     expect(getHome(db)).toBeNull();
     expect(suggestCategoryNear(db, 52.2298, 21.0123)?.category_id).toBe(coffee.id);
+  });
+});
+
+describe("errors meant for a person carry a code", () => {
+  test("a file that is not a backup, JSON or not", () => {
+    const db = fresh();
+    for (const input of ["not json", JSON.stringify({ hello: 1 })]) {
+      let caught: unknown;
+      try { importBackup(db, input); } catch (e) { caught = e; }
+      expect(kopiykaError(caught)?.code).toBe("not_a_backup");
+    }
   });
 });

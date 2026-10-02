@@ -4,8 +4,19 @@ import { SymbolView } from "expo-symbols";
 import { COLORS } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 const COLS = 6;
+
+const COLOR_KEYS = ["red", "orange", "amber", "yellow", "lime", "green", "teal", "cyan", "blue", "indigo", "violet", "pink",
+  "tealDark", "redDark", "limePastel", "indigoDark", "yellowPastel", "violetDark", "orangePastel", "blueDark", "pinkPastel", "greenDark", "grey", "brown"] as const;
+type ColorKey = (typeof COLOR_KEYS)[number];
+
+/** A palette colour's name (core COLORS: "teal dark") in the app's language; anything unknown as it is. */
+export function colorLabel(name: string): string {
+  const key = name.replace(/ (\w)/g, (_, c: string) => c.toUpperCase());
+  return (COLOR_KEYS as readonly string[]).includes(key) ? t(`pick.color.names.${key as ColorKey}`) : name;
+}
 
 /**
  * Colour picker as a half sheet: the 24-swatch palette in a 6-per-row grid of 44 pt
@@ -24,16 +35,16 @@ export default function PickColor() {
       contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 60 }}
       columnWrapperStyle={{ gap: S.sm }}
       ListHeaderComponent={
-        <Pressable onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel="Automatic">
+        <Pressable onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
           <View style={styles.autoIcon}><SymbolView name="wand.and.stars" size={16} tintColor={C.tertiary} /></View>
-          <Text style={styles.autoText}>Automatic</Text>
+          <Text style={styles.autoText}>{t("pick.automatic")}</Text>
           {!selected ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
         </Pressable>
       }
       renderItem={({ item }) => {
         const on = selected === item.hex;
         return (
-          <Pressable onPress={() => choose(item.hex)} style={[styles.cell, { backgroundColor: item.hex }, on && styles.cellOn]} accessibilityRole="button" accessibilityLabel={`Colour ${item.name}`} accessibilityState={{ selected: on }}>
+          <Pressable onPress={() => choose(item.hex)} style={[styles.cell, { backgroundColor: item.hex }, on && styles.cellOn]} accessibilityRole="button" accessibilityLabel={t("pick.color.a11y", { name: colorLabel(item.name) })} accessibilityState={{ selected: on }}>
             {on ? <SymbolView name="checkmark" size={17} weight="bold" tintColor={C.onTint} /> : null}
           </Pressable>
         );

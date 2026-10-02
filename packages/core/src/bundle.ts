@@ -9,6 +9,7 @@
  * tested. Reading and writing the actual files is the app's job (apps/mobile/src/lib/bundle.ts).
  */
 import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
+import { KopiykaError } from "./errors";
 
 export const BUNDLE_BACKUP = "backup.json";
 export const BUNDLE_PHOTOS = "photos/";
@@ -31,7 +32,7 @@ export interface UnpackedBundle { json: string; photos: Record<string, Uint8Arra
 export function unpackBundle(bytes: Uint8Array): UnpackedBundle {
   const entries = unzipSync(bytes);
   const backup = entries[BUNDLE_BACKUP];
-  if (!backup) throw new Error(`This zip has no ${BUNDLE_BACKUP} in it`);
+  if (!backup) throw new KopiykaError("bundle_without_backup", `This zip has no ${BUNDLE_BACKUP} in it`);
   const photos: Record<string, Uint8Array> = {};
   for (const [path, data] of Object.entries(entries)) {
     if (!path.startsWith(BUNDLE_PHOTOS) || path.endsWith("/")) continue;

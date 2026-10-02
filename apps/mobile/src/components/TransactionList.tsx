@@ -2,23 +2,42 @@ import { memo, useMemo } from "react";
 import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { formatMinor, jsonIds, paidAmountMinor, type Transaction } from "@kopiyka/core";
+import { formatMinor, jsonIds, numberFormat, paidAmountMinor, type Transaction } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { useCloudRefresh } from "@/lib/backup";
 import { AmountPill, CategoryIcon, Empty, Money, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { dayLabel, humanDayTime, timeLabel } from "@/lib/dates";
+import { t } from "@/i18n";
+import { catName, acctName } from "@/lib/names";
 
 interface TagRef { id: string; name: string; color: string | null }
 
-export interface TxRow extends Transaction { currency: string; account_name: string; category_name: string | null; parent_name: string | null; cat_icon: string | null; cat_color: string | null; parent_icon: string | null; parent_color: string | null; source: string | null }
+export interface TxRow extends Transaction { currency: string; account_name: string; category_name: string | null; parent_name: string | null; cat_preset: string | null; parent_preset: string | null; cat_icon: string | null; cat_color: string | null; parent_icon: string | null; parent_color: string | null; source: string | null }
 
 export function useTransactions(where: string, params: (string | number)[] = [], limit = 500) {
   return useQuery((db) => db.all(
-    `SELECT t.*, a.currency, a.name AS account_name, c.name AS category_name, p.name AS parent_name, c.icon AS cat_icon, c.color AS cat_color, p.icon AS parent_icon, p.color AS parent_color
+    `SELECT t.*, a.currency, a.name AS account_name, c.name AS category_name, p.name AS parent_name, c.preset AS cat_preset, p.preset AS parent_preset, c.icon AS cat_icon, c.color AS cat_color, p.icon AS parent_icon, p.color AS parent_color
      FROM transactions t JOIN accounts a ON a.id=t.account_id
      LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
      WHERE t.deleted=0 AND ${where} ORDER BY t.date DESC, t.rowid DESC LIMIT ${limit}`, params) as unknown as TxRow[], [where, ...params]);
+}
+
+/**
+ * The row's category and its folder as the app shows them: a ready-made category in the app's
+ * language until it is renamed (DATA.md rule 16). `category_name` / `parent_name` stay the stored
+ * names — what the icon guess and search read.
+ */
+export function rowCategory(tx: Pick<TxRow, "category_name" | "parent_name" | "cat_preset" | "parent_preset">): { name: string | null; parent: string | null } {
+  return {
+    name: tx.category_name ? catName({ name: tx.category_name, preset: tx.cat_preset }) : null,
+    parent: tx.parent_name ? catName({ name: tx.parent_name, preset: tx.parent_preset }) : null,
+  };
+}
+
+/** A decimal number in the language's separator, for rates (money goes through `formatMinor`). */
+function decimalText(n: number, digits: number): string {
+  return n.toFixed(digits).replace(".", numberFormat().decimal);
 }
 
 export function groupByDay(rows: TxRow[]) {
@@ -71,14 +90,14 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
       contentContainerStyle={{ paddingBottom: 220 }}
       ListHeaderComponent={header}
       // The caller knows what it filtered by, so it can say why there is nothing here.
-      ListEmptyComponent={empty ?? <Empty title="No transactions" hint="Tap Log to add one." />}
+      ListEmptyComponent={empty ?? <Empty title={t("transactions.empty.title")} hint={t("transactions.list.emptyHint")} />}
       stickySectionHeadersEnabled={false}
       // Fewer rows mounted off-screen: switching selection mode re-renders every mounted row.
       windowSize={7}
       initialNumToRender={14}
       maxToRenderPerBatch={14}
       renderSectionHeader={({ section }) => section.title ? <Text style={styles.sh}>{section.title}</Text> : <View style={{ height: S.sm }} />}
-      renderSectionFooter={({ section }) => section.total !== 0 ? <Text style={styles.sum}>Sum: <Money minor={section.total} currency={section.currency} style={[styles.sumVal, { color: section.total < 0 ? C.red : C.green }]} /></Text> : <View style={{ height: S.sm }} />}
+      renderSectionFooter={({ section }) => section.total !== 0 ? <Text style={styles.sum}>{t("transactions.list.sum")} <Money minor={section.total} currency={section.currency} style={[styles.sumVal, { color: section.total < 0 ? C.red : C.green }]} /></Text> : <View style={{ height: S.sm }} />}
       renderItem={({ item: tx, index, section }) => (
         <TxItem tx={tx} tags={tagsFor.get(tx.id) ?? EMPTY_TAGS} flat={!!flat} showAccount={showAccount} first={index === 0} last={index === section.data.length - 1}
           selecting={selecting} on={selected?.has(tx.id) ?? false} onToggle={onToggle} />
@@ -95,22 +114,25 @@ const TxItem = memo(function TxItem({ tx, tags, flat, showAccount, first, last, 
 }) {
   const noteLines = tx.notes ? tx.notes.split("\n") : [];
   const note = noteLines[0] || null;
-  const title = tx.transfer_id ? (note ? `Transfer · ${note}` : "Transfer") : note || tx.payee || tx.category_name || tx.parent_name || "Uncategorized";
+  const names = rowCategory(tx);
+  const title = tx.transfer_id ? (note ? t("transactions.list.transferNote", { note }) : t("transactions.list.transfer")) : note || tx.payee || names.name || names.parent || t("common.noCategory");
   const restLines = note ? noteLines.slice(1, 3) : []; // at most 2 more lines of the note, under the title
-  const category = tx.category_name ? (tx.parent_name ? `${tx.parent_name} › ${tx.category_name}` : tx.category_name) : tx.parent_name;
-  const sub = [showAccount ? tx.account_name : null, category].filter(Boolean).join(" · ");
+  const category = names.name ? (names.parent ? `${names.parent} › ${names.name}` : names.name) : names.parent;
+  const sub = [showAccount ? acctName({ name: tx.account_name }) : null, category].filter(Boolean).join(" · ");
   const payeeLine = tx.payee && tx.payee !== title ? tx.payee : null;
   const crossCurrency = tx.entered_currency && tx.entered_currency !== tx.currency && tx.entered_amount_minor != null
-    ? `entered ${(Math.abs(tx.entered_amount_minor) / 100).toFixed(2)} ${tx.entered_currency}` + (tx.exchange_rate ? ` @ ${tx.exchange_rate.toFixed(2)}` : "") : null;
+    ? (tx.exchange_rate
+      ? t("transactions.list.enteredRate", { amount: formatMinor(Math.abs(tx.entered_amount_minor), tx.entered_currency), currency: tx.entered_currency, rate: decimalText(tx.exchange_rate, 2) })
+      : t("transactions.list.entered", { amount: formatMinor(Math.abs(tx.entered_amount_minor), tx.entered_currency), currency: tx.entered_currency })) : null;
   // Part of this came back (packages/core/returns.ts): the row shows what it ended up costing, with
   // what was paid struck through next to it, so a shrunken amount is never a mystery.
-  const returned = tx.refunded_minor ? `paid ${formatMinor(Math.abs(paidAmountMinor(tx)), tx.currency)}, ${formatMinor(Math.abs(tx.refunded_minor), tx.currency)} came back` : null;
-  const a11yBits = [sub, tags.length ? `tags ${tags.map((x) => x.name).join(", ")}` : null, tx.pending ? "pending" : null].filter(Boolean).join(", ");
+  const returned = tx.refunded_minor ? t("transactions.list.returned", { paid: formatMinor(Math.abs(paidAmountMinor(tx)), tx.currency), back: formatMinor(Math.abs(tx.refunded_minor), tx.currency) }) : null;
+  const a11yBits = [sub, tags.length ? t("transactions.list.tagsA11y", { names: tags.map((x) => x.name).join(", ") }) : null, tx.pending ? t("transactions.list.pendingA11y") : null].filter(Boolean).join(", ");
   return (
     <Pressable
       onPress={() => selecting ? onToggle?.(tx.id) : router.push(tx.transfer_id ? { pathname: "/transfer/[id]", params: { id: tx.transfer_id } } : { pathname: "/transaction/[id]", params: { id: tx.id } })}
       style={({ pressed }) => [styles.item, first && styles.first, last && styles.last, !first && styles.divider, !!tx.pending && styles.pendingBg, (pressed || on) && { backgroundColor: C.fill }]}
-      accessibilityRole={selecting ? "checkbox" : "button"} accessibilityState={selecting ? { checked: on } : undefined} accessibilityLabel={`${title}, ${tx.amount_minor / 100} ${tx.currency}, ${a11yBits}`}>
+      accessibilityRole={selecting ? "checkbox" : "button"} accessibilityState={selecting ? { checked: on } : undefined} accessibilityLabel={`${title}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}, ${a11yBits}`}>
       {tx.pending ? <View style={styles.pendingBar} /> : null}
       {selecting ? <SymbolView name={on ? "checkmark.circle.fill" : "circle"} size={22} tintColor={on ? C.tint : C.tertiary} /> : null}
       {tx.transfer_id ? <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
@@ -129,7 +151,7 @@ const TxItem = memo(function TxItem({ tx, tags, flat, showAccount, first, last, 
         <View style={styles.metaRow}>
           {tx.recurring_id ? <SymbolView name="repeat" size={12} tintColor={C.secondary} /> : null}
           {tx.photo ? <SymbolView name="camera" size={12} tintColor={C.secondary} /> : null}
-          {tx.pending ? <View style={styles.pendingRow}><SymbolView name="clock" size={12} tintColor={C.orange} /><Text style={styles.pendingText}>Pending</Text></View> : null}
+          {tx.pending ? <View style={styles.pendingRow}><SymbolView name="clock" size={12} tintColor={C.orange} /><Text style={styles.pendingText}>{t("transactions.list.pending")}</Text></View> : null}
           <Text style={styles.time}>{flat ? humanDayTime(tx.date.slice(0, 10)) : timeLabel(tx.date)}</Text>
         </View>
         <AmountPill minor={tx.amount_minor} currency={tx.currency} neutral={!!tx.transfer_id} />
