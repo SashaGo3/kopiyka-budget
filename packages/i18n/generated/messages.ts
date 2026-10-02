@@ -952,6 +952,8 @@ export interface Messages {
   "onboarding.restore.failed": undefined;
   /** VoiceOver label of the progress dots at the top of the welcome flow. */
   "onboarding.stepA11y": { step: string | number; count: string | number };
+  "onboarding.theme.subtitle": undefined;
+  "onboarding.theme.title": undefined;
   "onboarding.welcome.cloudRestored": undefined;
   /** date is when the backup was made ("22 Sep"); summary is what was imported, already translated. */
   "onboarding.welcome.cloudRestoredBody": { date: string | number; summary: string | number };
@@ -1721,6 +1723,22 @@ export interface Messages {
   "tag.transactions.count": { count: number };
   "tag.transactions.header": undefined;
   "tag.transactions.subtitle": undefined;
+  /** VoiceOver label of the dark-mode preview tile of a theme. */
+  "theme.dark": undefined;
+  "theme.footer": undefined;
+  /** VoiceOver label of the light-mode preview tile of a theme. */
+  "theme.light": undefined;
+  "theme.name.catppuccin": undefined;
+  "theme.name.github": undefined;
+  "theme.name.gruvbox": undefined;
+  /** The default theme, named after the app. */
+  "theme.name.kopiyka": undefined;
+  "theme.name.nord": undefined;
+  "theme.name.rosepine": undefined;
+  "theme.name.solarized": undefined;
+  "theme.name.tokyonight": undefined;
+  /** Settings row and screen title; the colour theme of the app. */
+  "theme.title": undefined;
   "transaction.bulk.apply": { count: number };
   "transaction.bulk.confirmed": undefined;
   "transaction.bulk.count": { count: number };
@@ -2205,6 +2223,7 @@ export interface Messages {
   "whatsNew.improved": undefined;
   "whatsNew.notes.v1_0_3.categories": undefined;
   "whatsNew.notes.v1_0_3.language": undefined;
+  "whatsNew.notes.v1_0_3.themes": undefined;
   "whatsNew.notes.v1_0_3.ukrainian": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;

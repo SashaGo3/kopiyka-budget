@@ -1,0 +1,16 @@
+{
+  "title": "Тема",
+  "footer": "Кожна тема має світлий і темний варіант і перемикається разом з оформленням iPhone. Іконка застосунку змінюється разом із нею.",
+  "light": "Світла",
+  "dark": "Темна",
+  "name": {
+    "kopiyka": "Копійка",
+    "solarized": "Solarized",
+    "catppuccin": "Catppuccin",
+    "gruvbox": "Gruvbox",
+    "nord": "Nord",
+    "tokyonight": "Tokyo Night",
+    "rosepine": "Rosé Pine",
+    "github": "GitHub"
+  }
+}

@@ -30,6 +30,7 @@ private enum KPLaunch {
 ///  - "nativeWrite" event: a write the native side wants JS to make on its behalf (KPWrites)
 ///  - launchTimestamps(): boot-trace marks for Settings → Diagnostics (src/lib/boot.ts)
 ///  - setLanguage(code): the app's language, for every Swift surface (native/KPLocale.swift)
+///  - setAppIcon(id): the home-screen icon for a colour theme (plugins/withAppIcons.js)
 final class KPBridgeModule: Module {
   private var observer: NSObjectProtocol?
   /// The moment this module instance was created — Expo builds it while setting up the bridge,
@@ -85,6 +86,25 @@ final class KPBridgeModule: Module {
     AsyncFunction("scanReceipt") { (uri: String) async throws -> [String: Any] in
       guard let url = URL(string: uri), let image = UIImage(contentsOfFile: url.path) else { throw KPReceipt.Failure.noImage }
       return KPReceipt.dictionary(try await KPReceipt.analyze(image: image))
+    }
+
+    /// The home-screen icon for a colour theme: "AppIcon-<id>" (an alternate set plugins/withAppIcons.js
+    /// put into the asset catalogue), or nil for the primary icon. iOS shows its own "You have changed
+    /// the icon" alert on success; there is no public way to suppress it. Asking for the icon already
+    /// showing resolves without a call, so no alert appears for nothing.
+    AsyncFunction("setAppIcon") { (id: String?, promise: Promise) in
+      let name = id.flatMap { $0.isEmpty ? nil : "AppIcon-\($0)" }
+      DispatchQueue.main.async {
+        let app = UIApplication.shared
+        guard app.supportsAlternateIcons else {
+          promise.reject("ERR_APP_ICON_UNSUPPORTED", "This device does not support alternate app icons")
+          return
+        }
+        guard app.alternateIconName != name else { promise.resolve(); return }
+        app.setAlternateIconName(name) { error in
+          if let error { promise.reject("ERR_APP_ICON", error.localizedDescription) } else { promise.resolve() }
+        }
+      }
     }
 
     // Device odds and ends (native/KPDevice.swift; JS side: src/lib/device.ts).

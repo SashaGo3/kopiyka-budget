@@ -3,7 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack } from "expo-router";
 import { File, Paths } from "expo-file-system";
 import { Card, DeleteRow, Empty, Row, SectionHeader } from "@/components/ui";
-import { C, Fonts, S } from "@/constants/theme";
+import { C, Fonts, S, themed } from "@/constants/theme";
 import { APP_VERSION } from "@/constants/app";
 import { clearLastCrash, readLastCrash, type CrashRecord } from "@/lib/crashlog";
 import { bootTrace } from "@/lib/boot";
@@ -66,8 +66,8 @@ export default function Diagnostics() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   stackCard: { padding: S.md },
   stack: { fontFamily: Fonts.mono, fontSize: 12, lineHeight: 16, color: C.secondary },
-});
+}));

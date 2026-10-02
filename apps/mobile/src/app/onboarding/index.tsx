@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { pickAndImport } from "@/lib/importers";
 import { errorText } from "@/lib/errors";
 import { setOnboarded } from "@/lib/onboarding";
@@ -120,7 +120,7 @@ export default function Welcome() {
     <OnboardingFrame step={1} title={t("onboarding.welcome.title")} subtitle={t("onboarding.welcome.subtitle")}
       primary={cloud === "restoring"
         ? { label: t("onboarding.welcome.restoringCloud"), onPress: () => {}, disabled: true }
-        : { label: t("onboarding.welcome.start"), onPress: () => router.push("/onboarding/location") }}
+        : { label: t("onboarding.welcome.start"), onPress: () => router.push("/onboarding/theme") }}
       secondary={cloud === "restoring" ? undefined : { label: busy ? t("onboarding.restore.busy") : t("onboarding.welcome.restore"), onPress: () => void restore() }}>
       <View style={styles.hero}>
         <Image source={require("../../../assets/images/icon.png")} style={styles.icon} accessibilityIgnoresInvertColors />
@@ -146,7 +146,7 @@ export default function Welcome() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hero: { alignItems: "center", paddingVertical: S.xl },
   icon: { width: 112, height: 112, borderRadius: 26 },
   points: { gap: S.md },
@@ -156,4 +156,4 @@ const styles = StyleSheet.create({
   pointText: { fontSize: 14, color: C.secondary, marginTop: 2 },
   language: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, alignSelf: "center", minHeight: 44, marginTop: S.md, paddingHorizontal: S.md },
   languageText: { fontSize: 15, fontWeight: "600", color: C.secondary },
-});
+}));

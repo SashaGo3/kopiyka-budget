@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate } from "@/store";
 import { Keypad, ConfirmBar, evalExpr } from "@/components/Keypad";
 import { Chip, SheetFrame, Subtle, Title, ChipRow, DeleteRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { currencyName } from "@/lib/currencies";
 import { getCurrentAccount, setCurrentAccount } from "@/lib/settings";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -130,8 +130,8 @@ export default function AccountEdit() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.md, gap: 4 },
   balanceLabel: { fontSize: 13, color: C.secondary, marginTop: S.sm },
   balance: { fontSize: 34, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
-});
+}));

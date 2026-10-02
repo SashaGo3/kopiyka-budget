@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { COLORS } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 const COLS = 6;
@@ -53,10 +53,10 @@ export default function PickColor() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   autoRow: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 44, marginTop: S.lg, marginBottom: S.lg },
   autoIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   autoText: { flex: 1, fontSize: 17, color: C.label },
   cell: { flex: 1, aspectRatio: 1, maxWidth: 44, minHeight: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "transparent", marginBottom: S.sm },
   cellOn: { borderColor: C.label },
-});
+}));

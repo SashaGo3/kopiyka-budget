@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
 import { Stack, router } from "expo-router";
 import { Card, Row, SectionHeader } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
 import { listBackups, restoreBackup, useBackupState, type BackupEntry } from "@/lib/backup";
 import { errorText } from "@/lib/errors";
@@ -64,8 +64,8 @@ export default function BackupsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.lg },
   empty: { color: C.secondary, fontSize: 15, paddingHorizontal: S.xl, marginTop: S.xl },
-});
+}));

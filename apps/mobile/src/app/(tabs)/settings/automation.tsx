@@ -3,7 +3,7 @@ import { Linking, ScrollView, StyleSheet, Text } from "react-native";
 import { Stack, router, useFocusEffect } from "expo-router";
 import { useQuery } from "@/store";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { getShortcutNotify, setShortcutNotify } from "@/lib/settings";
 import { ensureNotificationPermission, notificationStatus, syncBadge } from "@/lib/notifications";
 import { parseLogCount } from "@/lib/parselog";
@@ -69,7 +69,7 @@ export default function AutomationSettings() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.tertiary, fontSize: 13, lineHeight: 18, paddingHorizontal: S.xl, paddingTop: S.sm },
-});
+}));

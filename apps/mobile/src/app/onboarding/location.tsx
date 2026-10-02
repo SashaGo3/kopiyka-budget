@@ -5,7 +5,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { HOME_RADIUS_M } from "@kopiyka/core";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { ensureLocationPermission, placeName, preciseLocation } from "@/lib/location";
 import { getHomeLocation, setHomeLocation, setLocationEnabled } from "@/lib/settings";
 import { t } from "@/i18n";
@@ -18,7 +18,7 @@ const points = (): { icon: SFSymbol; title: string; text: string }[] => [
 ];
 
 /**
- * Step 2: location, explained here and asked of iOS from the same screen.
+ * Step 3: location, explained here and asked of iOS from the same screen.
  *
  * The explanation is allowed; a way past it is not. A screen that describes a permission and then
  * lets the user leave without the system prompt ever appearing is what App Review reads as putting
@@ -64,7 +64,7 @@ export default function OnboardingLocation() {
 
   const where = home ? home.place ?? `${home.lat.toFixed(4)}, ${home.lon.toFixed(4)}` : null;
   return (
-    <OnboardingFrame step={2}
+    <OnboardingFrame step={3}
       title={granted ? t("onboarding.location.homeTitle") : t("onboarding.location.title")}
       subtitle={granted ? t("onboarding.location.homeSubtitle", { radius: HOME_RADIUS_M }) : t("onboarding.location.subtitle")}
       primary={{ label: !granted && asking ? t("onboarding.location.asking") : t("onboarding.continue"), onPress: granted ? next : () => void ask(), disabled: asking }}>
@@ -101,7 +101,7 @@ export default function OnboardingLocation() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   list: { gap: S.md, paddingTop: S.md },
   point: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: 16, padding: S.md },
   badge: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
@@ -109,4 +109,4 @@ const styles = StyleSheet.create({
   pointText: { fontSize: 14, color: C.secondary, marginTop: 2, lineHeight: 19 },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44 },
   actionText: { fontSize: 15, fontWeight: "600", color: C.tint },
-});
+}));

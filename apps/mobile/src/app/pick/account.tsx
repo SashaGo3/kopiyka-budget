@@ -5,7 +5,7 @@ import { accountBalanceMinor, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { Money, Row, accountIcon } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
 
@@ -22,4 +22,4 @@ export default function PickAccount() {
       )} />
   );
 }
-const styles = StyleSheet.create({ title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingVertical: S.md } });
+const styles = themed(() => StyleSheet.create({ title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingVertical: S.md } }));

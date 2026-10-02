@@ -5,7 +5,7 @@ import { accountBalanceMinor, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Money, Row, ScreenNote, SectionHeader, accountIcon, Empty } from "@/components/ui";
 import { NetWorth } from "@/components/AccountsSummary";
-import { C } from "@/constants/theme";
+import { C, themed } from "@/constants/theme";
 import { getCurrentAccount } from "@/lib/settings";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
@@ -75,10 +75,10 @@ function GroupTotal({ accounts }: { accounts: { balance: number; currency: strin
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator }, disabled: { opacity: 0.45 },
   total: { flexDirection: "row", alignItems: "center", gap: 4 },
   totalItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   totalSep: { color: C.tertiary, fontSize: 13 },
   totalMoney: { fontSize: 13, fontWeight: "500", color: C.secondary },
-});
+}));

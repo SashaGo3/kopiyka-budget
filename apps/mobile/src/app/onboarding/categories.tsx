@@ -5,12 +5,12 @@ import { CATEGORY_PRESET, presetCounts, presetKey, presetName, seedCategories } 
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { setOnboarded } from "@/lib/onboarding";
 import { getLanguage, t } from "@/i18n";
 
 /**
- * Step 4, and the last one: a ready-made set of folders and categories; one tap adds them all.
+ * Step 5, and the last one: a ready-made set of folders and categories; one tap adds them all.
  *
  * Notifications are not asked for anywhere in the welcome flow. They are asked for where the
  * feature is — setting a reminder on a recurring payment, or the switch in Settings — because a
@@ -28,7 +28,7 @@ export default function OnboardingCategories() {
   };
   const lang = getLanguage();
   return (
-    <OnboardingFrame step={4} title={t("onboarding.categories.title")} subtitle={t("onboarding.categories.subtitle", { categories, folders })}
+    <OnboardingFrame step={5} title={t("onboarding.categories.title")} subtitle={t("onboarding.categories.subtitle", { categories, folders })}
       primary={{ label: t("onboarding.categories.add"), onPress: () => next(true) }}
       secondary={{ label: t("onboarding.categories.none"), onPress: () => next(false) }}>
       <View style={styles.list}>
@@ -46,11 +46,11 @@ export default function OnboardingCategories() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   list: { gap: S.sm, paddingTop: S.sm },
   folder: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: 14, padding: S.md },
   icon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   name: { fontSize: 16, fontWeight: "700", color: C.label },
   kind: { fontSize: 12, fontWeight: "600", color: C.secondary },
   cats: { fontSize: 13, color: C.secondary, marginTop: 2, lineHeight: 18 },
-});
+}));

@@ -33,6 +33,7 @@ export const RELEASES: Release[] = [
       note("whatsNew.notes.v1_0_3.ukrainian", "globe"),
       note("whatsNew.notes.v1_0_3.language", "gearshape"),
       note("whatsNew.notes.v1_0_3.categories", "folder"),
+      note("whatsNew.notes.v1_0_3.themes", "paintpalette"),
     ],
   },
 ];

@@ -7,7 +7,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { getPeriodStartDay, setPeriodStartDay } from "@/lib/period";
 import { notifyChange } from "@/store";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { APP_MARKETING_VERSION, APP_VERSION, privacyPolicyUrl } from "@/constants/app";
 import { releasesToRead } from "@/lib/whatsNew";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED } from "@/constants/features";
@@ -17,6 +17,8 @@ import { ensureLocationPermission, locationStatus, placeName, preciseLocation } 
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { dayMonth, humanDayTime } from "@/lib/dates";
+import { themeName } from "@/components/ThemePicker";
+import { getTheme } from "@/lib/theme";
 import { LANGUAGES, deviceLanguage, getLanguage, isFollowingDevice, setLanguage, t, type LanguageCode } from "@/i18n";
 
 /** "22nd" / "22-го": a day of the month, as in "starts on the …". */
@@ -143,6 +145,7 @@ export default function SettingsScreen() {
         <SectionHeader>{t("settings.section.preferences")}</SectionHeader>
         <Card>
           <Row icon="globe" iconColor="#0A84FF" title={t("common.language.title")} subtitle={languageLine} onPress={pickLanguage} />
+          <Row icon="paintpalette" iconColor="#AF52DE" title={t("theme.title")} subtitle={themeName(getTheme())} onPress={() => router.push("/settings/theme")} style={styles.divider} />
           <Row icon="calendar" iconColor="#FF9F0A" title={t("settings.startDay.title")} subtitle={startDaySubtitle} onPress={pickDay} style={styles.divider} />
           <ToggleRow icon="bell.badge" iconColor="#FF3B30" title={t("settings.notifications.title")} subtitle={perm.notif === "granted" ? t("settings.notifications.granted") : perm.notif === "denied" ? t("settings.notifications.denied") : t("settings.notifications.ask")} value={perm.notif === "granted"} onChange={(v) => void toggleNotifications(v)} style={styles.divider} />
           <ToggleRow icon="eye.slash" iconColor="#8E8E93" title={t("settings.hideIncome.title")} subtitle={prefs.hideIncome ? t("settings.hideIncome.on") : t("settings.hideIncome.off")} value={prefs.hideIncome} onChange={setHideIncome} style={styles.divider} />
@@ -183,8 +186,8 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   foot: { color: C.tertiary, fontSize: 13, textAlign: "center", marginTop: S.xxl, paddingHorizontal: S.xl },
   version: { color: C.tertiary, fontSize: 12, textAlign: "center", marginTop: S.sm, fontVariant: ["tabular-nums"] },
-});
+}));

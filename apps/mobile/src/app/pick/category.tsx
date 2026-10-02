@@ -6,7 +6,7 @@ import { archivedCategoryIds, folderIds, listRows, type Category } from "@kopiyk
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
 
@@ -151,7 +151,7 @@ export default function PickCategory() {
 
 function Check() { return <SymbolView name="checkmark" size={16} tintColor={C.tint} />; }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
   input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 52, paddingVertical: 6 },
@@ -163,4 +163,4 @@ const styles = StyleSheet.create({
   folderRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
   folder: { fontSize: 12, color: C.secondary },
   empty: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingTop: S.xl },
-});
+}));

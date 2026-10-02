@@ -5,7 +5,7 @@ import { archivedCategoryIds, categoryImportance, listRows, markableCategories, 
 import { useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
 
@@ -88,8 +88,8 @@ export default function CategoriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   child: { paddingLeft: S.xl + 8 },
   right: { flexDirection: "row", alignItems: "center", gap: 8 },
-});
+}));

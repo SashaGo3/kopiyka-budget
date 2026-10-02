@@ -6,7 +6,7 @@ import { advanceRule, dueManualRules, listRows, postOccurrence, ruleWaitDays, wa
 import { mutate, useQuery } from "@/store";
 import { BarButton, BottomBar } from "@/components/BottomBar";
 import { AmountPill, CategoryIcon, Empty, Money } from "@/components/ui";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { waitDefaultDays } from "@/lib/settings";
 import { repeatLabel } from "@/lib/repeat";
@@ -173,7 +173,7 @@ function Action({ icon, label, color, onPress, grow }: { icon: SFSymbol; label: 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
   sh: { color: C.secondary, fontSize: 13, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: S.xl, paddingTop: S.xl },
   waiting: { opacity: 0.85 },
@@ -189,4 +189,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "stretch", gap: 1, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: S.md },
   actionText: { fontSize: 14, fontWeight: "600" },
-});
+}));

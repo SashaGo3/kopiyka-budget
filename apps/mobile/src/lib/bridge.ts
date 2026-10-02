@@ -4,6 +4,8 @@
  * this bridge only pokes them after JS writes and tells JS when native code wrote.
  */
 import { requireOptionalNativeModule } from "expo-modules-core";
+import { Platform } from "react-native";
+import { DEFAULT_THEME } from "@kopiyka/core";
 
 /** What the native receipt reader made of a photo (native/KPReceipt.swift). Amounts are major units. */
 export interface ReceiptParse {
@@ -24,6 +26,7 @@ type Bridge = {
   scanReceipt(uri: string): Promise<ReceiptParse>;
   claimDatabase(): void;
   setLanguage(code: string): void;
+  setAppIcon(id: string | null): Promise<void>;
   finishNativeWrite(request: string, ok: boolean, error: string | null, reply: Record<string, unknown>): void;
   addListener(event: "externalChange", cb: () => void): { remove(): void };
   addListener(event: "nativeWrite", cb: (w: NativeWrite) => void): { remove(): void };
@@ -37,6 +40,18 @@ const native = requireOptionalNativeModule<Bridge>("KPBridge");
  */
 export function setNativeLanguage(code: string): void {
   if (typeof native?.setLanguage === "function") { try { native.setLanguage(code); } catch { /* older build */ } }
+}
+
+/**
+ * Switch the home-screen icon to the one for a colour theme (assets/icons/<id>.png, compiled into the
+ * app as "AppIcon-<id>" by plugins/withAppIcons.js). The default theme is the primary icon, so it
+ * resets to that. iOS shows its own "You have changed the icon" alert each time; asking for the icon
+ * already showing does nothing and shows nothing. No-op off iOS and on a build made before this
+ * existed; rejects when iOS refuses (an id with no icon set, or a device without alternate icons).
+ */
+export async function setAppIcon(themeId: string): Promise<void> {
+  if (Platform.OS !== "ios" || typeof native?.setAppIcon !== "function") return;
+  await native.setAppIcon(themeId === DEFAULT_THEME ? null : themeId);
 }
 
 export const KPBridge = {

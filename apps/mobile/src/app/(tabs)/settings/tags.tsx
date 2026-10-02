@@ -4,7 +4,7 @@ import { jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Empty, Row, ScreenNote, SectionHeader, TagPill } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t as tr } from "@/i18n";
 
@@ -66,6 +66,6 @@ export default function TagsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-});
+}));

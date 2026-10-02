@@ -38,13 +38,14 @@ export const BACKUP_VERSION = 1;
  * 2026-09-12; `backup_per_day`, replaced by `backup_keep_days` on 2026-09-18; `language`, dropped
  * with the app's language picker on 2026-09-18 — the app is English only): an old backup still
  * carrying the key is simply ignored on import. `language` came back in 1.0.3 with a new meaning;
- * see `LANGUAGE_SINCE_SCHEMA` for why an older file's copy of it is still ignored.
+ * see `LANGUAGE_SINCE_SCHEMA` for why an older file's copy of it is still ignored. `theme` (an id from
+ * `THEME_IDS`, themes.ts) joined on 2026-10-02; an unknown id reads as the default.
  */
 export const BACKUP_META_KEYS = [
   "period_start_day", "base_currency", "recurring_notify_days_before",
   "location_enabled", "home_lat", "home_lon", "home_place",
   "current_account", "budget_scope", "hide_income", "show_balance", "backup_keep_days",
-  "shortcut_notify", "recurring_wait", "recurring_wait_days", "budgets_sections", "language",
+  "shortcut_notify", "recurring_wait", "recurring_wait_days", "budgets_sections", "language", "theme",
 ] as const;
 
 /**

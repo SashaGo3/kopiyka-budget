@@ -12,7 +12,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
 import { Chip, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
 import { dismissTo } from "@/lib/nav";
 import { errorText } from "@/lib/errors";
@@ -572,7 +572,7 @@ export default function TransactionSheet() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs, gap: 4 },
   amountRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 8, maxWidth: "100%" },
   amount: { fontSize: 54, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 },
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   noteBox: { flexDirection: "row", alignItems: "flex-end", gap: S.md, marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, paddingVertical: 8, minHeight: 50 },
   noteInput: { flex: 1, fontSize: 17, color: C.label, minHeight: 34, maxHeight: 176, paddingTop: 7, paddingBottom: 7 },
   noteDone: { color: C.tint, fontSize: 17, fontWeight: "700", paddingVertical: 7 },
-});
+}));
 
 /**
  * Let go of a photo file, and delete it only if no other live entry still points at it. The parts

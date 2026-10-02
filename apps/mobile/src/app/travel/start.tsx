@@ -6,7 +6,7 @@ import { SymbolView } from "expo-symbols";
 import { db } from "@/db";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, Subtle, Title } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
 import { errorText } from "@/lib/errors";
 import { nextDay } from "@/lib/filters";
@@ -130,7 +130,7 @@ export default function TravelStart() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.xs, gap: 4 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
   input: { flex: 1, fontSize: 22, fontWeight: "600", color: C.label, paddingVertical: S.sm },
@@ -138,4 +138,4 @@ const styles = StyleSheet.create({
   amount: { fontSize: 44, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"], flexShrink: 1 },
   cur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
   curPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
-});
+}));

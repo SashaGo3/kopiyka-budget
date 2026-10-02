@@ -136,8 +136,10 @@ to it. 1.0.1 had written the same key with another meaning — the phone's langu
 launch, stored whether anyone chose it or not — so a stale copy is not allowed back in: the v18
 migration deletes `meta.language` (nothing in 1.0.2 wrote it, and a 1.0.3 choice lives in a database
 already past v18), and a backup's `language` is applied only when the file's `schema` (written from
-1.0.3 on) is 18 or later. `backup.test.ts` pins the list so the next drift shows up in a
-diff.
+1.0.3 on) is 18 or later. `theme` joined on 2026-10-02 with the colour themes: an id from
+`THEME_IDS` (`packages/core/src/themes.ts`), absent or unknown meaning the default, and a restore
+that carries one re-mounts the app in it the way a language does. `backup.test.ts` pins the list so the
+next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
 `device_id`, `last_pulled_seq`, `onboarded`, and auto-sync's own bookkeeping (`icloud_sync`,

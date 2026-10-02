@@ -2,31 +2,20 @@
    Hand-written, no framework, no external fonts, no external scripts. */
 
 :root {
-  --bg: #f4f4f1;
-  --bg-alt: #eceae3;
-  --card: #ffffff;
-  --border: #d9d9d4;
-  --text: #2b2b2e;
-  --muted: #56565a;
-  --accent: #c8a96a;
-  --shadow: 0 1px 2px rgba(43, 43, 46, 0.05), 0 8px 24px rgba(43, 43, 46, 0.06);
+  /* The colours (--bg, --card, --text, --muted, --accent, --on-accent, --border, --red, --green,
+     --orange) come from themes.css, which build.mjs generates from packages/core/src/themes.ts —
+     never write a hex value here. --rule is the thin decorative line above each heading: the
+     theme's accent, except in Kopiyka's own theme, which keeps the site's warm gold. */
+  --rule: var(--accent);
   --radius: 14px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
     Helvetica, Arial, sans-serif;
   --maxw: 1120px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141413;
-    --bg-alt: #1a1a19;
-    --card: #1f1f1e;
-    --border: #2e2e2c;
-    --text: #f4f4f1;
-    --muted: #a9a9a3;
-    --accent: #c8a96a;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
-  }
+:root:not([data-theme]),
+:root[data-theme="kopiyka"] {
+  --rule: #c8a96a;
 }
 
 *,
@@ -68,8 +57,8 @@ a:hover {
   text-decoration-color: var(--accent);
 }
 
-/* Graphite, not the accent: the focus ring has to clear 3:1 against the page,
-   and #C8A96A on off-white does not. The accent stays a decorative rule. */
+/* The text colour, not the accent: the focus ring has to clear 3:1 against the
+   page, and several themes' accents (and Kopiyka's gold rule) do not. */
 :focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 3px;
@@ -191,9 +180,9 @@ p {
 
 .btn {
   display: inline-block;
-  background: var(--text);
-  color: var(--bg);
-  border: 1px solid var(--text);
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--accent);
   border-radius: 999px;
   padding: 9px 18px;
   font-size: 0.9375rem;
@@ -213,7 +202,7 @@ p {
   border-color: var(--border);
 }
 
-/* The language switcher: two quiet links in the header, the current one in graphite. */
+/* The language switcher: two quiet links in the header, the current one on the accent. */
 .brand-actions {
   display: flex;
   align-items: center;
@@ -244,8 +233,8 @@ p {
 }
 
 .lang-switch a[aria-current="page"] {
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 /* The header button says "App Store" on a phone; the full label everywhere else. */
@@ -268,7 +257,7 @@ section:first-of-type {
   display: block;
   width: 56px;
   height: 3px;
-  background: var(--accent);
+  background: var(--rule);
   border-radius: 2px;
   margin-bottom: 22px;
 }
@@ -381,7 +370,7 @@ section:first-of-type {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--rule);
   border-radius: 4px;
   padding: 1px 5px;
   margin-left: 6px;
@@ -522,6 +511,175 @@ section:first-of-type {
   margin-top: 24px;
 }
 
+/* ---------- themes ---------- */
+
+/* The footer's swatches: each theme's accent on its background, in the
+   current light or dark side. The ring round the chosen one is the page's. */
+.theme-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.theme-switch[hidden] {
+  display: none;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.swatch span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--accent) 0 34%, var(--bg) 36%);
+  border: 1px solid var(--border);
+}
+
+.swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.theme-grid {
+  list-style: none;
+  padding: 0;
+  margin: 30px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.theme-tile {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 12px 10px;
+  cursor: pointer;
+}
+
+.theme-tile:hover {
+  border-color: var(--muted);
+}
+
+.theme-tile[aria-pressed="true"] {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+}
+
+.theme-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.theme-name {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* A screen in miniature, drawn only from the palette it sits in. */
+.mini {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.mini i {
+  display: block;
+  border-radius: 999px;
+}
+
+.mini-title {
+  width: 55%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--text);
+}
+
+.mini-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mini-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+}
+
+.mini-dot.red {
+  background: var(--red);
+}
+
+.mini-dot.green {
+  background: var(--green);
+}
+
+.mini-dot.orange {
+  background: var(--orange);
+}
+
+.mini-line {
+  flex: 1;
+  height: 4px;
+  background: var(--muted);
+  opacity: 0.7;
+}
+
+.mini-amount {
+  width: 22%;
+  height: 4px;
+  background: var(--text);
+}
+
+.mini-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 15px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.mini-btn i {
+  width: 36%;
+  height: 4px;
+  background: var(--on-accent);
+}
+
 /* ---------- footer ---------- */
 
 .site-footer {
@@ -598,7 +756,7 @@ section:first-of-type {
 .doc blockquote {
   margin: 1.4em 0;
   padding-left: 1em;
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--rule);
   color: var(--muted);
 }
 
@@ -816,6 +974,7 @@ section:first-of-type {
 @media print {
   .site-header,
   .lang-switch,
+  .theme-switch,
   .strip-controls,
   .copy-btn {
     display: none;

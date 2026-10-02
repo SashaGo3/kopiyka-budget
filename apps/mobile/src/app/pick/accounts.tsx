@@ -6,7 +6,7 @@ import { listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { HeaderBar, Row, accountIcon } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
 
@@ -52,7 +52,7 @@ export default function PickAccounts() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   head: { paddingTop: S.md, paddingBottom: S.sm, backgroundColor: C.bgGrouped },
   link: { color: C.tint, fontSize: 15 },
   doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
@@ -60,4 +60,4 @@ const styles = StyleSheet.create({
   group: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xs, minHeight: 44 },
   groupTitle: { flex: 1, fontSize: 17, fontWeight: "600", color: C.label },
   account: { backgroundColor: "transparent", paddingLeft: S.lg + S.md },
-});
+}));

@@ -8,7 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { Chip, SheetFrame, Subtle, ChipRow, DeleteRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { getCurrentAccount } from "@/lib/settings";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -187,7 +187,7 @@ function rateLine(from: string, to: string, value: number, source: "cached" | "m
   }
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.sm, gap: 6 },
   headRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
   back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, height: 28 },
@@ -202,4 +202,4 @@ const styles = StyleSheet.create({
   legCur: { fontSize: 15, color: C.secondary },
   arrow: { alignItems: "center", height: 18 },
   meta: { color: C.tertiary, fontSize: 13, marginTop: 4, minHeight: 18 },
-});
+}));

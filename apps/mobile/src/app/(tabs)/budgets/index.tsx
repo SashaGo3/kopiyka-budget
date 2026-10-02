@@ -9,7 +9,7 @@ import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { periodLabel, todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
 import { getBaseCurrency, useRates } from "@/lib/rates";
@@ -300,7 +300,7 @@ export default function BudgetsScreen() {
 
 function fmt(minor: number) { return (minor / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.lg, height: 44, borderRadius: R.card, borderWidth: 1, borderStyle: "dashed", borderColor: C.tint },
   addText: { color: C.tint, fontSize: 15, fontWeight: "600" },
   pills: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   budgetHead: { flexDirection: "row", alignItems: "center", gap: S.sm },
   budgetName: { fontSize: 17, fontWeight: "600", color: C.label },
   budgetSub: { fontSize: 13, color: C.secondary },
-  celebrate: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: "rgba(52,199,89,0.14)" },
+  celebrate: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: C.greenSoft },
   celebrateText: { fontSize: 15, fontWeight: "600", color: C.green },
   foldRow: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 36 },
   child: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator, marginTop: 4 },
@@ -326,4 +326,4 @@ const styles = StyleSheet.create({
   children: { backgroundColor: C.bgGrouped, paddingVertical: 4, paddingLeft: S.lg + 36, paddingRight: S.lg },
   childRow: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 40 },
   childText: { flex: 1, fontSize: 15, color: C.label },
-});
+}));

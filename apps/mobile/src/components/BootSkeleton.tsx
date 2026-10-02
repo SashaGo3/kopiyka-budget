@@ -3,7 +3,7 @@ import { Linking, StyleSheet, View, useColorScheme, useWindowDimensions, type St
 import { Image } from "expo-image";
 import Animated, { Easing, FadeOut, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type AnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { isBooted, markBooted, onBooted } from "@/lib/boot";
 
 /** Soft highlight band: an inline SVG gradient so no extra native module is needed. */
@@ -120,9 +120,9 @@ function Summary() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   screen: { backgroundColor: C.bgGrouped, zIndex: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: S.sm },
   cards: { flexDirection: "row", gap: S.md, paddingHorizontal: S.lg, paddingTop: S.md },
   card: { marginHorizontal: S.lg, marginBottom: S.sm, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: 6 },
-});
+}));

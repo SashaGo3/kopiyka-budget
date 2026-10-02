@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { Keypad, evalExpr } from "@/components/Keypad";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { currencyName, isKnownCurrency, suggestedCurrency } from "@/lib/currencies";
 import { countryCode, locationStatus, quickLocation } from "@/lib/location";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -18,7 +18,7 @@ import { setCurrentAccount } from "@/lib/settings";
 import { t } from "@/i18n";
 
 /**
- * Step 3: the main account with what is on it right now (becomes the opening balance).
+ * Step 4: the main account with what is on it right now (becomes the opening balance).
  *
  * The currency is guessed rather than asked for: the phone's region already says what money is
  * spent here (`suggestedCurrency`), and on a phone whose location permission has been granted —
@@ -71,7 +71,7 @@ export default function OnboardingAccount() {
     finally { setBusy(false); }
   };
   return (
-    <OnboardingFrame step={3} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
+    <OnboardingFrame step={4} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
       primary={{ label: expr ? t("onboarding.account.continueWith", { amount: shown, currency }) : t("onboarding.account.continueZero"), onPress: next, disabled: !valid }}
       secondary={{ label: busy ? t("onboarding.restore.busy") : t("onboarding.account.restore"), onPress: () => void restore() }}>
       <View style={styles.form}>
@@ -91,7 +91,7 @@ export default function OnboardingAccount() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   form: { gap: S.sm, marginHorizontal: -S.xl },
   currencyRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   currencyText: { fontSize: 15, fontWeight: "600", color: C.tint },
@@ -100,4 +100,4 @@ const styles = StyleSheet.create({
   balanceLabel: { fontSize: 13, color: C.secondary },
   balanceValue: { fontSize: 36, fontWeight: "700", color: C.label },
   balanceCur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
-});
+}));

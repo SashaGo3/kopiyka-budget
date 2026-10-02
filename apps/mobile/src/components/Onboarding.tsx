@@ -2,12 +2,15 @@ import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FadeIn } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
+
+/** Welcome, theme, location, account, categories. */
+const STEPS = [1, 2, 3, 4, 5] as const;
 
 /** Shared chrome for the welcome flow: step dots, a big title, a line of context, the body, and the actions pinned at the bottom. */
 export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true }: {
-  step: 1 | 2 | 3 | 4; title: string; subtitle: string; children?: ReactNode;
+  step: 1 | 2 | 3 | 4 | 5; title: string; subtitle: string; children?: ReactNode;
   primary: { label: string; onPress: () => void; disabled?: boolean };
   secondary?: { label: string; onPress: () => void };
   scroll?: boolean;
@@ -15,8 +18,8 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   const insets = useSafeAreaInsets();
   const body = (
     <>
-      <View style={styles.dots} accessibilityLabel={t("onboarding.stepA11y", { step, count: 4 })}>
-        {[1, 2, 3, 4].map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
+      <View style={styles.dots} accessibilityLabel={t("onboarding.stepA11y", { step, count: STEPS.length })}>
+        {STEPS.map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
       </View>
       <FadeIn><Text style={styles.title} maxFontSizeMultiplier={1.3}>{title}</Text></FadeIn>
       <FadeIn delay={80}><Text style={styles.subtitle}>{subtitle}</Text></FadeIn>
@@ -41,7 +44,7 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { paddingHorizontal: S.xl, gap: S.md, paddingBottom: S.lg },
   dots: { flexDirection: "row", gap: 6, marginBottom: S.sm },
@@ -55,4 +58,4 @@ const styles = StyleSheet.create({
   primaryText: { color: C.onTint, fontSize: 17, fontWeight: "700" },
   secondary: { height: 44, alignItems: "center", justifyContent: "center" },
   secondaryText: { color: C.secondary, fontSize: 16, fontWeight: "600" },
-});
+}));

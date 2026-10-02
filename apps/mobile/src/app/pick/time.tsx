@@ -5,7 +5,7 @@ import { Host, DatePicker } from "@expo/ui/swift-ui";
 import { environment } from "@expo/ui/swift-ui/modifiers";
 import { resolvePick } from "@/store/pick";
 import { BigButton, Chip, ChipRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getLocale, t } from "@/i18n";
 
@@ -31,4 +31,4 @@ export default function PickTime() {
   );
 }
 
-const styles = StyleSheet.create({ host: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, padding: S.sm } });
+const styles = themed(() => StyleSheet.create({ host: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, padding: S.sm } }));

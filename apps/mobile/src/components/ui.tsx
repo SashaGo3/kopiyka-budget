@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
 import { t } from "@/i18n";
 
@@ -340,7 +340,7 @@ export function Empty({ title, hint, action }: { title: string; hint?: string; a
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   busy: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" },
   busyCard: { alignItems: "center", gap: S.md, paddingHorizontal: S.xl, paddingVertical: S.xl, borderRadius: R.card, backgroundColor: C.card, minWidth: 200 },
   busyText: { color: C.label, fontSize: 15, textAlign: "center" },
@@ -349,9 +349,9 @@ const styles = StyleSheet.create({
   subtle: { fontSize: 14, color: C.secondary },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, paddingHorizontal: S.md },
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  pillNeg: { backgroundColor: "rgba(255,59,48,0.14)" },
-  pillWarn: { backgroundColor: "rgba(255,149,0,0.16)" },
-  pillPos: { backgroundColor: "rgba(52,199,89,0.14)" },
+  pillNeg: { backgroundColor: C.redSoft },
+  pillWarn: { backgroundColor: C.orangeSoft },
+  pillPos: { backgroundColor: C.greenSoft },
   pillNeutral: { backgroundColor: C.fill },
   pillText: { fontSize: 15, fontWeight: "600" },
   chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 12, minHeight: 38, paddingVertical: 6, borderRadius: 19, backgroundColor: C.fill, flexGrow: 1, flexBasis: "auto", minWidth: 0, maxWidth: "100%" },
@@ -386,4 +386,4 @@ const styles = StyleSheet.create({
   deleteText: { color: C.red, fontSize: 15, fontWeight: "500" },
   big: { marginHorizontal: S.md, minHeight: 50, paddingVertical: 10, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },
   bigText: { color: C.onTint, fontSize: 18, fontWeight: "600" },
-});
+}));

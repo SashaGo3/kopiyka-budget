@@ -8,7 +8,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { groupByDay, rowCategory, useTransactions, type TxRow } from "@/components/TransactionList";
 import { BarButton, BottomBar } from "@/components/BottomBar";
 import { AmountPill, CategoryIcon, Empty, Money } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { timeLabel } from "@/lib/dates";
 import { Trans, t } from "@/i18n";
 import { acctName } from "@/lib/names";
@@ -159,7 +159,7 @@ function Action({ icon, label, a11y, color, onPress, grow }: { icon: SFSymbol; l
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
   introSum: { color: C.label, fontSize: 14, fontWeight: "700" },
   sh: { fontSize: 20, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.sm },
@@ -174,4 +174,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "stretch", gap: 1, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: S.md },
   actionText: { fontSize: 14, fontWeight: "600" },
-});
+}));

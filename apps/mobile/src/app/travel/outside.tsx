@@ -7,7 +7,7 @@ import { mutate } from "@/store";
 import { TransactionList, useTransactions } from "@/components/TransactionList";
 import { ConfirmBar } from "@/components/Keypad";
 import { ModalHeader } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "@/i18n";
@@ -47,6 +47,6 @@ export default function TripOutside() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hint: { color: C.secondary, fontSize: 14, paddingHorizontal: S.lg, paddingBottom: S.md },
-});
+}));

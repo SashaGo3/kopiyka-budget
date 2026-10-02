@@ -9,7 +9,7 @@ import { useQuery } from "@/store";
 import { catName, acctName } from "@/lib/names";
 import { t } from "@/i18n";
 import { AmountPill, CategoryIcon } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
 
 /**
@@ -84,7 +84,7 @@ export default function PickTransaction() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingTop: S.md },
   desc: { fontSize: 14, color: C.secondary, textAlign: "center", paddingHorizontal: S.xl, paddingTop: S.xs, lineHeight: 19 },
   search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
@@ -96,4 +96,4 @@ const styles = StyleSheet.create({
   before: { fontSize: 13, color: C.tertiary, fontVariant: ["tabular-nums"], textDecorationLine: "line-through" },
   after: { fontSize: 15, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
   empty: { color: C.tertiary, textAlign: "center", padding: S.xl },
-});
+}));

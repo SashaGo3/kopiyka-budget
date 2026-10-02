@@ -8,7 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
 import { Card, DeleteRow, ModalHeader, Row, Segmented } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, localIso, timeLabel, todayLocal } from "@/lib/dates";
 import { confirmDiscard, guardOptions, useDirty, useDiscardGuard } from "@/lib/discard";
 import { CUSTOM, parseRepeat, repeatCountTitle, repeatCounts, repeatLabel, repeatOptions, repeatUnits, repeatValue } from "@/lib/repeat";
@@ -202,10 +202,10 @@ export default function RecurringEdit() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hero: { alignItems: "center", paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md, gap: 2 },
   amount: { fontSize: 44, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
   cur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
   summary: { fontSize: 14, color: C.secondary },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-});
+}));

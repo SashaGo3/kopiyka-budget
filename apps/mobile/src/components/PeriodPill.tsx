@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SymbolView } from "expo-symbols";
-import { C, R } from "@/constants/theme";
+import { C, R, themed } from "@/constants/theme";
 import { Glass } from "@/components/glass";
 import type { Period } from "@/lib/period";
 import { t } from "@/i18n";
@@ -25,10 +25,10 @@ export function PeriodPill({ period, onPrev, onNext, onReset, onPick, disabled }
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   pill: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: R.pill, paddingHorizontal: 10, minHeight: 34, paddingVertical: 3, maxWidth: 260 },
   fill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: R.pill },
   solid: { backgroundColor: C.fill },
   title: { fontSize: 15, fontWeight: "600", color: C.label },
   sub: { fontSize: 11, color: C.secondary, marginTop: -1 },
-});
+}));

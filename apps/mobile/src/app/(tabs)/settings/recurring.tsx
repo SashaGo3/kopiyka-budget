@@ -8,7 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission } from "@/lib/notifications";
 import { AmountPill, Card, Chip, Empty, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { catName, catNameById, acctName } from "@/lib/names";
@@ -179,11 +179,11 @@ function RuleRow({ r, first, confirm }: { r: RuleRowData; first: boolean; confir
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   foot: { color: C.tertiary, fontSize: 13, textAlign: "center", marginTop: S.xl, paddingHorizontal: S.xl },
   addAll: { color: C.tint, fontSize: 15, fontWeight: "600" },
   warn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingTop: 2 },
   right: { alignItems: "flex-end", gap: 4 },
   when: { fontSize: 13, color: C.secondary },
-});
+}));

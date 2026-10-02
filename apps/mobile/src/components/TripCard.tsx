@@ -6,7 +6,7 @@ import { formatMinor, getRow, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { useQuery } from "@/store";
 import { AmountPill, CategoryIcon, Money, ProgressBar } from "@/components/ui";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useRates } from "@/lib/rates";
 import { catName } from "@/lib/names";
@@ -102,7 +102,7 @@ export function TripCard({ budget, compact, onPress }: { budget: Budget; compact
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   card: { marginHorizontal: S.lg, marginBottom: S.sm, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: 6 },
   compact: { marginBottom: S.xs },
   head: { flexDirection: "row", alignItems: "center", gap: S.sm },
@@ -120,4 +120,4 @@ const styles = StyleSheet.create({
   child: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator, marginTop: 4 },
   childName: { flex: 1, fontSize: 15, color: C.label },
   childAmt: { fontSize: 15, color: C.secondary },
-});
+}));

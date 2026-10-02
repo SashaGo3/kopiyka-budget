@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { accountLeftover, categoryChecklist, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, recurringSpendInsight, regularSpending, safeToSpend, safetyBuffer, savingsGoal, subscriptionsPerYear, upcomingPayments, valueSplit, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { CategoryIcon, Empty, FadeIn, Money, ProgressBar, TagPill } from "@/components/ui";
-import { C, S, ValueRamp } from "@/constants/theme";
+import { C, S, ValueRamp, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay } from "@/lib/period";
 import { getBudgetScope } from "@/lib/settings";
@@ -276,7 +276,7 @@ function Body({ insight, p }: { insight: Insight; p: InsightParams }) {
 
 function formatDiff(minor: number, currency: string) { return minor > 0 ? t("insights.goal.toGo", { amount: `${formatMinor(minor, currency)} ${currency}` }) : t("insights.goal.reached"); }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   // Far enough apart that a thumb aiming for one never lands on the other.
   headerButtons: { flexDirection: "row", alignItems: "center", gap: 36, paddingHorizontal: 6 },
   card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, padding: S.lg, gap: 6 },
@@ -298,4 +298,4 @@ const styles = StyleSheet.create({
   trendRow: { flexDirection: "row", alignItems: "flex-end", gap: 4, height: 34, marginTop: S.sm },
   trendSlot: { flex: 1, justifyContent: "flex-end" },
   trendBar: { borderRadius: 2 },
-});
+}));

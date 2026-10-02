@@ -13,7 +13,7 @@ import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
 import { Empty, Money, StatPair } from "@/components/ui";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { ALL_TIME, EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
@@ -443,17 +443,17 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   selectHint: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.pill, backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, maxWidth: 320 },
   selectHintText: { color: C.secondary, fontSize: 14, flexShrink: 1 },
   pills: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs },
   trip: { paddingTop: S.sm },
-  pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: "rgba(255,149,0,0.14)" },
-  due: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: "rgba(255,59,48,0.14)" },
+  pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.orangeSoft },
+  due: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.redSoft },
   dueSum: { fontSize: 16, fontWeight: "700", color: C.red },
   pendingTitle: { fontSize: 16, fontWeight: "600", color: C.label },
   pendingSub: { fontSize: 13, color: C.secondary },
   pendingSum: { fontSize: 16, fontWeight: "700", color: C.orange },
   headerLink: { color: C.tint, fontSize: 17 },
   ratesWarn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingBottom: S.xs },
-});
+}));

@@ -6,7 +6,7 @@ import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core"
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { HeaderBar, TagPill } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /**
@@ -95,7 +95,7 @@ export default function PickTags() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   head: { paddingTop: S.md },
   count: { fontSize: 12, color: C.tertiary },
   doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
@@ -106,4 +106,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 48 },
   name: { flex: 1, fontSize: 17, color: C.label },
   empty: { color: C.tertiary, textAlign: "center", padding: S.xl },
-});
+}));

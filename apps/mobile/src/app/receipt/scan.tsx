@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KPBridge, type ReceiptParse } from "@/lib/bridge";
 import { resolvePick } from "@/store/pick";
 import { BigButton } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /**
@@ -85,7 +85,7 @@ export default function ReceiptScan() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   center: { flex: 1, justifyContent: "flex-end", padding: S.xl, gap: S.md, backgroundColor: C.bgGrouped },
   text: { color: C.label, fontSize: 17, textAlign: "center" },
   close: { position: "absolute", left: S.lg, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
@@ -94,4 +94,4 @@ const styles = StyleSheet.create({
   hintRow: { flexDirection: "row", alignItems: "center", gap: S.sm, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16 },
   hint: { color: "white", fontSize: 15 },
   shutter: { width: 72, height: 72, borderRadius: 36, backgroundColor: "white", alignItems: "center", justifyContent: "center", borderWidth: 4, borderColor: "rgba(255,255,255,0.4)" },
-});
+}));

@@ -3,7 +3,7 @@ import { Animated, Pressable, StyleSheet, Text, useColorScheme, useWindowDimensi
 import { router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import { Brand, C, Elevation, R } from "@/constants/theme";
+import { Brand, C, Elevation, R, themed } from "@/constants/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -78,8 +78,8 @@ export function useScrollHide(): { visible: boolean; onScroll: (e: NativeSynthet
 export function LogButton({ account }: { account?: string } = {}) {
   const { width } = useWindowDimensions();
   // Glass takes a plain colour, so the accent is resolved by hand here rather than through
-  // C.tint, which is a DynamicColorIOS value. Tinted this strongly it keeps the pill reading
-  // black-on-light / white-on-dark as before, and only gains the glass edge and refraction.
+  // C.tint, which is a DynamicColorIOS value. Tinted this strongly it keeps the pill reading as the
+  // theme's accent, and only gains the glass edge and refraction.
   const tint = useColorScheme() === "dark" ? Brand.accentDark : Brand.accent;
   const [key] = useState(() => newPickKey("logreceipt"));
   usePickResult<ReceiptParse>(key, useCallback((r: ReceiptParse) => {
@@ -132,7 +132,7 @@ export function BarButton({ icon, label, onPress, onLongPress, active, a11y, a11
 /** Distance from the edge the bar floats at. */
 const EDGE = 16;
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   wrap: { position: "absolute", left: EDGE, right: EDGE, bottom: 96, gap: 10 },
   alignLeft: { alignItems: "flex-start" },
   alignRight: { alignItems: "flex-end" },
@@ -150,4 +150,4 @@ const styles = StyleSheet.create({
   btnSolid: { backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, ...Elevation },
   btnText: { color: C.tint, fontSize: 15, fontWeight: "600", flexShrink: 1 },
   btnTextActive: { fontWeight: "700" },
-});
+}));

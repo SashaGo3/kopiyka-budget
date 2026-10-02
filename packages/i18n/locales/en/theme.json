@@ -1,0 +1,30 @@
+{
+  "$comment": "The colour theme picker: Settings → Theme (app/(tabs)/settings/theme.tsx) and the theme step of the welcome flow (components/ThemePicker.tsx).",
+  "title": {
+    "message": "Theme",
+    "note": "Settings row and screen title; the colour theme of the app."
+  },
+  "footer": "Every theme has a light and a dark side and follows the iPhone’s appearance. The app icon changes with it.",
+  "light": {
+    "message": "Light",
+    "note": "VoiceOver label of the light-mode preview tile of a theme."
+  },
+  "dark": {
+    "message": "Dark",
+    "note": "VoiceOver label of the dark-mode preview tile of a theme."
+  },
+  "name": {
+    "$comment": "Theme names. Brand names of the editor themes they come from: keep them as they are, except the app's own.",
+    "kopiyka": {
+      "message": "Kopiyka",
+      "note": "The default theme, named after the app."
+    },
+    "solarized": "Solarized",
+    "catppuccin": "Catppuccin",
+    "gruvbox": "Gruvbox",
+    "nord": "Nord",
+    "tokyonight": "Tokyo Night",
+    "rosepine": "Rosé Pine",
+    "github": "GitHub"
+  }
+}

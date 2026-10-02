@@ -9,7 +9,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { BusyOverlay, Card, DeleteRow, ModalHeader, Row, SectionHeader, TagPill, runBusy } from "@/components/ui";
 import { ALL_TIME } from "@/lib/filters";
 import { dismissTo } from "@/lib/nav";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { catName, catNameById } from "@/lib/names";
 import { colorLabel } from "@/app/pick/color";
@@ -154,11 +154,11 @@ export default function TagEdit() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
   nameBlock: { gap: S.sm, padding: S.lg },
   input: { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 18, color: C.label },
   preview: { flexDirection: "row", paddingHorizontal: S.xs },
   right: { flexDirection: "row", alignItems: "center", gap: S.sm },
   swatch: { width: 24, height: 24, borderRadius: 12 },
-});
+}));

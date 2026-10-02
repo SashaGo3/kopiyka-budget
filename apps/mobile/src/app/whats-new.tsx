@@ -5,7 +5,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { noteText } from "@kopiyka/core";
 import { BigButton, Card, ModalHeader } from "@/components/ui";
 import { markWhatsNewSeen, releasesToRead } from "@/lib/whatsNew";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t, type MessageKey } from "@/i18n";
 
 /**
@@ -78,7 +78,7 @@ export default function WhatsNew() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   head: { flexDirection: "row", alignItems: "baseline", gap: S.sm, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: 6 },
   version: { fontSize: 20, fontWeight: "700", color: C.label },
   skipped: { fontSize: 13, color: C.tertiary },
@@ -91,4 +91,4 @@ const styles = StyleSheet.create({
   icon: { width: 24, height: 21, alignItems: "center", justifyContent: "center" },
   line: { flex: 1, fontSize: 15, color: C.label, lineHeight: 21 },
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: S.xxl, paddingTop: S.sm, backgroundColor: C.bgGrouped },
-});
+}));

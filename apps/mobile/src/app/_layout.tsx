@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
-import { Brand, C, R, S } from "@/constants/theme";
+import { Brand, C, R, S, currentTheme, themed } from "@/constants/theme";
+import { takeThemeReturn, useTheme } from "@/lib/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
 import { writeWidgetSnapshot } from "@/lib/widget";
@@ -41,15 +42,19 @@ export const unstable_settings = { anchor: "(tabs)" };
  * content fits inside, and the content is pinned to its bottom edge so the room that is left over
  * appears above it, where the design already puts empty space.
  */
-const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
-const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
-/** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
-const fit = { ...sheet, sheetAllowedDetents: "fitToContents" as const };
-const medium = { ...sheet, sheetAllowedDetents: [0.55, 0.92] };
-/** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
-const picker = { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 };
-/** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
-const modal = { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: C.bgGrouped } };
+function sheetOptions() {
+  const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
+  const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
+  return {
+    /** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
+    fit: { ...sheet, sheetAllowedDetents: "fitToContents" as const },
+    medium: { ...sheet, sheetAllowedDetents: [0.55, 0.92] },
+    /** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
+    picker: { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 },
+    /** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
+    modal: { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: C.bgGrouped } },
+  };
+}
 /**
  * A pushed full screen keeps the iPad column (constants/layout.ts). Sheets and modals do not: on a
  * tablet iOS already sizes those itself, and a column inside a centred card is a card with margins.
@@ -57,9 +62,15 @@ const modal = { presentation: "modal" as const, headerShown: false, contentStyle
  */
 const pushed = { contentStyle: screenContentStyle };
 
-/** Navigation colours that match iOS grouped backgrounds, so native headers never differ from the content. */
-const lightTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: Brand.bg, card: Brand.bg, primary: Brand.accent, border: Brand.border } };
-const darkTheme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: Brand.bgDark, card: Brand.bgDark, primary: Brand.accentDark, border: Brand.borderDark } };
+/**
+ * Navigation colours that match the theme's backgrounds, so native headers never differ from the
+ * content. Built at render: the theme is whichever is current when the tree (re-)mounts.
+ */
+function navigationTheme(dark: boolean) {
+  return dark
+    ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: Brand.bgDark, card: Brand.bgDark, primary: Brand.accentDark, border: Brand.borderDark, text: currentTheme().dark.text } }
+    : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: Brand.bg, card: Brand.bg, primary: Brand.accent, border: Brand.border, text: currentTheme().light.text } };
+}
 
 export default function RootLayout() {
   markRootLayoutRender(); // boot trace: first render, not first effect — closer to when the tree starts committing
@@ -74,6 +85,21 @@ export default function RootLayout() {
   // watch state carry names, and JS-scheduled reminders carry their text.
   const lang = useLanguage();
   const firstLang = useRef(lang);
+  // A new theme mounts the tree again the same way (src/lib/theme.ts), and comes back to the picker
+  // that chose it. Without one — a restore that carried a theme — it goes where a language goes.
+  const theme = useTheme();
+  const firstTheme = useRef(theme);
+  useEffect(() => {
+    if (theme === firstTheme.current) return;
+    firstTheme.current = theme;
+    const back = takeThemeReturn();
+    const id = setTimeout(() => {
+      if (needsOnboarding()) { router.navigate(back === "/onboarding/theme" ? back : "/onboarding"); return; }
+      router.navigate("/settings");
+      if (back === "/settings/theme") router.push(back);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [theme]);
   useEffect(() => {
     if (lang === firstLang.current) return;
     firstLang.current = lang;
@@ -124,9 +150,10 @@ export default function RootLayout() {
     const offWatch = KPBridge.onExternalChange(() => notifyChange());
     return () => { offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
   }, []);
+  const { fit, medium, picker, modal } = sheetOptions();
   return (
-    <ThemeProvider value={scheme === "dark" ? darkTheme : lightTheme}>
-      <View key={lang} style={{ flex: 1 }}>
+    <ThemeProvider value={navigationTheme(scheme === "dark")}>
+      <View key={`${lang}:${theme}`} style={{ flex: 1 }}>
         <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
@@ -209,10 +236,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
-const errorStyles = StyleSheet.create({
+const errorStyles = themed(() => StyleSheet.create({
   screen: { flex: 1, alignItems: "center", justifyContent: "center", gap: S.md, padding: S.xl, backgroundColor: C.bgGrouped },
   title: { fontSize: 20, fontWeight: "700", color: C.label },
   message: { fontSize: 14, color: C.secondary, textAlign: "center" },
   button: { marginTop: S.md, paddingHorizontal: S.xl, paddingVertical: S.md, borderRadius: R.lg, backgroundColor: C.tint },
   buttonText: { fontSize: 16, fontWeight: "600", color: C.onTint },
-});
+}));

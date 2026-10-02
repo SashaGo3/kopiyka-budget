@@ -66,7 +66,8 @@
     "screenshots": "bash scripts/screenshots/run.sh",
     "screenshots:demo": "bun scripts/screenshots/demo-data.ts",
     "screenshots:frame": "node scripts/screenshots/frame.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "icons:themes": "bun scripts/icons/generate.ts"
   },
   "private": true
 }

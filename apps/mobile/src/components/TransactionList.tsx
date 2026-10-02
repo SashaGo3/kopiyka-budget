@@ -6,7 +6,7 @@ import { formatMinor, jsonIds, numberFormat, paidAmountMinor, type Transaction }
 import { useQuery } from "@/store";
 import { useCloudRefresh } from "@/lib/backup";
 import { AmountPill, CategoryIcon, Empty, Money, TagPill } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { dayLabel, humanDayTime, timeLabel } from "@/lib/dates";
 import { t } from "@/i18n";
 import { catName, acctName } from "@/lib/names";
@@ -161,7 +161,7 @@ const TxItem = memo(function TxItem({ tx, tags, flat, showAccount, first, last, 
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   sh: { fontSize: 20, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.sm },
   sum: { color: C.secondary, fontSize: 14, paddingHorizontal: S.xl, paddingTop: 6, paddingBottom: S.sm },
   sumVal: { fontSize: 14, fontWeight: "600" },
@@ -181,4 +181,4 @@ const styles = StyleSheet.create({
   pendingRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   pendingText: { fontSize: 12, fontWeight: "600", color: C.orange },
   time: { fontSize: 13, color: C.secondary },
-});
+}));

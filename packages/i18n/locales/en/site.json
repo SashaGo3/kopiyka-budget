@@ -94,6 +94,22 @@
     "transactions": { "alt": "Transactions on an iPad, grouped by day", "caption": "Transactions" },
     "insights": { "alt": "Insight cards on an iPad", "caption": "Insights" }
   },
+  "themes": {
+    "title": "Eight themes, light and dark",
+    "intro": "Kopiyka’s own graphite, and seven from code editors you know — Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub. Each comes in light and dark, follows your phone’s appearance, and the app icon follows the theme.",
+    "hint": "Tap one to try it on this page.",
+    "switcher": { "message": "Colour theme", "note": "aria-label of the row of theme swatches in the footer" },
+    "name": {
+      "kopiyka": { "message": "Kopiyka", "note": "The app's own theme. The other seven are the names of code-editor themes and stay as they are in every language" },
+      "solarized": "Solarized",
+      "catppuccin": "Catppuccin",
+      "gruvbox": "Gruvbox",
+      "nord": "Nord",
+      "tokyonight": "Tokyo Night",
+      "rosepine": "Rosé Pine",
+      "github": "GitHub"
+    }
+  },
   "privacy": {
     "title": "Privacy",
     "text": "Kopiyka collects nothing: there is no account and no server to send anything to. The only request it ever makes is an exchange rate from the European Central Bank.",

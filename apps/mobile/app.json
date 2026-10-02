@@ -128,7 +128,8 @@
       "@bacons/apple-targets",
       "expo-maps",
       "./plugins/withQuickLog",
-      "./plugins/withReleasePlistCleanup"
+      "./plugins/withReleasePlistCleanup",
+      "./plugins/withAppIcons"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
 import { BACKUP_POLICY, applyRetention, backupNow, backupWhen, joinList, lastBackupLine, mirrorPhotos, photoBackupState, pullFromCloud, setBackupEnabled, setSyncEnabled, useBackupState, type PhotoBackupState } from "@/lib/backup";
 import { bundleFile, importBundle } from "@/lib/bundle";
@@ -240,7 +240,7 @@ export default function DataScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
-});
+}));

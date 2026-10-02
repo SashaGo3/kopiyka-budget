@@ -2,7 +2,7 @@ import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Card, Row, SectionHeader } from "@/components/ui";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED, IOS_VERSION } from "@/constants/features";
 import { t } from "@/i18n";
 
@@ -75,10 +75,10 @@ export default function ShortcutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   intro: { color: C.secondary, fontSize: 15, lineHeight: 21, paddingHorizontal: S.xl, marginTop: S.md },
   need: { flexDirection: "row", alignItems: "flex-start", gap: S.sm, marginHorizontal: S.lg, marginTop: S.md, padding: S.md, borderRadius: R.card, backgroundColor: C.card },
-  needStrong: { backgroundColor: "rgba(255,159,10,0.16)" },
+  needStrong: { backgroundColor: C.orangeSoft },
   needText: { flex: 1, color: C.secondary, fontSize: 14, lineHeight: 19 },
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.lg },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
@@ -87,4 +87,4 @@ const styles = StyleSheet.create({
   numText: { color: C.onTint, fontSize: 13, fontWeight: "600" },
   stepTitle: { color: C.label, fontSize: 16 },
   stepSub: { color: C.secondary, fontSize: 13, marginTop: 2, lineHeight: 18 },
-});
+}));

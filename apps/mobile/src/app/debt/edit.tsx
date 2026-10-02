@@ -7,7 +7,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, ConfirmBar, evalExpr } from "@/components/Keypad";
 import { Chip, ChipRow, DeleteRow, Segmented, SheetFrame, Subtle, Title } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, localIso, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -146,7 +146,7 @@ export default function DebtEdit() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.md, gap: 4 },
   amount: { fontSize: 34, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
-});
+}));
