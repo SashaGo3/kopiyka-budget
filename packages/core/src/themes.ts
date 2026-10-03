@@ -88,8 +88,10 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
   github: {
     id: "github",
-    light: { bg: "#F6F8FA", card: "#FFFFFF", text: "#1F2328", muted: "#59636E", accent: "#0969DA", onAccent: "#FFFFFF", border: "#D1D9E0", red: "#D1242F", green: "#1A7F37", orange: "#BC4C00" },
-    dark: { bg: "#0D1117", card: "#161B22", text: "#E6EDF3", muted: "#9198A1", accent: "#58A6FF", onAccent: "#0D1117", border: "#30363D", red: "#F85149", green: "#3FB950", orange: "#DB6D28" },
+    // Primer's current functional colours; the accent is GitHub's green primary button
+    // (bgColor-success-emphasis, white text), not its link blue, which is what reads as GitHub.
+    light: { bg: "#F6F8FA", card: "#FFFFFF", text: "#1F2328", muted: "#59636E", accent: "#1F883D", onAccent: "#FFFFFF", border: "#D1D9E0", red: "#D1242F", green: "#1A7F37", orange: "#BC4C00" },
+    dark: { bg: "#0D1117", card: "#151B23", text: "#F0F6FC", muted: "#9198A1", accent: "#238636", onAccent: "#FFFFFF", border: "#3D444D", red: "#F85149", green: "#3FB950", orange: "#DB6D28" },
   },
 };
 
