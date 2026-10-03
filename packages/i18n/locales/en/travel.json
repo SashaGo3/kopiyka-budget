@@ -98,7 +98,8 @@
   },
   "settings": {
     "title": "Travel",
-    "note": "While travel mode is on, every new expense gets the travel’s tag and counts towards its budget, whatever currency it was paid in. Travel spending stays out of your monthly budgets.",
+    "noteShort": { "message": "In travel mode, new expenses get the trip’s tag and count towards its budget.", "note": "Note on the travel mode settings screen; the ⓘ unfolds noteMore." },
+    "noteMore": { "message": "In any currency. Trip spending stays out of your monthly budgets.", "note": "Unfolds under noteShort." },
     "now": { "message": "Now", "note": "Section header above the trip that is running." },
     "start": "Start travel mode",
     "startHint": "Where, how much, and the dates",

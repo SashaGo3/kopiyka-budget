@@ -219,7 +219,6 @@ export default function TransactionSheet() {
   // in this account's currency, since converting money back would need a rate and a conversation.
   const returnMinor = value !== null ? toMinor(value, currency) : 0;
   const askForReturn = () => {
-    if (!valid) { Alert.alert(t("transaction.entry.returnNeedsAmount.title"), t("transaction.entry.returnNeedsAmount.body")); return; }
     router.push({ pathname: "/pick/transaction", params: {
       key: keys.ret, title: t("transaction.entry.returnPickTitle"),
       desc: t("transaction.entry.returnPickDesc", { amount: formatMinor(returnMinor, currency), currency }),
@@ -259,6 +258,7 @@ export default function TransactionSheet() {
 
   // Tapping the amount copies it, plain and ungrouped so it pastes into anything.
   const [copied, setCopied] = useState(false);
+  // The Return pill's width, so the amount keeps the same room on both sides of it and stays centred.
   const copyAmount = () => {
     if (value === null) return;
     const text = formatMinor(toMinor(value, currency) * (kind === "expense" ? -1 : 1), currency, { grouping: "", decimal: "." });
@@ -447,6 +447,18 @@ export default function TransactionSheet() {
       top={
         <View style={styles.top}>
           {existing ? <Pressable onPress={duplicate} hitSlop={10} style={styles.corner} accessibilityRole="button" accessibilityLabel={t("transaction.entry.duplicateA11y")}><SymbolView name="plus.square.on.square" size={16} tintColor={C.tint} /></Pressable> : null}
+          {/* Return is not an attribute of this entry but an action on another one: the amount typed
+              goes back onto an earlier expense instead of being added here. It lives in the corner
+              Duplicate takes on a saved entry (it is only offered on a new one), as the same round icon
+              button, because as a ninth chip it wrapped onto a row of its own and pushed the keypad
+              down on a small phone. */}
+          {isNew ? (
+            <Pressable onPress={askForReturn} disabled={!valid} hitSlop={10}
+              style={({ pressed }) => [styles.corner, !valid && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button" accessibilityLabel={t("transaction.entry.chip.return")} accessibilityState={{ disabled: !valid }}>
+              <SymbolView name="arrow.uturn.backward" size={16} tintColor={C.tint} />
+            </Pressable>
+          ) : null}
           {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("transaction.entry.deleteA11y")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
           <Pressable onPress={copyAmount} disabled={value === null} style={styles.amountRow} accessibilityRole="button"
             accessibilityLabel={t("transaction.entry.amountA11y", { amount: `${expr ? signChar : ""}${shown}`, currency })}>
@@ -456,10 +468,14 @@ export default function TransactionSheet() {
           {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("transaction.entry.copied")}</Text> : <CalcLine expr={expr} style={styles.result} />}
           <View style={styles.details}>
             {/* The note is the entry's title, so the line shows it whole where it fits and ends in an
-                ellipsis where it does not — four lines is as much as the sheet can spare. */}
-            <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={note ? t("transaction.entry.noteA11y", { note }) : t("transaction.entry.addNote")}>
-              <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !note && styles.placeholder]} numberOfLines={4} ellipsizeMode="tail">{note || t("transaction.entry.addNote")}</Text>
-            </Pressable>
+                ellipsis where it does not — four lines is as much as the sheet can spare. With no note
+                there is no line: an "Add a note" placeholder did exactly what the Note chip does, at the
+                cost of a row a small phone takes out of the keypad. */}
+            {note ? (
+              <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
+                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4} ellipsizeMode="tail">{note}</Text>
+              </Pressable>
+            ) : null}
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
                 payment or a scanned receipt names the shop without ever pinning it on the map. */}
             {coords || place || locationOn ? (
@@ -556,9 +572,6 @@ export default function TransactionSheet() {
             <Chip icon="hourglass" label={t("transaction.entry.chip.pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
             <Chip icon="camera" label={t("transaction.entry.chip.photo")} active={!!photoSrc} compact onPress={openPhoto} />
             <Chip icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
-            {/* Not an attribute of this entry but an action on another one: the amount typed goes
-                back onto an earlier expense instead of being added here. */}
-            {isNew ? <Chip icon="arrow.uturn.backward" label={t("transaction.entry.chip.return")} disabled={!valid} onPress={askForReturn} /> : null}
             {isNew && RECEIPT_SCANNER_ENABLED ? <Chip icon="doc.text.viewfinder" label={t("transaction.entry.chip.receipt")} compact onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
           </ChipRow>
           <Keypad value={expr} onChange={onKeypadChange} onToggleSign={negate}

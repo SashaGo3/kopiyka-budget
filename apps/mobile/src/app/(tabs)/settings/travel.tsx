@@ -21,7 +21,7 @@ export default function TravelSettings() {
     <>
       <Stack.Screen options={{ title: t("travel.settings.title"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}>
-        <ScreenNote>{t("travel.settings.note")}</ScreenNote>
+        <ScreenNote more={t("travel.settings.noteMore")}>{t("travel.settings.noteShort")}</ScreenNote>
         {active ? (
           <>
             <SectionHeader>{t("travel.settings.now")}</SectionHeader>

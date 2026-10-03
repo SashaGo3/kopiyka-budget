@@ -93,12 +93,18 @@ export interface Messages {
   "automation.settings.automateSubtitle": undefined;
   "automation.settings.denied": undefined;
   "automation.settings.granted": undefined;
-  "automation.settings.hintLog": undefined;
-  "automation.settings.hintNotify": undefined;
   "automation.settings.log": undefined;
+  /** Unfolds under logHintShort. */
+  "automation.settings.logHintMore": undefined;
+  /** Footnote under the Notification log row; the ⓘ unfolds logHintMore. */
+  "automation.settings.logHintShort": undefined;
   /** Subtitle of the Notification log row. */
   "automation.settings.logMissed": { count: number };
   "automation.settings.logNone": undefined;
+  /** Unfolds under notifyShort. */
+  "automation.settings.notifyMore": undefined;
+  /** Footnote under the notification setting; the ⓘ unfolds notifyMore. */
+  "automation.settings.notifyShort": undefined;
   "automation.settings.openSettings": undefined;
   "automation.settings.openSettingsSubtitle": undefined;
   "automation.settings.setup": undefined;
@@ -401,6 +407,8 @@ export interface Messages {
   /** Language row subtitle while following the phone; name is the language it resolves to, in its own language ("English"). */
   "common.language.systemNow": { name: string | number };
   "common.language.title": undefined;
+  /** VoiceOver label of the ⓘ next to a short note; tapping it unfolds the full explanation. */
+  "common.moreInfo": undefined;
   "common.next": undefined;
   "common.noCategory": undefined;
   "common.none": undefined;
@@ -410,9 +418,11 @@ export interface Messages {
   "common.today": undefined;
   "common.yesterday": undefined;
   "data.backups.empty": undefined;
-  "data.backups.hintICloud": undefined;
-  "data.backups.hintLocal": undefined;
+  /** Footnote under the backups list when iCloud is on; the ⓘ unfolds restoreMore. */
+  "data.backups.iCloudShort": undefined;
   "data.backups.listFailed": undefined;
+  /** Footnote under the backups list when iCloud is off; the ⓘ unfolds restoreMore. */
+  "data.backups.localShort": undefined;
   "data.backups.merge": undefined;
   "data.backups.notDownloaded": undefined;
   "data.backups.replace": undefined;
@@ -424,6 +434,8 @@ export interface Messages {
   "data.backups.restoreFailed": undefined;
   /** when is "22 Sep at 19:21". */
   "data.backups.restoreMessage": { when: string | number };
+  /** Unfolds under iCloudShort or localShort. */
+  "data.backups.restoreMore": undefined;
   "data.backups.restoreTitle": undefined;
   "data.backups.restored": undefined;
   /** File size; size is a whole number. */
@@ -478,9 +490,6 @@ export interface Messages {
   "data.icloud.checkNow": undefined;
   /** error is the system's message. */
   "data.icloud.failed": { error: string | number };
-  "data.icloud.hintMerge": undefined;
-  /** perDay is how many backups a day keeps. */
-  "data.icloud.hintPolicy": { perDay: string | number };
   "data.icloud.keep": undefined;
   /** An option in the Keep backups for list. */
   "data.icloud.keepDays": { count: number };
@@ -489,8 +498,12 @@ export interface Messages {
   /** How long backups are kept, and how many files there are. */
   "data.icloud.keepState": { days: number; files: number };
   "data.icloud.merge": undefined;
+  /** Unfolds under mergeShort. */
+  "data.icloud.mergeMore": undefined;
   "data.icloud.mergeNoICloud": undefined;
   "data.icloud.mergeOff": undefined;
+  /** Second footnote under the iCloud group; the ⓘ unfolds mergeMore. */
+  "data.icloud.mergeShort": undefined;
   "data.icloud.mergeWhen": undefined;
   /** when is "Today at 19:21". */
   "data.icloud.merged": { count: number; when: string | number };
@@ -510,6 +523,10 @@ export interface Messages {
   "data.icloud.photosNone": undefined;
   /** Receipt photos copied to iCloud so far. */
   "data.icloud.photosPending": { done: string | number; total: string | number; left: string | number };
+  /** Unfolds under policyShort. perDay is how many backups a day keeps. */
+  "data.icloud.policyMore": { perDay: string | number };
+  /** Footnote under the iCloud group; the ⓘ next to it unfolds policyMore. */
+  "data.icloud.policyShort": undefined;
   "data.icloud.restore": undefined;
   /** today is how many of them were made today. */
   "data.icloud.restoreCount": { count: number; today: string | number };
@@ -542,7 +559,10 @@ export interface Messages {
   "data.import.confirmTitle": undefined;
   "data.import.done": undefined;
   "data.import.failed": undefined;
-  "data.import.hint": undefined;
+  /** Unfolds under hintShort. */
+  "data.import.hintMore": undefined;
+  /** Footnote under the import rows; the ⓘ unfolds hintMore. */
+  "data.import.hintShort": undefined;
   "data.import.json": undefined;
   "data.import.jsonSubtitle": undefined;
   "data.import.noCopyMessage": undefined;
@@ -1552,7 +1572,10 @@ export interface Messages {
   "settingsLists.accounts.emptyTitle": undefined;
   /** Section header for accounts that are in no group. */
   "settingsLists.accounts.group": undefined;
-  "settingsLists.accounts.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.accounts.introMore": undefined;
+  /** Note above the accounts list; the ⓘ unfolds introMore. */
+  "settingsLists.accounts.introShort": undefined;
   "settingsLists.accounts.title": undefined;
   "settingsLists.accounts.type.bank": undefined;
   "settingsLists.accounts.type.card": undefined;
@@ -1571,7 +1594,10 @@ export interface Messages {
   /** Subtitle of a folder that holds income. */
   "settingsLists.categories.folderIncome": { count: number };
   "settingsLists.categories.inArchivedFolder": undefined;
-  "settingsLists.categories.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.categories.introMore": undefined;
+  /** Note above the categories list; the ⓘ unfolds introMore. */
+  "settingsLists.categories.introShort": undefined;
   "settingsLists.categories.matters": undefined;
   /** Every category has an importance. */
   "settingsLists.categories.mattersAll": { count: string | number };
@@ -1586,7 +1612,10 @@ export interface Messages {
   "settingsLists.debts.addA11y": undefined;
   "settingsLists.debts.emptyHint": undefined;
   "settingsLists.debts.emptyTitle": undefined;
-  "settingsLists.debts.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.debts.introMore": undefined;
+  /** Note above the debts list; the ⓘ unfolds introMore. */
+  "settingsLists.debts.introShort": undefined;
   "settingsLists.debts.noDue": undefined;
   /** date is "22 Sep". */
   "settingsLists.debts.overdue": { date: string | number };
@@ -1614,8 +1643,12 @@ export interface Messages {
   "settingsLists.recurring.expecting": undefined;
   /** Name of a rule with no payee and no category. */
   "settingsLists.recurring.fallbackTitle": undefined;
-  "settingsLists.recurring.footNoWait": undefined;
-  "settingsLists.recurring.footWait": undefined;
+  /** Unfolds under footShort while waiting is off. */
+  "settingsLists.recurring.footMoreNoWait": undefined;
+  /** Unfolds under footShort while waiting is on. */
+  "settingsLists.recurring.footMoreWait": undefined;
+  /** Footnote at the bottom of the recurring list; the ⓘ unfolds footMoreWait or footMoreNoWait. */
+  "settingsLists.recurring.footShort": undefined;
   /** How often a rule repeats; count is the interval. */
   "settingsLists.recurring.freq.daily": { count: number };
   "settingsLists.recurring.freq.monthly": { count: number };
@@ -1626,8 +1659,12 @@ export interface Messages {
   "settingsLists.recurring.name": undefined;
   /** currencies is "USD, PLN". */
   "settingsLists.recurring.noRate": { currencies: string | number };
-  "settingsLists.recurring.noteNoWait": undefined;
-  "settingsLists.recurring.noteWait": undefined;
+  /** Unfolds under noteShort while waiting for the bank is off. */
+  "settingsLists.recurring.noteMoreNoWait": undefined;
+  /** Unfolds under noteShort while waiting for the bank is on. */
+  "settingsLists.recurring.noteMoreWait": undefined;
+  /** Note under the recurring settings card; the ⓘ unfolds noteMoreWait or noteMoreNoWait. */
+  "settingsLists.recurring.noteShort": undefined;
   "settingsLists.recurring.paused": undefined;
   "settingsLists.recurring.perMonth": undefined;
   "settingsLists.recurring.perYear": undefined;
@@ -1656,7 +1693,10 @@ export interface Messages {
   "settingsLists.tags.archivedNote": undefined;
   "settingsLists.tags.emptyHint": undefined;
   "settingsLists.tags.emptyTitle": undefined;
-  "settingsLists.tags.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.tags.introMore": undefined;
+  /** Note above the tags list; the ⓘ unfolds introMore. */
+  "settingsLists.tags.introShort": undefined;
   "settingsLists.tags.title": undefined;
   /** Section header: tags made by travel mode, one per trip. */
   "settingsLists.tags.travel": undefined;
@@ -1780,8 +1820,6 @@ export interface Messages {
   /** Fills {name} in "Account: {name}" when there is no account. */
   "transaction.entry.accountNone": undefined;
   "transaction.entry.addLocation": undefined;
-  /** Placeholder line on the entry sheet when the entry has no note. */
-  "transaction.entry.addNote": undefined;
   /** VoiceOver label of the big amount on the entry sheet; amount is formatted, with its sign. */
   "transaction.entry.amountA11y": { amount: string | number; currency: string | number };
   /** Small pill next to the account that unfolds the balance before and after this entry. */
@@ -1845,8 +1883,6 @@ export interface Messages {
   "transaction.entry.returnCannot": undefined;
   "transaction.entry.returnConfirmTitle": { amount: string | number; currency: string | number };
   "transaction.entry.returnFailed": undefined;
-  "transaction.entry.returnNeedsAmount.body": undefined;
-  "transaction.entry.returnNeedsAmount.title": undefined;
   "transaction.entry.returnPickDesc": { amount: string | number; currency: string | number };
   /** Title of the picker that chooses which earlier entry a return belongs to. */
   "transaction.entry.returnPickTitle": undefined;
@@ -2155,7 +2191,10 @@ export interface Messages {
   "travel.settings.addPast": undefined;
   "travel.settings.addPastHint": undefined;
   "travel.settings.history": undefined;
-  "travel.settings.note": undefined;
+  /** Unfolds under noteShort. */
+  "travel.settings.noteMore": undefined;
+  /** Note on the travel mode settings screen; the ⓘ unfolds noteMore. */
+  "travel.settings.noteShort": undefined;
   /** Section header above the trip that is running. */
   "travel.settings.now": undefined;
   "travel.settings.start": undefined;

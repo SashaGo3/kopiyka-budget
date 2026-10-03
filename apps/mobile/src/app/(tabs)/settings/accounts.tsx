@@ -29,7 +29,7 @@ export default function AccountsSettings() {
     <>
       <Stack.Screen options={{ title: t("settingsLists.accounts.title"), headerRight: () => <Pressable onPress={() => router.push({ pathname: "/account/edit", params: { id: "new" } })} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("settingsLists.accounts.add")}><SymbolView name="plus" size={20} tintColor={C.tint} /></Pressable> }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
-        <ScreenNote>{t("settingsLists.accounts.intro")}</ScreenNote>
+        <ScreenNote more={t("settingsLists.accounts.introMore")}>{t("settingsLists.accounts.introShort")}</ScreenNote>
         {data.accounts.length ? <NetWorth totals={data.totals} /> : <Empty title={t("settingsLists.accounts.emptyTitle")} hint={t("settingsLists.accounts.emptyHint")} />}
         {[...groups].map(([group, accounts]) => (
           <SectionGroup key={group} title={groupName(group) || t("settingsLists.accounts.group")} accounts={accounts} />

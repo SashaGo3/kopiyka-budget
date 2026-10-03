@@ -32,7 +32,7 @@
   "folder": "Folder",
   "whichFolder": "Which folder?",
   "inheritedColour": { "message": "Automatic uses {folder}’s colour, because the folder has one.", "note": "folder is the folder's name." },
-  "folderHint": "A folder groups the list; nothing is ever filed straight into one. Give it a colour and the categories inside it are created in that colour.",
+  "folderHint": "A folder groups the list and is never filed into. New categories in it take its colour.",
   "transactions": {
     "header": "Transactions",
     "count": "{count, plural, one {# transaction} other {# transactions}}",

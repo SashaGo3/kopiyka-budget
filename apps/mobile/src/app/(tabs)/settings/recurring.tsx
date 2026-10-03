@@ -6,7 +6,7 @@ import { Stack, router } from "expo-router";
 import { listRows, dueOccurrences, detectRecurring, adoptCandidate, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission } from "@/lib/notifications";
-import { AmountPill, Card, Chip, Empty, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
+import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
@@ -120,7 +120,7 @@ export default function RecurringList() {
             value={wait} onChange={setRecurringWait} />
           {wait ? <Row icon="clock.badge.exclamationmark" iconColor="#FF9F0A" title={t("settingsLists.recurring.waitUpTo")} subtitle={dayCount(waitDays)} onPress={pickWait} style={styles.divider} /> : null}
         </Card>
-        <ScreenNote>{wait ? t("settingsLists.recurring.noteWait") : t("settingsLists.recurring.noteNoWait")}</ScreenNote>
+        <ScreenNote more={wait ? t("settingsLists.recurring.noteMoreWait") : t("settingsLists.recurring.noteMoreNoWait")}>{t("settingsLists.recurring.noteShort")}</ScreenNote>
         {rules.length === 0 && suggestions.length === 0 ? <Empty title={t("settingsLists.recurring.emptyTitle")} hint={t("settingsLists.recurring.emptyHint")} /> : null}
         {expecting.length ? <SectionHeader>{t("settingsLists.recurring.expecting")}</SectionHeader> : null}
         {expecting.length ? <Card>{expecting.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
@@ -147,7 +147,7 @@ export default function RecurringList() {
             ))}
           </Card>
         ) : null}
-        <Text style={styles.foot}>{wait ? t("settingsLists.recurring.footWait") : t("settingsLists.recurring.footNoWait")}</Text>
+        <Footnote style={styles.foot} more={wait ? t("settingsLists.recurring.footMoreWait") : t("settingsLists.recurring.footMoreNoWait")}>{t("settingsLists.recurring.footShort")}</Footnote>
       </ScrollView>
       <BottomBar visible={visible}><BarButton icon="plus" label={t("settingsLists.recurring.add")} onPress={addRule} a11y={t("settingsLists.recurring.addA11y")} /></BottomBar>
     </>
@@ -181,7 +181,7 @@ function RuleRow({ r, first, confirm }: { r: RuleRowData; first: boolean; confir
 
 const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-  foot: { color: C.tertiary, fontSize: 13, textAlign: "center", marginTop: S.xl, paddingHorizontal: S.xl },
+  foot: { marginTop: S.xl },
   addAll: { color: C.tint, fontSize: 15, fontWeight: "600" },
   warn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingTop: 2 },
   right: { alignItems: "flex-end", gap: 4 },

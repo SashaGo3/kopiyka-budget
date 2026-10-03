@@ -28,7 +28,7 @@ export default function DebtsSettings() {
     <>
       <Stack.Screen options={{ title: t("settingsLists.debts.title"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>{t("settingsLists.debts.intro")}</ScreenNote>
+        <ScreenNote more={t("settingsLists.debts.introMore")}>{t("settingsLists.debts.introShort")}</ScreenNote>
         {data.totals.length ? <Summary totals={data.totals} /> : <Empty title={t("settingsLists.debts.emptyTitle")} hint={t("settingsLists.debts.emptyHint")} />}
         {owedToMe.length ? <SectionHeader>{t("settingsLists.debts.owedToYou")}</SectionHeader> : null}
         {owedToMe.length ? <Card>{owedToMe.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} />)}</Card> : null}

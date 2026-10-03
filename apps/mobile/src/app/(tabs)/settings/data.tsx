@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text } from "react-native";
+import { Alert, ScrollView, StyleSheet } from "react-native";
 import { Stack, router, useFocusEffect } from "expo-router";
 import { File, Paths } from "expo-file-system";
 import { eraseAll, exportBackupJson, exportGeneric, listRows } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { Card, Footnote, Row, SectionHeader, ToggleRow } from "@/components/ui";
+import { C, themed } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
 import { BACKUP_POLICY, applyRetention, backupNow, backupWhen, joinList, lastBackupLine, mirrorPhotos, photoBackupState, pullFromCloud, setBackupEnabled, setSyncEnabled, useBackupState, type PhotoBackupState } from "@/lib/backup";
 import { bundleFile, importBundle } from "@/lib/bundle";
@@ -206,8 +206,8 @@ export default function DataScreen() {
             onPress={!photos?.pending || !photos.icloud || backup.busy ? undefined : () => { void mirrorPhotos(500).then(refreshPhotos); }} style={styles.divider} />
           <Row icon="square.stack.3d.up" iconColor="#0A84FF" title={t("data.icloud.keep")} subtitle={t("data.icloud.keepState", { days: keepDays, files: backup.count })} onPress={pickKeepDays} style={styles.divider} />
         </Card>
-        <Text style={styles.hint}>{t("data.icloud.hintPolicy", { perDay: BACKUP_POLICY.perDay })}</Text>
-        <Text style={styles.hint}>{t("data.icloud.hintMerge")}</Text>
+        <Footnote more={t("data.icloud.policyMore", { perDay: BACKUP_POLICY.perDay })}>{t("data.icloud.policyShort")}</Footnote>
+        <Footnote more={t("data.icloud.mergeMore")}>{t("data.icloud.mergeShort")}</Footnote>
 
         <SectionHeader>{t("data.export.section")}</SectionHeader>
         <Card>
@@ -215,7 +215,7 @@ export default function DataScreen() {
           <Row icon="doc.zipper" iconColor="#5E5CE6" title={t("data.export.bundle")} subtitle={photos?.local ? t("data.export.bundleSubtitleCount", { count: photos.local }) : t("data.export.bundleSubtitle")} onPress={off?.(exportBundle)} style={styles.divider} />
           <Row icon="tablecells" iconColor="#FF9F0A" title={t("data.export.csv")} subtitle={t("data.export.csvSubtitle")} onPress={off?.(() => exportAs("generic"))} style={styles.divider} />
         </Card>
-        <Text style={styles.hint}>{t("data.export.hint", { transactions: counts.tx, accounts: counts.accounts })}</Text>
+        <Footnote>{t("data.export.hint", { transactions: counts.tx, accounts: counts.accounts })}</Footnote>
 
         <SectionHeader>{t("data.import.section")}</SectionHeader>
         <Card>
@@ -229,7 +229,7 @@ export default function DataScreen() {
               { text: t("data.import.replaceJson"), onPress: () => void replaceEverything() },
             ]) : undefined} style={styles.divider} />
         </Card>
-        <Text style={styles.hint}>{t("data.import.hint")}</Text>
+        <Footnote more={t("data.import.hintMore")}>{t("data.import.hintShort")}</Footnote>
 
         <SectionHeader>{t("data.reset.section")}</SectionHeader>
         <Card>
@@ -242,5 +242,4 @@ export default function DataScreen() {
 
 const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-  hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
 }));

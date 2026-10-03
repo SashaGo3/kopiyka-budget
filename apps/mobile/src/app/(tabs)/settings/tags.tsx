@@ -31,7 +31,7 @@ export default function TagsScreen() {
     <>
       <Stack.Screen options={{ title: tr("settingsLists.tags.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>{tr("settingsLists.tags.intro")}</ScreenNote>
+        <ScreenNote more={tr("settingsLists.tags.introMore")}>{tr("settingsLists.tags.introShort")}</ScreenNote>
         {tags.length === 0 ? <Empty title={tr("settingsLists.tags.emptyTitle")} hint={tr("settingsLists.tags.emptyHint")} /> : null}
         {live.length ? (
           <Card style={{ marginTop: S.lg }}>

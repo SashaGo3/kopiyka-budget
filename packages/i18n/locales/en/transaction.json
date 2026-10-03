@@ -5,7 +5,6 @@
     "duplicateA11y": "Duplicate transaction",
     "deleteA11y": "Delete transaction",
     "noteA11y": { "message": "Note: {note}", "note": "VoiceOver label of the note line; note is what the user typed." },
-    "addNote": { "message": "Add a note", "note": "Placeholder line on the entry sheet when the entry has no note." },
     "notePlaceholder": "Note",
     "locationPinned": { "message": "Location: pinned", "note": "VoiceOver label: the entry has map coordinates but no place name." },
     "addLocation": "Add location",
@@ -57,10 +56,6 @@
     "splitNeedsTotal": {
       "title": "Type the total first",
       "body": "A split shares out the amount on the entry, so there has to be one."
-    },
-    "returnNeedsAmount": {
-      "title": "Type the amount that came back",
-      "body": "Enter how much you were paid back, then choose the entry it belongs to."
     },
     "returnPickTitle": { "message": "What is this money from?", "note": "Title of the picker that chooses which earlier entry a return belongs to." },
     "returnPickDesc": "You paid, and {amount} {currency} came back. Choose the entry it belongs to and it shrinks by that much — no new transaction is added.",

@@ -45,7 +45,7 @@ export default function CategoriesScreen() {
     <>
       <Stack.Screen options={{ title: t("settingsLists.categories.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>{t("settingsLists.categories.intro")}</ScreenNote>
+        <ScreenNote more={t("settingsLists.categories.introMore")}>{t("settingsLists.categories.introShort")}</ScreenNote>
         {matters.total ? (
           <Card>
             <Row title={t("settingsLists.categories.matters")} icon="heart.text.square"

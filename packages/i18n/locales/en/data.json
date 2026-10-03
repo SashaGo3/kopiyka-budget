@@ -43,19 +43,21 @@
     "keepState": { "message": "{days, plural, one {# day} other {# days}} · {files, plural, one {# file} other {# files}} in iCloud now", "note": "How long backups are kept, and how many files there are." },
     "keepDays": { "message": "{count, plural, one {# day} other {# days}}", "note": "An option in the Keep backups for list." },
     "keepMonths": { "message": "{days} days · {months, plural, one {# month} other {# months}}", "note": "An option: 30 days · 1 month, 90 days · 3 months." },
-    "hintPolicy": { "message": "A backup is written shortly after each change and at least once a day. Each day keeps its first backup plus the newest ones, up to {perDay} in all, and days outside the window above are deleted — that window is what decides how much of your iCloud storage this uses. Files live in Files → iCloud Drive → Kopiyka → Backups and open on any of your devices.", "note": "perDay is how many backups a day keeps." },
-    "hintMerge": "Your other devices back up to the same place, so merging is how an iPhone and an iPad stay level: each takes in what the other wrote, in the background, while you carry on. Nothing is ever deleted by it — where both changed the same thing, the newer edit wins — and a backup you have not merged is never deleted to make room. One exception to know about: “Replace everything” below is local, so rows it removes can come back from another device’s next backup. Replace on each device, or turn merging off while you do it."
+    "policyShort": { "message": "Backed up after each change and at least daily, to iCloud Drive → Kopiyka → Backups.", "note": "Footnote under the iCloud group; the ⓘ next to it unfolds policyMore." },
+    "policyMore": { "message": "Each day keeps its first backup and the newest ones, {perDay} in all. Days older than “Keep backups for” are deleted — that setting decides how much iCloud storage this uses. The files open on any of your devices.", "note": "Unfolds under policyShort. perDay is how many backups a day keeps." },
+    "mergeShort": { "message": "Merging keeps your devices level through the same backups. It never deletes anything.", "note": "Second footnote under the iCloud group; the ⓘ unfolds mergeMore." },
+    "mergeMore": { "message": "Each device takes in the others’ changes in the background; the newer edit wins. A backup not yet merged is never deleted to make room. “Replace everything” is local: rows it removes come back with another device’s next backup — replace on each device, or turn merging off first.", "note": "Unfolds under mergeShort." }
   },
   "export": {
     "section": "Export",
     "json": "Full backup (JSON)",
-    "jsonSubtitle": "Everything: accounts, categories, tags, transactions, recurring rules, budgets, exchange rates, preferences",
+    "jsonSubtitle": "Everything, from transactions to exchange rates and preferences",
     "bundle": "Bundle (ZIP)",
     "bundleSubtitle": "The backup and any receipt photos in one file — everything, portable",
     "bundleSubtitleCount": { "message": "The backup and {count, plural, one {the # receipt photo} other {all # receipt photos}} in one file — everything, portable", "note": "count is how many receipt photos there are." },
     "csv": "Transactions CSV",
     "csvSubtitle": "One row per transaction with parent and child category, tags, notes, transfer id",
-    "hint": { "message": "{transactions, plural, one {# transaction} other {# transactions}} in {accounts, plural, one {# account} other {# accounts}}. Share to Files, AirDrop, Mail, or straight into another app.", "note": "Below the export rows." },
+    "hint": { "message": "{transactions, plural, one {# transaction} other {# transactions}} in {accounts, plural, one {# account} other {# accounts}}. Share to Files, AirDrop, Mail or another app.", "note": "Below the export rows." },
     "failed": "Export failed"
   },
   "import": {
@@ -65,12 +67,13 @@
     "bundle": "Bundle (ZIP)",
     "bundleSubtitle": "A bundle exported from this app: the backup and its receipt photos together",
     "replace": "Replace everything with a file",
-    "replaceSubtitle": "For an export you have restructured elsewhere: the file becomes the whole database and anything missing from it is deleted. A copy of what you have now is saved first.",
+    "replaceSubtitle": "The file becomes the whole database; what it lacks is deleted. A copy is saved first.",
     "replaceFrom": "Replace from what?",
     "replaceFromMessage": "A bundle carries the photos as well; a JSON file is the data only.",
     "replaceBundle": "Bundle (ZIP)",
     "replaceJson": "Backup (JSON)",
-    "hint": "Imported rows are merged by id; the next iCloud backup includes them. Coming from another app? See the migration guide in the repository.",
+    "hintShort": { "message": "Imported rows merge by id; the next backup includes them.", "note": "Footnote under the import rows; the ⓘ unfolds hintMore." },
+    "hintMore": { "message": "Coming from another app? See the migration guide in the repository.", "note": "Unfolds under hintShort." },
     "failed": "Import failed",
     "notBackup": { "message": "This file is not a Kopiyka backup.", "note": "Alert body when the picked file is not JSON this app wrote." },
     "bundleNoBackup": { "message": "This ZIP has no Kopiyka backup in it.", "note": "Alert body when a picked bundle lacks backup.json." },
@@ -143,8 +146,9 @@
     "replaceFailed": "Replace failed",
     "restoreFailed": "Restore failed",
     "empty": "No backups yet. They appear here after the first change, or use “Back up now”.",
-    "hintICloud": "Stored in iCloud Drive → Kopiyka → Backups. Backups made on another device show up here too.",
-    "hintLocal": "iCloud is off on this phone: backups stay in the app’s folder (Files → On My iPhone → Kopiyka)."
+    "iCloudShort": { "message": "Stored in iCloud Drive → Kopiyka → Backups, with your other devices’ backups.", "note": "Footnote under the backups list when iCloud is on; the ⓘ unfolds restoreMore." },
+    "localShort": { "message": "iCloud is off: backups stay in Files → On My iPhone → Kopiyka.", "note": "Footnote under the backups list when iCloud is off; the ⓘ unfolds restoreMore." },
+    "restoreMore": { "message": "Tap one to restore it. Merge adds what the backup knows and never deletes anything; Replace everything makes this phone exactly that backup, on this device only.", "note": "Unfolds under iCloudShort or localShort." }
   },
   "diagnostics": {
     "title": "Diagnostics",
