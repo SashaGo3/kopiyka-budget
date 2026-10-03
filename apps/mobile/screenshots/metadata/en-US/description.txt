@@ -1,0 +1,25 @@
+Kopiyka Budget keeps your money on your phone. No account, no server, no ads, no trackers, no subscription - it is free now and it stays free.
+
+Everything you enter belongs to you: export the lot as CSV, as a full JSON backup, or as one ZIP that carries your receipt photos with it. A copy is written to your own iCloud Drive every day, and you can restore from it whenever you want.
+
+Logging is meant to take two taps. The entry sheet opens on a calculator keypad - type the amount, with Category and Tags on the keys beside it, then one tap to add. The same keypad is on your Apple Watch, and Siri can add an entry without opening the app.
+
+WHAT IS IN IT
+
+- Budgets for a category, a folder, a tag or for everything, in a month that starts on your payday rather than on the 1st.
+- Several accounts in several currencies - cash, bank, card, savings, investment - with net worth and transfers. Exchange rates come from the European Central Bank, kept day by day, so an old transfer still converts correctly.
+- Recurring payments: a subscription posts itself on the day and tells you it did, while the ones whose amount moves around wait for your tap. Kopiyka also spots repeats in your history and offers to make rules from them.
+- Categories inside folders, each with its own icon and colour, and tags that can be limited to the categories they make sense for.
+- Insights you pick yourself: free to spend, days until salary, savings goals, a payments checklist, subscriptions per year, upcoming payments.
+- Travel mode: name a trip, give it a budget and a last day, and every new expense is tagged and counted against it, in whatever currency you spend.
+- Debts, so you know who owes whom, with a reminder before the due date.
+- A category suggested from where you are: buy coffee at the same place twice and the third time it is filled in. Your location never leaves the phone.
+- Receipt photos on any entry, backed up beside your data.
+- An Apple Watch app with the keypad, today's entries, your budgets and a watch-face complication.
+- In English and Ukrainian.
+
+BANK NOTIFICATIONS (BETA)
+
+iOS never hands card transactions to an app. What it does allow is a Shortcuts automation: when your bank notifies you about a payment, it passes the notification to Kopiyka, which reads the amount, the shop, the card and the time out of the text - on the device, silently, with the app closed. The entry waits in Pending until you approve it. Settings walks you through the setup once.
+
+Kopiyka is open source. No analytics, no trackers, no third-party SDKs: nothing is collected and nothing is sent anywhere.

@@ -1,0 +1,28 @@
+{
+  "$comment": "The period pill, the account scope pill and picker, the range calendar and the net-worth summary.",
+  "pill": {
+    "label": { "message": "Period {title}", "note": "VoiceOver label of the period pill; title is \"Aug 2026\"." },
+    "labelRange": { "message": "Period {title}, {range}", "note": "Same, when periods start mid-month; range is \"15 Aug – 14 Sep\"." },
+    "previous": "Previous period",
+    "next": "Next period",
+    "choose": { "message": "{title}, choose month", "note": "VoiceOver label of the month in the period pill." },
+    "chooseHint": "Long press for today"
+  },
+  "scope": {
+    "all": "All accounts",
+    "allCurrency": { "message": "All {currency}", "note": "An older scope: every account in one currency, \"All EUR\"." },
+    "accounts": { "message": "{count, plural, one {# account} other {# accounts}}", "note": "Subtitle in the account scope picker." },
+    "group": { "message": "Group · {count, plural, one {# account} other {# accounts}}", "note": "Subtitle of an account group in the scope picker." },
+    "label": { "message": "Spending from {scope}", "note": "VoiceOver label of the account scope pill; scope is an account or group name, or \"All accounts\"." },
+    "hint": "Choose an account or group"
+  },
+  "calendar": {
+    "previous": "Previous month",
+    "next": "Next month"
+  },
+  "netWorth": {
+    "title": "Net worth",
+    "fetching": { "message": "Fetching {currencies} rate…", "note": "currencies is a list of codes, \"USD, PLN\"." },
+    "noRate": { "message": "No rate yet for {currencies}. Connect to the internet once.", "note": "currencies is a list of codes, \"USD, PLN\"." }
+  }
+}

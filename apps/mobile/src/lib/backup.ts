@@ -22,6 +22,7 @@ import { db } from "@/db";
 import { dayLabel, todayLocal } from "@/lib/dates";
 import { mutate, notifyChange, onAfterWrite, refreshQueries } from "@/store";
 import { getBackupKeepDays } from "@/lib/settings";
+import { t } from "@/i18n";
 import { localPhotoNames, photoPath } from "@/lib/photos";
 
 type Native = {
@@ -97,9 +98,40 @@ export function getBackupState(): BackupState { return state; }
  *  Day and time must both come from the local clock: taking the day off `toISOString()` (UTC) beside a
  *  local time read "Yesterday" for a backup made minutes earlier. */
 export function lastBackupLine(at: number | undefined): string {
-  if (!at) return "No backup yet";
+  if (!at) return t("data.noBackup");
+  return t("data.lastBackup", { when: backupWhen(at) });
+}
+
+/** "Today at 19:21" — the moment alone, for lines that say what happened at it themselves. */
+export function backupWhen(at: number): string {
   const d = new Date(at);
-  return `Last backup ${dayLabel(todayLocal(d))} at ${d.toTimeString().slice(0, 5)}`;
+  return t("common.atTime", { day: dayLabel(todayLocal(d)), time: d.toTimeString().slice(0, 5) });
+}
+
+/** "3 transactions, 1 account and 47 categories": a list of counted things, in the app's language. */
+export function joinList(items: string[]): string {
+  if (items.length < 2) return items[0] ?? "";
+  const head = items.slice(0, -1).reduce((a, b) => t("data.list.comma", { first: a, next: b }));
+  return t("data.list.two", { first: head, last: items[items.length - 1]! });
+}
+
+/**
+ * What an import did, in words — shared by a restore, a picked file and a bundle. The four kinds
+ * every backup has are always named; the rest only when there were any.
+ */
+export function importSummary(r: ReturnType<typeof importBackup>, mode: ImportMode = "merge", extra: { rates?: boolean; photos?: number } = {}): string {
+  const i = r.imported;
+  const parts = [
+    t("data.count.transactions", { count: i.transactions }), t("data.count.accounts", { count: i.accounts }),
+    t("data.count.categories", { count: i.categories }), t("data.count.tags", { count: i.tags }),
+  ];
+  if (i.recurring_rules) parts.push(t("data.count.recurring", { count: i.recurring_rules }));
+  if (i.budgets) parts.push(t("data.count.budgets", { count: i.budgets }));
+  if (extra.rates && r.rates) parts.push(t("data.count.rates", { count: r.rates }));
+  if (extra.photos) parts.push(t("data.count.photos", { count: extra.photos }));
+  const list = parts.join(", ");
+  const total = Object.values(i).reduce((a, b) => a + b, 0);
+  return mode === "replace" ? t("data.summary.removed", { list, total, removed: r.removed }) : t("data.summary.skipped", { list, total, skipped: r.skipped });
 }
 
 export function useBackupState(): BackupState {
@@ -271,14 +303,13 @@ export function backupNow(reason = "manual"): Promise<BackupEntry | null> {
  * from and wrong on the welcome screen, where it would hold up the app the restore is meant to open.
  */
 export async function restoreBackup(entry: Pick<BackupEntry, "day" | "name">, mode: ImportMode = "merge", opts: { photos?: "wait" | "background" } = {}): Promise<string> {
-  if (!native) throw new Error("Backups need the native build");
+  if (!native) throw new Error(t("data.backupsNeedNative"));
   const text = await native.read(entry.day, entry.name);
   const r = mutate((d) => importBackup(d, text, { mode }));
-  const n = Object.values(r.imported).reduce((a, b) => a + b, 0);
   // The rows name their photos; the images come from the mirror beside the backup.
   if (opts.photos === "background") void restorePhotos().catch(() => { /* the next merge tries again */ });
   const photos = opts.photos === "background" ? 0 : await restorePhotos();
-  return `${r.imported.transactions} transactions, ${r.imported.accounts} accounts, ${r.imported.categories} categories, ${r.imported.tags} tags${r.imported.recurring_rules ? `, ${r.imported.recurring_rules} recurring rules` : ""}${r.imported.budgets ? `, ${r.imported.budgets} budgets` : ""}${r.rates ? `, ${r.rates} exchange rates` : ""}${photos ? `, ${photos} photo${photos === 1 ? "" : "s"}` : ""} · ${n} rows in total, ${mode === "replace" ? `${r.removed} removed.` : `${r.skipped} already up to date.`}`;
+  return importSummary(r, mode, { rates: true, photos });
 }
 
 /* ── Merging what other devices wrote ─────────────────────────────────────────────────────────

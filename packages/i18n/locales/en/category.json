@@ -1,0 +1,119 @@
+{
+  "$comment": "The category/folder editor (app/category/edit.tsx) and the importance flow (app/category/importance.tsx).",
+  "title": {
+    "newCategory": "New category",
+    "newFolder": "New folder",
+    "editCategory": "Edit category",
+    "editFolder": "Edit folder"
+  },
+  "categoryName": "Category name",
+  "folderName": "Folder name",
+  "shape": {
+    "category": { "message": "Category in a folder", "note": "Segmented control: this row is a category inside a folder." },
+    "folder": { "message": "Folder", "note": "Segmented control: this row is a folder." }
+  },
+  "expense": "Expense",
+  "income": "Income",
+  "contains": "{count, plural, one {Contains # category.} other {Contains # categories.}}",
+  "description": {
+    "header": "Description",
+    "placeholder": "What goes here, e.g. supermarkets, bakery, snacks",
+    "a11y": "Category description",
+    "hint": "The receipt scanner reads this to pick the category."
+  },
+  "appearance": "Appearance",
+  "icon": "Icon",
+  "colour": "Colour",
+  "automatic": { "message": "Automatic", "note": "Icon/colour row subtitle: chosen from the name." },
+  "recolour": {
+    "title": "Use for all categories",
+    "subtitle": "Applied when you save."
+  },
+  "folder": "Folder",
+  "whichFolder": "Which folder?",
+  "inheritedColour": { "message": "Automatic uses {folder}’s colour, because the folder has one.", "note": "folder is the folder's name." },
+  "folderHint": "A folder groups the list; nothing is ever filed straight into one. Give it a colour and the categories inside it are created in that colour.",
+  "transactions": {
+    "header": "Transactions",
+    "count": "{count, plural, one {# transaction} other {# transactions}}",
+    "inFolder": "In this folder, all time",
+    "inCategory": "With this category, all time"
+  },
+  "convert": {
+    "header": "Convert",
+    "row": "Turn into a tag",
+    "notWithChildren": "Not while there are categories inside it — move or convert those first",
+    "rowSubtitle": "{count, plural, one {Its # transaction keeps its history, gains the tag and moves where you choose} other {Its # transactions keep their history, gain the tag and move where you choose}}",
+    "where": { "message": "{count, plural, one {Where does the # transaction go?} other {Where do the # transactions go?}}", "note": "Title of the sheet asking where a converted category's transactions move." },
+    "parentSubtitle": "The folder it is in — which becomes an ordinary category once this is its last one",
+    "pick": "Another category…",
+    "pickSubtitle": "Choose where these transactions belong",
+    "none": "Leave them uncategorised",
+    "noneSubtitle": "They keep the tag and nothing else",
+    "another": { "message": "another category", "note": "Used inside a sentence when the chosen category cannot be found." },
+    "title": { "message": "Turn “{name}” into a tag?", "note": "Alert title; name is the category." },
+    "bodyMove": { "message": "{count, plural, one {# transaction will get the tag “{tag}” and move to {home}.} other {# transactions will get the tag “{tag}” and move to {home}.}} The category is removed.", "note": "tag is the new tag's name, home the category they move to." },
+    "bodyNone": { "message": "{count, plural, one {# transaction will get the tag “{tag}” and be left without a category.} other {# transactions will get the tag “{tag}” and be left without a category.}} The category is removed.", "note": "tag is the new tag's name." },
+    "confirm": "Convert",
+    "busy": "{count, plural, one {Converting # transaction…} other {Converting # transactions…}}"
+  },
+  "archive": {
+    "header": "Archive",
+    "rowCategory": "Archive this category",
+    "rowFolder": "Archive this folder",
+    "rowSubtitle": "Keeps every transaction and every number; just stops being offered",
+    "restoreCategory": "Bring this category back",
+    "restoreFolder": "Bring this folder back",
+    "restoreSubtitle": "Offered again everywhere it used to be",
+    "titleCategory": "Archive this category?",
+    "titleFolder": "Archive this folder?",
+    "keep": "{count, plural, one {Its # transaction keeps it and still counts everywhere.} other {Its # transactions keep it and still count everywhere.}}",
+    "inside": "{count, plural, one {The # category inside goes with it.} other {The # categories inside go with it.}}",
+    "offered": "It stops being offered for anything new, including to the Shortcut automation, which will leave those payments in Pending for you to file.",
+    "confirm": "Archive"
+  },
+  "delete": {
+    "rowCategory": "Delete category",
+    "rowFolder": "Delete folder",
+    "titleCategory": "Delete category?",
+    "titleFolder": "Delete folder?",
+    "bodyChildren": "{count, plural, one {Its # category becomes a top-level folder.} other {Its # categories become top-level folders.}} Transactions keep their data.",
+    "body": "Transactions keep their data but become uncategorized."
+  },
+  "importance": {
+    "title": "Set what matters",
+    "step": { "message": "Step {step} of {total}", "note": "Progress over the question." },
+    "high": {
+      "title": "Which could you not live without?",
+      "hint": "If the money got tight, these are the ones you would still be paying. The roof, the food, the bills with consequences."
+    },
+    "low": {
+      "title": "Which could you stop tomorrow?",
+      "hint": "From what is left. Nothing breaks if these stop — you would miss them, and that is all."
+    },
+    "review": {
+      "title": "Everything else is in between",
+      "hint": "The third answer is what was left over rather than a box anyone ticked. Tap any category to move it."
+    },
+    "level": {
+      "high": { "message": "Could not live without", "note": "Importance high, as a section heading on the review step." },
+      "medium": { "message": "In between", "note": "Importance medium." },
+      "low": { "message": "Could stop tomorrow", "note": "Importance low." }
+    },
+    "folderA11y": { "message": "{name} folder", "note": "VoiceOver label of a folder row that ticks all its categories." },
+    "all": { "message": "· all {count}", "note": "After a folder name: ticking it ticks all of its count categories." },
+    "noFolder": "No folder",
+    "nothingLeft": "Nothing left to ask about — the first question took everything.",
+    "rowA11y": { "message": "{name}, {level}. Tap to move.", "note": "VoiceOver label on the review step; level is one of the level titles." },
+    "none": { "message": "None.", "note": "Under a level heading with no categories." },
+    "changes": "{count, plural, one {# row changes} other {# rows change}}",
+    "noChanges": "Nothing changes: they already say this",
+    "folders": { "message": "{count, plural, one {one folder answers for what is inside, so anything added to it later is already marked} other {# folders answer for what is inside, so anything added to them later is already marked}}", "note": "Follows the row count after \" · \"." },
+    "mark": "{count, plural, one {Mark # row} other {Mark # rows}}",
+    "nothingToChange": "Nothing to change",
+    "empty": {
+      "title": "No categories to mark",
+      "hint": "Importance is asked about expense categories that are not archived. Add some first."
+    }
+  }
+}

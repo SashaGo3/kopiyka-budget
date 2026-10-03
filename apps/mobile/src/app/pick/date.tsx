@@ -2,12 +2,13 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Host, DatePicker } from "@expo/ui/swift-ui";
-import { datePickerStyle } from "@expo/ui/swift-ui/modifiers";
+import { datePickerStyle, environment } from "@expo/ui/swift-ui/modifiers";
 import { resolvePick } from "@/store/pick";
 import { BigButton, Chip } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getLocale, t } from "@/i18n";
 
 /** Calendar is expanded from the start; tapping a day picks it immediately. */
 export default function PickDate() {
@@ -19,14 +20,14 @@ export default function PickDate() {
   return (
     <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.md, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
       <View style={styles.chips}>
-        <Chip label="Today" active={day === todayLocal()} onPress={() => pick(todayLocal())} />
-        <Chip label="Yesterday" active={day === yesterday()} onPress={() => pick(yesterday())} />
+        <Chip label={t("common.today")} active={day === todayLocal()} onPress={() => pick(todayLocal())} />
+        <Chip label={t("common.yesterday")} active={day === yesterday()} onPress={() => pick(yesterday())} />
       </View>
       <Host matchContents style={styles.host}>
-        <DatePicker selection={new Date(day + "T12:00:00")} displayedComponents={["date"]} modifiers={[datePickerStyle("graphical")]}
+        <DatePicker selection={new Date(day + "T12:00:00")} displayedComponents={["date"]} modifiers={[datePickerStyle("graphical"), environment("locale", getLocale())]}
           onDateChange={(d) => { const v = todayLocal(d); setDay(v); if (v !== day) pick(v); }} />
       </Host>
-      <BigButton label="Use this date" onPress={() => pick(day)} />
+      <BigButton label={t("pick.date.use")} onPress={() => pick(day)} />
     </View>
   );
 }

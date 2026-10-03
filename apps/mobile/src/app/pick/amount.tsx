@@ -9,6 +9,8 @@ import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
+import { catName } from "@/lib/names";
 
 /** What comes back when the screen was opened with `kind`, i.e. with the Category and Tags keys on. */
 export interface AmountPick { minor: number; category_id: string | null; tag_ids: string[] }
@@ -65,13 +67,13 @@ export default function PickAmount() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Text style={styles.title}>{p.title ?? "Amount"}</Text>
+          <Text style={styles.title}>{p.title ?? t("keypad.amount.title")}</Text>
           <View style={styles.amountRow}>
             <Text style={[styles.amount, { color: tooMuch ? C.red : expr ? C.label : C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{amountText}</Text>
             <Text style={styles.cur}>{cur}</Text>
           </View>
           <CalcLine expr={expr} />
-          {shown !== null ? <Text style={[styles.limit, tooMuch && { color: C.red }]}>{tooMuch ? "That is more than there is to give" : `${formatMinor(shown, cur)} ${cur} available`}</Text> : null}
+          {shown !== null ? <Text style={[styles.limit, tooMuch && { color: C.red }]}>{tooMuch ? t("keypad.amount.tooMuch") : t("keypad.amount.available", { amount: formatMinor(shown, cur), currency: cur })}</Text> : null}
           {tags.length ? (
             <View style={styles.tagLine}>
               <SymbolView name="number" size={14} tintColor={C.secondary} />
@@ -83,9 +85,9 @@ export default function PickAmount() {
       bottom={
         <>
           <Keypad value={expr} onChange={setExpr} allowSign={false}
-            extra={p.kind ? { label: category ? category.name : "Category", a11y: `Category: ${category ? category.name : "none"}`, icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: p.kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) } : undefined}
-            extra2={p.kind ? { a11y: tags.length ? `Tags: ${tags.map((tag) => tag.name).join(", ")}` : "Tags", icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) } : undefined} />
-          <ConfirmBar amount={`${amountText} ${cur}`} label={tooMuch ? "More than there is to give" : "Use this amount"}
+            extra={p.kind ? { label: category ? catName(category) : t("keypad.category"), a11y: category ? t("keypad.categoryA11y", { name: catName(category) }) : t("keypad.categoryNone"), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: p.kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) } : undefined}
+            extra2={p.kind ? { a11y: tags.length ? t("keypad.tagsA11y", { names: tags.map((tag) => tag.name).join(", ") }) : t("keypad.tags"), icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) } : undefined} />
+          <ConfirmBar amount={`${amountText} ${cur}`} label={tooMuch ? t("keypad.amount.tooMuchShort") : t("keypad.amount.use")}
             disabled={abs === null || abs === 0 || tooMuch} onPress={use} />
         </>
       }

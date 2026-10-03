@@ -8,11 +8,13 @@ import { FadeIn } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { ensureLocationPermission, placeName, preciseLocation } from "@/lib/location";
 import { getHomeLocation, setHomeLocation, setLocationEnabled } from "@/lib/settings";
+import { t } from "@/i18n";
 
-const POINTS: { icon: SFSymbol; title: string; text: string }[] = [
-  { icon: "wand.and.stars", title: "The category, already picked", text: "Log something where you logged something before and that category is waiting on the keypad." },
-  { icon: "iphone", title: "Only while the app is open", text: "Kopiyka never asks for background location and cannot see where you are once it is closed." },
-  { icon: "lock", title: "It stays on this phone", text: "The place is saved beside the entry in the local database, like every other number here." },
+/** Built per render, never at import: the words are in whatever language the app is in now. */
+const points = (): { icon: SFSymbol; title: string; text: string }[] => [
+  { icon: "wand.and.stars", title: t("onboarding.location.pickedTitle"), text: t("onboarding.location.pickedText") },
+  { icon: "iphone", title: t("onboarding.location.openTitle"), text: t("onboarding.location.openText") },
+  { icon: "lock", title: t("onboarding.location.localTitle"), text: t("onboarding.location.localText") },
 ];
 
 /**
@@ -53,7 +55,7 @@ export default function OnboardingLocation() {
     setSettingHome(true);
     try {
       const c = await preciseLocation();
-      if (!c) { Alert.alert("No location yet", "The phone has not got a fix yet. It usually comes within a few seconds of granting access, and works best away from thick walls — try again in a moment, or set home later in Settings."); return; }
+      if (!c) { Alert.alert(t("onboarding.location.noFixTitle"), t("onboarding.location.noFixBody")); return; }
       const spot = { ...c, place: await placeName(c) };
       setHomeLocation(spot);
       setHome(spot);
@@ -63,30 +65,28 @@ export default function OnboardingLocation() {
   const where = home ? home.place ?? `${home.lat.toFixed(4)}, ${home.lon.toFixed(4)}` : null;
   return (
     <OnboardingFrame step={2}
-      title={granted ? "Where is home?" : "Remember where you spend"}
-      subtitle={granted
-        ? `Anything gets bought at home, so nothing is suggested within ${HOME_RADIUS_M} m of it. Set it now if you are there, or later in Settings.`
-        : "Kopiyka can offer the category you used at the same place last time. iOS asks next — either answer is fine, and the app works fully without it."}
-      primary={{ label: granted ? "Continue" : asking ? "Asking…" : "Continue", onPress: granted ? next : () => void ask(), disabled: asking }}>
+      title={granted ? t("onboarding.location.homeTitle") : t("onboarding.location.title")}
+      subtitle={granted ? t("onboarding.location.homeSubtitle", { radius: HOME_RADIUS_M }) : t("onboarding.location.subtitle")}
+      primary={{ label: !granted && asking ? t("onboarding.location.asking") : t("onboarding.continue"), onPress: granted ? next : () => void ask(), disabled: asking }}>
       {granted ? (
         <View style={styles.list}>
           <FadeIn delay={80} style={styles.point}>
             <View style={styles.badge}><SymbolView name="house" size={22} tintColor={C.tint} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.pointTitle}>{where ?? "Not set yet"}</Text>
-              <Text style={styles.pointText}>{where ? `Nothing is suggested within ${HOME_RADIUS_M} m of here.` : "Nothing is left out until you set it."}</Text>
+              <Text style={styles.pointTitle}>{where ?? t("onboarding.location.notSet")}</Text>
+              <Text style={styles.pointText}>{where ? t("onboarding.location.homeHere", { radius: HOME_RADIUS_M }) : t("onboarding.location.homeNone")}</Text>
             </View>
           </FadeIn>
           <Pressable onPress={() => void setHomeHere()} disabled={settingHome} accessibilityRole="button"
-            accessibilityLabel={home ? "Use current location as home instead" : "Use my current location as home"}
+            accessibilityLabel={home ? t("onboarding.location.useInsteadA11y") : t("onboarding.location.useA11y")}
             style={({ pressed }) => [styles.action, (pressed || settingHome) && { opacity: 0.5 }]}>
             <SymbolView name="location.fill" size={15} tintColor={C.tint} />
-            <Text style={styles.actionText}>{settingHome ? "Reading location…" : home ? "Use current location instead" : "Use my current location"}</Text>
+            <Text style={styles.actionText}>{settingHome ? t("onboarding.location.reading") : home ? t("onboarding.location.useInstead") : t("onboarding.location.use")}</Text>
           </Pressable>
         </View>
       ) : (
         <View style={styles.list}>
-          {POINTS.map((p, i) => (
+          {points().map((p, i) => (
             <FadeIn key={p.title} delay={200 + i * 90} style={styles.point}>
               <View style={styles.badge}><SymbolView name={p.icon} size={22} tintColor={C.tint} /></View>
               <View style={{ flex: 1 }}>

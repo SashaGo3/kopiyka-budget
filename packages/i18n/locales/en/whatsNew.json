@@ -1,0 +1,16 @@
+{
+  "$comment": "The What's new sheet shown once after an update (app/whats-new.tsx), and the release notes themselves (constants/releases.ts), one key per line under notes.<version>.",
+  "title": "What’s new",
+  "version": { "message": "Version {version}", "note": "Heading for one release's notes; version is \"1.0.3\"." },
+  "skipped": { "message": "you skipped this one", "note": "Beside an older version's heading, when more than one release is shown." },
+  "added": "Added",
+  "improved": "Improved",
+  "fixed": "Fixed",
+  "notes": {
+    "v1_0_3": {
+      "ukrainian": "Kopiyka now speaks Ukrainian.",
+      "language": "Choose the language in Settings → Language, or let it follow the phone.",
+      "categories": "Ready-made categories follow the language until you rename them."
+    }
+  }
+}

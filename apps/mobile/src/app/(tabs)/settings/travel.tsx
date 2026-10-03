@@ -5,6 +5,7 @@ import { useQuery } from "@/store";
 import { Card, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { TripCard } from "@/components/TripCard";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 /**
  * Travel: the one place a trip is started, changed, ended or added after the fact. The trip card on
@@ -13,27 +14,27 @@ import { C, S } from "@/constants/theme";
  */
 export default function TravelSettings() {
   const trips = useQuery((d) => listTrips(d));
-  const active = trips.find((t) => !t.ended) ?? null;
-  const past = trips.filter((t) => t.ended);
+  const active = trips.find((x) => !x.ended) ?? null;
+  const past = trips.filter((x) => x.ended);
   const openTrip = (id: string) => router.push({ pathname: "/settings/trip", params: { id } });
   return (
     <>
-      <Stack.Screen options={{ title: "Travel", headerLargeTitle: true }} />
+      <Stack.Screen options={{ title: t("travel.settings.title"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}>
-        <ScreenNote>While travel mode is on, every new expense gets the travel’s tag and counts towards its budget, whatever currency it was paid in. Travel spending stays out of your monthly budgets.</ScreenNote>
+        <ScreenNote>{t("travel.settings.note")}</ScreenNote>
         {active ? (
           <>
-            <SectionHeader>Now</SectionHeader>
+            <SectionHeader>{t("travel.settings.now")}</SectionHeader>
             <TripCard budget={active} onPress={() => openTrip(active.id)} />
           </>
         ) : null}
         <Card style={{ marginTop: S.lg }}>
-          {active ? null : <Row icon="airplane" iconColor="#0A84FF" title="Start travel mode" subtitle="Where, how much, and the dates" onPress={() => router.push("/travel/start")} />}
-          <Row icon="clock.arrow.circlepath" iconColor="#8E8E93" title="Add a past travel" subtitle="A trip that already happened, and what it cost"
+          {active ? null : <Row icon="airplane" iconColor="#0A84FF" title={t("travel.settings.start")} subtitle={t("travel.settings.startHint")} onPress={() => router.push("/travel/start")} />}
+          <Row icon="clock.arrow.circlepath" iconColor="#8E8E93" title={t("travel.settings.addPast")} subtitle={t("travel.settings.addPastHint")}
             onPress={() => router.push({ pathname: "/travel/start", params: { past: "1" } })} style={active ? undefined : styles.divider} />
         </Card>
-        {past.length ? <SectionHeader>History</SectionHeader> : null}
-        {past.map((t) => <View key={t.id}><TripCard budget={t} compact onPress={() => openTrip(t.id)} /></View>)}
+        {past.length ? <SectionHeader>{t("travel.settings.history")}</SectionHeader> : null}
+        {past.map((x) => <View key={x.id}><TripCard budget={x} compact onPress={() => openTrip(x.id)} /></View>)}
       </ScrollView>
     </>
   );

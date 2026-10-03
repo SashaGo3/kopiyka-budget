@@ -9,6 +9,8 @@ import { resolvePick } from "@/store/pick";
 import { BigButton, Card, ModalHeader, Segmented } from "@/components/ui";
 import { humanDayTime } from "@/lib/dates";
 import { C, R, S } from "@/constants/theme";
+import { t } from "@/i18n";
+import { catName as shownName } from "@/lib/names";
 
 /**
  * What a multi-edit is about to do, before it does it.
@@ -29,31 +31,32 @@ export default function BulkPreview() {
   const [mode, setMode] = useState<"replace" | "append">("replace");
   const change: BulkChange = base.kind === "note" ? { ...base, mode } : base;
 
-  const cats = useQuery((d) => new Map(listRows(d, "categories", "1=1").map((c) => [c.id, c.name])));
-  const tags = useQuery((d) => new Map(listRows(d, "tags", "1=1").map((t) => [t.id, t.name])));
+  const cats = useQuery((d) => new Map(listRows(d, "categories", "1=1").map((c) => [c.id, shownName(c)])));
+  const tags = useQuery((d) => new Map(listRows(d, "tags", "1=1").map((x) => [x.id, x.name])));
   const accounts = useQuery((d) => new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a])));
   const affected = useQuery(() => bulkAffected(db, ids, change), [p.ids, JSON.stringify(change)]);
   const transfers = useMemo(() => new Set(affected.map((a) => a.row.transfer_id).filter(Boolean)).size, [affected]);
 
-  const catName = (id: string | null | undefined) => (id ? cats.get(id) ?? "a deleted category" : "No category");
-  const tagLine = (ids2: string[]) => (ids2.length ? ids2.map((t) => `#${tags.get(t) ?? "?"}`).join(" ") : "No tags");
+  const catName = (id: string | null | undefined) => (id ? cats.get(id) ?? t("transaction.bulk.deletedCategory") : t("common.noCategory"));
+  const tagList = (ids2: string[]) => ids2.map((x) => `#${tags.get(x) ?? "?"}`).join(" ");
+  const tagLine = (ids2: string[]) => (ids2.length ? tagList(ids2) : t("transaction.bulk.noTags"));
   /** What the row says now, and what it would say — of the one thing this change is about. */
   const sides = (row: Transaction, patch: Partial<Transaction>): { before: string; after: string } => {
     switch (change.kind) {
       case "category": return { before: catName(row.category_id), after: catName(patch.category_id) };
       case "tags": return { before: tagLine(jsonIds(row.tag_ids)), after: tagLine(jsonIds(patch.tag_ids ?? "[]")) };
       case "date": return { before: humanDayTime(row.date), after: humanDayTime(patch.date ?? row.date) };
-      case "note": return { before: row.notes || "No note", after: patch.notes || "No note" };
-      case "confirm": return { before: "Pending", after: "Confirmed" };
+      case "note": return { before: row.notes || t("transaction.bulk.noNote"), after: patch.notes || t("transaction.bulk.noNote") };
+      case "confirm": return { before: t("transaction.bulk.pending"), after: t("transaction.bulk.confirmed") };
     }
   };
   const title = (() => {
     switch (change.kind) {
-      case "category": return `Category → ${catName(change.category_id)}`;
-      case "tags": return [change.add.length ? `Add ${change.add.map((t) => `#${tags.get(t) ?? "?"}`).join(" ")}` : "", change.drop.length ? `Remove ${change.drop.map((t) => `#${tags.get(t) ?? "?"}`).join(" ")}` : ""].filter(Boolean).join(" · ");
-      case "date": return `Move to ${humanDayTime(change.day)}`;
-      case "note": return mode === "replace" ? "Replace the note" : "Add to the note";
-      case "confirm": return "Approve pending entries";
+      case "category": return t("transaction.bulk.what.category", { name: catName(change.category_id) });
+      case "tags": return [change.add.length ? t("transaction.bulk.what.addTags", { tags: tagList(change.add) }) : "", change.drop.length ? t("transaction.bulk.what.removeTags", { tags: tagList(change.drop) }) : ""].filter(Boolean).join(" · ");
+      case "date": return t("transaction.bulk.what.date", { day: humanDayTime(change.day) });
+      case "note": return mode === "replace" ? t("transaction.bulk.what.noteReplace") : t("transaction.bulk.what.noteAppend");
+      case "confirm": return t("transaction.bulk.what.confirm");
     }
   })();
 
@@ -66,7 +69,7 @@ export default function BulkPreview() {
   const skipped = ids.length - affected.length;
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title="Review changes" left={{ label: "Cancel", onPress: () => router.back() }} />
+      <ModalHeader title={t("transaction.bulk.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }} />
       <FlatList
         data={affected}
         keyExtractor={(a) => a.row.id}
@@ -75,19 +78,21 @@ export default function BulkPreview() {
           <View>
             <Text style={styles.what}>{title}</Text>
             <Text style={styles.count}>
-              {affected.length === 1 ? "1 transaction changes" : `${affected.length} transactions change`}
-              {skipped > 0 ? ` · ${skipped} already ${change.kind === "confirm" ? "confirmed" : "like that"}` : ""}
-              {transfers > 0 ? ` · both sides of ${transfers === 1 ? "a transfer" : `${transfers} transfers`}` : ""}
+              {[
+                t("transaction.bulk.count", { count: affected.length }),
+                skipped > 0 ? (change.kind === "confirm" ? t("transaction.bulk.skippedConfirmed", { count: skipped }) : t("transaction.bulk.skippedSame", { count: skipped })) : "",
+                transfers > 0 ? t("transaction.bulk.transfers", { count: transfers }) : "",
+              ].filter(Boolean).join(" · ")}
             </Text>
             {change.kind === "note" ? (
               <View style={{ paddingHorizontal: S.md, paddingBottom: S.sm }}>
                 <Segmented<"replace" | "append"> value={mode} onChange={setMode}
-                  options={[{ value: "replace", label: "Replace note" }, { value: "append", label: "Add a line" }]} />
+                  options={[{ value: "replace", label: t("transaction.bulk.modeReplace") }, { value: "append", label: t("transaction.bulk.modeAppend") }]} />
               </View>
             ) : null}
           </View>
         }
-        ListEmptyComponent={<Text style={styles.none}>Nothing to change: every one of them already says that.</Text>}
+        ListEmptyComponent={<Text style={styles.none}>{t("transaction.bulk.empty")}</Text>}
         renderItem={({ item }) => {
           const { before, after } = sides(item.row, item.patch);
           const acc = accounts.get(item.row.account_id);
@@ -107,7 +112,7 @@ export default function BulkPreview() {
         }}
       />
       <View style={styles.foot}>
-        <BigButton label={affected.length ? (affected.length === 1 ? "Change 1 transaction" : `Change ${affected.length} transactions`) : "Nothing to change"}
+        <BigButton label={affected.length ? t("transaction.bulk.apply", { count: affected.length }) : t("transaction.bulk.nothing")}
           onPress={commit} disabled={!affected.length} />
       </View>
     </View>

@@ -1,0 +1,24 @@
+{
+  "$comment": "Words used on many screens. A string used on one screen belongs in that screen's file, even when it is the same word — the same English word is not always the same Ukrainian one.",
+  "cancel": "Cancel",
+  "save": "Save",
+  "done": "Done",
+  "delete": "Delete",
+  "edit": "Edit",
+  "add": "Add",
+  "close": "Close",
+  "ok": "OK",
+  "back": "Back",
+  "next": "Next",
+  "retry": "Try again",
+  "none": "None",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "atTime": { "message": "{day} at {time}", "note": "A day and a time: \"22 Sep at 11:17\"." },
+  "noCategory": "No category",
+  "language": {
+    "title": "Language",
+    "system": { "message": "Same as the phone", "note": "First option of the language picker: follow the iPhone's language." },
+    "systemNow": { "message": "Same as the phone · {name}", "note": "Language row subtitle while following the phone; name is the language it resolves to, in its own language (\"English\")." }
+  }
+}

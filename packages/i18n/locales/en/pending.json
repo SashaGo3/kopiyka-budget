@@ -1,0 +1,45 @@
+{
+  "title": {
+    "message": "Pending",
+    "note": "Screen title: entries waiting to be checked and approved.",
+    "max": 20
+  },
+  "deleteTitle": "Delete this transaction?",
+  "intro": "{count, plural, one {One entry is} other {# entries are}} waiting to be checked. Tap a row to change anything; approve it when it is right.",
+  "introSum": {
+    "message": "{count, plural, one {One entry is} other {# entries are}} waiting to be checked — <sum>total</sum>. Tap a row to change anything; approve it when it is right.",
+    "note": "<sum> is replaced by the formatted total of the entries; its text is ignored."
+  },
+  "emptyTitle": "Nothing pending",
+  "emptyHint": "Card payments and scanned receipts land here first.",
+  "approveAll": {
+    "message": "Approve all {count}",
+    "max": 24
+  },
+  "approveAllA11y": "Approve all {count} pending",
+  "source": {
+    "shortcut": {
+      "message": "Shortcut",
+      "note": "Where a pending entry came from: the notification automation (a Shortcut)."
+    },
+    "receipt": "Receipt",
+    "watch": "Watch",
+    "siri": "Siri"
+  },
+  "editA11y": "Edit {title}",
+  "approve": {
+    "message": "Approve",
+    "max": 14
+  },
+  "guess": {
+    "message": "{category} · guess",
+    "note": "The category was guessed from the shop's name, not chosen."
+  },
+  "guessA11y": "Category guessed as {category}, tap to change it",
+  "changeA11y": "Change category, now {category}",
+  "setCategory": "Set category",
+  "category": {
+    "message": "Category",
+    "max": 16
+  }
+}

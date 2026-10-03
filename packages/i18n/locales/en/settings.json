@@ -1,0 +1,112 @@
+{
+  "$comment": "The Settings tab's root screen (app/(tabs)/settings/index.tsx).",
+  "title": "Settings",
+  "section": {
+    "tracking": "Tracking",
+    "preferences": "Preferences",
+    "backup": "Backup",
+    "shortcuts": "Shortcuts",
+    "about": "About"
+  },
+  "accounts": {
+    "title": "Accounts",
+    "subtitle": { "message": "{count} · net worth and balances", "note": "count is how many accounts there are." }
+  },
+  "categories": {
+    "title": "Categories",
+    "subtitle": { "message": "{count} · folders and categories", "note": "count is how many folders and categories there are." }
+  },
+  "tags": {
+    "title": "Tags",
+    "subtitle": { "message": "{count} · optionally per category", "note": "count is how many tags there are; a tag can be limited to some categories." }
+  },
+  "recurring": {
+    "title": "Recurring",
+    "subtitle": { "message": "{count, plural, one {# active} other {# active}}", "note": "How many recurring rules (payments) are switched on." }
+  },
+  "debts": {
+    "title": "Debts",
+    "none": "Nothing owed either way",
+    "open": { "message": "{count, plural, one {# open} other {# open}}", "note": "How many debts are not paid back yet." },
+    "owedToYou": { "message": "{open} · {amount} owed to you", "note": "open is the \"3 open\" message; amount is money with its currency code (\"1 200.00 UAH\")." },
+    "youOwe": { "message": "{open} · you owe {amount}", "note": "open is the \"3 open\" message; amount is money with its currency code." }
+  },
+  "travel": {
+    "title": "Travel",
+    "on": { "message": "On · {trip}", "note": "Travel mode is running; trip is a short line about the trip (name, days left, spent)." },
+    "onPlanned": { "message": "On · {trip} · planned until {date}", "note": "The trip's last planned day has come; date is \"22 Sep\"." },
+    "off": "Travel mode, and the trips you have been on"
+  },
+  "startDay": {
+    "title": "Budget month starts on",
+    "ordinal": { "message": "{day, plural, =1 {1st} =2 {2nd} =3 {3rd} =21 {21st} =22 {22nd} =23 {23rd} one {#st} other {#th}}", "note": "A day of the month, as in \"starts on the 22nd\". day is 1–28." },
+    "calendar": { "message": "1st · calendar month", "note": "Row subtitle when the budget month starts on the 1st." },
+    "custom": { "message": "{ordinal} · e.g. {from} – {to}", "note": "Row subtitle. ordinal is \"22nd\"; from and to are an example period, \"22 Aug\" and \"21 Sep\"." },
+    "pickDay": { "message": "Day of month", "note": "Title of the list of days 1–28." },
+    "calendarMonth": "Calendar month",
+    "midMonth": "Salary in the middle of the month",
+    "customLabel": "Custom…",
+    "currently": { "message": "Currently the {ordinal}", "note": "ordinal is \"22nd\"." },
+    "anyDay": "Any day up to the 28th"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "granted": "Reminders for recurring transactions",
+    "denied": "Turned off in the Settings app",
+    "ask": "Reminders before recurring payments are due"
+  },
+  "hideIncome": {
+    "title": "Hide income",
+    "on": "Transactions shows expenses and transfers only",
+    "off": "Show income in the Transactions list"
+  },
+  "showBalance": {
+    "title": "Show balance when logging",
+    "on": "The new-entry sheet opens with the balance before and after",
+    "off": "Folded behind the chevron until you tap it"
+  },
+  "location": {
+    "title": "Remember location",
+    "denied": "Turned off in the Settings app",
+    "on": "Suggests the category you used at the same place"
+  },
+  "home": {
+    "title": "Home",
+    "reading": "Reading location…",
+    "set": { "message": "{place} · no suggestions here", "note": "place is the home's place name, or its coordinates." },
+    "unset": "Not set · skip category suggestions at home",
+    "explain": { "message": "No category is suggested within {radius} m of home, since anything gets bought there.", "note": "Alert message; radius is a number of metres." },
+    "useCurrent": "Use current location",
+    "useCurrentInstead": "Use current location instead",
+    "forget": "Forget home",
+    "noFixTitle": "No location yet",
+    "noFixMessage": "The phone has not got a fix yet. Try again in a moment, somewhere with a clearer view of the sky."
+  },
+  "data": {
+    "title": "Data management",
+    "inventory": { "message": "{count, plural, one {# transaction} other {# transactions}} · export, import, reset", "note": "Subtitle of the Data management row when there is nothing to say about backups." },
+    "backingUp": "Backing up…",
+    "failed": { "message": "Backup failed: {error}", "note": "error is the system's message, usually in English." },
+    "off": { "message": "Backup off · {inventory}", "note": "inventory is the \"120 transactions · export, import, reset\" message." },
+    "local": { "message": "{last} · iCloud is off, kept on this phone", "note": "last is \"Last backup Today at 19:21\"." },
+    "none": { "message": "No backup yet · {inventory}", "note": "inventory is the \"120 transactions · export, import, reset\" message." }
+  },
+  "shortcut": {
+    "title": "Automate with Shortcut",
+    "subtitle": "Log payments from your bank’s or Wallet’s notifications",
+    "subtitleOld": { "message": "Log payments from your bank’s or Wallet’s notifications · needs iOS {version}", "note": "On an iOS too old for the automation; version is \"26\"." },
+    "settings": "Shortcut settings",
+    "settingsSubtitle": "What it tells you, and what it could not read"
+  },
+  "about": {
+    "privacy": "Privacy Policy",
+    "privacySubtitle": "What the app keeps, and where",
+    "whatsNew": "What’s new",
+    "whatsNewSubtitle": { "message": "The changes in version {version}", "note": "version is \"1.0.3\"." },
+    "diagnostics": "Diagnostics",
+    "diagnosticsSubtitle": "Boot trace and the last recorded crash"
+  },
+  "foot": "Local-first. Your data lives on this phone.",
+  "footICloud": "Local-first. Your data lives on this phone, with backups in your iCloud Drive.",
+  "version": { "message": "Kopiyka Budget {version}", "note": "Footer; version is \"1.0.3 (43)\". The app's name as the App Store shows it." }
+}

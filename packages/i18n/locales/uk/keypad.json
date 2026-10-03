@@ -1,0 +1,25 @@
+{
+  "divide": "Поділити",
+  "multiply": "Помножити",
+  "subtract": "Відняти",
+  "add": "Додати",
+  "changeSign": "Змінити знак",
+  "delete": "Стерти",
+  "clear": "Очистити",
+  "clearTitle": "Очистити суму?",
+  "decimal": "Десяткова кома",
+  "decimalTyping": "Десяткова кома, вводиться дробова частина",
+  "decimalWhole": "Десяткова кома, вводиться ціла частина",
+  "category": "Категорія",
+  "categoryA11y": "Категорія: {name}",
+  "categoryNone": "Категорія: немає",
+  "tags": "Теги",
+  "tagsA11y": "Теги: {names}",
+  "amount": {
+    "title": "Сума",
+    "tooMuch": "Це більше, ніж є",
+    "available": "Доступно {amount} {currency}",
+    "tooMuchShort": "Більше, ніж є",
+    "use": "Використати цю суму"
+  }
+}

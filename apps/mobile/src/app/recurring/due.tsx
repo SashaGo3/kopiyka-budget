@@ -9,7 +9,9 @@ import { AmountPill, CategoryIcon, Empty, Money } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { waitDefaultDays } from "@/lib/settings";
-import { freqLabel } from "@/app/(tabs)/settings/recurring";
+import { repeatLabel } from "@/lib/repeat";
+import { catName, acctName } from "@/lib/names";
+import { Trans, t } from "@/i18n";
 
 /**
  * The queue behind the "Recurring due" row on Transactions: manual rules whose date has passed.
@@ -55,11 +57,10 @@ export default function RecurringDueScreen() {
     }
   });
   const skip = (d: DueRule) => {
-    const title = d.rule.payee || "this payment";
-    Alert.alert(d.days.length > 1 ? `Skip ${d.days.length} occurrences?` : "Skip this one?",
-      `No transaction is added for ${title}; the rule moves on to its next date.`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Skip", style: "destructive", onPress: () => mutate((db) => advanceRule(db, d.rule, d.days[d.days.length - 1]!)) },
+    Alert.alert(t("recurring.due.skipTitle", { count: d.days.length }),
+      d.rule.payee ? t("recurring.due.skipBody", { name: d.rule.payee }) : t("recurring.due.skipBodyNoName"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("recurring.skip"), style: "destructive", onPress: () => mutate((db) => advanceRule(db, d.rule, d.days[d.days.length - 1]!)) },
     ]);
   };
 
@@ -72,23 +73,23 @@ export default function RecurringDueScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "Recurring due", headerLargeTitle: true, headerBackTitle: "Back" }} />
+      <Stack.Screen options={{ title: t("recurring.due.title"), headerLargeTitle: true, headerBackTitle: t("common.back") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 200 }}>
         {rows.length ? (
           <Text style={styles.intro}>
-            {rows.length === 1 ? "One payment is" : `${rows.length} payments are`} waiting on you{total ? <> — <Money minor={Math.abs(total)} currency={base} style={styles.introSum} /></> : null}. Post it once it has actually left your account, or skip it for this time.
+            <Trans k={total ? "recurring.due.introSum" : "recurring.due.intro"} vars={{ count: rows.length }} tags={{ sum: () => <Money minor={Math.abs(total)} currency={base} style={styles.introSum} /> }} />
           </Text>
         ) : null}
-        {rows.length === 0 && waiting.length === 0 ? <Empty title="Nothing due" hint="Manual recurring payments show up here on the day they are due." /> : null}
+        {rows.length === 0 && waiting.length === 0 ? <Empty title={t("recurring.due.emptyTitle")} hint={t("recurring.due.emptyHint")} /> : null}
         {rows.map((d, i) => (
           <DueItem key={d.rule.id} d={d} first={i === 0} last={i === rows.length - 1}
             onPost={() => post([d])} onSkip={() => skip(d)} />
         ))}
         {waiting.length ? (
           <>
-            <Text style={styles.sh}>Expected · waiting for the charge</Text>
+            <Text style={styles.sh}>{t("recurring.due.waitingHeader")}</Text>
             <Text style={styles.intro}>
-              Nothing has been added for {waiting.length === 1 ? "this one" : "these"} yet{waitingTotal ? <> — <Money minor={Math.abs(waitingTotal)} currency={base} style={styles.introSum} /></> : null}. The payment your bank notifies settles it by itself; if none arrives in time, it comes back here to be posted.
+              <Trans k={waitingTotal ? "recurring.due.waitingIntroSum" : "recurring.due.waitingIntro"} vars={{ count: waiting.length }} tags={{ sum: () => <Money minor={Math.abs(waitingTotal)} currency={base} style={styles.introSum} /> }} />
             </Text>
             {waiting.map((d, i) => (
               <WaitingItem key={d.rule.id} d={d} first={i === 0} last={i === waiting.length - 1} />
@@ -98,14 +99,14 @@ export default function RecurringDueScreen() {
       </ScrollView>
       {rows.length > 1 ? (
         <BottomBar>
-          <BarButton icon="checkmark.circle" label={`Post all ${rows.length}`} active onPress={() => post(rows)} a11y={`Post all ${rows.length} due payments`} />
+          <BarButton icon="checkmark.circle" label={t("recurring.postAll", { count: rows.length })} active onPress={() => post(rows)} a11y={t("recurring.due.postAllA11y", { count: rows.length })} />
         </BottomBar>
       ) : null}
     </>
   );
 }
 
-type Row = DueRule & { account?: { name: string; currency: string }; category?: { name: string; icon: string | null; color: string | null }; wait: number };
+type Row = DueRule & { account?: { name: string; currency: string }; category?: { name: string; preset?: string | null; icon: string | null; color: string | null }; wait: number };
 
 /**
  * A payment whose day has come while the rule waits for the bank. Deliberately without buttons:
@@ -115,16 +116,16 @@ type Row = DueRule & { account?: { name: string; currency: string }; category?: 
  */
 function WaitingItem({ d, first, last }: { d: Row; first: boolean; last: boolean }) {
   const { rule, days, account, category, wait } = d;
-  const title = rule.payee || category?.name || "Recurring";
-  const deadline = `${rule.auto_post ? "Posts" : "Comes back here"} if nothing arrives within ${wait === 1 ? "a day" : `${wait} days`}`;
+  const title = rule.payee || (category ? catName(category) : null) || t("recurring.due.fallbackTitle");
+  const deadline = rule.auto_post ? t("recurring.due.deadlinePosts", { count: wait }) : t("recurring.due.deadlineBack", { count: wait });
   return (
     <View style={[styles.card, styles.waiting, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={`${title}, expected ${humanDayTime(days[0]!)}`} accessibilityHint="Opens the full options"
+      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("recurring.due.expectedA11y", { name: title, date: humanDayTime(days[0]!) })} accessibilityHint={t("recurring.due.openHint")}
         onPress={() => router.push({ pathname: "/recurring/confirm", params: { id: rule.id } })}>
-        <CategoryIcon name={category?.name ?? title} icon={category?.icon} color={category?.color} size={34} />
+        <CategoryIcon name={category ? catName(category) : title} icon={category?.icon} color={category?.color} size={34} />
         <View style={styles.text}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          <Text style={styles.sub} numberOfLines={1}>Expected {humanDayTime(days[0]!, rule.time_of_day)}{days.length > 1 ? ` · ${days.length} occurrences` : ""}</Text>
+          <Text style={styles.sub} numberOfLines={1}>{days.length > 1 ? t("recurring.due.expectedMany", { date: humanDayTime(days[0]!, rule.time_of_day), count: days.length }) : t("recurring.due.expected", { date: humanDayTime(days[0]!, rule.time_of_day) })}</Text>
           <Text style={styles.sub} numberOfLines={1}>{deadline}</Text>
         </View>
         <AmountPill minor={rule.amount_minor * days.length} currency={account?.currency ?? ""} neutral />
@@ -136,27 +137,27 @@ function WaitingItem({ d, first, last }: { d: Row; first: boolean; last: boolean
 
 function DueItem({ d, first, last, onPost, onSkip }: { d: Row; first: boolean; last: boolean; onPost: () => void; onSkip: () => void }) {
   const { rule, days, account, category } = d;
-  const title = rule.payee || category?.name || "Recurring";
+  const title = rule.payee || (category ? catName(category) : null) || t("recurring.due.fallbackTitle");
   const behind = days.length > 1;
   const when = behind
-    ? `${days.length} due since ${humanDayTime(days[0]!)}`
-    : `Due ${humanDayTime(days[0]!, rule.time_of_day)}`;
+    ? t("recurring.due.dueSince", { count: days.length, date: humanDayTime(days[0]!) })
+    : t("recurring.due.dueOn", { date: humanDayTime(days[0]!, rule.time_of_day) });
   return (
     <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={`${title}, ${when}`} accessibilityHint="Opens the full options"
+      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={`${title}, ${when}`} accessibilityHint={t("recurring.due.openHint")}
         onPress={() => router.push({ pathname: "/recurring/confirm", params: { id: rule.id } })}>
-        <CategoryIcon name={category?.name ?? title} icon={category?.icon} color={category?.color} size={34} />
+        <CategoryIcon name={category ? catName(category) : title} icon={category?.icon} color={category?.color} size={34} />
         <View style={styles.text}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
           <Text style={[styles.sub, behind && { color: C.orange }]} numberOfLines={1}>{when}</Text>
-          <Text style={styles.sub} numberOfLines={1}>{freqLabel(rule.frequency, rule.interval)}{account ? ` · ${account.name}` : ""}</Text>
+          <Text style={styles.sub} numberOfLines={1}>{repeatLabel(rule.frequency, rule.interval)}{account ? ` · ${acctName(account)}` : ""}</Text>
         </View>
         <AmountPill minor={rule.amount_minor * days.length} currency={account?.currency ?? ""} />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
       </Pressable>
       <View style={styles.actions}>
-        <Action icon="checkmark.circle.fill" label={behind ? `Post all ${days.length}` : "Post"} color={C.green} onPress={onPost} grow />
-        <Action icon="forward.end" label="Skip" color={C.orange} onPress={onSkip} grow />
+        <Action icon="checkmark.circle.fill" label={behind ? t("recurring.postAll", { count: days.length }) : t("recurring.due.post")} color={C.green} onPress={onPost} grow />
+        <Action icon="forward.end" label={t("recurring.skip")} color={C.orange} onPress={onSkip} grow />
       </View>
     </View>
   );

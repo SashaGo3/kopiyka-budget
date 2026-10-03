@@ -1,0 +1,136 @@
+{
+  "$comment": "The promo website (site/). Plain text only: build.mjs escapes every message and puts links, tags and markup around it in site/_index.html and site/_template.html. The legal pages and the migration guide are whole documents in docs/ and docs/uk/, not messages.",
+  "meta": {
+    "title": "Kopiyka Budget — a fast, local-first budget tracker for iPhone, iPad and Apple Watch",
+    "description": "Log an expense in two taps on iPhone, iPad or Apple Watch, keep every number on your own device, and get budgets that start on payday instead of the 1st. Free, open source, no account, no server, no trackers.",
+    "ogDescription": "Money in. Money out. Two taps. A fast, local-first budget tracker for iPhone, iPad and Apple Watch.",
+    "ogImageAlt": "Kopiyka Budget on an iPhone, showing the calculator keypad."
+  },
+  "chrome": {
+    "brand": { "message": "Kopiyka Budget", "note": "The wordmark in the header, the site name in link previews, and the suffix of every page title" },
+    "skip": "Skip to content",
+    "sections": { "message": "Sections", "note": "aria-label of the header navigation" },
+    "language": { "message": "Language", "note": "aria-label of the EN / УКР switcher" },
+    "downloadLong": "Download on the App Store",
+    "downloadShort": { "message": "App Store", "note": "The header button on a phone, where the long label does not fit" },
+    "nav": {
+      "features": "Features",
+      "watch": "Watch",
+      "ipad": "iPad",
+      "privacy": "Privacy",
+      "openSource": "Open source"
+    },
+    "footer": {
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "github": "GitHub",
+      "bug": "Report a bug",
+      "copyright": "© Kopiyka contributors",
+      "made": "Made with React Native and a little Swift."
+    }
+  },
+  "hero": {
+    "title": "Money in. Money out. Two taps.",
+    "lede": "A fast, local-first budget tracker for iPhone, iPad and Apple Watch.",
+    "see": "See it working",
+    "quiet": "Free. No account. No trackers.",
+    "alt": "Kopiyka on an iPhone: a calculator keypad with the amount, and the category on the key beside it."
+  },
+  "why": {
+    "title": "Why this exists",
+    "p1": "Not knowing where I stood with money used to drive me mad, so more than ten years ago I started logging every expense. The first app I used was free when I began and later became a one-time purchase, which was fair enough. The habit stuck, but the app never gave me any real insight into where my money was actually going.",
+    "p2": "For the last two years I used a budgeting app that cost quite a lot as a one-time purchase. The developer had gone quiet on known bugs, and the “native” iOS app had become painfully slow: I would wait a couple of seconds before I could type a single digit. The last straw was the Apple Watch app, which simply stopped working. The explanation was “Apple”, while everything else on the watch worked fine. It was not Apple.",
+    "p3": "I have worked as a React Native developer for many years, shipping apps that real people use every day, and I had wanted for a long time to give something back to open source and fix this one problem: a free, local app for tracking money that is actually good and pleasant to use. I finally had the reason.",
+    "p4": "I am happy with how it turned out. The Shortcuts automation alone removes almost all of the friction I used to have, and tags paired with categories feel so obvious that I still wonder why nobody did it. I built this with care and I intend to keep looking after it.",
+    "p5": "Your data is yours, so if I ever get hit by a bus you can take it anywhere in a minute. I am not planning on that: I have a daughter, Olivia, on the way, and a lot to live for.",
+    "p6": "Thank you for trying Kopiyka."
+  },
+  "features": {
+    "title": "What it does",
+    "beta": "Beta",
+    "twoTaps": { "title": "Two taps", "text": "Amount on the keypad, category on the key beside it, done." },
+    "watch": { "title": "Apple Watch", "text": "The whole flow on your wrist, phone still in your pocket." },
+    "ipad": { "title": "iPad", "text": "The same app on the bigger screen, kept level with your iPhone through iCloud." },
+    "payday": { "title": "Budgets that start on payday", "text": "Paid on the 25th? Your budget month runs the 25th to the 24th." },
+    "learns": { "title": "It learns where you shop", "text": "A shop you have filed before files itself the next time." },
+    "split": { "title": "Split a receipt", "text": "Dinner and a lamp from one shop, each filed where it belongs." },
+    "recurring": { "title": "Recurring payments", "text": "Subscriptions post themselves, or wait for the bank’s own charge; bills that change wait for your tap." },
+    "travel": { "title": "Travel", "text": "One budget per trip and a daily allowance, kept apart from the month’s budgets." },
+    "debts": { "title": "Debts", "text": "Who owes whom, with a reminder on the due date." },
+    "insights": { "title": "Insights", "text": "Free to spend, days until salary, a savings goal — you choose." },
+    "worth": { "title": "What it is worth to you", "text": "Two questions mark what you could not live without and what you could stop tomorrow." },
+    "bank": { "title": "Bank notifications", "text": "A Shortcuts automation reads the payment notification, on your phone." },
+    "data": { "title": "Your data", "text": "On your devices, backed up to your iCloud, exportable any time." }
+  },
+  "shots": {
+    "title": "A look at it",
+    "prev": "Scroll screenshots left",
+    "next": "Scroll screenshots right",
+    "strip": "Screenshots, scrollable",
+    "data": { "alt": "Data management: iCloud backups, exports and receipt photos", "caption": "Your money. Your data. Your phone." },
+    "budgets": { "alt": "Budgets for a month that runs from one payday to the next", "caption": "Months that start on payday" },
+    "transactions": { "alt": "A list of transactions with place, tags and account on each row", "caption": "It learns where you shop" },
+    "insights": { "alt": "Insight cards: free to spend, days until salary, a savings goal", "caption": "Insights you actually asked for" },
+    "trip": { "alt": "A trip with its own budget, daily allowance and tagged expenses", "caption": "Travel, on its own budget" },
+    "recurring": { "alt": "Recurring payments, some posting themselves and some waiting for approval", "caption": "Rent asks. Netflix doesn’t." },
+    "debts": { "alt": "Debts owed and lent, each with a due date", "caption": "Who owes whom" },
+    "shortcut": { "alt": "The Shortcuts automation that turns a bank notification into a pending entry", "caption": "Your bank pings. Kopiyka listens." }
+  },
+  "watch": {
+    "title": "On the wrist",
+    "intro": "The whole flow happens on the watch — amount, category, tags — with today's entries and your budgets a swipe away. There is a complication for the watch face, and on an Ultra you can put it on the Action button.",
+    "row": "Apple Watch screenshots, scrollable",
+    "keypad": { "alt": "Apple Watch keypad with an amount typed in", "caption": "Tap the amount" },
+    "categories": { "alt": "Category list on Apple Watch", "caption": "Pick a category" },
+    "tags": { "alt": "Tag picker on Apple Watch", "caption": "Tag it" },
+    "history": { "alt": "Today's expenses on Apple Watch", "caption": "Recent expenses" },
+    "budgets": { "alt": "Budget left, shown on Apple Watch", "caption": "Budget left" }
+  },
+  "ipad": {
+    "title": "On the iPad",
+    "intro": "The same app, in a column down the middle of the screen rather than a phone stretched across it — and it works in Split View. Turn on merging and your iPhone and iPad keep each other level through your own iCloud: nothing is deleted by it, and where both changed the same thing, the newer edit wins.",
+    "row": "iPad screenshots, scrollable",
+    "budgets": { "alt": "Budgets on an iPad, with Planned and Available above the list", "caption": "Budgets" },
+    "transactions": { "alt": "Transactions on an iPad, grouped by day", "caption": "Transactions" },
+    "insights": { "alt": "Insight cards on an iPad", "caption": "Insights" }
+  },
+  "privacy": {
+    "title": "Privacy",
+    "text": "Kopiyka collects nothing: there is no account and no server to send anything to. The only request it ever makes is an exchange rate from the European Central Bank.",
+    "policy": "Privacy Policy",
+    "terms": "Terms of Use"
+  },
+  "migrate": {
+    "title": "Moving from another app",
+    "text": "Export from your old app, hand the file and a ready-made prompt to an AI assistant, and import the result.",
+    "link": "Read the migration guide"
+  },
+  "openSource": {
+    "title": "Open source",
+    "text": "MIT licensed, built with React Native and a little Swift; pull requests are welcome. Android is not planned for now, but maybe later.",
+    "link": "Kopiyka on GitHub"
+  },
+  "bug": {
+    "title": "Found a bug?",
+    "text": "Tell me and I will fix it — if the app misbehaved, Settings → Diagnostics has a crash report worth attaching.",
+    "issue": "Open an issue",
+    "email": "Email"
+  },
+  "docs": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "Kopiyka Budget collects nothing. Where your data lives, the one network request the app makes, and what each permission is for."
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "description": "Kopiyka Budget is free, is a personal record-keeping tool rather than financial advice, and your data is yours to keep."
+    },
+    "migrate": {
+      "title": "Migrating from another app",
+      "description": "Export from your old budget app, hand the file and this prompt to an AI assistant, and import the result into Kopiyka Budget."
+    },
+    "copy": { "message": "Copy", "note": "The button on the migration guide's prompt block" },
+    "copied": "Copied",
+    "prompt": { "message": "The conversion prompt", "note": "aria-label of the prompt block on the migration guide" }
+  }
+}

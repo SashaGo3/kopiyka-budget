@@ -9,12 +9,17 @@
     <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
     <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/migrate.html" />
+    <link rel="alternate" hreflang="en" href="https://sashago3.github.io/kopiyka-budget/migrate.html" />
+    <link rel="alternate" hreflang="uk" href="https://sashago3.github.io/kopiyka-budget/uk/migrate.html" />
+    <link rel="alternate" hreflang="x-default" href="https://sashago3.github.io/kopiyka-budget/migrate.html" />
     <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
     <link rel="apple-touch-icon" href="img/icon-180.png" />
     <link rel="stylesheet" href="styles.css" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Kopiyka Budget" />
     <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/migrate.html" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:locale:alternate" content="uk_UA" />
     <meta property="og:title" content="Migrating from another app — Kopiyka Budget" />
     <meta property="og:description" content="Export from your old budget app, hand the file and this prompt to an AI assistant, and import the result into Kopiyka Budget." />
     <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
@@ -36,9 +41,12 @@
           <a href="index.html#open-source">Open source</a>
         </nav>
         <div class="brand-actions">
-          <!-- TODO: paste the App Store product URL here (replace href="#"). -->
+          <nav class="lang-switch" aria-label="Language">
+            <a href="migrate.html" hreflang="en" lang="en" title="English" aria-current="page">EN</a>
+            <a href="uk/migrate.html" hreflang="uk" lang="uk" title="Українська">УКР</a>
+          </nav>
           <a class="btn" href="https://apps.apple.com/us/app/kopiyka-budget/id6809896169" rel="noopener"
-            ><span class="long">Download on the </span>App&nbsp;Store</a
+            ><span class="long">Download on the App Store</span><span class="short">App Store</span></a
           >
         </div>
       </div>
@@ -295,8 +303,8 @@
         b.hidden = false;
         b.onclick = function () {
           navigator.clipboard.writeText(b.parentNode.querySelector('pre').innerText).then(function () {
-            b.textContent = 'Copied';
-            setTimeout(function () { b.textContent = 'Copy'; }, 1600);
+            b.textContent = "Copied";
+            setTimeout(function () { b.textContent = "Copy"; }, 1600);
           });
         };
       });

@@ -1,0 +1,31 @@
+{
+  "$comment": "Local notifications scheduled by JS (src/lib/notifications.ts): recurring payments and debts. Notifications posted by Swift live in native.json. amount is a formatted amount with its currency (\"12.99 EUR\"); date is a day, maybe with a time (\"22 Sep at 11:17\").",
+  "recurring": {
+    "fallbackName": { "message": "Recurring payment", "note": "Used in a title when a recurring rule has neither a payee nor a category." },
+    "upcoming": { "message": "Upcoming: {name}", "note": "Title of the reminder before a recurring payment; name is the payee or category." },
+    "notSeen": { "message": "Not seen: {name}", "note": "Title when a payment the rule was waiting for from the bank never arrived." },
+    "posted": { "message": "Posted: {name}", "note": "Title when an automatic rule wrote its payment." },
+    "due": { "message": "Due: {name}", "note": "Title when a manual rule's payment is due and needs confirming." },
+    "willPostTomorrow": "{amount} will be posted tomorrow.",
+    "willPostOn": "{amount} will be posted on {date}.",
+    "dueTomorrow": "{amount} is due tomorrow.",
+    "dueOn": "{amount} is due on {date}.",
+    "lateAuto": "No charge for this arrived since {date}, so {amount} was added from the rule.",
+    "lateManual": "No charge for this arrived since {date}. Tap to post it or skip it.",
+    "postedTo": { "message": "{amount} was posted to {account}.", "note": "account is the account's name." },
+    "postedToYours": "{amount} was posted to your account.",
+    "dueToday": "{amount} is due today. Tap to confirm.",
+    "missedFallback": { "message": "Recurring", "note": "Stands in for the payee in a list of missed payments when the rule has none." },
+    "neverArrived": "{count, plural, =1 {A recurring payment never arrived} one {# recurring payment never arrived} other {# recurring payments never arrived}}",
+    "neverArrivedBody": { "message": "Nothing was charged in time, so the rule was used instead: {list}", "note": "list is payees with amounts, comma-separated." },
+    "postedMissed": "{count, plural, =1 {Posted a missed recurring transaction} one {Posted # missed recurring transaction} other {Posted # missed recurring transactions}}"
+  },
+  "debt": {
+    "tomorrowTitle": { "message": "Tomorrow: {person}", "note": "Title of a debt reminder the day before it is due; person is who the debt is with." },
+    "todayTitle": { "message": "Due today: {person}", "note": "Title of a debt reminder on the day." },
+    "backTomorrow": "{amount} comes back to you tomorrow.",
+    "backToday": "{amount} comes back to you today.",
+    "oweTomorrow": "You owe {person} {amount} tomorrow.",
+    "oweToday": "You owe {person} {amount} today."
+  }
+}

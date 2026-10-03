@@ -3,7 +3,9 @@
  * it wears on its card, in the picker and on the reorder list is a matter for this side.
  */
 import type { SFSymbol } from "expo-symbols";
-import { INSIGHT_KINDS, type Insight, type InsightKind } from "@kopiyka/core";
+import { INSIGHT_KINDS, type Frequency, type Insight, type InsightKind } from "@kopiyka/core";
+import { t } from "@/i18n";
+import { catNameById } from "@/lib/names";
 
 export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }> = {
   free_money: { icon: "banknote", color: "#34C759" },
@@ -29,4 +31,31 @@ export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }
 export function addableKinds(existing: Pick<Insight, "kind">[]): typeof INSIGHT_KINDS {
   const have = new Set(existing.map((i) => i.kind));
   return INSIGHT_KINDS.filter((k) => !(k.instant && have.has(k.kind)));
+}
+
+/**
+ * Core's `INSIGHT_KINDS` carries English `title`/`hint`; the app shows these instead. A kind core no
+ * longer knows (a card from a newer build) falls back to its raw id.
+ */
+export function kindTitle(kind: InsightKind): string {
+  return INSIGHT_KINDS.some((k) => k.kind === kind) ? t(`insights.kind.${kind}.title`) : kind;
+}
+export function kindHint(kind: InsightKind): string {
+  return INSIGHT_KINDS.some((k) => k.kind === kind) ? t(`insights.kind.${kind}.hint`) : "";
+}
+
+/** A recurring rule's name in a list: its payee, else its category, else "Recurring" (core's `title`, translated). */
+export function ruleTitle(rule: { payee: string | null; category_id: string | null }): string {
+  return rule.payee || catNameById(rule.category_id) || t("insights.recurring");
+}
+
+/** "per month", "every 2 weeks" — core's `periodLabel`, in the app's language. */
+export function perPeriod(f: Frequency, interval: number): string {
+  const count = Math.max(1, interval);
+  switch (f) {
+    case "daily": return t("insights.per.daily", { count });
+    case "weekly": return t("insights.per.weekly", { count });
+    case "monthly": return t("insights.per.monthly", { count });
+    default: return t("insights.per.yearly", { count });
+  }
 }

@@ -7,6 +7,7 @@ import { useSyncExternalStore } from "react";
 import { budgetPeriod, getMeta, setMeta } from "@kopiyka/core";
 import { db } from "@/db";
 import { monthPill, periodLabel, todayLocal } from "./dates";
+import { getLanguage } from "@/i18n";
 
 export function getPeriodStartDay(): number {
   const v = Number(getMeta(db, "period_start_day") ?? 1);
@@ -39,8 +40,14 @@ export function shiftPeriod(p: Period, delta: number, startDay = getPeriodStartD
  * current period every launch, and changing the start day puts it back there.
  */
 let selected: Period | null = null;
+// The title and subtitle are words; a period picked before a change of language is named again in the new one.
+let selectedLang = "";
 const listeners = new Set<() => void>();
-function snapshot(): Period { return (selected ??= currentPeriod()); }
+function snapshot(): Period {
+  if (selected && selectedLang !== getLanguage()) selected = periodContaining(selected.start);
+  selectedLang = getLanguage();
+  return (selected ??= currentPeriod());
+}
 function subscribe(cb: () => void): () => void { listeners.add(cb); return () => { listeners.delete(cb); }; }
 
 export function setSelectedPeriod(p: Period): void { selected = p; for (const l of listeners) l(); }

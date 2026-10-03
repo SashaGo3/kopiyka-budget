@@ -2,11 +2,12 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import { C, R } from "@/constants/theme";
 import { Glass } from "@/components/glass";
+import { t } from "@/i18n";
 
 /** Header pill showing which accounts Budgets (and Transactions) are looking at; tap to change. */
 export function ScopePill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Spending from ${label}`} accessibilityHint="Choose an account or group"
+    <Pressable onPress={onPress} hitSlop={6} accessibilityRole="button" accessibilityLabel={t("period.scope.label", { scope: label })} accessibilityHint={t("period.scope.hint")}
       style={({ pressed }) => [styles.pill, pressed && { opacity: 0.6 }]}>
       {/* Active (a specific account chosen) is an opaque tint pill, so it reads as a committed filter rather than chrome. */}
       {active ? <View style={[styles.fill, styles.activeFill]} /> : <Glass style={styles.fill} solid={styles.solid} interactive />}

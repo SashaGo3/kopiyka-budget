@@ -11,6 +11,8 @@ import type { AmountPick } from "@/app/pick/amount";
 import { ModalHeader, TagPill } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
+import { catName } from "@/lib/names";
 
 /** A part as the editor holds it: the payload plus a key React and the pickers can address it by. */
 type Row = SplitPart & { key: string };
@@ -84,9 +86,9 @@ export default function SplitEditor() {
   const rest = amounts?.[0] ?? total - rows.reduce((a, r) => a + r.amount_minor, 0);
   const uncategorised = !main.category_id || rows.some((r) => !r.category_id);
   const ready = !!amounts && !uncategorised;
-  const hint = !rows.length ? "Add a part to split this entry"
-    : !amounts ? (rows.some((r) => !r.amount_minor) ? "Every part needs an amount" : "The parts come to more than the entry")
-      : "Every part needs a category";
+  const hint = !rows.length ? t("transaction.split.hint.addPart")
+    : !amounts ? (rows.some((r) => !r.amount_minor) ? t("transaction.split.hint.needAmount") : t("transaction.split.hint.tooMuch"))
+      : t("transaction.split.hint.needCategory");
   // The entry sheet saves and leaves from here, taking this screen with it.
   const done = () => exit(() => resolvePick(p.key, { main, parts: rows.map(({ key: _k, ...part }) => part) } satisfies SplitResult));
 
@@ -98,7 +100,7 @@ export default function SplitEditor() {
     editing.current = row.key;
     const available = Math.max(rest + row.amount_minor, 0);
     router.push({ pathname: "/pick/amount", params: {
-      key: keys.amt, title: "How much of it?", currency, value: String(row.amount_minor),
+      key: keys.amt, title: t("transaction.split.howMuch"), currency, value: String(row.amount_minor),
       available: String(available), max: String(Math.max(available - 1, 0)),
       kind: kindIsIncome ? "income" : "expense", category: row.category_id ?? "", tags: row.tag_ids.join(","),
     } });
@@ -132,10 +134,10 @@ export default function SplitEditor() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title="Split the entry" left={{ label: "Cancel", onPress: () => router.back() }} />
+      <ModalHeader title={t("transaction.split.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.intro}>
-          One shop, several things. Give each part its own category — what is left stays on the entry itself.
+          {t("transaction.split.intro")}
         </Text>
 
         <View style={styles.card}>
@@ -143,17 +145,17 @@ export default function SplitEditor() {
             {mainIcon.view}
             <View style={styles.middle}>
               <Pressable onPress={() => openCat(null, main.category_id)} hitSlop={4} accessibilityRole="button"
-                accessibilityLabel={mainIcon.cat ? `Category of the rest: ${mainIcon.cat.name}` : "Choose a category for the rest"}>
-                <Text style={[styles.catText, !mainIcon.cat && styles.missing]} numberOfLines={1}>{mainIcon.cat?.name ?? "Choose a category"}</Text>
+                accessibilityLabel={mainIcon.cat ? t("transaction.split.restCategoryA11y", { name: catName(mainIcon.cat) }) : t("transaction.split.chooseRestCategory")}>
+                <Text style={[styles.catText, !mainIcon.cat && styles.missing]} numberOfLines={1}>{mainIcon.cat ? catName(mainIcon.cat) : t("transaction.split.chooseCategory")}</Text>
               </Pressable>
               <Pressable onPress={() => openTags(null, main.tag_ids, main.category_id)} hitSlop={4} accessibilityRole="button"
-                accessibilityLabel={main.tag_ids.length ? `Tags of the rest: ${main.tag_ids.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ")}` : "Add tags to the rest"}>
-                {tagLine(main.tag_ids) ?? <Text style={styles.tagHint}>Add tags</Text>}
+                accessibilityLabel={main.tag_ids.length ? t("transaction.split.restTagsA11y", { names: main.tag_ids.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ") }) : t("transaction.split.addRestTags")}>
+                {tagLine(main.tag_ids) ?? <Text style={styles.tagHint}>{t("transaction.split.addTags")}</Text>}
               </Pressable>
             </View>
             <View style={styles.right}>
               {money(rest, false, rest <= 0)}
-              <Text style={styles.caption}>the rest</Text>
+              <Text style={styles.caption}>{t("transaction.split.rest")}</Text>
             </View>
             <View style={styles.remove} />
           </View>
@@ -162,35 +164,35 @@ export default function SplitEditor() {
             const icon = catIcon(r.category_id);
             return (
               <Pressable key={r.key} onPress={() => openAmount(r)} style={({ pressed }) => [styles.row, styles.divider, pressed && { opacity: 0.6 }]}
-                accessibilityRole="button" accessibilityLabel={`Part ${i + 2}: ${formatMinor(r.amount_minor, currency)} ${currency}, ${icon.cat?.name ?? "no category"}. Tap to edit.`}>
+                accessibilityRole="button" accessibilityLabel={t("transaction.split.partA11y", { n: i + 2, amount: formatMinor(r.amount_minor, currency), currency, category: icon.cat ? catName(icon.cat) : t("transaction.split.noCategory") })}>
                 {icon.view}
                 <View style={styles.middle}>
-                  <Text style={[styles.catText, !icon.cat && styles.missing]} numberOfLines={1}>{icon.cat?.name ?? "Choose a category"}</Text>
+                  <Text style={[styles.catText, !icon.cat && styles.missing]} numberOfLines={1}>{icon.cat ? catName(icon.cat) : t("transaction.split.chooseCategory")}</Text>
                   {tagLine(r.tag_ids)}
                 </View>
                 <View style={styles.right}>{money(r.amount_minor, !r.amount_minor)}</View>
                 <Pressable onPress={() => setRows((list) => list.filter((x) => x.key !== r.key))} hitSlop={10}
-                  accessibilityRole="button" accessibilityLabel={`Remove part ${i + 2}`} style={styles.remove}>
+                  accessibilityRole="button" accessibilityLabel={t("transaction.split.removePart", { n: i + 2 })} style={styles.remove}>
                   <SymbolView name="minus.circle.fill" size={20} tintColor={C.tertiary} />
                 </Pressable>
               </Pressable>
             );
           })}
 
-          <Pressable onPress={add} style={({ pressed }) => [styles.add, styles.divider, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Add a part">
+          <Pressable onPress={add} style={({ pressed }) => [styles.add, styles.divider, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("transaction.split.addPart")}>
             <SymbolView name="plus.circle.fill" size={20} tintColor={C.tint} />
-            <Text style={styles.addText}>Add a part</Text>
+            <Text style={styles.addText}>{t("transaction.split.addPart")}</Text>
           </Pressable>
         </View>
 
         <Text style={styles.foot}>
-          {ready ? `${rows.length + 1} entries will be added, all with the same date, note, place and photo.` : hint}
+          {ready ? t("transaction.split.ready", { count: rows.length + 1 }) : hint}
         </Text>
       </ScrollView>
       <View style={{ paddingBottom: Math.max(insets.bottom, S.md), paddingTop: S.sm, backgroundColor: C.bgGrouped }}>
         <ConfirmBar
-          amount={amounts ? `${amounts.length} entries` : "Not a split yet"}
-          label={ready ? "Tap to save the split" : hint}
+          amount={amounts ? t("transaction.split.entries", { count: amounts.length }) : t("transaction.split.notYet")}
+          label={ready ? t("transaction.split.save") : hint}
           disabled={!ready} onPress={done} />
       </View>
     </View>

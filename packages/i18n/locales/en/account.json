@@ -1,0 +1,53 @@
+{
+  "$comment": "The account sheet (app/account/edit.tsx) and an account's own screen (app/accounts/[id].tsx).",
+  "newTitle": "New account",
+  "editTitle": "Edit account",
+  "nameTitle": { "message": "Account name", "note": "Title of the text field that names an account." },
+  "name": { "message": "Name", "note": "Chip that opens the name field while the account has none." },
+  "balanceNow": "Balance now",
+  "openingBalance": "Opening balance",
+  "balanceA11y": { "message": "Balance {amount}", "note": "VoiceOver label; amount is formatted with its currency code, \"1 200.00 PLN\"." },
+  "openingA11y": { "message": "Opening balance {amount}", "note": "VoiceOver label; amount is formatted with its currency code." },
+  "openingBecomes": { "message": "Opening balance becomes {amount}; transactions are not changed", "note": "Under the balance while it is being changed; amount is formatted with its currency code." },
+  "openingIs": { "message": "Opening balance {amount}", "note": "Under the balance of an existing account; amount is formatted with its currency code." },
+  "typeToReplace": { "message": "Type to replace, ⌫ to edit", "note": "Hint under a prefilled balance: a digit replaces it, backspace edits it." },
+  "type": {
+    "bank": "Bank",
+    "cash": "Cash",
+    "card": "Card",
+    "savings": "Savings",
+    "investment": "Investment",
+    "other": "Other"
+  },
+  "inNetWorth": { "message": "In net worth", "note": "Chip: the account counts towards net worth." },
+  "excluded": { "message": "Excluded", "note": "Same chip when the account is left out of net worth." },
+  "current": { "message": "Current account", "note": "Chip: the account logging defaults to. Not the bank product." },
+  "currentHint": "Logging defaults to this account and Budgets shows it with its own budgets.",
+  "confirm": {
+    "setBalance": "Tap to set the balance",
+    "save": "Tap to save",
+    "add": "Tap to add account",
+    "name": "Tap to name it"
+  },
+  "archive": {
+    "row": "Archive account",
+    "title": "Archive account?",
+    "body": "{count, plural, one {# transaction stays where it is.} other {# transactions stay where they are.}} The account is hidden from logging, Budgets and net worth and shown as disabled under Accounts. You can unarchive it any time.",
+    "confirm": "Archive"
+  },
+  "unarchive": "Unarchive account",
+  "delete": {
+    "row": "Delete account",
+    "title": "Delete account?",
+    "body": "It has no transactions, so nothing else is removed."
+  },
+  "screen": {
+    "edit": { "message": "Edit account", "note": "VoiceOver label of the header button." },
+    "balance": "Balance · tap to adjust",
+    "adjustHint": { "message": "Adjust the balance", "note": "VoiceOver hint." },
+    "afterPlanned": { "message": "After planned:", "note": "Followed by the balance once planned and pending entries are counted." },
+    "expense": "Expense",
+    "income": "Income",
+    "transfer": "Transfer"
+  }
+}

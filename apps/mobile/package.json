@@ -1,11 +1,12 @@
 {
   "name": "@kopiyka/mobile",
   "main": "expo-router/entry",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "dependencies": {
     "@bacons/apple-targets": "^5.0.0",
     "@expo/ui": "~57.0.16",
     "@kopiyka/core": "workspace:*",
+    "@kopiyka/i18n": "workspace:*",
     "expo": "~57.0.20",
     "expo-build-properties": "~57.0.17",
     "expo-camera": "~57.0.4",

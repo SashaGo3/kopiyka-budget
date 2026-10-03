@@ -65,7 +65,9 @@ final class WatchSession: NSObject, ObservableObject {
     let queued: Bool
     let pending: Bool
     var accessibility: String {
-      "\(title), \(amount), \(queued ? "waiting for iPhone" : path)\(tags.isEmpty ? "" : ", tags \(tags.map(\.name).joined(separator: ", "))")\(time.isEmpty ? "" : ", at \(time)")"
+      [title, amount, queued ? L10n.Watch.History.a11yWaiting : path,
+       tags.isEmpty ? nil : L10n.Watch.History.a11yTags(list: tags.map(\.name).joined(separator: ", ")),
+       time.isEmpty ? nil : L10n.Watch.History.a11yAt(time: time)].compactMap { $0 }.joined(separator: ", ")
     }
   }
   struct TagChip: Identifiable, Equatable { let id: String; let name: String; let color: String? }
@@ -88,11 +90,11 @@ final class WatchSession: NSObject, ObservableObject {
       let isQueued = queuedIds.contains(t.id)
       guard isQueued || recent.contains(t.day) else { continue }
       let c = t.category_id.flatMap { cats[$0] }
-      let path = t.transfer ? "Transfer" : c.map { c in c.parent_name.map { "\($0) › \(c.name)" } ?? c.name } ?? "Uncategorized"
+      let path = t.transfer ? L10n.Common.transfer : c.map { c in c.parent_name.map { "\($0) › \(c.name)" } ?? c.name } ?? L10n.Common.uncategorized
       let item = HistoryItem(
         id: t.id, transfer: t.transfer, icon: c?.icon ?? "tag.fill", color: c?.color, title: t.title,
         amount: KPFormat.money(t.amount, t.currency), income: t.amount > 0, time: t.time,
-        path: isQueued ? "Waiting for iPhone" : path,
+        path: isQueued ? L10n.Watch.History.waiting : path,
         tags: t.tag_ids.compactMap { tagsById[$0] }.map { TagChip(id: $0.id, name: $0.name, color: $0.color) }, queued: isQueued, pending: t.pending)
       if days.last?.id == t.day { days[days.count - 1].rows.append(item) }
       else { days.append(HistoryDay(id: t.day, label: KPFormat.dayLabel(t.day), rows: [item])) }
@@ -155,25 +157,26 @@ final class WatchSession: NSObject, ObservableObject {
     if let n = note, !n.isEmpty { m["note"] = n }
     if state.location_enabled == true, let f = fix { m["lat"] = f.lat; m["lon"] = f.lon; if let p = f.place { m["place"] = p } }
     let catLabel = category.map { c in c.parent_name.map { "\($0) › \(c.name)" } ?? c.name }
-    let row = KPWatchState.Tx(id: id, date: KPStore.isoNow(), title: note?.isEmpty == false ? note! : (category?.name ?? "Uncategorized"),
+    let row = KPWatchState.Tx(id: id, date: KPStore.isoNow(), title: note?.isEmpty == false ? note! : (category?.name ?? L10n.Common.uncategorized),
                               sub: [account.name, catLabel].compactMap { $0 }.joined(separator: " · "),
                               amount: KPFormat.major(amountMinor, account.currency), currency: account.currency, account_id: account.id,
                               category_id: category?.id, tag_ids: tagIds, pending: false, transfer: false)
     queued.append(row); saveQueued()
-    let what = "\(KPFormat.money(abs(KPFormat.major(amountMinor, account.currency)), account.currency))\(category.map { " for \($0.name)" } ?? "")"
-    deliver(m, savedText: "Added \(what)", queuedText: "Queued for iPhone: \(what)")
+    let money = KPFormat.money(abs(KPFormat.major(amountMinor, account.currency)), account.currency)
+    deliver(m, savedText: category.map { L10n.Watch.Write.addedFor(amount: money, category: $0.name) } ?? L10n.Watch.Write.added(amount: money),
+            queuedText: category.map { L10n.Watch.Write.queuedFor(amount: money, category: $0.name) } ?? L10n.Watch.Write.queued(amount: money))
     return row
   }
 
   func delete(_ id: String) {
     if let i = queued.firstIndex(where: { $0.id == id }) { queued.remove(at: i); saveQueued() }
     state.history.removeAll { $0.id == id }
-    deliver(["type": "delete", "id": id], savedText: "Deleted", queuedText: "Delete queued for iPhone")
+    deliver(["type": "delete", "id": id], savedText: L10n.Watch.Write.deleted, queuedText: L10n.Watch.Write.deleteQueued)
   }
 
   /// sendMessage when the phone is reachable (instant, reply carries the new state), else a queued transfer.
   private func deliver(_ m: [String: Any], savedText: String, queuedText: String) {
-    guard WCSession.default.activationState == .activated else { lastWrite = .init(at: .now, text: "Not paired with an iPhone", ok: false); showProblem("Not paired with an iPhone"); return }
+    guard WCSession.default.activationState == .activated else { lastWrite = .init(at: .now, text: L10n.Watch.Write.notPaired, ok: false); showProblem(L10n.Watch.Write.notPaired); return }
     if WCSession.default.isReachable {
       send(m) { [weak self] reply in
         guard let self else { return }
@@ -182,9 +185,9 @@ final class WatchSession: NSObject, ObservableObject {
           self.lastWrite = .init(at: .now, text: savedText, ok: true)
           self.announce(savedText)
         } else {
-          let why = (reply["error"] as? String).map { ": \($0)" } ?? ""
-          self.lastWrite = .init(at: .now, text: "iPhone could not save\(why)", ok: false)
-          self.showProblem("iPhone could not save")
+          let failed = (reply["error"] as? String).map { L10n.Watch.Write.failedWhy(reason: $0) } ?? L10n.Watch.Write.failed
+          self.lastWrite = .init(at: .now, text: failed, ok: false)
+          self.showProblem(L10n.Watch.Write.failed)
         }
       } failure: { [weak self] in
         WCSession.default.transferUserInfo(m)
@@ -214,6 +217,9 @@ final class WatchSession: NSObject, ObservableObject {
   private func apply(json: String) {
     guard let s = KPWatchState.from(json: json) else { return }
     let wasEnabled = state.location_enabled == true
+    // The app's language rides along with the state. Stored before `state` is set, so the rebuilt
+    // history rows ("Today", "Transfer") are already in it; the complication reloads just below.
+    if let language = s.language { KPL.store(language) }
     state = s
     s.save()
     let known = Set(s.history.map(\.id))

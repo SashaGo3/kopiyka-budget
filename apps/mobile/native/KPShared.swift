@@ -45,7 +45,7 @@ struct KPSnapshot: Codable {
     let day: Int; let days: Int; let days_left: Int; let allowance: Double?
     var remaining: Double { limit - spent }
     var ratio: Double { limit > 0 ? min(1, spent / limit) : 0 }
-    var dayLabel: String { days_left > 0 ? "Day \(day) of \(days)" : "Day \(day)" }
+    var dayLabel: String { days_left > 0 ? L10n.Budget.dayOf(day: String(day), days: String(days)) : L10n.Budget.day(day: String(day)) }
     /// The trip drawn like a budget row (widgets and complications reuse the budget views).
     var asBudget: Budget { .init(category_id: "trip:" + budget_id, name: name, currency: currency, limit: limit, spent: spent) }
   }
@@ -60,11 +60,17 @@ struct KPSnapshot: Codable {
   /// What a one-line budget surface should show: the trip while travelling, else the first budget.
   var featured: Budget? { trip?.asBudget ?? budgets.first }
 
-  static let placeholder = KPSnapshot(
-    generated_at: "", accounts: [.init(id: "a", name: "Account", currency: "PLN", balance: 3295.77), .init(id: "b", name: "Euro", currency: "EUR", balance: 2000)],
-    net_worth: [.init(currency: "PLN", amount: 3295.77), .init(currency: "EUR", amount: 2000)],
-    budgets: [.init(category_id: "1", name: "Food", currency: "PLN", limit: 2500, spent: 1610), .init(category_id: "2", name: "Fun", currency: "PLN", limit: 800, spent: 720)],
-    month: "September 2026", category_icons: nil, trip: nil)
+  /// Computed, not stored: its names are in the app's language at the moment it is drawn.
+  static var placeholder: KPSnapshot {
+    let month = DateFormatter()
+    month.locale = KPL.locale
+    month.setLocalizedDateFormatFromTemplate("LLLL yyyy")
+    return KPSnapshot(
+      generated_at: "", accounts: [.init(id: "a", name: L10n.Sample.account, currency: "PLN", balance: 3295.77), .init(id: "b", name: "Euro", currency: "EUR", balance: 2000)],
+      net_worth: [.init(currency: "PLN", amount: 3295.77), .init(currency: "EUR", amount: 2000)],
+      budgets: [.init(category_id: "1", name: L10n.Sample.food, currency: "PLN", limit: 2500, spent: 1610), .init(category_id: "2", name: L10n.Sample.fun, currency: "PLN", limit: 800, spent: 720)],
+      month: month.string(from: Date()).capitalized(with: KPL.locale), category_icons: nil, trip: nil)
+  }
 
   static func load() -> KPSnapshot? {
     guard let url = KP.snapshotURL, let data = try? Data(contentsOf: url) else { return nil }
@@ -120,6 +126,9 @@ struct KPWatchState: Codable {
   var shortcut_notify: Bool? = nil
   /// Newest cached exchange rate per "BASE>QUOTE" pair; the inverse is derived when only one side is stored.
   var rates: [String: Double]? = nil
+  /// The app's language ("uk"), so the watch and its complication speak it too (`KPL.store` on arrival).
+  /// Absent in an older state file, and then the watch keeps whatever it last heard.
+  var language: String? = nil
 
   static let empty = KPWatchState(generated_at: "", current_account: "", accounts: [], categories: [], tags: [], together: [:], history: [], snapshot: nil, location_enabled: false)
 
@@ -219,19 +228,49 @@ enum KPFormat {
   static func decimals(_ currency: String) -> Int {
     switch currency.uppercased() { case "JPY", "KRW": return 0; case "BHD", "KWD": return 3; default: return 2 }
   }
-  /// One formatter per fraction-digit count, built once: a `NumberFormatter` costs more to
-  /// create than to use, and the watch's history list formats every row on every render.
-  private static let moneyFormatters: [NumberFormatter] = (0...3).map { d in
-    let f = NumberFormatter()
-    f.numberStyle = .decimal
-    f.minimumFractionDigits = d
-    f.maximumFractionDigits = d
-    f.groupingSeparator = " "
-    return f
+  /// The formatters that depend on the app's language (`KPL`), built once per language: a
+  /// `NumberFormatter` costs more to create than to use, and the watch's history list formats every
+  /// row on every render. One money formatter per fraction-digit count.
+  private struct Localized {
+    let language: String
+    let money: [NumberFormatter]
+    let day: DateFormatter
+    let time: DateFormatter
+    init(_ language: String) {
+      self.language = language
+      let locale = Locale(identifier: language)
+      // The same separators as core `formatMinor`: a space between thousands, the language's own
+      // decimal mark ("1 234.56" in English, "1 234,56" in Ukrainian), whatever the region.
+      money = (0...3).map { d in
+        let f = NumberFormatter()
+        f.locale = locale
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = d
+        f.maximumFractionDigits = d
+        f.groupingSeparator = " "
+        f.decimalSeparator = locale.decimalSeparator ?? "."
+        return f
+      }
+      // Dates keep the phone's region and 24-hour setting; only the words follow the language.
+      let dates = KPL.locale(for: language)
+      day = DateFormatter(); day.locale = dates; day.setLocalizedDateFormatFromTemplate("EEE d MMM")
+      time = DateFormatter(); time.locale = dates; time.dateStyle = .none; time.timeStyle = .short
+    }
   }
+  private static var localizedCache: Localized?
+  private static let localizedLock = NSLock()
+  private static var localized: Localized {
+    let language = KPL.language
+    localizedLock.lock(); defer { localizedLock.unlock() }
+    if let c = localizedCache, c.language == language { return c }
+    let c = Localized(language)
+    localizedCache = c
+    return c
+  }
+
   static func money(_ amount: Double, _ currency: String, decimals: Int? = nil) -> String {
     let d = max(0, min(3, decimals ?? Self.decimals(currency)))
-    let body = moneyFormatters[d].string(from: NSNumber(value: amount)) ?? "\(amount)"
+    let body = localized.money[d].string(from: NSNumber(value: amount)) ?? "\(amount)"
     return "\(body) \(currency)"
   }
   static func compact(_ amount: Double) -> String {
@@ -248,17 +287,17 @@ enum KPFormat {
 
   /// "Today", "Yesterday", else "Mon 7 Sep" for a yyyy-MM-dd day.
   static let dayParser: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; return f }()
-  private static let dayPrinter: DateFormatter = { let o = DateFormatter(); o.setLocalizedDateFormatFromTemplate("EEE d MMM"); return o }()
-  static let timePrinter: DateFormatter = { let f = DateFormatter(); f.dateStyle = .none; f.timeStyle = .short; return f }()
+  /// Time of day ("14:05"), in the app's language.
+  static var timePrinter: DateFormatter { localized.time }
   static let iso8601 = ISO8601DateFormatter()
   /// JS writes `generated_at` with milliseconds (`Date.toISOString()`), Swift without; ISO8601DateFormatter is strict about the difference.
   private static let iso8601Fractional: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f }()
   static func parseIso(_ s: String) -> Date? { iso8601.date(from: s) ?? iso8601Fractional.date(from: s) }
   static func dayLabel(_ day: String) -> String {
     guard let d = dayParser.date(from: day) else { return day }
-    if Calendar.current.isDateInToday(d) { return "Today" }
-    if Calendar.current.isDateInYesterday(d) { return "Yesterday" }
-    return dayPrinter.string(from: d)
+    if Calendar.current.isDateInToday(d) { return L10n.Common.today }
+    if Calendar.current.isDateInYesterday(d) { return L10n.Common.yesterday }
+    return localized.day.string(from: d)
   }
 }
 
@@ -399,7 +438,7 @@ enum KPStore {
     guard sqlite3_prepare_v2(db, "SELECT id, name, currency FROM accounts WHERE deleted=0 AND archived=0 ORDER BY sort, name", -1, &stmt, nil) == SQLITE_OK else { return [] }
     defer { sqlite3_finalize(stmt) }
     var out: [AccountRef] = []
-    while sqlite3_step(stmt) == SQLITE_ROW { out.append(.init(id: str(stmt, 0), name: str(stmt, 1), currency: str(stmt, 2))) }
+    while sqlite3_step(stmt) == SQLITE_ROW { out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: "account"), currency: str(stmt, 2))) }
     return out
   }
 
@@ -440,15 +479,20 @@ enum KPStore {
       sqlite3_bind_text(stmt, 1, sinceDay(), -1, T)
       var out: [KPCategoryRef] = []
       while sqlite3_step(stmt) == SQLITE_ROW {
-        out.append(.init(id: str(stmt, 0), name: str(stmt, 1), parent: opt(stmt, 2), description: described ? opt(stmt, 3) : nil, uses: Int(sqlite3_column_int(stmt, 4))))
+        // Names as the app shows them (KPPreset); the description as the receipt reader matches it.
+        let preset = opt(stmt, 5), parentPreset = opt(stmt, 6)
+        out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: preset), parent: opt(stmt, 2).map { KPPreset.name($0, preset: parentPreset) },
+                         description: described ? KPPreset.matchText(opt(stmt, 3), preset: preset) : nil, uses: Int(sqlite3_column_int(stmt, 4))))
       }
       return out
     }
     let uses = "(SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses"
     // "Has nothing inside it" is what makes a row pickable, the same rule as core's `folderIds`.
     let leaf = "NOT EXISTS (SELECT 1 FROM categories k WHERE k.deleted=0 AND k.parent_id=c.id)"
-    return run("SELECT c.id, c.name, p.name, c.description, \(uses) FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
-      ?? run("SELECT c.id, c.name, p.name, NULL, \(uses) FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: false)
+    // Older databases lack `preset` (v18) or `description`: each falls back to a query without it.
+    return run("SELECT c.id, c.name, p.name, c.description, \(uses), c.preset, p.preset FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
+      ?? run("SELECT c.id, c.name, p.name, c.description, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
+      ?? run("SELECT c.id, c.name, p.name, NULL, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: false)
       ?? []
   }
 
@@ -482,11 +526,11 @@ enum KPStore {
 
   /// `c.description` arrived in a later migration, so an older database falls back to a NULL column.
   private static func categories(_ db: OpaquePointer) -> [KPWatchState.Category] {
-    func run(_ described: String) -> [KPWatchState.Category]? {
+    func run(_ described: String, _ presets: String = "c.preset, p.preset") -> [KPWatchState.Category]? {
       var stmt: OpaquePointer?
       let sql = """
         SELECT c.id, c.name, c.parent_id, p.name, c.kind, c.icon, c.color,
-          (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses, \(described)
+          (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses, \(described), \(presets)
         FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 ORDER BY c.sort, c.name
         """
       guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
@@ -494,12 +538,14 @@ enum KPStore {
       sqlite3_bind_text(stmt, 1, sinceDay(), -1, T)
       var out: [KPWatchState.Category] = []
       while sqlite3_step(stmt) == SQLITE_ROW {
-        out.append(.init(id: str(stmt, 0), name: str(stmt, 1), parent_id: opt(stmt, 2), parent_name: opt(stmt, 3), kind: str(stmt, 4),
-                         icon: opt(stmt, 5), color: opt(stmt, 6), uses: Int(sqlite3_column_int64(stmt, 7)), description: opt(stmt, 8)))
+        let preset = opt(stmt, 9), parentPreset = opt(stmt, 10)
+        out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: preset), parent_id: opt(stmt, 2),
+                         parent_name: opt(stmt, 3).map { KPPreset.name($0, preset: parentPreset) }, kind: str(stmt, 4),
+                         icon: opt(stmt, 5), color: opt(stmt, 6), uses: Int(sqlite3_column_int64(stmt, 7)), description: KPPreset.matchText(opt(stmt, 8), preset: preset)))
       }
       return out
     }
-    return run("c.description") ?? run("NULL") ?? []
+    return run("c.description") ?? run("c.description", "NULL, NULL") ?? run("NULL", "NULL, NULL") ?? []
   }
 
   /// Tags with recent usage, plus the category → tag co-occurrence counts the app's tag picker ranks by.
@@ -543,26 +589,29 @@ enum KPStore {
     return Array((fileState()?.history ?? []).prefix(limit))
   }
 
-  private static func history(_ db: OpaquePointer, limit: Int) -> [KPWatchState.Tx] {
+  private static func history(_ db: OpaquePointer, limit: Int, presets: String = "c.preset, p.preset") -> [KPWatchState.Tx] {
     var stmt: OpaquePointer?
     let sql = """
-      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id
+      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets)
       FROM transactions t JOIN accounts a ON a.id=t.account_id
       LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
       WHERE t.deleted=0 ORDER BY t.date DESC, t.updated_at DESC LIMIT ?
       """
-    guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+    guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+      return presets == "NULL, NULL" ? [] : history(db, limit: limit, presets: "NULL, NULL")   // a database before v18
+    }
     defer { sqlite3_finalize(stmt) }
     sqlite3_bind_int(stmt, 1, Int32(limit))
     var out: [KPWatchState.Tx] = []
     while sqlite3_step(stmt) == SQLITE_ROW {
       let currency = str(stmt, 3)
-      let cat = opt(stmt, 7), parent = opt(stmt, 8), notes = opt(stmt, 9), payee = opt(stmt, 10)
+      let cat = opt(stmt, 7).map { KPPreset.name($0, preset: opt(stmt, 14)) }, parent = opt(stmt, 8).map { KPPreset.name($0, preset: opt(stmt, 15)) }
+      let notes = opt(stmt, 9), payee = opt(stmt, 10)
       let transfer = opt(stmt, 13) != nil
       let note = notes?.split(separator: "\n").first.map(String.init) ?? ""
-      let title = transfer ? "Transfer" : (!note.isEmpty ? note : (payee ?? cat ?? parent ?? "Uncategorized"))
+      let title = transfer ? L10n.Common.transfer : (!note.isEmpty ? note : (payee ?? cat ?? parent ?? L10n.Common.uncategorized))
       let catLabel: String? = transfer ? nil : (cat != nil ? (parent != nil ? "\(parent!) › \(cat!)" : cat) : parent)
-      let sub = [str(stmt, 4), catLabel].compactMap { $0 }.joined(separator: " · ")
+      let sub = [KPPreset.name(str(stmt, 4), preset: "account"), catLabel].compactMap { $0 }.joined(separator: " · ")
       out.append(.init(id: str(stmt, 0), date: str(stmt, 1), title: title, sub: sub, amount: KPFormat.major(Int(sqlite3_column_int64(stmt, 2)), currency), currency: currency,
                        account_id: str(stmt, 5), category_id: opt(stmt, 6), tag_ids: jsonIds(str(stmt, 11)), pending: sqlite3_column_int(stmt, 12) == 1, transfer: transfer))
     }
@@ -587,12 +636,13 @@ enum KPStore {
         accounts: accounts(db).map { .init(id: $0.id, name: $0.name, currency: $0.currency, balance: balances[$0.id] ?? 0) },
         categories: cats, tags: tags, together: together, history: history(db, limit: 50), snapshot: snap,
         location_enabled: meta(db, "location_enabled") == "1",
-        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0")
+        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0", language: KPL.chosen)
     }
     if let built { return built }
     // JS owns the database. It writes the state file before every `updateWatch`, so this is current.
     guard var s = fileState() else { return .empty }
     if s.snapshot == nil { s.snapshot = snap }
+    if s.language == nil { s.language = KPL.chosen }
     return s
   }
 
@@ -871,7 +921,7 @@ enum KPStore {
       addTransaction(db, id: id, accountId: accountId, amountMinor: amountMinor, categoryId: categoryId, tagIds: tagIds, note: note, payee: payee,
                      lat: lat, lon: lon, place: place, pending: pending, date: date, source: source,
                      enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: rate)
-    }) else { lastError = "No database on the iPhone yet"; return false }
+    }) else { lastError = L10n.Common.noDatabase; return false }
     return ok
   }
 

@@ -1,0 +1,154 @@
+{
+  "entry": {
+    "copied": { "message": "Copied", "note": "Replaces the sum line under the amount for a moment after the amount is tapped and copied." },
+    "amountA11y": { "message": "{amount} {currency}. Tap to copy.", "note": "VoiceOver label of the big amount on the entry sheet; amount is formatted, with its sign." },
+    "duplicateA11y": "Duplicate transaction",
+    "deleteA11y": "Delete transaction",
+    "noteA11y": { "message": "Note: {note}", "note": "VoiceOver label of the note line; note is what the user typed." },
+    "addNote": { "message": "Add a note", "note": "Placeholder line on the entry sheet when the entry has no note." },
+    "notePlaceholder": "Note",
+    "locationPinned": { "message": "Location: pinned", "note": "VoiceOver label: the entry has map coordinates but no place name." },
+    "addLocation": "Add location",
+    "placeSuggested": { "message": "{place} · category suggested", "note": "The place line when the category was filled in from what was logged here before. place is a shop name or coordinates." },
+    "splitA11y": "Split into {count, plural, one {# entry} other {# entries}}. Tap to edit.",
+    "splitThisEntry": { "message": "this entry", "note": "Split summary line: the part that stays on the entry being edited when it has no category." },
+    "splitNoCategory": { "message": "no category", "note": "Split summary line: a part without a category. Lowercase, it follows an amount." },
+    "returnedLine": { "message": "{back} came back · paid {paid}", "note": "An entry part of which was paid back; both are formatted amounts." },
+    "returnedA11y": "{back} {currency} came back; paid {paid}. Tap to forget the returns.",
+    "photoA11y": "Photo attached",
+    "photo": "Photo",
+    "photoUnsaved": { "message": "Photo · not saved yet", "note": "A photo was just taken and is kept only when the entry is saved." },
+    "accountA11y": { "message": "Account: {name}", "note": "VoiceOver label of the account pill." },
+    "accountNone": { "message": "none", "note": "Fills {name} in \"Account: {name}\" when there is no account." },
+    "chooseAccount": "Choose account",
+    "showBalance": "Show balance",
+    "hideBalance": "Hide balance",
+    "balance": { "message": "Balance", "note": "Small pill next to the account that unfolds the balance before and after this entry.", "max": 14 },
+    "balanceA11y": "Balance {balance} {currency}",
+    "balanceAfterA11y": "Balance {balance} {currency}, after {after} {currency}",
+    "kind": {
+      "expense": { "message": "Expense", "max": 12 },
+      "income": { "message": "Income", "max": 12 },
+      "transfer": { "message": "Transfer", "max": 12 }
+    },
+    "chip": {
+      "note": { "message": "Note", "max": 12 },
+      "place": { "message": "Place", "max": 12 },
+      "pending": { "message": "Pending", "note": "Toggle chip: keep this entry in the Pending queue.", "max": 12 },
+      "photo": { "message": "Photo", "max": 12 },
+      "split": { "message": "Split", "note": "Chip that splits the entry into parts with their own categories.", "max": 12 },
+      "return": { "message": "Return", "note": "Chip: the amount typed is money that came back on an earlier expense.", "max": 14 },
+      "receipt": { "message": "Receipt", "note": "Chip that opens the receipt scanner.", "max": 12 }
+    },
+    "tapToSave": "Tap to save",
+    "tapToAdd": "Tap to add",
+    "enterAmount": "Enter an amount",
+    "receiptCurrency": {
+      "title": { "message": "Receipt is in {currency}", "note": "currency is a code like USD." },
+      "body": "No exchange rate available offline; the number was kept as is."
+    },
+    "convert": {
+      "title": "Convert to {currency}?",
+      "body": { "message": "The amount is {amount} {from}. {account} is in {to}.", "note": "Asked after picking an account in another currency. account is the account's name; from/to are currency codes." },
+      "keep": "Keep the number",
+      "action": "Convert to {currency}"
+    },
+    "noRate": "No exchange rate available offline",
+    "splitNeedsTotal": {
+      "title": "Type the total first",
+      "body": "A split shares out the amount on the entry, so there has to be one."
+    },
+    "returnNeedsAmount": {
+      "title": "Type the amount that came back",
+      "body": "Enter how much you were paid back, then choose the entry it belongs to."
+    },
+    "returnPickTitle": { "message": "What is this money from?", "note": "Title of the picker that chooses which earlier entry a return belongs to." },
+    "returnPickDesc": "You paid, and {amount} {currency} came back. Choose the entry it belongs to and it shrinks by that much — no new transaction is added.",
+    "returnCannot": "That entry cannot take this return",
+    "returnThatEntry": { "message": "that entry", "note": "Stands in for an entry's name when it has neither a note nor a payee." },
+    "returnConfirmTitle": "Book {amount} {currency} back?",
+    "returnBook": "Book it",
+    "returnFailed": "Could not book the return",
+    "returnReason": {
+      "transfer": "A transfer moves money between your own accounts, so there is nothing to come back from.",
+      "tooMuch": "That is more than is left on the entry. Book the rest against another one, or edit it by hand.",
+      "wrongDirection": "Money can only come back the other way round from how it went out.",
+      "gone": "The entry is no longer there."
+    },
+    "forgetReturns": {
+      "title": "Forget the returns?",
+      "body": "{amount} {currency} goes back on the entry, as if nothing had come back.",
+      "action": "Forget them"
+    },
+    "unsaved": {
+      "title": "Add this transaction?",
+      "incomplete": "The amount is not complete yet.",
+      "discard": "Discard",
+      "keep": "Keep editing"
+    },
+    "duplicate": {
+      "title": "Duplicate this transaction?",
+      "body": { "message": "{summary} opens as a new entry. Nothing is added until you confirm it.", "note": "summary is the amount with its currency and, if any, the category: \"−4.50 EUR · Coffee\"." },
+      "action": "Duplicate"
+    },
+    "deleteTitle": "Delete transaction?",
+    "makeTransfer": {
+      "title": "Make this a transfer?",
+      "moved": "{amount} {currency} will be moved to the transfer.",
+      "empty": "Move money between two accounts.",
+      "action": "Make transfer"
+    }
+  },
+  "bulk": {
+    "title": { "message": "Review changes", "note": "Header of the preview shown before several transactions are changed at once." },
+    "deletedCategory": "a deleted category",
+    "noTags": "No tags",
+    "noNote": "No note",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "what": {
+      "category": "Category → {name}",
+      "addTags": { "message": "Add {tags}", "note": "tags is a list like \"#trip #work\"." },
+      "removeTags": "Remove {tags}",
+      "date": "Move to {day}",
+      "noteReplace": "Replace the note",
+      "noteAppend": "Add to the note",
+      "confirm": "Approve pending entries"
+    },
+    "count": "{count, plural, one {# transaction changes} other {# transactions change}}",
+    "skippedConfirmed": { "message": "{count} already confirmed", "note": "Follows the count of changes after \" · \"." },
+    "skippedSame": { "message": "{count} already like that", "note": "Follows the count of changes after \" · \": rows that already have this value." },
+    "transfers": { "message": "{count, plural, one {both sides of a transfer} other {both sides of # transfers}}", "note": "Follows the count of changes after \" · \"." },
+    "modeReplace": { "message": "Replace note", "max": 18 },
+    "modeAppend": { "message": "Add a line", "max": 18 },
+    "empty": "Nothing to change: every one of them already says that.",
+    "apply": "{count, plural, one {Change # transaction} other {Change # transactions}}",
+    "nothing": "Nothing to change"
+  },
+  "split": {
+    "title": "Split the entry",
+    "intro": "One shop, several things. Give each part its own category — what is left stays on the entry itself.",
+    "restCategoryA11y": "Category of the rest: {name}",
+    "chooseRestCategory": "Choose a category for the rest",
+    "chooseCategory": "Choose a category",
+    "restTagsA11y": "Tags of the rest: {names}",
+    "addRestTags": "Add tags to the rest",
+    "addTags": "Add tags",
+    "rest": { "message": "the rest", "note": "Small caption under the amount that stays on the entry itself.", "max": 12 },
+    "partA11y": { "message": "Part {n}: {amount} {currency}, {category}. Tap to edit.", "note": "n is the part's number (2, 3…); category is its name or \"no category\"." },
+    "noCategory": "no category",
+    "removePart": "Remove part {n}",
+    "addPart": "Add a part",
+    "ready": "{count, plural, one {# entry will be added} other {# entries will be added}}, all with the same date, note, place and photo.",
+    "entries": "{count, plural, one {# entry} other {# entries}}",
+    "notYet": "Not a split yet",
+    "save": "Tap to save the split",
+    "howMuch": { "message": "How much of it?", "note": "Title over the calculator that sets one part's amount." },
+    "hint": {
+      "addPart": "Add a part to split this entry",
+      "needAmount": "Every part needs an amount",
+      "tooMuch": "The parts come to more than the entry",
+      "needCategory": "Every part needs a category"
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import { getLocale, t } from "@/i18n";
+
 /** Local-time ISO with offset, Budget Flow style but with a colon: 2026-09-07T14:32:37+02:00 */
 export function localIso(d = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -17,7 +19,7 @@ export function monthBounds(day: string): { start: string; end: string; label: s
   const start = `${y}-${String(m).padStart(2, "0")}-01`;
   const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
   const end = `${ny}-${String(nm).padStart(2, "0")}-01`;
-  const label = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const label = t("dates.monthYear", { month: monthLong(m), year: y });
   return { start, end, label };
 }
 
@@ -29,11 +31,11 @@ export function shiftMonth(day: string, delta: number): string {
 
 export function dayLabel(iso: string, today = todayLocal()): string {
   const day = iso.slice(0, 10);
-  if (day === today) return "Today";
+  if (day === today) return t("common.today");
   const y = new Date(); y.setDate(y.getDate() - 1);
-  if (day === todayLocal(y)) return "Yesterday";
+  if (day === todayLocal(y)) return t("common.yesterday");
   const d = new Date(day + "T12:00:00");
-  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+  return d.toLocaleDateString(getLocale(), { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
 }
 
 export function timeLabel(iso: string): string {
@@ -54,23 +56,32 @@ export function withTime(iso: string, hhmm: string): string {
   return localIso(new Date(y, m - 1, d, hh, mm, 0));
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/**
+ * Month names come from the catalogue rather than Intl: Ukrainian needs the standalone form on its
+ * own ("Вересень 2026") and Intl's month-with-year adds a "р." nobody writes on a pill. Short names are
+ * the same in both cases ("22 вер.", "вер. 2026"). `m` is 1–12.
+ */
+const MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"] as const;
+export function monthShort(m: number): string { return t(`dates.short.${MONTH_KEYS[(m - 1 + 12) % 12]!}`); }
+export function monthLong(m: number): string { return t(`dates.long.${MONTH_KEYS[(m - 1 + 12) % 12]!}`); }
+/** "22 Sep" / "22 вер." */
+export function dayMonth(day: number, m: number): string { return t("dates.dayMonth", { day, month: monthShort(m) }); }
 
 /** "22 Sep at 11:17"; "13 Jul 2027 at 16:02" in other years or when `withYear` is set (yearly rules). */
 export function humanDayTime(day: string, time?: string | null, today = todayLocal(), withYear = false): string {
   const [y, m, d] = day.split("-").map(Number) as [number, number, number];
   const sameYear = y === Number(today.slice(0, 4));
-  const base = `${d} ${MONTHS[m - 1]}${sameYear && !withYear ? "" : ` ${y}`}`;
-  return time ? `${base} at ${time}` : base;
+  const base = sameYear && !withYear ? dayMonth(d, m) : t("dates.dayMonthYear", { day: d, month: monthShort(m), year: y });
+  return time ? t("common.atTime", { day: base, time }) : base;
 }
 
 /** "15 Aug – 14 Sep" for a period [start, end). */
 export function periodLabel(start: string, end: string): string {
   const last = new Date(Date.UTC(Number(end.slice(0, 4)), Number(end.slice(5, 7)) - 1, Number(end.slice(8, 10)) - 1));
-  const f = (s: string) => `${Number(s.slice(8, 10))} ${MONTHS[Number(s.slice(5, 7)) - 1]}`;
+  const f = (s: string) => dayMonth(Number(s.slice(8, 10)), Number(s.slice(5, 7)));
   return `${f(start)} – ${f(last.toISOString().slice(0, 10))}`;
 }
 
 export function monthPill(day: string): string {
-  return `${MONTHS[Number(day.slice(5, 7)) - 1]} ${day.slice(0, 4)}`;
+  return t("dates.monthYear", { month: monthShort(Number(day.slice(5, 7))), year: day.slice(0, 4) });
 }

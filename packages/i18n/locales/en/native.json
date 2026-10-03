@@ -1,0 +1,239 @@
+{
+  "$comment": "Everything Swift shows: the watch app, its complication, the widgets (currently disabled), App Intents in Siri and Shortcuts, the notification the payment automation posts, the receipt reader. Compiled into apps/mobile/native/Localizable.xcstrings and typed accessors (L10n.*) in KPStrings.swift. Runtime text follows the language chosen in the app; App Intent and widget-gallery metadata (keys used as literals in Swift, marked in their notes) follow the phone's language. No select, no tags, at most one plural, and a plural message takes only its count.",
+  "common": {
+    "today": { "message": "Today", "note": "Day heading on the watch's History page.", "max": 16 },
+    "yesterday": { "message": "Yesterday", "note": "Day heading on the watch's History page.", "max": 16 },
+    "transfer": { "message": "Transfer", "note": "Title of a transfer between accounts on the watch's History page.", "max": 20 },
+    "uncategorized": { "message": "Uncategorized", "note": "A transaction with no category, on the watch's History page.", "max": 20 },
+    "noDatabase": { "message": "No database on the iPhone yet", "note": "Why a Siri / Shortcut / watch entry could not be saved: the app has never been opened." }
+  },
+  "budget": {
+    "left": { "message": "{amount} left", "note": "Under a budget on the watch and in the widgets; amount is formatted money, e.g. \"420 PLN\".", "max": 24 },
+    "namedLeft": { "message": "{name}: {amount} left", "note": "Lock Screen inline widget, one short line; name is the budget, amount compact (\"1.2k\")." },
+    "fallback": { "message": "Budget", "note": "Lock Screen widget when there is no budget to name.", "max": 16 },
+    "perDay": { "message": "{amount}/day", "note": "Travel mode: what may be spent per day; amount is formatted money.", "max": 20 },
+    "day": { "message": "Day {day}", "note": "Travel mode, a trip with no end date: today is its day-th day.", "max": 16 },
+    "dayOf": { "message": "Day {day} of {days}", "note": "Travel mode: today is day `day` of a `days`-day trip.", "max": 20 }
+  },
+  "sample": {
+    "$comment": "Made-up data behind the widget gallery's preview (blurred out).",
+    "account": "Account",
+    "food": "Food",
+    "fun": "Fun"
+  },
+  "intents": {
+    "category": {
+      "logging": { "message": "Logging", "note": "Shortcuts app: the group the Kopiyka actions are listed under. Key used as a literal (phone's language)." }
+    },
+    "kind": {
+      "type": { "message": "Type", "note": "Shortcuts: the name of the expense/income choice. Key used as a literal (phone's language)." },
+      "expense": { "message": "Expense", "note": "Shortcuts: one of the two types. Key used as a literal (phone's language)." },
+      "income": { "message": "Income", "note": "Shortcuts: one of the two types. Key used as a literal (phone's language)." }
+    },
+    "entity": {
+      "account": { "message": "Account", "note": "Shortcuts: what an account parameter holds. Key used as a literal (phone's language)." },
+      "category": { "message": "Category", "note": "Shortcuts: what a category parameter holds. Key used as a literal (phone's language)." },
+      "tag": { "message": "Tag", "note": "Shortcuts: what a tag parameter holds. Key used as a literal (phone's language)." }
+    },
+    "param": {
+      "$comment": "Parameter names in the Shortcuts editor. Keys used as literals (phone's language).",
+      "amount": "Amount",
+      "type": "Type",
+      "category": "Category",
+      "tags": "Tags",
+      "account": "Account",
+      "note": "Note",
+      "ask": "Ask for category and tags",
+      "photo": "Receipt photo",
+      "notification": "Notification",
+      "title": "Title",
+      "subtitle": "Subtitle",
+      "body": "Message",
+      "merchant": "Merchant",
+      "card": "Card",
+      "location": "Location",
+      "locationHelp": "Optional. Add “Get Current Location” before this action and put its result here, so the entry remembers where you paid.",
+      "pending": "Pending"
+    },
+    "add": {
+      "title": { "message": "Add expense (no app open)", "note": "Shortcuts action name. Key used as a literal (phone's language)." },
+      "description": { "message": "Log an expense or income: amount, then category, then tags — without opening the app.", "note": "Shortcuts action description. Key used as a literal (phone's language)." },
+      "howMuch": { "message": "How much?", "note": "Siri asks for the amount. Used both as a literal and at runtime." }
+    },
+    "scan": {
+      "title": { "message": "Scan receipt", "note": "Shortcuts action name. Key used as a literal (phone's language)." },
+      "description": { "message": "Photograph a receipt: the amount, shop, items and category are read on the device and saved as a pending expense.", "note": "Shortcuts action description. Key used as a literal (phone's language)." }
+    },
+    "open": {
+      "title": { "message": "Add expense in the app", "note": "Shortcuts action name. Key used as a literal (phone's language)." },
+      "description": { "message": "Opens Kopiyka on the new-expense sheet.", "note": "Shortcuts action description. Key used as a literal (phone's language)." }
+    },
+    "payment": {
+      "title": { "message": "Log payment from an app notification", "note": "Shortcuts action name. Key used as a literal (phone's language)." },
+      "description": { "message": "Log a payment from a bank or Wallet notification. Made for the Shortcuts “When I receive a notification” automation: pass its Notification variable.", "note": "Shortcuts action description. Key used as a literal (phone's language). “When I receive a notification” and Notification are what the Shortcuts app calls them in this language." },
+      "unreadable": { "message": "Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.", "note": "Shortcuts error: the notification names money but no amount could be read. The screen names must match the app's Settings." },
+      "noAccounts": "No accounts in Kopiyka yet. Open it on your iPhone first.",
+      "saveFailed": "Kopiyka could not save that payment. Open the app and add it by hand.",
+      "saveFailedWhy": { "message": "Kopiyka could not save that payment: {reason}. Open the app and add it by hand.", "note": "reason is one of the native.writes / native.common.noDatabase messages, or a database error." },
+      "noRate": { "message": "{amount} — no exchange rate, set the amount", "note": "Written into the entry's note when a foreign charge could not be converted; amount is the original, e.g. \"36.00 EUR\"." }
+    },
+    "shortcut": {
+      "$comment": "Short names of the App Shortcuts (Shortcuts app, Spotlight). Keys used as literals (phone's language).",
+      "addExpense": { "message": "Add expense", "max": 24 },
+      "expenseInApp": { "message": "Expense in app", "max": 24 },
+      "scanReceipt": { "message": "Scan receipt", "max": 24 },
+      "logPayment": { "message": "Log payment", "max": 24 }
+    },
+    "noAccounts": "No accounts yet. Open Kopiyka on your iPhone first.",
+    "noCategory": { "message": "No category", "note": "The choice that saves without a category (Siri, Shortcuts)." },
+    "noMoreTags": { "message": "No more tags", "note": "Siri asks for tags one by one; this choice ends the list." },
+    "folder": { "message": "Folder", "note": "Shortcuts: under a category that is itself a folder." },
+    "whichCategory": "Which category?",
+    "anyTags": "Any tags?",
+    "anotherTag": "Another tag?",
+    "saveFailed": "Could not save. Open Kopiyka and try again.",
+    "saveFailedWhy": { "message": "Could not save: {reason}. Open Kopiyka and try again.", "note": "reason is one of the native.writes messages, or a database error." },
+    "added": { "message": "Added {amount}.", "note": "Siri's answer after logging; amount is formatted money." },
+    "addedCategory": { "message": "Added {amount} for {category}.", "note": "Siri's answer after logging." },
+    "addedAccount": { "message": "Added {amount} to {account}.", "note": "Siri's answer after logging, when there is more than one account." },
+    "addedCategoryAccount": { "message": "Added {amount} for {category} to {account}.", "note": "Siri's answer after logging, when there is more than one account." },
+    "addedTags": { "message": "Tags: {tags}.", "note": "Follows the \"Added …\" sentence; tags is \"#trip #work\"." },
+    "notAPhoto": "That file is not a photo.",
+    "noTotal": "Could not find the total on this receipt.",
+    "scanSaved": { "message": "Saved {amount} at {merchant}.", "note": "After scanning a receipt; merchant is the shop's name." },
+    "scanSavedCategory": { "message": "Saved {amount} at {merchant} as {category}.", "note": "After scanning a receipt." },
+    "scanOriginal": { "message": "The receipt says {amount}.", "note": "After scanning a receipt in another currency; amount is the receipt's own, e.g. \"12.50 EUR\"." },
+    "scanPending": "It is pending — confirm it in Kopiyka."
+  },
+  "notify": {
+    "received": { "message": "Payment received", "note": "Notification title after the automation logged income, when no payer name was read.", "max": 40 },
+    "logged": { "message": "Payment logged", "note": "Notification title after the automation logged a payment, when no shop name was read.", "max": 40 },
+    "guess": { "message": "guess", "note": "In the notification body, after the category: the category was guessed. Lowercase, one word if possible.", "max": 16 },
+    "pending": { "message": "pending", "note": "In the notification body: the entry waits in the Pending queue. Lowercase.", "max": 16 }
+  },
+  "receipt": {
+    "noImage": "The photo could not be read.",
+    "noText": "No text found. Hold the phone flat over the receipt with good light.",
+    "untitled": { "message": "Receipt", "note": "The shop's name when none could be read off the receipt; saved as the payee." },
+    "items": { "message": "{count, plural, one {# item} other {# items}}", "note": "In the note a scanned receipt writes: \"Żabka · 2 items: …\"." },
+    "total": { "message": "total {amount}", "note": "In the note a scanned receipt writes; lowercase, it follows a ·." },
+    "paid": { "message": "paid {amount}", "note": "In the note a scanned receipt writes, when more was handed over than the total." },
+    "noRate": { "message": "{note} (in {currency}, no exchange rate)", "note": "The receipt note when its currency could not be converted; currency is a code like EUR." }
+  },
+  "writes": {
+    "$comment": "Why the iPhone app could not take a write from Siri, a Shortcut or the watch. Shown after \"Could not save: …\".",
+    "reloaded": "the app reloaded",
+    "noAnswer": "the app did not answer",
+    "notRunning": "the app is not running",
+    "notFound": "not found",
+    "nothingToFill": "nothing to fill in"
+  },
+  "backup": {
+    "downloading": { "message": "{name} is still downloading from iCloud. Try again in a moment.", "note": "name is the backup file's name." },
+    "badName": "Invalid backup name"
+  },
+  "watch": {
+    "$comment": "The watch app. Screens are tiny: keep every line short.",
+    "syncOnce": { "message": "Open Kopiyka on your iPhone once to sync.", "max": 48 },
+    "addExpense": { "message": "Add expense", "note": "VoiceOver: the keypad page.", "max": 24 },
+    "amount": { "message": "Amount {amount}", "note": "VoiceOver: the typed amount with its currency." },
+    "hintNext": { "message": "Next: choose a category", "note": "VoiceOver hint on the amount." },
+    "hintType": { "message": "Type an amount on the keypad below", "note": "VoiceOver hint on the empty amount." },
+    "deleteDigit": { "message": "Delete last digit", "note": "VoiceOver: the ⌫ key." },
+    "decimalPoint": { "message": "Decimal point", "note": "VoiceOver: the . key." },
+    "category": {
+      "title": { "message": "Category", "max": 14 },
+      "empty": { "message": "Categories sync from your iPhone.", "max": 48 },
+      "none": { "message": "No category", "max": 20 },
+      "noneHint": { "message": "Save without a category", "note": "VoiceOver hint." },
+      "folder": { "message": "Folder", "note": "Under a category that is itself a folder.", "max": 16 },
+      "inFolder": { "message": "{name}, in {folder}", "note": "VoiceOver: a category and its folder." },
+      "isFolder": { "message": "{name} folder", "note": "VoiceOver: a top-level category." },
+      "near": { "message": "Near here: {label}", "note": "VoiceOver: the category suggested for this spot; label is one of the two above." },
+      "hint": { "message": "Choose this category", "note": "VoiceOver hint." }
+    },
+    "tags": {
+      "title": { "message": "Tags", "max": 14 },
+      "none": { "message": "No tags", "note": "First row: save with no tags.", "max": 20 },
+      "tripOnly": { "message": "Just the travel tag", "note": "First row in travel mode: save with only the trip's tag.", "max": 24 },
+      "usedWith": { "message": "Used with {category}", "note": "Section of tags often used with the chosen category.", "max": 32 },
+      "other": { "message": "Other tags", "max": 20 },
+      "save": { "message": "Save {amount}", "note": "VoiceOver hint; amount is formatted money." },
+      "saveFor": { "message": "Save {amount} for {category}", "note": "VoiceOver hint." },
+      "saveCount": { "message": "{count, plural, one {Save · # tag} other {Save · # tags}}", "note": "Small button over the list once tags are ticked.", "max": 20 },
+      "count": { "message": "{count, plural, one {# tag} other {# tags}}", "note": "VoiceOver, after the save hint." },
+      "selected": { "message": "selected", "note": "VoiceOver value of a ticked tag." },
+      "notSelected": { "message": "not selected", "note": "VoiceOver value of an unticked tag." },
+      "hintAdd": "Double tap to add this tag",
+      "hintRemove": "Double tap to remove this tag"
+    },
+    "history": {
+      "empty": { "message": "Nothing today or yesterday.", "max": 40 },
+      "waiting": { "message": "Waiting for iPhone", "note": "Under an entry the phone has not received yet.", "max": 24 },
+      "a11yWaiting": { "message": "waiting for iPhone", "note": "VoiceOver, inside a row's description." },
+      "a11yTags": { "message": "tags {list}", "note": "VoiceOver, inside a row's description; list is comma-separated." },
+      "a11yAt": { "message": "at {time}", "note": "VoiceOver, inside a row's description; time like 14:05." }
+    },
+    "write": {
+      "added": { "message": "Added {amount}", "note": "Status page after an entry was saved; also read by VoiceOver.", "max": 40 },
+      "addedFor": { "message": "Added {amount} for {category}", "note": "Status page after an entry was saved." },
+      "queued": { "message": "Queued for iPhone: {amount}", "note": "Status page: saved on the watch, sent when the phone is near." },
+      "queuedFor": { "message": "Queued for iPhone: {amount} for {category}", "note": "Status page." },
+      "deleted": { "message": "Deleted", "max": 24 },
+      "deleteQueued": { "message": "Delete queued for iPhone", "max": 32 },
+      "notPaired": { "message": "Not paired with an iPhone", "max": 32 },
+      "failed": { "message": "iPhone could not save", "max": 32 },
+      "failedWhy": { "message": "iPhone could not save: {reason}", "note": "reason is one of the native.writes messages, in the phone's app language." }
+    },
+    "budgets": {
+      "travel": { "message": "Travel mode", "note": "Section heading.", "max": 20 },
+      "travelA11y": { "message": "Travel {name}, {amount} left, {day}", "note": "VoiceOver; name is the trip, day is \"Day 3 of 7\"." },
+      "budgetA11y": { "message": "{name}, {amount} left", "note": "VoiceOver." },
+      "empty": { "message": "No budgets yet. Add one on your iPhone.", "max": 48 }
+    },
+    "status": {
+      "title": { "message": "Status", "max": 16 },
+      "refresh": { "message": "Refresh", "max": 14 },
+      "refreshing": { "message": "Refreshing…", "max": 14 },
+      "refreshHint": { "message": "Asks the iPhone for the latest accounts, categories and history", "note": "VoiceOver hint." },
+      "never": { "message": "never", "note": "\"Data from iPhone\" when nothing ever arrived.", "max": 16 },
+      "connected": { "message": "iPhone connected", "max": 24 },
+      "connectedDetail": { "message": "Entries are saved on the iPhone at once", "max": 48 },
+      "unreachable": { "message": "iPhone not reachable", "max": 24 },
+      "unreachableDetail": { "message": "Entries wait on the watch until it is back", "max": 48 },
+      "data": { "message": "Data from iPhone", "max": 24 },
+      "nothingWaiting": { "message": "Nothing waiting", "max": 24 },
+      "nothingWaitingDetail": { "message": "All watch entries delivered", "max": 48 },
+      "waiting": { "message": "{count, plural, one {# waiting for iPhone} other {# waiting for iPhone}}", "max": 28 },
+      "waitingDetail": { "message": "Delivered automatically when the iPhone is near", "max": 48 },
+      "lastEntry": { "message": "Last entry", "max": 24 }
+    },
+    "intent": {
+      "title": { "message": "Log expense", "note": "Watch action (Action button, Siri). Key used as a literal (phone's language).", "max": 24 },
+      "description": { "message": "Open Kopiyka on the watch ready to type an amount.", "note": "Key used as a literal (phone's language)." }
+    }
+  },
+  "complication": {
+    "name": { "message": "Add expense", "note": "Watch face gallery: the complication's name. Key used as a literal (phone's language).", "max": 24 },
+    "description": { "message": "Opens Kopiyka ready to type an amount.", "note": "Watch face gallery. Key used as a literal (phone's language)." },
+    "label": { "message": "Expense", "note": "Beside the К on the inline and rectangular complications. Very short.", "max": 10 },
+    "a11y": { "message": "Add expense", "note": "VoiceOver: the complication." }
+  },
+  "widget": {
+    "$comment": "Home and Lock Screen widgets (the widget target is currently disabled).",
+    "netWorth": {
+      "name": { "message": "Net worth", "note": "Widget gallery. Key used as a literal (phone's language).", "max": 24 },
+      "description": { "message": "Balances across your accounts.", "note": "Widget gallery. Key used as a literal (phone's language)." },
+      "title": { "message": "Net worth", "max": 20 }
+    },
+    "budgets": {
+      "name": { "message": "Budgets", "note": "Widget gallery. Key used as a literal (phone's language).", "max": 24 },
+      "description": { "message": "What is left in each budget this month.", "note": "Widget gallery. Key used as a literal (phone's language)." },
+      "empty": { "message": "No budgets yet", "max": 32 }
+    },
+    "lock": {
+      "name": { "message": "Budget left", "note": "Widget gallery. Key used as a literal (phone's language).", "max": 24 },
+      "description": { "message": "Remaining amount in your first budget.", "note": "Widget gallery. Key used as a literal (phone's language)." }
+    }
+  }
+}

@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { getBaseCurrency } from "./rates";
 import { getCurrentAccount } from "./settings";
+import { t } from "@/i18n";
 
 /** Currency a new trip budget is entered in: the current account's, else the base currency. */
 export function tripCurrency(): string {
@@ -27,5 +28,10 @@ export function addPastTravel(p: PastTrip) { return mutate((d) => addPastTrip(d,
 
 export function tripLine(s: TripStats): string {
   const fmt = (m: number) => (m / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${s.name} · ${fmt(s.spent_minor)} of ${fmt(s.limit_minor)} ${s.currency} · day ${s.day}${s.days_left ? ` of ${s.days}` : ""}`;
+  const spent = t("travel.line.spent", { spent: fmt(s.spent_minor), limit: fmt(s.limit_minor), currency: s.currency });
+  const day = s.days_left ? t("travel.line.dayOf", { day: s.day, days: s.days }) : t("travel.line.day", { day: s.day });
+  return `${tripName(s)} · ${spent} · ${day}`;
 }
+
+/** A trip's name: its tag's, or a word in the app's language when the tag has gone. */
+export function tripName(s: Pick<TripStats, "name">): string { return s.name ?? t("travel.untitled"); }

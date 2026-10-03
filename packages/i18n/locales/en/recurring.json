@@ -1,0 +1,120 @@
+{
+  "$comment": "Recurring rules: the editor (app/recurring/[id].tsx), the confirm sheet (confirm.tsx), the due queue (due.tsx) and cadence labels (src/lib/repeat.ts).",
+  "repeat": {
+    "every": {
+      "title": { "message": "Repeat every", "note": "Title of the unit step of a custom cadence." },
+      "daily": { "message": "{count, plural, =1 {Every day} one {Every # day} other {Every # days}}", "note": "Cadence label." },
+      "weekly": { "message": "{count, plural, =1 {Every week} one {Every # week} other {Every # weeks}}", "note": "Cadence label." },
+      "monthly": { "message": "{count, plural, =1 {Every month} one {Every # month} other {Every # months}}", "note": "Cadence label." },
+      "yearly": { "message": "{count, plural, =1 {Every year} one {Every # year} other {Every # years}}", "note": "Cadence label." }
+    },
+    "custom": "Custom…",
+    "customSubtitle": "Any number of days, weeks, months or years",
+    "unit": { "daily": "Days", "weekly": "Weeks", "monthly": "Months", "yearly": "Years" },
+    "howMany": { "daily": "How many days?", "weekly": "How many weeks?", "monthly": "How many months?", "yearly": "How many years?" }
+  },
+  "days": "{count, plural, one {# day} other {# days}}",
+  "title": { "new": "New recurring", "edit": "Recurring" },
+  "pause": "Pause",
+  "resume": "Resume",
+  "amount": "Amount",
+  "amountA11y": { "message": "Amount: {amount}", "note": "VoiceOver; amount with its currency code." },
+  "amountHint": { "message": "Opens the keypad", "note": "VoiceOver hint." },
+  "summary": { "message": "{repeat} · next {next}", "note": "Under the amount: \"every month · next 22 Sep at 11:17\". repeat is a lowercased cadence label." },
+  "tapAmount": "Tap to enter the amount",
+  "expense": "Expense",
+  "income": "Income",
+  "fromTx": {
+    "title": "Start from a transaction",
+    "subtitle": "Search your history; amount, category, tags and period are filled in",
+    "pickTitle": "Which transaction repeats?",
+    "seen": { "message": "Seen {count}× · {repeat}", "note": "How often a series was found in history; repeat is a lowercased cadence label (\"every month\")." },
+    "guessed": "Monthly guessed from one transaction"
+  },
+  "titleRow": { "message": "Title", "note": "Row and field: the rule's name (payee)." },
+  "titleRequired": "Required — e.g. Netflix, Rent",
+  "note": "Note",
+  "noteHint": "Added to every transaction this rule posts",
+  "category": "Category",
+  "account": "Account",
+  "choose": "Choose",
+  "tags": "Tags",
+  "repeats": "Repeats",
+  "next": { "message": "Next", "note": "Row: the date of the next occurrence." },
+  "time": "Time",
+  "reminder": {
+    "title": "Reminder",
+    "off": "Off",
+    "daysBefore": "{count, plural, one {# day before} other {# days before}}"
+  },
+  "posting": {
+    "title": "Posting",
+    "auto": "Automatic",
+    "autoSubtitle": "Leaves your account by itself; added on the day",
+    "manual": "Manual",
+    "manualSubtitle": "Day or amount varies; Kopiyka asks first",
+    "autoLate": "Automatically, once the charge is late",
+    "autoDay": "Automatically on the day",
+    "askLate": "Asks once the charge is late",
+    "askFirst": "Ask me first"
+  },
+  "match": {
+    "row": "Recognise by",
+    "amountHint": "The exact amount — pick a payment to match its name too",
+    "pickTitle": "Which payment is this?",
+    "title": "Recognise this charge",
+    "body": { "message": "Matched by “{name}”, whatever it costs.", "note": "name is the shop as the bank prints it." },
+    "amountOnly": "Match the amount only",
+    "another": "Pick another payment"
+  },
+  "wait": {
+    "title": "Wait for the charge",
+    "default": { "message": "Default · {days}", "note": "days is \"3 days\"." },
+    "defaultSubtitle": "Follows Settings → Recurring"
+  },
+  "delete": {
+    "row": "Delete rule",
+    "title": "Delete recurring rule?",
+    "body": "Already posted transactions stay."
+  },
+  "confirm": {
+    "amount": "Enter an amount",
+    "title": "Add a title",
+    "save": "Tap to save",
+    "add": "Tap to add rule"
+  },
+  "postAll": "{count, plural, one {Post #} other {Post all #}}",
+  "skip": "Skip",
+  "confirmSheet": {
+    "fallbackTitle": "Recurring transaction",
+    "manyDue": { "message": "{count, plural, one {# occurrence due ({from} → {to})} other {# occurrences due ({from} → {to})}}", "note": "from/to are dates." },
+    "due": { "message": "due {date}", "note": "After the account name and \" · \". Lowercase." },
+    "post": "Post transaction",
+    "postLatest": "Post only the latest",
+    "skipHint": "Skipping moves the next date forward without adding a transaction."
+  },
+  "due": {
+    "title": "Recurring due",
+    "intro": "{count, plural, one {One payment is waiting on you. Post it once it has actually left your account, or skip it for this time.} other {# payments are waiting on you. Post each once it has actually left your account, or skip it for this time.}}",
+    "introSum": { "message": "{count, plural, one {One payment is waiting on you — <sum>total</sum>. Post it once it has actually left your account, or skip it for this time.} other {# payments are waiting on you — <sum>total</sum>. Post each once it has actually left your account, or skip it for this time.}}", "note": "<sum> is replaced by the total amount; its text is ignored." },
+    "emptyTitle": "Nothing due",
+    "emptyHint": "Manual recurring payments show up here on the day they are due.",
+    "waitingHeader": "Expected · waiting for the charge",
+    "waitingIntro": "{count, plural, one {Nothing has been added for this one yet.} other {Nothing has been added for these yet.}} The payment your bank notifies settles it by itself; if none arrives in time, it comes back here to be posted.",
+    "waitingIntroSum": { "message": "{count, plural, one {Nothing has been added for this one yet — <sum>total</sum>.} other {Nothing has been added for these yet — <sum>total</sum>.}} The payment your bank notifies settles it by itself; if none arrives in time, it comes back here to be posted.", "note": "<sum> is replaced by the total amount; its text is ignored." },
+    "postAllA11y": "{count, plural, one {Post # due payment} other {Post all # due payments}}",
+    "skipTitle": "{count, plural, one {Skip this one?} other {Skip # occurrences?}}",
+    "skipBody": { "message": "No transaction is added for {name}; the rule moves on to its next date.", "note": "name is the rule's title." },
+    "skipBodyNoName": "No transaction is added for this payment; the rule moves on to its next date.",
+    "fallbackTitle": { "message": "Recurring", "note": "Row title for a rule with no title and no category." },
+    "deadlinePosts": "{count, plural, one {Posts if nothing arrives within a day} other {Posts if nothing arrives within # days}}",
+    "deadlineBack": "{count, plural, one {Comes back here if nothing arrives within a day} other {Comes back here if nothing arrives within # days}}",
+    "expectedA11y": { "message": "{name}, expected {date}", "note": "VoiceOver." },
+    "openHint": { "message": "Opens the full options", "note": "VoiceOver hint." },
+    "expected": { "message": "Expected {date}", "note": "date is \"22 Sep at 11:17\"." },
+    "expectedMany": { "message": "{count, plural, one {Expected {date} · # occurrence} other {Expected {date} · # occurrences}}", "note": "date is \"22 Sep at 11:17\"." },
+    "dueSince": "{count, plural, one {# due since {date}} other {# due since {date}}}",
+    "dueOn": { "message": "Due {date}", "note": "date is \"22 Sep at 11:17\"." },
+    "post": "Post"
+  }
+}

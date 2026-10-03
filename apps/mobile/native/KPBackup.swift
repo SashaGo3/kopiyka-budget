@@ -31,8 +31,8 @@ enum KPBackupStore {
     case badName
     var errorDescription: String? {
       switch self {
-      case .notDownloaded(let n): return "\(n) is still downloading from iCloud. Try again in a moment."
-      case .badName: return "Invalid backup name"
+      case .notDownloaded(let n): return L10n.Backup.downloading(name: n)
+      case .badName: return L10n.Backup.badName
       }
     }
   }

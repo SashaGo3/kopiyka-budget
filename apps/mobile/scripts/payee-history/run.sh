@@ -25,7 +25,7 @@ echo "▸ Seeding the fixture and asking core…"
 bun seed.ts "$DB" "$WORK"
 
 echo "▸ Building the Swift harness…"
-swiftc -O main.swift ../../native/KPShared.swift -o "$WORK/payee-history"
+swiftc -O main.swift ../../native/KPShared.swift ../../native/KPLocale.swift ../../native/KPStrings.swift -o "$WORK/payee-history"
 
 echo "▸ Asking KPStore the same questions…"
 "$WORK/payee-history" "$WORK/questions.json" "$WORK/actual.json"

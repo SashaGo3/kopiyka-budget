@@ -4,14 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kopiyka Budget — a fast, local-first budget tracker for iPhone, iPad and Apple Watch</title>
-    <meta
-      name="description"
-      content="Log an expense in two taps on iPhone, iPad or Apple Watch, keep every number on your own device, and get budgets that start on payday instead of the 1st. Free, open source, no account, no server, no trackers."
-    />
+    <meta name="description" content="Log an expense in two taps on iPhone, iPad or Apple Watch, keep every number on your own device, and get budgets that start on payday instead of the 1st. Free, open source, no account, no server, no trackers." />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
     <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/" />
+    <link rel="alternate" hreflang="en" href="https://sashago3.github.io/kopiyka-budget/" />
+    <link rel="alternate" hreflang="uk" href="https://sashago3.github.io/kopiyka-budget/uk/" />
+    <link rel="alternate" hreflang="x-default" href="https://sashago3.github.io/kopiyka-budget/" />
     <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
     <link rel="apple-touch-icon" href="img/icon-180.png" />
     <link rel="stylesheet" href="styles.css" />
@@ -19,21 +19,17 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Kopiyka Budget" />
     <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:locale:alternate" content="uk_UA" />
     <meta property="og:title" content="Kopiyka Budget" />
-    <meta
-      property="og:description"
-      content="Money in. Money out. Two taps. A fast, local-first budget tracker for iPhone, iPad and Apple Watch."
-    />
+    <meta property="og:description" content="Money in. Money out. Two taps. A fast, local-first budget tracker for iPhone, iPad and Apple Watch." />
     <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Kopiyka Budget on an iPhone, showing the calculator keypad." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Kopiyka Budget" />
-    <meta
-      name="twitter:description"
-      content="Money in. Money out. Two taps. A fast, local-first budget tracker for iPhone, iPad and Apple Watch."
-    />
+    <meta name="twitter:description" content="Money in. Money out. Two taps. A fast, local-first budget tracker for iPhone, iPad and Apple Watch." />
     <meta name="twitter:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
   </head>
 
@@ -54,10 +50,14 @@
           <a href="#open-source">Open source</a>
         </nav>
         <div class="brand-actions">
+          <nav class="lang-switch" aria-label="Language">
+            <a href="index.html" hreflang="en" lang="en" title="English" aria-current="page">EN</a>
+            <a href="uk/index.html" hreflang="uk" lang="uk" title="Українська">УКР</a>
+          </nav>
           <!-- Apple's "Download on the App Store" badge artwork is deliberately not embedded: it must be
                downloaded from Apple and used under Apple's marketing guidelines. A text button is fine. -->
           <a class="btn" href="https://apps.apple.com/us/app/kopiyka-budget/id6809896169" rel="noopener"
-            ><span class="long">Download on the </span>App&nbsp;Store</a
+            ><span class="long">Download on the App Store</span><span class="short">App Store</span></a
           >
         </div>
       </div>
@@ -79,12 +79,7 @@
               <p class="quiet">Free. No account. No trackers.</p>
             </div>
             <div class="hero-shot">
-              <img
-                src="img/shots/log.png"
-                width="560"
-                height="1143"
-                alt="Kopiyka on an iPhone: a calculator keypad with the amount, and the category on the key beside it."
-              />
+              <img src="img/shots/log.png" width="560" height="1143" alt="Kopiyka on an iPhone: a calculator keypad with the amount, and the category on the key beside it." />
             </div>
           </div>
         </div>
@@ -97,11 +92,11 @@
             <span class="eyebrow" aria-hidden="true"></span>
             <h2 id="why-title">Why this exists</h2>
             <p>Not knowing where I stood with money used to drive me mad, so more than ten years ago I started logging every expense. The first app I used was free when I began and later became a one-time purchase, which was fair enough. The habit stuck, but the app never gave me any real insight into where my money was actually going.</p>
-<p>For the last two years I used a budgeting app that cost quite a lot as a one-time purchase. The developer had gone quiet on known bugs, and the “native” iOS app had become painfully slow: I would wait a couple of seconds before I could type a single digit. The last straw was the Apple Watch app, which simply stopped working. The explanation was “Apple”, while everything else on the watch worked fine. It was not Apple.</p>
-<p>I have worked as a React Native developer for many years, shipping apps that real people use every day, and I had wanted for a long time to give something back to open source and fix this one problem: a free, local app for tracking money that is actually good and pleasant to use. I finally had the reason.</p>
-<p>I am happy with how it turned out. The Shortcuts automation alone removes almost all of the friction I used to have, and tags paired with categories feel so obvious that I still wonder why nobody did it. I built this with care and I intend to keep looking after it.</p>
-<p>Your data is yours, so if I ever get hit by a bus you can take it anywhere in a minute. I am not planning on that: I have a daughter, Olivia, on the way, and a lot to live for.</p>
-<p>Thank you for trying Kopiyka.</p>
+            <p>For the last two years I used a budgeting app that cost quite a lot as a one-time purchase. The developer had gone quiet on known bugs, and the “native” iOS app had become painfully slow: I would wait a couple of seconds before I could type a single digit. The last straw was the Apple Watch app, which simply stopped working. The explanation was “Apple”, while everything else on the watch worked fine. It was not Apple.</p>
+            <p>I have worked as a React Native developer for many years, shipping apps that real people use every day, and I had wanted for a long time to give something back to open source and fix this one problem: a free, local app for tracking money that is actually good and pleasant to use. I finally had the reason.</p>
+            <p>I am happy with how it turned out. The Shortcuts automation alone removes almost all of the friction I used to have, and tags paired with categories feel so obvious that I still wonder why nobody did it. I built this with care and I intend to keep looking after it.</p>
+            <p>Your data is yours, so if I ever get hit by a bus you can take it anywhere in a minute. I am not planning on that: I have a daughter, Olivia, on the way, and a lot to live for.</p>
+            <p>Thank you for trying Kopiyka.</p>
           </div>
         </div>
       </section>
@@ -278,11 +273,7 @@
         <div class="wrap">
           <span class="eyebrow" aria-hidden="true"></span>
           <h2 id="watch-title">On the wrist</h2>
-          <p class="section-intro">
-            The whole flow happens on the watch — amount, category, tags — with today's entries and
-            your budgets a swipe away. There is a complication for the watch face, and on an Ultra
-            you can put it on the Action button.
-          </p>
+          <p class="section-intro">The whole flow happens on the watch — amount, category, tags — with today's entries and your budgets a swipe away. There is a complication for the watch face, and on an Ultra you can put it on the Action button.</p>
         </div>
         <div class="wrap">
           <div class="watch-row" role="group" aria-label="Apple Watch screenshots, scrollable">
@@ -315,12 +306,7 @@
         <div class="wrap">
           <span class="eyebrow" aria-hidden="true"></span>
           <h2 id="ipad-title">On the iPad</h2>
-          <p class="section-intro">
-            The same app, in a column down the middle of the screen rather than a phone stretched
-            across it — and it works in Split View. Turn on merging and your iPhone and iPad keep
-            each other level through your own iCloud: nothing is deleted by it, and where both
-            changed the same thing, the newer edit wins.
-          </p>
+          <p class="section-intro">The same app, in a column down the middle of the screen rather than a phone stretched across it — and it works in Split View. Turn on merging and your iPhone and iPad keep each other level through your own iCloud: nothing is deleted by it, and where both changed the same thing, the newer edit wins.</p>
         </div>
         <div class="wrap">
           <div class="ipad-row" role="group" aria-label="iPad screenshots, scrollable">
@@ -346,10 +332,7 @@
           <div class="prose-narrow">
             <span class="eyebrow" aria-hidden="true"></span>
             <h2 id="privacy-title">Privacy</h2>
-            <p>
-              Kopiyka collects nothing: there is no account and no server to send anything to. The
-              only request it ever makes is an exchange rate from the European Central Bank.
-            </p>
+            <p>Kopiyka collects nothing: there is no account and no server to send anything to. The only request it ever makes is an exchange rate from the European Central Bank.</p>
             <div class="linkrow">
               <a class="btn btn-ghost" href="privacy.html">Privacy Policy</a>
               <a class="btn btn-ghost" href="terms.html">Terms of Use</a>
@@ -364,10 +347,7 @@
           <div class="prose-narrow">
             <span class="eyebrow" aria-hidden="true"></span>
             <h2 id="migrate-title">Moving from another app</h2>
-            <p>
-              Export from your old app, hand the file and a ready-made prompt to an AI assistant,
-              and import the result.
-            </p>
+            <p>Export from your old app, hand the file and a ready-made prompt to an AI assistant, and import the result.</p>
             <div class="linkrow">
               <a class="btn btn-ghost" href="migrate.html">Read the migration guide</a>
             </div>
@@ -381,10 +361,7 @@
           <div class="prose-narrow">
             <span class="eyebrow" aria-hidden="true"></span>
             <h2 id="open-source-title">Open source</h2>
-            <p>
-              MIT licensed, built with React Native and a little Swift; pull requests are welcome.
-              Android is not planned for now, but maybe later.
-            </p>
+            <p>MIT licensed, built with React Native and a little Swift; pull requests are welcome. Android is not planned for now, but maybe later.</p>
             <div class="linkrow">
               <a class="btn btn-ghost" href="https://github.com/SashaGo3/kopiyka-budget">Kopiyka on GitHub</a>
             </div>
@@ -398,10 +375,7 @@
           <div class="prose-narrow">
             <span class="eyebrow" aria-hidden="true"></span>
             <h2 id="bug-title">Found a bug?</h2>
-            <p>
-              Tell me and I will fix it — if the app misbehaved, Settings → Diagnostics has a crash
-              report worth attaching.
-            </p>
+            <p>Tell me and I will fix it — if the app misbehaved, Settings → Diagnostics has a crash report worth attaching.</p>
             <div class="linkrow">
               <a class="btn btn-ghost" href="https://github.com/SashaGo3/kopiyka-budget/issues/new?template=bug_report.md">Open an issue</a>
               <a class="btn btn-ghost" href="mailto:kopiyka_budget@icloud.com?subject=Kopiyka%20Budget%20bug">Email</a>

@@ -5,8 +5,9 @@
  * and native/KPShared.swift `KPStore`/`KPWatchState`, which this mirrors field-for-field).
  * Rebuilt after every write, so this stays a handful of grouped queries — no per-row round-trips.
  */
-import { fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
+import { accountName, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
 import { db } from "@/db";
+import { getLanguage, t, type LanguageCode } from "@/i18n";
 import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
 import type { WidgetSnapshot } from "./widget";
 
@@ -24,6 +25,8 @@ export interface WatchTx {
 
 export interface WatchState {
   generated_at: string;
+  /** The app's language ("uk"): what the names below are in. Swift keeps it beside the state (KPWatchState.language). */
+  language: LanguageCode;
   current_account: string;
   accounts: WidgetSnapshot["accounts"];
   categories: WatchCategory[];
@@ -54,19 +57,28 @@ function sinceDay(): string {
 export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   const t0 = __DEV__ ? Date.now() : 0;
   const since = sinceDay();
+  const lang = getLanguage();
+  // Names in the app's language (DATA.md rule 16): a ready-made category the user never renamed is
+  // shown translated here exactly as it is in the app.
+  const name = (n: string, preset: string | null) => categoryName({ name: n, preset }, lang);
 
   const categories: WatchCategory[] = db.all<{
-    id: string; name: string; parent_id: string | null; parent_name: string | null; kind: string;
+    id: string; name: string; preset: string | null; parent_id: string | null; parent_name: string | null; parent_preset: string | null; kind: string;
     icon: string | null; color: string | null; description: string | null; uses: number; archived: number;
   }>(
-    `SELECT c.id, c.name, c.parent_id, p.name AS parent_name, c.kind, c.icon, c.color, c.description, c.archived,
+    `SELECT c.id, c.name, c.preset, c.parent_id, p.name AS parent_name, p.preset AS parent_preset, c.kind, c.icon, c.color, c.description, c.archived,
        (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses
      FROM categories c LEFT JOIN categories p ON p.id=c.parent_id
      WHERE c.deleted=0 ORDER BY c.sort, c.name`,
     [since],
   ).map((c) => {
     const m = iconFor(c.name, { icon: c.icon, color: c.color });
-    return { id: c.id, name: c.name, parent_id: c.parent_id, parent_name: c.parent_name, kind: c.kind, icon: m.icon, color: m.color, uses: c.uses, description: c.description, archived: !!c.archived };
+    // `description` is what the receipt reader matches against, not something shown: an untouched
+    // preset's is every language's keywords at once, since a receipt is in the shop's language.
+    return {
+      id: c.id, name: name(c.name, c.preset), parent_id: c.parent_id, parent_name: c.parent_name === null ? null : name(c.parent_name, c.parent_preset),
+      kind: c.kind, icon: m.icon, color: m.color, uses: c.uses, description: categoryMatchText(c), archived: !!c.archived,
+    };
   });
 
   // One pass over every tagged transaction: last-180-day usage per tag, all-time category<->tag co-occurrence.
@@ -83,24 +95,26 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   }
   const tags: WatchTag[] = db.all<{ id: string; name: string; color: string | null; category_ids: string; archived: number }>(
     `SELECT id, name, color, category_ids, archived FROM tags WHERE deleted=0 ORDER BY name`,
-  ).map((t) => ({ id: t.id, name: t.name, color: t.color, category_ids: jsonIds(t.category_ids), uses: tagUses.get(t.id) ?? 0, archived: !!t.archived }));
+  ).map((g) => ({ id: g.id, name: g.name, color: g.color, category_ids: jsonIds(g.category_ids), uses: tagUses.get(g.id) ?? 0, archived: !!g.archived }));
 
   const history: WatchTx[] = db.all<{
     id: string; date: string; amount_minor: number; currency: string; account_name: string; account_id: string;
-    category_id: string | null; cat_name: string | null; parent_name: string | null; notes: string | null; payee: string | null;
+    category_id: string | null; cat_name: string | null; cat_preset: string | null; parent_name: string | null; parent_preset: string | null; notes: string | null; payee: string | null;
     tag_ids: string; pending: number; transfer_id: string | null;
   }>(
     `SELECT t.id, t.date, t.amount_minor, a.currency, a.name AS account_name, t.account_id, t.category_id,
-       c.name AS cat_name, p.name AS parent_name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id
+       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id
      FROM transactions t JOIN accounts a ON a.id=t.account_id
      LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
      WHERE t.deleted=0 ORDER BY t.date DESC, t.updated_at DESC LIMIT 50`,
   ).map((r) => {
     const transfer = r.transfer_id != null;
     const note = r.notes?.split("\n")[0] ?? "";
-    const title = transfer ? "Transfer" : note || r.payee || r.cat_name || r.parent_name || "Uncategorized";
-    const catLabel = transfer ? null : r.cat_name ? (r.parent_name ? `${r.parent_name} › ${r.cat_name}` : r.cat_name) : r.parent_name;
-    const sub = [r.account_name, catLabel].filter((x): x is string => !!x).join(" · ");
+    const catName = r.cat_name === null ? null : name(r.cat_name, r.cat_preset);
+    const parentName = r.parent_name === null ? null : name(r.parent_name, r.parent_preset);
+    const title = transfer ? t("misc.watch.transfer") : note || r.payee || catName || parentName || t("misc.watch.uncategorized");
+    const catLabel = transfer ? null : catName ? (parentName ? `${parentName} › ${catName}` : catName) : parentName;
+    const sub = [accountName({ name: r.account_name }, lang), catLabel].filter((x): x is string => !!x).join(" · ");
     return {
       id: r.id, date: r.date, title, sub, amount: fromMinor(r.amount_minor, r.currency), currency: r.currency,
       account_id: r.account_id, category_id: r.category_id, tag_ids: jsonIds(r.tag_ids), pending: r.pending === 1, transfer,
@@ -117,6 +131,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   const home = getHome(db);
   const state: WatchState = {
     generated_at: new Date().toISOString(),
+    language: lang,
     current_account: getCurrentAccount(),
     accounts: snapshot.accounts,
     categories, tags, together, history, snapshot,

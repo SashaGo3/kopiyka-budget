@@ -1,0 +1,19 @@
+{
+  "$comment": "Strings from src/lib: unsaved-changes prompts, and the text the JS side writes for the watch and widgets.",
+  "discard": {
+    "flowTitle": { "message": "Discard what you have entered?", "note": "Alert when cancelling a multi-step flow (adding a recurring payment) before saving." },
+    "flowBody": "Nothing has been saved yet.",
+    "keepGoing": "Keep going",
+    "discard": "Discard",
+    "changesTitle": { "message": "Discard your changes?", "note": "Alert when closing an editor with unsaved changes." },
+    "changesBody": "What you changed here has not been saved.",
+    "keepEditing": "Keep editing"
+  },
+  "watch": {
+    "transfer": { "message": "Transfer", "note": "Title of a transfer in the watch's history list.", "max": 20 },
+    "uncategorized": { "message": "Uncategorized", "note": "Title of a history row on the watch with no note, shop or category.", "max": 20 }
+  },
+  "widget": {
+    "everything": { "message": "Everything", "note": "Name of a budget that covers all categories, on the widget and the watch.", "max": 20 }
+  }
+}

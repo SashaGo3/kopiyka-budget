@@ -6,6 +6,7 @@
  * earlier and tagged by hand count too); other currencies convert with cached rates.
  */
 import type { SqlDriver } from "./db";
+import { KopiykaError } from "./errors";
 import type { Budget, Tag } from "./models";
 import { convertMinor } from "./money";
 import { latestCachedRate } from "./rates";
@@ -59,9 +60,9 @@ export interface StartTrip {
  * create the one-off budget. Fails when a trip is already running.
  */
 export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: Tag } {
-  if (activeTrip(db)) throw new Error("Travel mode is already on");
+  if (activeTrip(db)) throw new KopiykaError("trip_running", "Travel mode is already on");
   const name = p.name.trim();
-  if (!name) throw new Error("Name required");
+  if (!name) throw new KopiykaError("trip_name_required", "Name required");
   return db.transaction(() => {
     const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: "#0A84FF" });
     const starts = p.starts ?? todayLocalDay(p.today);
@@ -79,7 +80,7 @@ export interface PastTrip { name: string; currency: string; amount_minor: number
  */
 export function addPastTrip(db: SqlDriver, p: PastTrip): { budget: Budget; tag: Tag } {
   const name = p.name.trim();
-  if (!name) throw new Error("Name required");
+  if (!name) throw new KopiykaError("trip_name_required", "Name required");
   const ends = p.ends < p.starts ? p.starts : p.ends;
   return db.transaction(() => {
     const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: "#0A84FF" });
@@ -91,7 +92,7 @@ export function addPastTrip(db: SqlDriver, p: PastTrip): { budget: Budget; tag: 
 /** Turn travel mode off: the trip keeps its tag and budget as history. */
 export function endTrip(db: SqlDriver, budgetId: string, day = todayLocalDay()): Budget {
   const b = getRow(db, "budgets", budgetId);
-  if (!b) throw new Error("Travel not found");
+  if (!b) throw new KopiykaError("trip_not_found", "Travel not found");
   return save(db, "budgets", { ...b, ended: day < b.starts ? b.starts : day });
 }
 
@@ -114,7 +115,8 @@ export function tagTransactions(db: SqlDriver, tagId: string, txIds: string[]): 
 export interface TripStats {
   budget: Budget;
   tag: Tag | null;
-  name: string;
+  /** The trip's tag's name; null when the tag is gone, and the app names it in its own language. */
+  name: string | null;
   currency: string;
   limit_minor: number;
   /** What counts against the budget, converted into its currency where a rate is cached. */
@@ -206,7 +208,7 @@ export function tripStats(db: SqlDriver, b: Budget, o: { today?: string; rateFor
   const daysLeft = active && today <= ends ? daysBetween(today, ends) + 1 : 0;
   const remaining = b.amount_minor - spent;
   return {
-    budget: b, tag, name: tag?.name ?? "Travel", currency: b.currency, limit_minor: b.amount_minor, spent_minor: spent, remaining_minor: remaining,
+    budget: b, tag, name: tag?.name ?? null, currency: b.currency, limit_minor: b.amount_minor, spent_minor: spent, remaining_minor: remaining,
     outside_minor: outside,
     unconverted: [...unconverted].map(([currency, minor]) => ({ currency, minor })),
     by_category: [...byCat].map(([category_id, spent_minor]) => ({ category_id, spent_minor })).sort((x, y) => y.spent_minor - x.spent_minor),

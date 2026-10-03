@@ -23,11 +23,21 @@ type Bridge = {
   reloadWidgets(): void; updateWatch(): Promise<string>; isWatchPaired(): boolean;
   scanReceipt(uri: string): Promise<ReceiptParse>;
   claimDatabase(): void;
+  setLanguage(code: string): void;
   finishNativeWrite(request: string, ok: boolean, error: string | null, reply: Record<string, unknown>): void;
   addListener(event: "externalChange", cb: () => void): { remove(): void };
   addListener(event: "nativeWrite", cb: (w: NativeWrite) => void): { remove(): void };
 };
 const native = requireOptionalNativeModule<Bridge>("KPBridge");
+
+/**
+ * Tell Swift which language the app is in (native/KPLocale.swift), so the watch, the widgets, the App
+ * Intents' answers and the notifications Swift posts follow the app's choice rather than the phone's.
+ * A build made before this existed simply keeps following the phone.
+ */
+export function setNativeLanguage(code: string): void {
+  if (typeof native?.setLanguage === "function") { try { native.setLanguage(code); } catch { /* older build */ } }
+}
 
 export const KPBridge = {
   available: native != null,

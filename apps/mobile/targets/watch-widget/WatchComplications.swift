@@ -26,8 +26,9 @@ struct AddExpenseComplication: Widget {
         .containerBackground(for: .widget) { Color.clear }
         .widgetURL(KP.url("watch/add"))
     }
-    .configurationDisplayName("Add expense")
-    .description("Opens Kopiyka ready to type an amount.")
+    // Key literals: the watch face gallery is the system's, so these follow the phone's language.
+    .configurationDisplayName(LocalizedStringKey("native.complication.name"))
+    .description(LocalizedStringKey("native.complication.description"))
     .supportedFamilies([.accessoryCircular, .accessoryCorner, .accessoryRectangular, .accessoryInline])
   }
 }
@@ -49,21 +50,21 @@ struct AddExpenseView: View {
         kay(30)
       }
       .widgetAccentable()
-      .accessibilityLabel("Add expense")
+      .accessibilityLabel(L10n.Complication.a11y)
     case .accessoryCorner:
       kay(28)
         .widgetAccentable()
-        .accessibilityLabel("Add expense")
+        .accessibilityLabel(L10n.Complication.a11y)
     case .accessoryInline:
-      Label { Text("Expense") } icon: { kay(16) }
-        .accessibilityLabel("Add expense")
+      Label { Text(L10n.Complication.label) } icon: { kay(16) }
+        .accessibilityLabel(L10n.Complication.a11y)
     default:
       HStack(spacing: 8) {
         kay(34).widgetAccentable()
-        Text("Expense").font(.headline)
+        Text(L10n.Complication.label).font(.headline)
       }
       .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Add expense")
+      .accessibilityLabel(L10n.Complication.a11y)
     }
   }
 }

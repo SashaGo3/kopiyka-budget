@@ -49,8 +49,8 @@ final class WatchDraft: ObservableObject {
 
 /// Bind this to the Ultra's Action button (Settings → Action Button → Shortcut) or run it from Siri on the watch.
 struct WatchQuickAddIntent: AppIntent {
-  static var title: LocalizedStringResource = "Log expense"
-  static var description = IntentDescription("Open Kopiyka on the watch ready to type an amount.")
+  static var title: LocalizedStringResource = "native.watch.intent.title"
+  static var description = IntentDescription("native.watch.intent.description")
   static var openAppWhenRun = true
   @MainActor
   func perform() async throws -> some IntentResult {
@@ -61,6 +61,6 @@ struct WatchQuickAddIntent: AppIntent {
 
 struct WatchShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
-    AppShortcut(intent: WatchQuickAddIntent(), phrases: ["Log expense in \(.applicationName)", "Add expense in \(.applicationName)"], shortTitle: "Log expense", systemImageName: "plus.circle")
+    AppShortcut(intent: WatchQuickAddIntent(), phrases: ["Log expense in \(.applicationName)", "Add expense in \(.applicationName)"], shortTitle: "native.watch.intent.title", systemImageName: "plus.circle")
   }
 }

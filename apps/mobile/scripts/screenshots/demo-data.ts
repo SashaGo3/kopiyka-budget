@@ -1,18 +1,27 @@
 /**
- * Deterministic demo dataset for App Store screenshots: a Lisbon persona, base currency EUR,
- * about 5 months of history, budgets sitting mid-range, a running trip and a finished one,
+ * Deterministic demo dataset for App Store screenshots, one per language: a Lisbon persona in EUR
+ * for English, a Kyiv persona in UAH for Ukrainian. About 5 months of history, budgets sitting mid-range, a running trip and a finished one,
  * debts, insights and cached exchange rates — everything the screenshot flows need, built on a
  * throw-away in-memory database with the core API, then exported
  * as a normal `kopiyka-backup`.
  *
- *   bun apps/mobile/scripts/screenshots/demo-data.ts                    # writes screenshots/demo/kopiyka-demo.json
+ *   bun apps/mobile/scripts/screenshots/demo-data.ts                    # writes screenshots/demo/kopiyka-demo-en.json
+ *   bun apps/mobile/scripts/screenshots/demo-data.ts --lang=uk          # the Ukrainian set: kopiyka-demo-uk.json
  *   bun apps/mobile/scripts/screenshots/demo-data.ts --today=2026-09-12 # pin "today" (default: local today)
  *   bun apps/mobile/scripts/screenshots/demo-data.ts --apply=<udid>     # also install into that simulator
  *
  * The dataset is a small seeded PRNG over `today`, so the same --today always produces the same
  * file. Nothing here reads apps/mobile/data or any personal export — it is entirely invented.
+ *
+ * Words and numbers are kept apart. Every name a screenshot shows — shops, places, notes, accounts,
+ * tags, trips, recurring payments, people — comes from the `demo` namespace
+ * (packages/i18n/locales/<lang>/demo.json, compiled by `bun run i18n` into ./i18n/<lang>.json), and
+ * the categories are the app's own presets seeded in that language. Amounts, coordinates and the
+ * time zone are the `PROFILES` below: hryvnia prices are not euro prices times anything. The English
+ * profile is the dataset as it was before languages existed, number for number and draw for draw.
+ * The seeded database also carries meta `language` = the code, so the app opens in that language.
  */
-import { mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, rmSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import {
@@ -36,17 +45,146 @@ const args = process.argv.slice(2);
 const flagList = args.filter((a) => a.startsWith("--")).map((a) => { const i = a.indexOf("="); return i < 0 ? [a.slice(2), "true"] as const : [a.slice(2, i), a.slice(i + 1)] as const; });
 const flags = new Map(flagList);
 if (flags.has("help")) {
-  console.error("usage: bun apps/mobile/scripts/screenshots/demo-data.ts [--today=YYYY-MM-DD] [--apply=<simulator udid>]");
+  console.error("usage: bun apps/mobile/scripts/screenshots/demo-data.ts [--lang=en|uk] [--today=YYYY-MM-DD] [--apply=<simulator udid>]");
   process.exit(0);
 }
 const TODAY = (flags.get("today") as string | undefined) ?? localToday();
 if (!/^\d{4}-\d{2}-\d{2}$/.test(TODAY)) { console.error(`bad --today: ${TODAY}`); process.exit(1); }
+
+const LANG = (flags.get("lang") as string | undefined) ?? "en";
+const HERE = dirname(new URL(import.meta.url).pathname);
+const MESSAGES_FILE = join(HERE, "i18n", `${LANG}.json`);
+if (!existsSync(MESSAGES_FILE)) { console.error(`no demo text for "${LANG}" at ${MESSAGES_FILE} — run: bun run i18n`); process.exit(1); }
+const MESSAGES = JSON.parse(readFileSync(MESSAGES_FILE, "utf8")) as Record<string, string>;
+/** A `demo.*` message in this language. Missing text is an error, never an English fallback. */
+function m(key: string): string {
+  const v = MESSAGES[`demo.${key}`];
+  if (v === undefined) throw new Error(`demo text missing: demo.${key} (${LANG}) — add it to packages/i18n/locales/${LANG}/demo.json and run bun run i18n`);
+  return v;
+}
 
 function localToday(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Per-language numbers. Amounts are major units of the profile's currency (`card` is the US-dollar
+// card's); a shop is [lat, lon, min, max]. Text for every one of these lives in the demo namespace.
+// ---------------------------------------------------------------------------------------------
+
+type Shop = readonly [lat: number, lon: number, min: number, max: number];
+const SHOP_SLOTS = ["groceries1", "groceries2", "groceries3", "groceries4", "coffee1", "coffee2", "lunch1", "lunch2", "dinner1", "dinner2", "dinner3",
+  "taxi1", "taxi2", "metro", "fuel", "clothes", "electronics", "hobbies", "furniture", "household", "pharmacy", "cinema", "presents1", "presents2", "kids1", "kids2"] as const;
+type ShopSlot = (typeof SHOP_SLOTS)[number];
+interface Group { target: number; ratio: number; count: number; range: [number, number] }
+interface Profile {
+  currency: string;
+  /** Standard and summer UTC offsets in minutes; both cities change on the EU's last Sundays. */
+  tz: [number, number];
+  home: { lat: number; lon: number };
+  shops: Record<ShopSlot, Shop>;
+  mainOpening: number; cashTarget: number; jointTarget: number;
+  savingsTarget: number; savingsMonthly: number; goal: number;
+  weekly: { classes: number; padel: number };
+  budgets: { groceries: number; restaurants: number; coffee: number; transport: number; entertainment: number; shopping: number; household: number };
+  groups: { groceries: Group; restaurants: Group; coffee: Group; taxi: Group; metro: Group; fuel: Group; entertainment: Group; household: Group; clothes: Group; electronics: Group; hobbies: Group };
+  padding: { pharmacy: number; presents: number; kids: number };
+  pastTrip: { budget: number; hotel: number; dinner: number; museum: number; metro: number };
+  trip: { budget: number; train: number; hotel: number; dinner: number; tasting: number; dinner2: number; lunch: number; extra: number | null };
+  joint: { groceries: number; household: number };
+  rules: { rent: number; icloud: number; spotify: number; netflix: number; gym: number; phone: number; energy: number; salary: number; carInsurance: number };
+  pending: number;
+  debts: [number, number, number, number, number, number, number, number];
+  /** Rates written for every day the card was used, and for today only. */
+  rates: { daily: [string, string, number][]; today: [string, string, number][] };
+  /** Entries only this language shows, placed where the screenshots catch them. */
+  extras: { trousers: number; chocolate: number; gambler: number; teeth: number } | null;
+}
+
+const PROFILES: Record<string, Profile> = {
+  en: {
+    currency: "EUR", tz: [0, 60], home: { lat: 38.7223, lon: -9.1393 },
+    shops: {
+      groceries1: [38.7223, -9.145, 12, 55], groceries2: [38.7278, -9.1352, 18, 75], groceries3: [38.7057, -9.1774, 10, 45], groceries4: [38.7069, -9.1459, 8, 30],
+      coffee1: [38.7145, -9.1394, 2.2, 4.8], coffee2: [38.7107, -9.1427, 1.2, 3.6],
+      lunch1: [38.7069, -9.1459, 9, 18], lunch2: [38.7223, -9.135, 12, 26],
+      dinner1: [38.7069, -9.1459, 16, 32], dinner2: [38.7223, -9.135, 20, 45], dinner3: [38.7107, -9.1427, 14, 28],
+      taxi1: [38.7167, -9.1395, 4.5, 13], taxi2: [38.7167, -9.1395, 4, 12], metro: [38.7107, -9.1396, 1.65, 6.4], fuel: [38.735, -9.15, 42, 62],
+      clothes: [38.7106, -9.1421, 18, 65], electronics: [38.7106, -9.1419, 15, 90], hobbies: [38.7227, -9.1608, 12, 60],
+      furniture: [38.7495, -9.2258, 25, 140], household: [38.7495, -9.2258, 8, 45], pharmacy: [38.7139, -9.1387, 4, 22], cinema: [38.7211, -9.1467, 8.5, 12.5],
+      presents1: [38.711, -9.142, 15, 40], presents2: [38.7107, -9.1418, 12, 35], kids1: [38.7108, -9.1423, 15, 45], kids2: [38.7592, -9.1975, 18, 55],
+    },
+    mainOpening: 350.75, cashTarget: 150, jointTarget: 400, savingsTarget: 6400, savingsMonthly: 400, goal: 10000,
+    weekly: { classes: 45, padel: 12 },
+    budgets: { groceries: 450, restaurants: 220, coffee: 60, transport: 120, entertainment: 80, shopping: 250, household: 90 },
+    groups: {
+      groceries: { target: 450, ratio: 0.62, count: 6, range: [8, 50] },
+      restaurants: { target: 220, ratio: 0.25, count: 6, range: [9, 35] },
+      coffee: { target: 60, ratio: 1.08, count: 14, range: [1.5, 5] },
+      taxi: { target: 120, ratio: 0.3, count: 5, range: [4, 14] },
+      metro: { target: 120, ratio: 0.15, count: 4, range: [1.5, 6] },
+      fuel: { target: 120, ratio: 0.05, count: 1, range: [40, 60] },
+      entertainment: { target: 80, ratio: 0.45, count: 3, range: [8, 13] },
+      household: { target: 90, ratio: 0.5, count: 3, range: [8, 45] },
+      clothes: { target: 55, ratio: 0.4, count: 1, range: [15, 65] },
+      electronics: { target: 55, ratio: 0.35, count: 1, range: [15, 90] },
+      hobbies: { target: 55, ratio: 0.25, count: 1, range: [10, 60] },
+    },
+    padding: { pharmacy: 9.9, presents: 28, kids: 32 },
+    pastTrip: { budget: 800, hotel: 140, dinner: 34, museum: 15, metro: 9.5 },
+    trip: { budget: 600, train: 32.6, hotel: 189, dinner: 38, tasting: 11, dinner2: 41, lunch: 14.5, extra: null },
+    joint: { groceries: 64.5, household: 118 },
+    rules: { rent: -1250, icloud: -2.99, spotify: -10.99, netflix: -15.99, gym: -39.9, phone: -29.9, energy: -62, salary: 3850, carInsurance: -380 },
+    pending: 7.4,
+    debts: [120, 350, 45, 80, 25, 200, 60, 40],
+    rates: { daily: [["USD", "EUR", 0.92], ["EUR", "USD", 1.087]], today: [["EUR", "PLN", 4.28]] },
+    extras: null,
+  },
+  uk: {
+    currency: "UAH", tz: [120, 180], home: { lat: 50.4501, lon: 30.5234 },
+    shops: {
+      groceries1: [50.4385, 30.516, 300, 1500], groceries2: [50.441, 30.505, 200, 900], groceries3: [50.465, 30.515, 350, 1400], groceries4: [50.442, 30.521, 150, 600],
+      coffee1: [50.4475, 30.523, 60, 90], coffee2: [50.45, 30.51, 75, 150],
+      lunch1: [50.44, 30.52, 180, 360], lunch2: [50.446, 30.513, 350, 700],
+      dinner1: [50.44, 30.52, 300, 600], dinner2: [50.446, 30.513, 500, 1100], dinner3: [50.45, 30.524, 600, 1400],
+      taxi1: [50.4501, 30.5234, 120, 350], taxi2: [50.4501, 30.5234, 110, 330], metro: [50.447, 30.522, 8, 40], fuel: [50.46, 30.44, 1500, 2400],
+      clothes: [50.4385, 30.522, 900, 3500], electronics: [50.427, 30.556, 500, 4000], hobbies: [50.388, 30.484, 400, 2500],
+      furniture: [50.487, 30.495, 900, 5000], household: [50.438, 30.517, 150, 800], pharmacy: [50.448, 30.523, 150, 800], cinema: [50.4385, 30.522, 200, 350],
+      presents1: [50.45, 30.51, 400, 1200], presents2: [50.447, 30.513, 300, 900], kids1: [50.412, 30.522, 400, 1500], kids2: [50.492, 30.365, 500, 1800],
+    },
+    mainOpening: 52350, cashTarget: 3000, jointTarget: 15000, savingsTarget: 180000, savingsMonthly: 8000, goal: 300000,
+    weekly: { classes: 900, padel: 500 },
+    budgets: { groceries: 15000, restaurants: 7000, coffee: 2000, transport: 5000, entertainment: 2000, shopping: 10000, household: 3000 },
+    groups: {
+      groceries: { target: 15000, ratio: 0.62, count: 6, range: [300, 1500] },
+      restaurants: { target: 7000, ratio: 0.25, count: 6, range: [180, 900] },
+      coffee: { target: 2000, ratio: 1.08, count: 14, range: [60, 150] },
+      taxi: { target: 5000, ratio: 0.3, count: 5, range: [120, 350] },
+      metro: { target: 5000, ratio: 0.03, count: 4, range: [8, 60] },
+      fuel: { target: 5000, ratio: 0.3, count: 1, range: [1500, 2400] },
+      entertainment: { target: 2000, ratio: 0.45, count: 3, range: [200, 350] },
+      household: { target: 3000, ratio: 0.5, count: 3, range: [150, 800] },
+      clothes: { target: 3000, ratio: 0.4, count: 1, range: [900, 3500] },
+      electronics: { target: 3000, ratio: 0.35, count: 1, range: [500, 4000] },
+      hobbies: { target: 3000, ratio: 0.25, count: 1, range: [400, 2500] },
+    },
+    padding: { pharmacy: 349, presents: 650, kids: 890 },
+    pastTrip: { budget: 12000, hotel: 3200, dinner: 950, museum: 300, metro: 30 },
+    trip: { budget: 15000, train: 1250, hotel: 5400, dinner: 850, tasting: 150, dinner2: 980, lunch: 280, extra: 35 },
+    joint: { groceries: 1450, household: 2300 },
+    rules: { rent: -18000, icloud: -39, spotify: -149, netflix: -299, gym: -1200, phone: -250, energy: -2400, salary: 55000, carInsurance: -2600 },
+    pending: 186,
+    debts: [3500, 12000, 45, 1600, 600, 4500, 1500, 900],
+    rates: { daily: [["USD", "UAH", 41.3], ["UAH", "USD", 0.0242]], today: [["EUR", "UAH", 48.2]] },
+    extras: { trousers: 40, chocolate: 45, gambler: 1350, teeth: 2800 },
+  },
+};
+const P = PROFILES[LANG];
+if (!P) { console.error(`no demo profile for "${LANG}" — add one to PROFILES in demo-data.ts (the app has ${Object.keys(PROFILES).join(", ")})`); process.exit(1); }
+const CUR = P.currency;
+const CARD = "USD";
 
 // ---------------------------------------------------------------------------------------------
 // Small seeded PRNG (mulberry32) so the same --today always builds the same file.
@@ -66,7 +204,9 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const rand = mulberry32(seedFromString(`kopiyka-demo-${TODAY}`));
+// English keeps the seeds it always had, so its dataset is unchanged; other languages get their own.
+const SEED_SUFFIX = LANG === "en" ? "" : `-${LANG}`;
+const rand = mulberry32(seedFromString(`kopiyka-demo-${TODAY}${SEED_SUFFIX}`));
 
 // Row ids too: @kopiyka/core's newId() calls crypto.randomUUID, which would hand out fresh ids on
 // every run. capture.sh reads ids (the Restaurants category, the trip tag) out of the written JSON
@@ -74,7 +214,7 @@ const rand = mulberry32(seedFromString(`kopiyka-demo-${TODAY}`));
 // at rows that are not in the simulator's database — the entry sheet then opened with no category
 // and the trip filter matched nothing. A separate stream keeps `rand` above untouched.
 {
-  const idRand = mulberry32(seedFromString(`kopiyka-demo-ids-${TODAY}`));
+  const idRand = mulberry32(seedFromString(`kopiyka-demo-ids-${TODAY}${SEED_SUFFIX}`));
   // One PRNG draw per nibble: a float carries ~32 bits, so packing 12 hex digits out of one draw
   // would leave the tail of every id zeroed.
   const hex = (n: number) => Array.from({ length: n }, () => Math.floor(idRand() * 16).toString(16)).join("");
@@ -87,8 +227,9 @@ const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(rand() * arr.length)]!
 const randInt = (min: number, max: number) => min + Math.floor(rand() * (max - min + 1));
 
 // ---------------------------------------------------------------------------------------------
-// Date / time helpers. Dates are YYYY-MM-DD; timestamps get Lisbon's real DST offset (WET/WEST)
-// computed from the date, not the machine running the script, so the file is reproducible.
+// Date / time helpers. Dates are YYYY-MM-DD; timestamps get the persona's real DST offset (Lisbon
+// WET/WEST, Kyiv EET/EEST — both switch on the EU's last Sundays of March and October) computed
+// from the date, not the machine running the script, so the file is reproducible.
 // ---------------------------------------------------------------------------------------------
 
 function lastSundayUTC(year: number, month1to12: number): Date {
@@ -96,14 +237,14 @@ function lastSundayUTC(year: number, month1to12: number): Date {
   last.setUTCDate(last.getUTCDate() - last.getUTCDay());
   return last;
 }
-function lisbonOffsetMinutes(day: string): number {
-  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
-  const noon = new Date(Date.UTC(y, m - 1, d, 12));
+function offsetMinutes(day: string): number {
+  const [y, mo, d] = day.split("-").map(Number) as [number, number, number];
+  const noon = new Date(Date.UTC(y, mo - 1, d, 12));
   const marchChange = lastSundayUTC(y, 3), octChange = lastSundayUTC(y, 10);
-  return noon >= marchChange && noon < octChange ? 60 : 0; // WEST (+01:00) in summer, WET (+00:00) otherwise
+  return noon >= marchChange && noon < octChange ? P.tz[1] : P.tz[0];
 }
 function ts(day: string, hh: number, mm: number): string {
-  const off = lisbonOffsetMinutes(day);
+  const off = offsetMinutes(day);
   const sign = off >= 0 ? "+" : "-";
   const oh = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0"), om = String(Math.abs(off) % 60).padStart(2, "0");
   return `${day}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00${sign}${oh}:${om}`;
@@ -142,97 +283,98 @@ const colorByName = (name: string) => COLORS.find((c) => c.name === name)!.hex;
 const db = openBunDb();
 migrate(db);
 
-seedCategories(db);
+// The app's own ready-made categories, named in this language; found again by their preset key
+// (DATA.md rule 16), never by a name that changes with the language.
+seedCategories(db, LANG);
 const allCats = () => listRows(db, "categories", "deleted=0");
-function folder(name: string): Category {
-  const c = allCats().find((c) => c.parent_id === null && c.name === name);
-  if (!c) throw new Error(`folder not found: ${name}`);
-  return c;
-}
-function cat(folderName: string, name: string): Category {
-  const f = folder(folderName);
-  const c = allCats().find((c) => c.parent_id === f.id && c.name === name);
-  if (!c) throw new Error(`category not found: ${folderName}/${name}`);
+function preset(key: string): Category {
+  const c = allCats().find((c) => c.preset === key);
+  if (!c) throw new Error(`preset category not found: ${key}`);
   return c;
 }
 
-const fShopping = folder("Shopping"), fTransport = folder("Transport");
-const fHealth = folder("Health"), fPersonal = folder("Personal"), fFamily = folder("Family");
+const fShopping = preset("shopping"), fTransport = preset("transport");
+const fHealth = preset("health"), fPersonal = preset("personal"), fFamily = preset("family");
 
-const catGroceries = cat("Food", "Groceries");
-const catRestaurants = cat("Food", "Restaurants & cafés");
-const catCoffee = cat("Food", "Coffee & snacks");
-const catClothes = cat("Shopping", "Clothes & shoes");
-const catElectronics = cat("Shopping", "Electronics");
-const catHousehold = cat("Shopping", "Household");
-const catWishes = cat("Shopping", "Wishes");
-const catRent = cat("Home", "Rent");
-const catUtilities = cat("Home", "Utilities");
-const catInternet = cat("Home", "Internet & phone");
-const catFurniture = cat("Home", "Furniture & repairs");
-const catCar = cat("Transport", "Car");
-const catFuel = cat("Transport", "Fuel");
-const catPublicTransport = cat("Transport", "Public transport");
-const catTaxi = cat("Transport", "Taxi");
-const catPharmacy = cat("Health", "Pharmacy");
-const catGym = cat("Health", "Gym & sport");
-const catSubscriptions = cat("Bills", "Subscriptions");
-const catEntertainment = cat("Fun & travel", "Entertainment");
-const catTravel = cat("Fun & travel", "Travel");
-const catPresents = cat("Fun & travel", "Presents");
-const catKids = cat("Family", "Kids & baby");
-const catSalary = cat("Income", "Salary");
+const catGroceries = preset("food.groceries");
+const catRestaurants = preset("food.restaurants");
+const catCoffee = preset("food.coffee");
+const catClothes = preset("shopping.clothes");
+const catElectronics = preset("shopping.electronics");
+const catHousehold = preset("shopping.household");
+const catWishes = preset("shopping.wishes");
+const catRent = preset("home.rent");
+const catUtilities = preset("home.utilities");
+const catInternet = preset("home.internet");
+const catFurniture = preset("home.furniture");
+const catCar = preset("transport.car");
+const catFuel = preset("transport.fuel");
+const catPublicTransport = preset("transport.publicTransport");
+const catTaxi = preset("transport.taxi");
+const catPharmacy = preset("health.pharmacy");
+const catDoctor = preset("health.doctor");
+const catGym = preset("health.gym");
+const catSubscriptions = preset("bills.subscriptions");
+const catEntertainment = preset("fun.entertainment");
+const catTravel = preset("fun.travel");
+const catPresents = preset("fun.presents");
+const catKids = preset("family.kids");
+const catSalary = preset("income.salary");
+const catHobbies = preset("personal.hobbies");
 
 // A couple of custom categories beyond the preset (per DATA.md rule 5, plain categories, not folders).
-const catPortuguese = createCategory(db, { name: "Portuguese classes", parent_id: fPersonal.id, icon: "graduationcap.fill", color: fPersonal.color, kind: "expense", description: "Portuguese language classes" });
-const catPadel = createCategory(db, { name: "Padel", parent_id: fHealth.id, icon: "tennis.racket", color: fHealth.color, kind: "expense", description: "padel court booking" });
+const catPortuguese = createCategory(db, { name: m("category.classes.name"), parent_id: fPersonal.id, icon: "graduationcap.fill", color: fPersonal.color, kind: "expense", description: m("category.classes.description") });
+const catPadel = createCategory(db, { name: m("category.padel.name"), parent_id: fHealth.id, icon: "tennis.racket", color: fHealth.color, kind: "expense", description: m("category.padel.description") });
 
-const tagLunch = createTag(db, { name: "Lunch", color: colorByName("orange"), category_ids: JSON.stringify([catRestaurants.id]) });
-const tagWork = createTag(db, { name: "Work", color: colorByName("blue") });
-const tagWeekend = createTag(db, { name: "Weekend", color: colorByName("green") });
-const tagGift = createTag(db, { name: "Gift", color: colorByName("pink") });
-const tagKids = createTag(db, { name: "Kids", color: colorByName("amber"), category_ids: JSON.stringify([fFamily.id]) });
-const tagCoffee = createTag(db, { name: "Coffee", color: colorByName("brown") });
+const tagLunch = createTag(db, { name: m("tag.lunch"), color: colorByName("orange"), category_ids: JSON.stringify([catRestaurants.id]) });
+const tagWork = createTag(db, { name: m("tag.work"), color: colorByName("blue") });
+const tagWeekend = createTag(db, { name: m("tag.weekend"), color: colorByName("green") });
+const tagGift = createTag(db, { name: m("tag.gift"), color: colorByName("pink") });
+const tagKids = createTag(db, { name: m("tag.kids"), color: colorByName("amber"), category_ids: JSON.stringify([fFamily.id]) });
+const tagCoffee = createTag(db, { name: m("tag.coffee"), color: colorByName("brown") });
 
 // ---------------------------------------------------------------------------------------------
 // Accounts
 // ---------------------------------------------------------------------------------------------
 
-// The 6 Revolut (USD card) purchases are fixed amounts so the opening balance can be computed
-// exactly to land the account at ~900 USD today, per the brief.
+// The 6 purchases on the US-dollar card are fixed amounts (in every language) so the opening
+// balance can be computed exactly to land the account at ~900 USD today, per the brief.
 const revolutTx: { date: string; hh: number; amount: number; payee: string; category: Category; place?: string; lat?: number; lon?: number }[] = [
-  { date: addPeriod(TODAY, "monthly", -4), hh: 9, amount: -2.99, payee: "Apple", category: catSubscriptions },
-  { date: addPeriod(TODAY, "monthly", -3), hh: 21, amount: -34.5, payee: "Amazon.com", category: catElectronics },
-  { date: addPeriod(TODAY, "monthly", -2), hh: 10, amount: -12.99, payee: "Adobe", category: catSubscriptions },
-  { date: addPeriod(TODAY, "monthly", -1), hh: 20, amount: -0.99, payee: "Apple", category: catSubscriptions },
-  { date: addPeriod(TODAY, "daily", -18), hh: 16, amount: -58.2, payee: "Amazon.com", category: catWishes },
-  { date: addPeriod(TODAY, "daily", -6), hh: 22, amount: -9.99, payee: "Apple", category: catSubscriptions },
+  { date: addPeriod(TODAY, "monthly", -4), hh: 9, amount: -2.99, payee: m("card.apple"), category: catSubscriptions },
+  { date: addPeriod(TODAY, "monthly", -3), hh: 21, amount: -34.5, payee: m("card.amazon"), category: catElectronics },
+  { date: addPeriod(TODAY, "monthly", -2), hh: 10, amount: -12.99, payee: m("card.adobe"), category: catSubscriptions },
+  { date: addPeriod(TODAY, "monthly", -1), hh: 20, amount: -0.99, payee: m("card.apple"), category: catSubscriptions },
+  { date: addPeriod(TODAY, "daily", -18), hh: 16, amount: -58.2, payee: m("card.amazon"), category: catWishes },
+  { date: addPeriod(TODAY, "daily", -6), hh: 22, amount: -9.99, payee: m("card.apple"), category: catSubscriptions },
 ];
-const revolutTotalMinor = revolutTx.reduce((a, t) => a + toMinor(t.amount, "USD"), 0);
-const revolutOpening = toMinor(900, "USD") - revolutTotalMinor;
+const revolutTotalMinor = revolutTx.reduce((a, t) => a + toMinor(t.amount, CARD), 0);
+const revolutOpening = toMinor(900, CARD) - revolutTotalMinor;
 
-// Monthly 400 EUR Main -> Savings transfers on the 26th, back to well before HISTORY_START; only
+// Monthly Main -> Savings transfers (400 EUR in English) on the 26th, back to well before HISTORY_START; only
 // the ones inside the demo window are actually posted, but all of them count towards "today's"
 // Savings balance, which is why the opening balance is computed from all of them.
 const { past: allTransferDays } = occurrencesUpTo("2022-01-26", "monthly", TODAY);
 const postedTransferDays = allTransferDays.filter((d) => d >= HISTORY_START);
 // Only the transfers actually posted (inside the demo window) move the balance we can see; the
 // opening balance stands in for everything before that, so it is target minus just those.
-const savingsOpening = toMinor(6400, "EUR") - postedTransferDays.length * toMinor(400, "EUR");
+const savingsOpening = toMinor(P.savingsTarget, CUR) - postedTransferDays.length * toMinor(P.savingsMonthly, CUR);
 
-const main = createAccount(db, { name: "Main", currency: "EUR", type: "bank", icon: "building.columns.fill", color: colorByName("blue"), opening_balance_minor: toMinor(350.75, "EUR"), sort: 0 });
-const savings = createAccount(db, { name: "Savings", currency: "EUR", type: "savings", icon: "leaf.fill", color: colorByName("teal"), opening_balance_minor: savingsOpening, sort: 2 });
-const revolut = createAccount(db, { name: "Revolut", currency: "USD", type: "card", icon: "creditcard.fill", color: colorByName("violet"), opening_balance_minor: revolutOpening, sort: 3 });
+const main = createAccount(db, { name: m("account.main"), currency: CUR, type: "bank", icon: "building.columns.fill", color: colorByName("blue"), opening_balance_minor: toMinor(P.mainOpening, CUR), sort: 0 });
+const savings = createAccount(db, { name: m("account.savings"), currency: CUR, type: "savings", icon: "leaf.fill", color: colorByName("teal"), opening_balance_minor: savingsOpening, sort: 2 });
+const revolut = createAccount(db, { name: m("account.card"), currency: CARD, type: "card", icon: "creditcard.fill", color: colorByName("violet"), opening_balance_minor: revolutOpening, sort: 3 });
 // Cash and Joint are created further down, once every spec that spends from them exists — their
 // opening balance is computed backwards from that total so today's balance lands somewhere sane.
 
 setMeta(db, "current_account", main.id);
 setMeta(db, "budget_scope", main.id);
-setMeta(db, "base_currency", "EUR");
+setMeta(db, "base_currency", CUR);
 setMeta(db, "period_start_day", String(PERIOD_START_DAY));
 setMeta(db, "location_enabled", "1");
-setHome(db, { lat: 38.7223, lon: -9.1393, place: "Rua da Prata, Lisboa" });
+setHome(db, { lat: P.home.lat, lon: P.home.lon, place: m("home") });
 setMeta(db, "show_balance", "1");
+// The app's language (DATA.md rule 7): it travels in the exported file's settings, so --apply and an
+// import on a real phone both open the app in the language the data was written in.
+setMeta(db, "language", LANG);
 
 // ---------------------------------------------------------------------------------------------
 // Merchants (name, category, place, coordinates repeated per merchant so suggestCategoryNear
@@ -240,40 +382,27 @@ setMeta(db, "show_balance", "1");
 // ---------------------------------------------------------------------------------------------
 
 interface Merchant { name: string; category: Category; place: string; lat: number; lon: number; min: number; max: number }
+/** A shop slot as this language has it: name and place from the demo namespace, the rest from P. */
+function shop(slot: ShopSlot, category: Category): Merchant {
+  const [lat, lon, min, max] = P.shops[slot];
+  return { name: m(`shop.${slot}.name`), place: m(`shop.${slot}.place`), category, lat, lon, min, max };
+}
 const M = {
-  groceries: [
-    { name: "Pingo Doce", category: catGroceries, place: "Pingo Doce, Av. da Liberdade", lat: 38.7223, lon: -9.145, min: 12, max: 55 },
-    { name: "Continente", category: catGroceries, place: "Continente, Almirante Reis", lat: 38.7278, lon: -9.1352, min: 18, max: 75 },
-    { name: "Lidl", category: catGroceries, place: "Lidl, Alcântara", lat: 38.7057, lon: -9.1774, min: 10, max: 45 },
-    { name: "Mercado da Ribeira", category: catGroceries, place: "Mercado da Ribeira, Cais do Sodré", lat: 38.7069, lon: -9.1459, min: 8, max: 30 },
-  ],
-  coffee: [
-    { name: "Starbucks", category: catCoffee, place: "Starbucks, Rossio", lat: 38.7145, lon: -9.1394, min: 2.2, max: 4.8 },
-    { name: "A Brasileira", category: catCoffee, place: "A Brasileira, Chiado", lat: 38.7107, lon: -9.1427, min: 1.2, max: 3.6 },
-  ],
-  lunch: [
-    { name: "Time Out Market", category: catRestaurants, place: "Time Out Market, Cais do Sodré", lat: 38.7069, lon: -9.1459, min: 9, max: 18 },
-    { name: "Cervejaria Ramiro", category: catRestaurants, place: "Cervejaria Ramiro, Intendente", lat: 38.7223, lon: -9.135, min: 12, max: 26 },
-  ],
-  dinner: [
-    { name: "Time Out Market", category: catRestaurants, place: "Time Out Market, Cais do Sodré", lat: 38.7069, lon: -9.1459, min: 16, max: 32 },
-    { name: "Cervejaria Ramiro", category: catRestaurants, place: "Cervejaria Ramiro, Intendente", lat: 38.7223, lon: -9.135, min: 20, max: 45 },
-    { name: "A Brasileira", category: catRestaurants, place: "A Brasileira, Chiado", lat: 38.7107, lon: -9.1427, min: 14, max: 28 },
-  ],
-  taxi: [
-    { name: "Uber", category: catTaxi, place: "Uber", lat: 38.7167, lon: -9.1395, min: 4.5, max: 13 },
-    { name: "Bolt", category: catTaxi, place: "Bolt", lat: 38.7167, lon: -9.1395, min: 4, max: 12 },
-  ],
-  publicTransport: [{ name: "Metro Lisboa", category: catPublicTransport, place: "Metro Lisboa, Baixa-Chiado", lat: 38.7107, lon: -9.1396, min: 1.65, max: 6.4 }],
-  fuel: [{ name: "Galp", category: catFuel, place: "Galp, Av. Almirante Reis", lat: 38.735, lon: -9.15, min: 42, max: 62 }],
-  clothes: [{ name: "Zara", category: catClothes, place: "Zara, Chiado", lat: 38.7106, lon: -9.1421, min: 18, max: 65 }],
-  electronics: [{ name: "FNAC", category: catElectronics, place: "FNAC, Chiado", lat: 38.7106, lon: -9.1419, min: 15, max: 90 }],
-  hobbies: [{ name: "Decathlon", category: cat("Personal", "Hobbies"), place: "Decathlon, Amoreiras", lat: 38.7227, lon: -9.1608, min: 12, max: 60 }],
-  furniture: [{ name: "IKEA", category: catFurniture, place: "IKEA, Alfragide", lat: 38.7495, lon: -9.2258, min: 25, max: 140 }],
-  pharmacy: [{ name: "Farmácia", category: catPharmacy, place: "Farmácia, Baixa", lat: 38.7139, lon: -9.1387, min: 4, max: 22 }],
-  entertainment: [{ name: "Cinema São Jorge", category: catEntertainment, place: "Cinema São Jorge, Av. da Liberdade", lat: 38.7211, lon: -9.1467, min: 8.5, max: 12.5 }],
-  presents: [{ name: "Florista", category: catPresents, place: "Florista, Chiado", lat: 38.711, lon: -9.142, min: 15, max: 40 }, { name: "Livraria Bertrand", category: catPresents, place: "Livraria Bertrand, Chiado", lat: 38.7107, lon: -9.1418, min: 12, max: 35 }],
-  kids: [{ name: "H&M Kids", category: catKids, place: "H&M, Chiado", lat: 38.7108, lon: -9.1423, min: 15, max: 45 }, { name: "Chicco", category: catKids, place: "Chicco, Colombo", lat: 38.7592, lon: -9.1975, min: 18, max: 55 }],
+  groceries: [shop("groceries1", catGroceries), shop("groceries2", catGroceries), shop("groceries3", catGroceries), shop("groceries4", catGroceries)],
+  coffee: [shop("coffee1", catCoffee), shop("coffee2", catCoffee)],
+  lunch: [shop("lunch1", catRestaurants), shop("lunch2", catRestaurants)],
+  dinner: [shop("dinner1", catRestaurants), shop("dinner2", catRestaurants), shop("dinner3", catRestaurants)],
+  taxi: [shop("taxi1", catTaxi), shop("taxi2", catTaxi)],
+  publicTransport: [shop("metro", catPublicTransport)],
+  fuel: [shop("fuel", catFuel)],
+  clothes: [shop("clothes", catClothes)],
+  electronics: [shop("electronics", catElectronics)],
+  hobbies: [shop("hobbies", catHobbies)],
+  furniture: [shop("furniture", catFurniture)],
+  pharmacy: [shop("pharmacy", catPharmacy)],
+  entertainment: [shop("cinema", catEntertainment)],
+  presents: [shop("presents1", catPresents), shop("presents2", catPresents)],
+  kids: [shop("kids1", catKids), shop("kids2", catKids)],
 } as const satisfies Record<string, readonly Merchant[]>;
 
 // ---------------------------------------------------------------------------------------------
@@ -290,7 +419,7 @@ const specs: TxSpec[] = [];
 
 function addSpec(m: Merchant, day: string, hh: number, mmMin: number, account: Acct, opts: { tagIds?: string[]; geo?: boolean; amount?: number } = {}) {
   const amount = -(opts.amount ?? Math.round((m.min + rand() * (m.max - m.min)) * 100) / 100);
-  const s: TxSpec = { date: day, hh, mm: mmMin, amountMinor: toMinor(amount, account === "Revolut" ? "USD" : "EUR"), currency: account === "Revolut" ? "USD" : "EUR", account, category: m.category, notes: m.name, tagIds: opts.tagIds ?? [] };
+  const s: TxSpec = { date: day, hh, mm: mmMin, amountMinor: toMinor(amount, account === "Revolut" ? CARD : CUR), currency: account === "Revolut" ? CARD : CUR, account, category: m.category, notes: m.name, tagIds: opts.tagIds ?? [] };
   if (chance(0.4) && opts.geo !== false) { s.lat = m.lat; s.lon = m.lon; s.place = m.place; }
   specs.push(s);
 }
@@ -313,21 +442,24 @@ for (const day of daysList(HISTORY_START, addPeriod(PERIOD_START, "daily", -1)))
   if (weekend && chance(0.1)) addSpec(M.entertainment[0]!, day, 21, randInt(0, 20), "Cash", { tagIds: tags([]) });
   if (chance(0.015)) addSpec(pick(M.presents), day, 18, randInt(0, 40), "Main", { tagIds: [tagGift.id] });
   if (chance(0.015)) addSpec(pick(M.kids), day, 17, randInt(0, 40), "Main", { tagIds: [tagKids.id] });
-  // Weekly fixed activities: Portuguese classes on Tuesdays, padel on Wednesdays.
+  // Weekly fixed activities: language classes on Tuesdays, padel on Wednesdays.
+  weekly(day);
+}
+function weekly(day: string) {
   const dow = dayOfWeek(day);
-  if (dow === 2) specs.push({ date: day, hh: 19, mm: 0, amountMinor: -toMinor(45, "EUR"), currency: "EUR", account: "Main", category: catPortuguese, notes: "Portuguese classes" });
-  if (dow === 3) specs.push({ date: day, hh: 20, mm: 30, amountMinor: -toMinor(12, "EUR"), currency: "EUR", account: "Cash", category: catPadel, notes: "Padel" });
+  if (dow === 2) specs.push({ date: day, hh: 19, mm: 0, amountMinor: -toMinor(P.weekly.classes, CUR), currency: CUR, account: "Main", category: catPortuguese, notes: m("category.classes.name") });
+  if (dow === 3) specs.push({ date: day, hh: 20, mm: 30, amountMinor: -toMinor(P.weekly.padel, CUR), currency: CUR, account: "Cash", category: catPadel, notes: m("category.padel.name") });
 }
 
-// -- Madrid, a finished trip: today-60 .. today-56 -----------------------------------------------
+// -- A finished trip (Madrid in English): today-60 .. today-56 ----------------------------------
 const madridStart = addPeriod(TODAY, "daily", -60), madridEnd = addPeriod(TODAY, "daily", -56);
-const { budget: madridBudget, tag: madridTag } = startTrip(db, { name: "Madrid", currency: "EUR", amount_minor: toMinor(800, "EUR"), starts: madridStart, ends: madridEnd });
+const { budget: madridBudget, tag: madridTag } = startTrip(db, { name: m("trip.past.name"), currency: CUR, amount_minor: toMinor(P.pastTrip.budget, CUR), starts: madridStart, ends: madridEnd });
 endTrip(db, madridBudget.id, madridEnd);
 const madridRows: TxSpec[] = [
-  { date: madridStart, hh: 15, mm: 0, amountMinor: -toMinor(140, "EUR"), currency: "EUR", account: "Main", category: catTravel, notes: "Hotel Madrid", tagIds: [madridTag.id] },
-  { date: madridStart, hh: 21, mm: 0, amountMinor: -toMinor(34, "EUR"), currency: "EUR", account: "Cash", category: catRestaurants, notes: "Dinner, Madrid", tagIds: [madridTag.id] },
-  { date: addPeriod(madridStart, "daily", 1), hh: 16, mm: 0, amountMinor: -toMinor(15, "EUR"), currency: "EUR", account: "Cash", category: catEntertainment, notes: "Museo del Prado", tagIds: [madridTag.id] },
-  { date: addPeriod(madridStart, "daily", 1), hh: 12, mm: 0, amountMinor: -toMinor(9.5, "EUR"), currency: "EUR", account: "Cash", category: catPublicTransport, notes: "Metro Madrid", tagIds: [madridTag.id] },
+  { date: madridStart, hh: 15, mm: 0, amountMinor: -toMinor(P.pastTrip.hotel, CUR), currency: CUR, account: "Main", category: catTravel, notes: m("trip.past.hotel"), tagIds: [madridTag.id] },
+  { date: madridStart, hh: 21, mm: 0, amountMinor: -toMinor(P.pastTrip.dinner, CUR), currency: CUR, account: "Cash", category: catRestaurants, notes: m("trip.past.dinner"), tagIds: [madridTag.id] },
+  { date: addPeriod(madridStart, "daily", 1), hh: 16, mm: 0, amountMinor: -toMinor(P.pastTrip.museum, CUR), currency: CUR, account: "Cash", category: catEntertainment, notes: m("trip.past.museum"), tagIds: [madridTag.id] },
+  { date: addPeriod(madridStart, "daily", 1), hh: 12, mm: 0, amountMinor: -toMinor(P.pastTrip.metro, CUR), currency: CUR, account: "Cash", category: catPublicTransport, notes: m("trip.past.metro"), tagIds: [madridTag.id] },
 ];
 specs.push(...madridRows);
 
@@ -354,70 +486,80 @@ function budgetedGroup(merchants: readonly Merchant[], targetMinor: number, coun
     const day = periodDay();
     const m = pick(merchants);
     const hour = randInt(hh[0], hh[1]);
-    const s: TxSpec = { date: day, hh: hour, mm: randInt(0, 55), amountMinor: -amt, currency: "EUR", account: pick(acct), category: m.category, notes: m.name, tagIds: tagFor ? tagFor(day) : [] };
+    const s: TxSpec = { date: day, hh: hour, mm: randInt(0, 55), amountMinor: -amt, currency: CUR, account: pick(acct), category: m.category, notes: m.name, tagIds: tagFor ? tagFor(day) : [] };
     if (chance(0.4)) { s.lat = m.lat; s.lon = m.lon; s.place = m.place; }
     specs.push(s);
   }
 }
 
-// Groceries 450 -> ~62%; Restaurants & cafés 220 -> ~55%; Coffee & snacks 60 -> ~108% (slightly over).
-budgetedGroup(M.groceries, Math.round(45000 * 0.62), 6, [11, 19], ["Main", "Main", "Cash"], [8, 50]);
-// (Restaurants & cafés also picks up the Porto trip's meals below, so the base target here is
-// deliberately lower than the others: base + trip spend should land mid-range together.)
-budgetedGroup([...M.lunch, ...M.dinner], Math.round(22000 * 0.25), 6, [13, 21], ["Main"], [9, 35], (day) => (isWeekend(day) ? [tagWeekend.id] : chance(0.6) ? [tagLunch.id] : []));
-budgetedGroup(M.coffee, Math.round(6000 * 1.08), 14, [8, 17], ["Main", "Cash"], [1.5, 5], () => (chance(0.5) ? [tagCoffee.id] : []));
+/** A budget group's target in minor units: so much of the budget it is measured against. */
+const G = (g: Group) => Math.round(toMinor(g.target, CUR) * g.ratio);
+const R = P.groups;
+// Groceries ~62%; Restaurants & cafés ~25%; Coffee & snacks ~108% (slightly over).
+budgetedGroup(M.groceries, G(R.groceries), R.groceries.count, [11, 19], ["Main", "Main", "Cash"], R.groceries.range);
+budgetedGroup([...M.lunch, ...M.dinner], G(R.restaurants), R.restaurants.count, [13, 21], ["Main"], R.restaurants.range, (day) => (isWeekend(day) ? [tagWeekend.id] : chance(0.6) ? [tagLunch.id] : []));
+budgetedGroup(M.coffee, G(R.coffee), R.coffee.count, [8, 17], ["Main", "Cash"], R.coffee.range, () => (chance(0.5) ? [tagCoffee.id] : []));
 
-// Transport folder 120 -> ~50%, spread across taxi/public transport/fuel.
-budgetedGroup(M.taxi, Math.round(12000 * 0.3), 5, [18, 23], ["Cash", "Main"], [4, 14]);
-budgetedGroup(M.publicTransport, Math.round(12000 * 0.15), 4, [8, 19], ["Main"], [1.5, 6]);
-budgetedGroup(M.fuel, Math.round(12000 * 0.05), 1, [17, 18], ["Main"], [40, 60]);
+// Transport folder ~50%, spread across taxi/public transport/fuel.
+budgetedGroup(M.taxi, G(R.taxi), R.taxi.count, [18, 23], ["Cash", "Main"], R.taxi.range);
+budgetedGroup(M.publicTransport, G(R.metro), R.metro.count, [8, 19], ["Main"], R.metro.range);
+budgetedGroup(M.fuel, G(R.fuel), R.fuel.count, [17, 18], ["Main"], R.fuel.range);
 
-// Entertainment 80 -> ~45%.
-budgetedGroup(M.entertainment, Math.round(8000 * 0.45), 3, [20, 22], ["Cash", "Main"], [8, 13], (day) => (isWeekend(day) ? [tagWeekend.id] : []));
+// Entertainment ~45%.
+budgetedGroup(M.entertainment, G(R.entertainment), R.entertainment.count, [20, 22], ["Cash", "Main"], R.entertainment.range, (day) => (isWeekend(day) ? [tagWeekend.id] : []));
 
-// Household 90 -> ~50% (its own budget); Shopping folder 250 -> ~40% total, Household's share included.
-const householdMerchant: Merchant = { name: "IKEA", category: catHousehold, place: "IKEA, Alfragide", lat: 38.7495, lon: -9.2258, min: 8, max: 45 };
-budgetedGroup([householdMerchant], Math.round(9000 * 0.5), 3, [17, 19], ["Main"], [8, 45]);
-budgetedGroup(M.clothes, Math.round(5500 * 0.4), 1, [17, 19], ["Main"], [15, 65]);
-budgetedGroup(M.electronics, Math.round(5500 * 0.35), 1, [17, 19], ["Main"], [15, 90]);
-budgetedGroup(M.hobbies, Math.round(5500 * 0.25), 1, [17, 19], ["Main"], [10, 60]);
+// Household ~50% (its own budget); the Shopping folder lands well under its limit, Household's share included.
+const householdMerchant: Merchant = shop("household", catHousehold);
+budgetedGroup([householdMerchant], G(R.household), R.household.count, [17, 19], ["Main"], R.household.range);
+budgetedGroup(M.clothes, G(R.clothes), R.clothes.count, [17, 19], ["Main"], R.clothes.range);
+budgetedGroup(M.electronics, G(R.electronics), R.electronics.count, [17, 19], ["Main"], R.electronics.range);
+budgetedGroup(M.hobbies, G(R.hobbies), R.hobbies.count, [17, 19], ["Main"], R.hobbies.range);
 
 // A little unbudgeted padding: pharmacy, presents, kids, weekly classes, transfer and Revolut rows already add up.
-specs.push({ date: periodDay(), hh: 18, mm: 20, amountMinor: -toMinor(9.9, "EUR"), currency: "EUR", account: "Main", category: catPharmacy, notes: "Farmácia" });
-specs.push({ date: periodDay(), hh: 18, mm: 40, amountMinor: -toMinor(28, "EUR"), currency: "EUR", account: "Main", category: catPresents, notes: "Livraria Bertrand", tagIds: [tagGift.id] });
-specs.push({ date: periodDay(), hh: 17, mm: 10, amountMinor: -toMinor(32, "EUR"), currency: "EUR", account: "Main", category: catKids, notes: "H&M Kids", tagIds: [tagKids.id] });
-for (const day of periodDays) {
-  const dow = dayOfWeek(day);
-  if (dow === 2) specs.push({ date: day, hh: 19, mm: 0, amountMinor: -toMinor(45, "EUR"), currency: "EUR", account: "Main", category: catPortuguese, notes: "Portuguese classes" });
-  if (dow === 3) specs.push({ date: day, hh: 20, mm: 30, amountMinor: -toMinor(12, "EUR"), currency: "EUR", account: "Cash", category: catPadel, notes: "Padel" });
+specs.push({ date: periodDay(), hh: 18, mm: 20, amountMinor: -toMinor(P.padding.pharmacy, CUR), currency: CUR, account: "Main", category: catPharmacy, notes: m("shop.pharmacy.name") });
+specs.push({ date: periodDay(), hh: 18, mm: 40, amountMinor: -toMinor(P.padding.presents, CUR), currency: CUR, account: "Main", category: catPresents, notes: m("shop.presents2.name"), tagIds: [tagGift.id] });
+specs.push({ date: periodDay(), hh: 17, mm: 10, amountMinor: -toMinor(P.padding.kids, CUR), currency: CUR, account: "Main", category: catKids, notes: m("shop.kids1.name"), tagIds: [tagKids.id] });
+for (const day of periodDays) weekly(day);
+
+// -- Entries only some languages show (the Ukrainian set's, asked for word for word) -------------
+// The last minutes of today, so they sit at the very top of the transaction list whatever the
+// random rows land on; the dentist comes after the chocolate.
+if (P.extras) {
+  const x = P.extras;
+  specs.push({ date: TODAY, hh: 23, mm: 56, amountMinor: -toMinor(x.chocolate, CUR), currency: CUR, account: "Cash", category: catCoffee, notes: m("extra.chocolate") });
+  specs.push({ date: TODAY, hh: 23, mm: 57, amountMinor: -toMinor(x.trousers, CUR), currency: CUR, account: "Cash", category: catClothes, notes: m("extra.trousers") });
+  specs.push({ date: TODAY, hh: 23, mm: 58, amountMinor: -toMinor(x.gambler, CUR), currency: CUR, account: "Main", category: catWishes, notes: m("extra.gambler") });
+  specs.push({ date: TODAY, hh: 23, mm: 59, amountMinor: -toMinor(x.teeth, CUR), currency: CUR, account: "Main", category: catDoctor, notes: m("extra.teeth") });
 }
 
-// -- Porto weekend, the active trip: today-2 .. today+2 ------------------------------------------
+// -- The active trip (Porto weekend in English): today-2 .. today+2 -----------------------------
 const portoStart = addPeriod(TODAY, "daily", -2), portoEnd = addPeriod(TODAY, "daily", 2);
-const { tag: portoTag } = startTrip(db, { name: "Porto weekend", currency: "EUR", amount_minor: toMinor(600, "EUR"), starts: portoStart, ends: portoEnd });
+const T = P.trip;
+const { tag: portoTag } = startTrip(db, { name: m("trip.current.name"), currency: CUR, amount_minor: toMinor(T.budget, CUR), starts: portoStart, ends: portoEnd });
 const portoRows: TxSpec[] = [
-  { date: portoStart, hh: 12, mm: 0, amountMinor: -toMinor(32.6, "EUR"), currency: "EUR", account: "Main", category: catPublicTransport, notes: "Train CP", tagIds: [portoTag.id] },
-  { date: portoStart, hh: 16, mm: 0, amountMinor: -toMinor(189, "EUR"), currency: "EUR", account: "Main", category: catTravel, notes: "Hotel", tagIds: [portoTag.id] },
-  { date: portoStart, hh: 20, mm: 30, amountMinor: -toMinor(38, "EUR"), currency: "EUR", account: "Cash", category: catRestaurants, notes: "Dinner, Porto", tagIds: [portoTag.id] },
-  { date: YESTERDAY, hh: 19, mm: 0, amountMinor: -toMinor(11, "EUR"), currency: "EUR", account: "Cash", category: catEntertainment, notes: "Port wine tasting", tagIds: [portoTag.id] },
-  { date: YESTERDAY, hh: 21, mm: 0, amountMinor: -toMinor(41, "EUR"), currency: "EUR", account: "Cash", category: catRestaurants, notes: "Dinner, Porto", tagIds: [portoTag.id] },
-  { date: TODAY, hh: 13, mm: 30, amountMinor: -toMinor(14.5, "EUR"), currency: "EUR", account: "Cash", category: catRestaurants, notes: "Francesinha", tagIds: [portoTag.id] },
+  { date: portoStart, hh: 12, mm: 0, amountMinor: -toMinor(T.train, CUR), currency: CUR, account: "Main", category: catPublicTransport, notes: m("trip.current.train"), tagIds: [portoTag.id] },
+  { date: portoStart, hh: 16, mm: 0, amountMinor: -toMinor(T.hotel, CUR), currency: CUR, account: "Main", category: catTravel, notes: m("trip.current.hotel"), tagIds: [portoTag.id] },
+  { date: portoStart, hh: 20, mm: 30, amountMinor: -toMinor(T.dinner, CUR), currency: CUR, account: "Cash", category: catRestaurants, notes: m("trip.current.dinner"), tagIds: [portoTag.id] },
+  { date: YESTERDAY, hh: 19, mm: 0, amountMinor: -toMinor(T.tasting, CUR), currency: CUR, account: "Cash", category: catEntertainment, notes: m("trip.current.tasting"), tagIds: [portoTag.id] },
+  { date: YESTERDAY, hh: 21, mm: 0, amountMinor: -toMinor(T.dinner2, CUR), currency: CUR, account: "Cash", category: catRestaurants, notes: m("trip.current.dinner"), tagIds: [portoTag.id] },
+  { date: TODAY, hh: 13, mm: 30, amountMinor: -toMinor(T.lunch, CUR), currency: CUR, account: "Cash", category: catRestaurants, notes: m("trip.current.lunch"), tagIds: [portoTag.id] },
 ];
+if (T.extra !== null) portoRows.push({ date: TODAY, hh: 15, mm: 10, amountMinor: -toMinor(T.extra, CUR), currency: CUR, account: "Cash", category: catCoffee, notes: m("trip.current.extra"), tagIds: [portoTag.id] });
 specs.push(...portoRows);
 
 // -- Revolut (USD) purchases ----------------------------------------------------------------------
-for (const t of revolutTx) specs.push({ date: t.date, hh: t.hh, mm: randInt(0, 55), amountMinor: toMinor(t.amount, "USD"), currency: "USD", account: "Revolut", category: t.category, notes: t.payee });
+for (const t of revolutTx) specs.push({ date: t.date, hh: t.hh, mm: randInt(0, 55), amountMinor: toMinor(t.amount, CARD), currency: CARD, account: "Revolut", category: t.category, notes: t.payee });
 
 // -- Joint (the one or two shared-account rows) --------------------------------------------------
-specs.push({ date: addPeriod(TODAY, "monthly", -3), hh: 11, mm: 0, amountMinor: -toMinor(64.5, "EUR"), currency: "EUR", account: "Joint", category: catGroceries, notes: "Continente" });
-specs.push({ date: addPeriod(TODAY, "monthly", -2), hh: 17, mm: 0, amountMinor: -toMinor(118, "EUR"), currency: "EUR", account: "Joint", category: catHousehold, notes: "IKEA" });
+specs.push({ date: addPeriod(TODAY, "monthly", -3), hh: 11, mm: 0, amountMinor: -toMinor(P.joint.groceries, CUR), currency: CUR, account: "Joint", category: catGroceries, notes: m("shop.groceries2.name") });
+specs.push({ date: addPeriod(TODAY, "monthly", -2), hh: 17, mm: 0, amountMinor: -toMinor(P.joint.household, CUR), currency: CUR, account: "Joint", category: catHousehold, notes: m("shop.household.name") });
 
 // Cash and Joint: opening balance computed backwards from every spec that spends from them, so
 // today's balance lands on a sane, positive number instead of drifting wherever chance took it.
 const cashSpentMinor = specs.filter((s) => s.account === "Cash").reduce((a, s) => a + s.amountMinor, 0);
 const jointSpentMinor = specs.filter((s) => s.account === "Joint").reduce((a, s) => a + s.amountMinor, 0);
-const cash = createAccount(db, { name: "Cash", currency: "EUR", type: "cash", icon: "banknote.fill", color: colorByName("green"), opening_balance_minor: toMinor(150, "EUR") - cashSpentMinor, sort: 1 });
-const joint = createAccount(db, { name: "Joint", currency: "EUR", type: "bank", group_name: "Family", icon: "person.2.fill", color: colorByName("indigo"), opening_balance_minor: toMinor(400, "EUR") - jointSpentMinor, sort: 0 });
+const cash = createAccount(db, { name: m("account.cash"), currency: CUR, type: "cash", icon: "banknote.fill", color: colorByName("green"), opening_balance_minor: toMinor(P.cashTarget, CUR) - cashSpentMinor, sort: 1 });
+const joint = createAccount(db, { name: m("account.joint"), currency: CUR, type: "bank", group_name: m("account.group"), icon: "person.2.fill", color: colorByName("indigo"), opening_balance_minor: toMinor(P.jointTarget, CUR) - jointSpentMinor, sort: 0 });
 
 // ---------------------------------------------------------------------------------------------
 // Recurring rules + their historic postings
@@ -425,38 +567,39 @@ const joint = createAccount(db, { name: "Joint", currency: "EUR", type: "bank", 
 
 const accountOf: Record<Acct, Account> = { Main: main, Cash: cash, Revolut: revolut, Joint: joint };
 
-interface RuleSpec { name: string; day: number; amount: number; category: Category; autoPost: 0 | 1; freq: "monthly" | "yearly"; time: string; anchor: string }
+interface RuleSpec { key: keyof Profile["rules"]; name: string; day: number; amount: number; category: Category; autoPost: 0 | 1; freq: "monthly" | "yearly"; time: string; anchor: string }
+const rule = (key: RuleSpec["key"], rest: Omit<RuleSpec, "key" | "name" | "amount">): RuleSpec => ({ key, name: m(`rule.${key}`), amount: P.rules[key], ...rest });
 const ruleSpecs: RuleSpec[] = [
-  { name: "Rent", day: 1, amount: -1250, category: catRent, autoPost: 0, freq: "monthly", time: "09:00", anchor: "2023-01-01" },
-  { name: "iCloud", day: 3, amount: -2.99, category: catSubscriptions, autoPost: 1, freq: "monthly", time: "00:05", anchor: "2023-01-03" },
-  { name: "Spotify", day: 5, amount: -10.99, category: catSubscriptions, autoPost: 1, freq: "monthly", time: "09:15", anchor: "2023-01-05" },
-  { name: "Netflix", day: 8, amount: -15.99, category: catSubscriptions, autoPost: 1, freq: "monthly", time: "10:30", anchor: "2023-01-08" },
-  { name: "Gym", day: 10, amount: -39.9, category: catGym, autoPost: 1, freq: "monthly", time: "07:00", anchor: "2023-01-10" },
-  { name: "Vodafone", day: 12, amount: -29.9, category: catInternet, autoPost: 1, freq: "monthly", time: "09:00", anchor: "2023-01-12" },
-  { name: "EDP energy", day: 18, amount: -62, category: catUtilities, autoPost: 0, freq: "monthly", time: "09:00", anchor: "2023-01-18" },
-  { name: "Salary", day: 25, amount: 3850, category: catSalary, autoPost: 1, freq: "monthly", time: "09:00", anchor: "2023-01-25" },
+  rule("rent", { day: 1, category: catRent, autoPost: 0, freq: "monthly", time: "09:00", anchor: "2023-01-01" }),
+  rule("icloud", { day: 3, category: catSubscriptions, autoPost: 1, freq: "monthly", time: "00:05", anchor: "2023-01-03" }),
+  rule("spotify", { day: 5, category: catSubscriptions, autoPost: 1, freq: "monthly", time: "09:15", anchor: "2023-01-05" }),
+  rule("netflix", { day: 8, category: catSubscriptions, autoPost: 1, freq: "monthly", time: "10:30", anchor: "2023-01-08" }),
+  rule("gym", { day: 10, category: catGym, autoPost: 1, freq: "monthly", time: "07:00", anchor: "2023-01-10" }),
+  rule("phone", { day: 12, category: catInternet, autoPost: 1, freq: "monthly", time: "09:00", anchor: "2023-01-12" }),
+  rule("energy", { day: 18, category: catUtilities, autoPost: 0, freq: "monthly", time: "09:00", anchor: "2023-01-18" }),
+  rule("salary", { day: 25, category: catSalary, autoPost: 1, freq: "monthly", time: "09:00", anchor: "2023-01-25" }),
 ];
 const CAR_INSURANCE_ANCHOR = "2022-11-05"; // yearly, no occurrence inside the demo window
 
 const rules: RecurringRule[] = [];
-const templatesByName = new Map<string, Transaction>();
+const templatesByKey = new Map<string, Transaction>();
 
 for (const rs of ruleSpecs) {
   const startDate = rs.anchor;
   const { past, next } = occurrencesUpTo(startDate, "monthly", TODAY);
   const rule = createRecurring(db, {
-    account_id: main.id, amount_minor: toMinor(rs.amount, "EUR"), category_id: rs.category.id, payee: rs.name,
+    account_id: main.id, amount_minor: toMinor(rs.amount, CUR), category_id: rs.category.id, payee: rs.name,
     frequency: "monthly", interval: 1, start_date: startDate, next_date: next, notify: 1, notify_days_before: 1,
     auto_post: rs.autoPost, active: 1, time_of_day: rs.time,
   });
   rules.push(rule);
   for (const day of past.filter((d) => d >= HISTORY_START)) {
-    const tx = createTransaction(db, { account_id: main.id, date: ts(day, ...timeParts(rs.time)), amount_minor: toMinor(rs.amount, "EUR"), category_id: rs.category.id, payee: rs.name, recurring_id: rule.id });
-    templatesByName.set(rs.name, tx);
+    const tx = createTransaction(db, { account_id: main.id, date: ts(day, ...timeParts(rs.time)), amount_minor: toMinor(rs.amount, CUR), category_id: rs.category.id, payee: rs.name, recurring_id: rule.id });
+    templatesByKey.set(rs.key, tx);
   }
 }
 const carInsurance = createRecurring(db, {
-  account_id: main.id, amount_minor: toMinor(-380, "EUR"), category_id: catCar.id, payee: "Car insurance",
+  account_id: main.id, amount_minor: toMinor(P.rules.carInsurance, CUR), category_id: catCar.id, payee: m("rule.carInsurance"),
   frequency: "yearly", interval: 1, start_date: CAR_INSURANCE_ANCHOR, next_date: occurrencesUpTo(CAR_INSURANCE_ANCHOR, "yearly", TODAY).next,
   notify: 1, notify_days_before: 1, auto_post: 1, active: 1, time_of_day: "09:00",
 });
@@ -477,36 +620,38 @@ for (const s of specs) {
   });
 }
 for (const day of postedTransferDays) {
-  createTransfer(db, { from_account_id: main.id, to_account_id: savings.id, date: ts(day, 10, 0), from_amount_minor: toMinor(400, "EUR"), to_amount_minor: toMinor(400, "EUR"), from_currency: "EUR", to_currency: "EUR", notes: "Savings" });
+  createTransfer(db, { from_account_id: main.id, to_account_id: savings.id, date: ts(day, 10, 0), from_amount_minor: toMinor(P.savingsMonthly, CUR), to_amount_minor: toMinor(P.savingsMonthly, CUR), from_currency: CUR, to_currency: CUR, notes: m("transfer") });
 }
 
 // The one pending row Shortcuts is meant to demonstrate.
-createTransaction(db, { account_id: main.id, date: ts(TODAY, 20, 5), amount_minor: -toMinor(7.4, "EUR"), category_id: catTaxi.id, notes: "Bolt", pending: 1, source: "shortcut-guess" });
+createTransaction(db, { account_id: main.id, date: ts(TODAY, 20, 5), amount_minor: -toMinor(P.pending, CUR), category_id: catTaxi.id, notes: m("shop.taxi2.name"), pending: 1, source: "shortcut-guess" });
 
 // ---------------------------------------------------------------------------------------------
 // Budgets
 // ---------------------------------------------------------------------------------------------
 
+const PB = P.budgets;
 const budgetSpecs: { category: Category; amount: number }[] = [
-  { category: catGroceries, amount: 450 }, { category: catRestaurants, amount: 220 }, { category: catCoffee, amount: 60 },
-  { category: fTransport, amount: 120 }, { category: catEntertainment, amount: 80 }, { category: fShopping, amount: 250 }, { category: catHousehold, amount: 90 },
+  { category: catGroceries, amount: PB.groceries }, { category: catRestaurants, amount: PB.restaurants }, { category: catCoffee, amount: PB.coffee },
+  { category: fTransport, amount: PB.transport }, { category: catEntertainment, amount: PB.entertainment }, { category: fShopping, amount: PB.shopping }, { category: catHousehold, amount: PB.household },
 ];
-for (const b of budgetSpecs) createBudget(db, { category_id: b.category.id, currency: "EUR", amount_minor: toMinor(b.amount, "EUR"), period: "monthly", starts: PERIOD_START, start_day: PERIOD_START_DAY, account_id: main.id });
+for (const b of budgetSpecs) createBudget(db, { category_id: b.category.id, currency: CUR, amount_minor: toMinor(b.amount, CUR), period: "monthly", starts: PERIOD_START, start_day: PERIOD_START_DAY, account_id: main.id });
 
 // ---------------------------------------------------------------------------------------------
 // Debts
 // ---------------------------------------------------------------------------------------------
 
 // Open debts first (the Debts screen lists them newest-due first), then two settled ones for history.
-createDebt(db, { person: "Oleksandr", direction: "owed_to_me", amount_minor: toMinor(120, "EUR"), currency: "EUR", account_id: main.id, opened_date: addPeriod(TODAY, "daily", -9), due_date: addPeriod(TODAY, "daily", 5), notes: "Concert tickets", notify: 1 });
-createDebt(db, { person: "Daryna", direction: "i_owe", amount_minor: toMinor(350, "EUR"), currency: "EUR", opened_date: addPeriod(TODAY, "daily", -20), due_date: addPeriod(TODAY, "daily", 12), notes: "Bike" });
-createDebt(db, { person: "Olga", direction: "owed_to_me", amount_minor: toMinor(45, "USD"), currency: "USD", opened_date: addPeriod(TODAY, "daily", -40), due_date: null, notes: "Dinner in NYC" });
-createDebt(db, { person: "Maksym", direction: "owed_to_me", amount_minor: toMinor(80, "EUR"), currency: "EUR", account_id: main.id, opened_date: addPeriod(TODAY, "daily", -6), due_date: addPeriod(TODAY, "daily", 20), notes: "Padel court", notify: 1 });
-createDebt(db, { person: "Oleski", direction: "i_owe", amount_minor: toMinor(25, "EUR"), currency: "EUR", opened_date: addPeriod(TODAY, "daily", -3), due_date: null, notes: "Lunch" });
-createDebt(db, { person: "Azuki", direction: "owed_to_me", amount_minor: toMinor(200, "EUR"), currency: "EUR", opened_date: addPeriod(TODAY, "daily", -15), due_date: addPeriod(TODAY, "daily", -2), notes: "Festival ticket", notify: 1 }); // overdue
-const pusik = createDebt(db, { person: "Pusik", direction: "owed_to_me", amount_minor: toMinor(60, "EUR"), currency: "EUR", opened_date: addPeriod(TODAY, "daily", -50) });
+const D = P.debts;
+createDebt(db, { person: m("debt.d1.person"), direction: "owed_to_me", amount_minor: toMinor(D[0], CUR), currency: CUR, account_id: main.id, opened_date: addPeriod(TODAY, "daily", -9), due_date: addPeriod(TODAY, "daily", 5), notes: m("debt.d1.note"), notify: 1 });
+createDebt(db, { person: m("debt.d2.person"), direction: "i_owe", amount_minor: toMinor(D[1], CUR), currency: CUR, opened_date: addPeriod(TODAY, "daily", -20), due_date: addPeriod(TODAY, "daily", 12), notes: m("debt.d2.note") });
+createDebt(db, { person: m("debt.d3.person"), direction: "owed_to_me", amount_minor: toMinor(D[2], CARD), currency: CARD, opened_date: addPeriod(TODAY, "daily", -40), due_date: null, notes: m("debt.d3.note") });
+createDebt(db, { person: m("debt.d4.person"), direction: "owed_to_me", amount_minor: toMinor(D[3], CUR), currency: CUR, account_id: main.id, opened_date: addPeriod(TODAY, "daily", -6), due_date: addPeriod(TODAY, "daily", 20), notes: m("debt.d4.note"), notify: 1 });
+createDebt(db, { person: m("debt.d5.person"), direction: "i_owe", amount_minor: toMinor(D[4], CUR), currency: CUR, opened_date: addPeriod(TODAY, "daily", -3), due_date: null, notes: m("debt.d5.note") });
+createDebt(db, { person: m("debt.d6.person"), direction: "owed_to_me", amount_minor: toMinor(D[5], CUR), currency: CUR, opened_date: addPeriod(TODAY, "daily", -15), due_date: addPeriod(TODAY, "daily", -2), notes: m("debt.d6.note"), notify: 1 }); // overdue
+const pusik = createDebt(db, { person: m("debt.d7.person"), direction: "owed_to_me", amount_minor: toMinor(D[6], CUR), currency: CUR, opened_date: addPeriod(TODAY, "daily", -50) });
 settleDebt(db, pusik.id, { day: addPeriod(TODAY, "daily", -30) });
-const siri = createDebt(db, { person: "Siri", direction: "i_owe", amount_minor: toMinor(40, "EUR"), currency: "EUR", opened_date: addPeriod(TODAY, "daily", -35), notes: "Cinema" });
+const siri = createDebt(db, { person: m("debt.d8.person"), direction: "i_owe", amount_minor: toMinor(D[7], CUR), currency: CUR, opened_date: addPeriod(TODAY, "daily", -35), notes: m("debt.d8.note") });
 settleDebt(db, siri.id, { day: addPeriod(TODAY, "daily", -21) });
 
 // ---------------------------------------------------------------------------------------------
@@ -515,11 +660,11 @@ settleDebt(db, siri.id, { day: addPeriod(TODAY, "daily", -21) });
 
 createInsight(db, { kind: "free_money", sort: 0 });
 createInsight(db, { kind: "days_to_salary", sort: 1 });
-createInsight(db, { kind: "savings_goal", sort: 2, params: JSON.stringify({ title: "Emergency fund", account_id: savings.id, target_minor: toMinor(10000, "EUR") }) });
+createInsight(db, { kind: "savings_goal", sort: 2, params: JSON.stringify({ title: m("goal"), account_id: savings.id, target_minor: toMinor(P.goal, CUR) }) });
 createInsight(db, { kind: "checklist", sort: 3, params: JSON.stringify({ category_ids: [catRent.id, catUtilities.id, catInternet.id] }) });
 createInsight(db, { kind: "subscriptions", sort: 4 });
 createInsight(db, { kind: "regular", sort: 5, params: JSON.stringify({ category_ids: [catGroceries.id], frequency: "weekly" }) });
-const gymTpl = templatesByName.get("Gym"), vodafoneTpl = templatesByName.get("Vodafone");
+const gymTpl = templatesByKey.get("gym"), vodafoneTpl = templatesByKey.get("phone");
 if (gymTpl && vodafoneTpl) {
   createInsight(db, { kind: "upcoming", sort: 6, params: JSON.stringify({ templates: [templateFromTransaction(gymTpl), templateFromTransaction(vodafoneTpl)] }) });
 }
@@ -530,10 +675,9 @@ if (gymTpl && vodafoneTpl) {
 
 const rateDays = new Set<string>([TODAY, ...revolutTx.map((t) => t.date)]);
 for (const day of rateDays) {
-  db.run(`INSERT OR REPLACE INTO exchange_rates(base, quote, day, rate, fetched_at) VALUES (?,?,?,?,?)`, ["USD", "EUR", day, 0.92, Date.now()]);
-  db.run(`INSERT OR REPLACE INTO exchange_rates(base, quote, day, rate, fetched_at) VALUES (?,?,?,?,?)`, ["EUR", "USD", day, 1.087, Date.now()]);
+  for (const [base, quote, rate] of P.rates.daily) db.run(`INSERT OR REPLACE INTO exchange_rates(base, quote, day, rate, fetched_at) VALUES (?,?,?,?,?)`, [base, quote, day, rate, Date.now()]);
 }
-db.run(`INSERT OR REPLACE INTO exchange_rates(base, quote, day, rate, fetched_at) VALUES (?,?,?,?,?)`, ["EUR", "PLN", TODAY, 4.28, Date.now()]);
+for (const [base, quote, rate] of P.rates.today) db.run(`INSERT OR REPLACE INTO exchange_rates(base, quote, day, rate, fetched_at) VALUES (?,?,?,?,?)`, [base, quote, TODAY, rate, Date.now()]);
 
 // ---------------------------------------------------------------------------------------------
 // Validate: run the same core queries the app runs, and refuse to write a broken file.
@@ -571,20 +715,21 @@ for (const a of [main, cash, savings, revolut, joint]) {
   const bal = balanceToday(a.id);
   assertTrue(Number.isFinite(bal), `NaN balance for ${a.name}`);
 }
-assertTrue(Math.abs(balanceToday(savings.id) - toMinor(6400, "EUR")) < 1, `Savings should land on 6400.00 EUR, got ${fromMinor(balanceToday(savings.id), "EUR")}`);
-assertTrue(Math.abs(balanceToday(revolut.id) - toMinor(900, "USD")) < 1, `Revolut should land on 900.00 USD, got ${fromMinor(balanceToday(revolut.id), "USD")}`);
+assertTrue(Math.abs(balanceToday(savings.id) - toMinor(P.savingsTarget, CUR)) < 1, `Savings should land on ${P.savingsTarget} ${CUR}, got ${fromMinor(balanceToday(savings.id), CUR)}`);
+assertTrue(Math.abs(balanceToday(revolut.id) - toMinor(900, CARD)) < 1, `The card should land on 900.00 USD, got ${fromMinor(balanceToday(revolut.id), CARD)}`);
+for (const a of [main, cash, joint]) assertTrue(balanceToday(a.id) > 0, `${a.name} ends below zero — raise its opening balance in PROFILES.${LANG}`);
 
 // ---------------------------------------------------------------------------------------------
 // Export + write
 // ---------------------------------------------------------------------------------------------
 
 const backup = exportBackup(db, { includeDeleted: false });
-const outPath = join(dirname(new URL(import.meta.url).pathname), "..", "..", "screenshots", "demo", "kopiyka-demo.json");
+const outPath = join(HERE, "..", "..", "screenshots", "demo", `kopiyka-demo-${LANG}.json`);
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, JSON.stringify(backup, null, 1));
 
 console.log(outPath);
-console.log(`  today=${TODAY}  period=${PERIOD_START}..${TODAY}`);
+console.log(`  lang=${LANG}  today=${TODAY}  period=${PERIOD_START}..${TODAY}`);
 console.log(`  ${backup.accounts.length} accounts, ${backup.categories.length} categories, ${backup.tags.length} tags, ${backup.transactions.length} transactions, ${backup.recurring_rules.length} recurring rules, ${backup.budgets.length} budgets, ${backup.insights?.length ?? 0} insights, ${backup.debts?.length ?? 0} debts, ${backup.rates?.length ?? 0} rates`);
 for (const a of listRows(db, "accounts", "deleted=0", [], "group_name, sort")) {
   console.log(`  ${a.group_name.padEnd(10)} ${a.name.padEnd(10)} ${fromMinor(balanceToday(a.id), a.currency).toFixed(2).padStart(12)} ${a.currency}`);
@@ -592,7 +737,7 @@ for (const a of listRows(db, "accounts", "deleted=0", [], "group_name, sort")) {
 console.log("  budgets (current period):");
 for (const r of rows) {
   const catName = allCats().find((c) => c.id === r.budget.category_id)?.name ?? "?";
-  console.log(`    ${catName.padEnd(24)} ${formatMinor(r.spent_minor, "EUR")} / ${formatMinor(r.budget.amount_minor, "EUR")} EUR (${((r.spent_minor / r.budget.amount_minor) * 100).toFixed(0)}%)`);
+  console.log(`    ${catName.padEnd(24)} ${formatMinor(r.spent_minor, CUR)} / ${formatMinor(r.budget.amount_minor, CUR)} ${CUR} (${((r.spent_minor / r.budget.amount_minor) * 100).toFixed(0)}%)`);
 }
 console.log("  trips:");
 for (const b of listTrips(db)) { const s = tripStats(db, b, { today: TODAY }); console.log(`    ${s.name.padEnd(16)} ${formatMinor(s.spent_minor, s.currency)} / ${formatMinor(s.limit_minor, s.currency)} ${s.currency}${s.active ? " (active)" : " (ended)"}`); }
@@ -625,6 +770,7 @@ if (applyUdid) {
   migrate(target);
   const report = importBackup(target, backup, { mode: "replace", applySettings: true });
   setMeta(target, "onboarded", "1");
+  setMeta(target, "language", LANG);   // already in the file's settings; said again so it cannot drift
   target.raw.run("PRAGMA wal_checkpoint(TRUNCATE)");
   target.close();
 

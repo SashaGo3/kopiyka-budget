@@ -1,12 +1,13 @@
 import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { CATEGORY_PRESET, presetCounts, seedCategories } from "@kopiyka/core";
+import { CATEGORY_PRESET, presetCounts, presetKey, presetName, seedCategories } from "@kopiyka/core";
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { setOnboarded } from "@/lib/onboarding";
+import { getLanguage, t } from "@/i18n";
 
 /**
  * Step 4, and the last one: a ready-made set of folders and categories; one tap adds them all.
@@ -20,21 +21,23 @@ import { setOnboarded } from "@/lib/onboarding";
 export default function OnboardingCategories() {
   const { folders, categories } = presetCounts();
   const next = (seed: boolean) => {
-    if (seed) mutate((d) => seedCategories(d));
+    // Named in the language the app is in now; they follow it from then on until renamed (core presets.ts).
+    if (seed) mutate((d) => seedCategories(d, getLanguage()));
     setOnboarded();
     router.replace("/transactions");
   };
+  const lang = getLanguage();
   return (
-    <OnboardingFrame step={4} title="Categories, ready to go" subtitle={`${categories} categories in ${folders} folders, each with a short description so Siri and the watch can match them. Rename, add or remove any later.`}
-      primary={{ label: "Add these categories", onPress: () => next(true) }}
-      secondary={{ label: "Start with none", onPress: () => next(false) }}>
+    <OnboardingFrame step={4} title={t("onboarding.categories.title")} subtitle={t("onboarding.categories.subtitle", { categories, folders })}
+      primary={{ label: t("onboarding.categories.add"), onPress: () => next(true) }}
+      secondary={{ label: t("onboarding.categories.none"), onPress: () => next(false) }}>
       <View style={styles.list}>
         {CATEGORY_PRESET.map((f, i) => (
-          <FadeIn key={f.name} delay={150 + i * 40} style={styles.folder}>
+          <FadeIn key={f.key} delay={150 + i * 40} style={styles.folder}>
             <View style={[styles.icon, { backgroundColor: f.color }]}><SymbolView name={f.icon as SFSymbol} size={18} tintColor="white" /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{f.name}{f.kind === "income" ? <Text style={styles.kind}>  income</Text> : null}</Text>
-              <Text style={styles.cats}>{f.categories.map((c) => c.name).join(" · ")}</Text>
+              <Text style={styles.name}>{presetName(f.key, lang)}{f.kind === "income" ? <Text style={styles.kind}>  {t("onboarding.categories.income")}</Text> : null}</Text>
+              <Text style={styles.cats}>{f.categories.map((c) => presetName(presetKey(f.key, c.key), lang)).join(" · ")}</Text>
             </View>
           </FadeIn>
         ))}

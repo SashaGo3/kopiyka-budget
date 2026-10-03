@@ -11,10 +11,12 @@ import { C, S } from "@/constants/theme";
 import { humanDayTime, localIso, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
+import { acctName } from "@/lib/names";
 
-const DIRECTIONS: { value: DebtDirection; label: string }[] = [
-  { value: "owed_to_me", label: "They owe me" },
-  { value: "i_owe", label: "I owe" },
+const directions = (): { value: DebtDirection; label: string }[] => [
+  { value: "owed_to_me", label: t("debt.direction.owedToMe") },
+  { value: "i_owe", label: t("debt.direction.iOwe") },
 ];
 
 /**
@@ -56,8 +58,12 @@ export default function DebtEdit() {
   const amountMinor = toMinor(value ?? 0, currency);
   const valid = person.trim().length > 0 && amountMinor > 0;
   const shown = `${expr || "0"} ${currency}`;
-  const heroTitle = person || (direction === "owed_to_me" ? "Money lent" : "Money borrowed");
-  const summary = `${direction === "owed_to_me" ? "Owes you" : "You owe"} · ${dueDate ? `due ${humanDayTime(dueDate)}${notify ? ` · reminder at ${notifyTime}` : ""}` : "no due date"}`;
+  const heroTitle = person || (direction === "owed_to_me" ? t("debt.lent") : t("debt.borrowed"));
+  const summary = [
+    direction === "owed_to_me" ? t("debt.summary.owesYou") : t("debt.summary.youOwe"),
+    dueDate ? t("debt.summary.due", { date: humanDayTime(dueDate) }) : t("debt.summary.noDue"),
+    ...(dueDate && notify ? [t("debt.summary.reminder", { time: notifyTime })] : []),
+  ].join(" · ");
 
   const commit = () => {
     if (!valid) return;
@@ -76,10 +82,10 @@ export default function DebtEdit() {
     // read as planned and stay out of the account until noon.
     const settle = (writeTransaction: boolean) => { mutate((d) => settleDebt(d, existing.id, { day: todayLocal(), dateIso: localIso(), writeTransaction })); leave(); };
     if (existing.account_id) {
-      Alert.alert("Mark as paid back?", "You can also record the transaction that moves the money.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Just mark it paid", onPress: () => settle(false) },
-        { text: "Record the payment too", onPress: () => settle(true) },
+      Alert.alert(t("debt.paid.title"), t("debt.paid.body"), [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("debt.paid.only"), onPress: () => settle(false) },
+        { text: t("debt.paid.record"), onPress: () => settle(true) },
       ]);
     } else settle(false);
   };
@@ -89,14 +95,14 @@ export default function DebtEdit() {
     if (!existing) return;
     const go = () => { mutate((d) => save(d, "debts", { ...existing, settled_date: null } as Debt)); leave(); };
     if (!existing.transaction_id) { go(); return; }
-    Alert.alert("Reopen this debt?", "The transaction recorded when it was paid back stays in the account. Delete it there if the money never moved.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Reopen", onPress: go },
+    Alert.alert(t("debt.reopen.title"), t("debt.reopen.body"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("debt.reopen.confirm"), onPress: go },
     ]);
   };
-  const del = () => existing && Alert.alert("Delete debt?", "This cannot be undone.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "debts", existing.id)); leave(); } },
+  const del = () => existing && Alert.alert(t("debt.delete.title"), t("debt.delete.body"), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "debts", existing.id)); leave(); } },
   ]);
 
   return (
@@ -104,36 +110,36 @@ export default function DebtEdit() {
       top={
         <View style={styles.top}>
           <Title>{heroTitle}</Title>
-          <Text style={[styles.amount, direction === "owed_to_me" ? { color: C.green } : { color: C.red }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={`Amount ${shown}`}>{shown}</Text>
+          <Text style={[styles.amount, direction === "owed_to_me" ? { color: C.green } : { color: C.red }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={t("debt.amountA11y", { amount: shown })}>{shown}</Text>
           <Subtle>{summary}</Subtle>
         </View>
       }
       bottom={
         <>
-          <View style={{ paddingHorizontal: S.md }}><Segmented value={direction} onChange={setDirection} options={DIRECTIONS} /></View>
+          <View style={{ paddingHorizontal: S.md }}><Segmented value={direction} onChange={setDirection} options={directions()} /></View>
           <ChipRow>
-            <Chip icon="person" label={person || "Who?"} active={!!person} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.person, title: "Who?", value: person } })} />
+            <Chip icon="person" label={person || t("debt.who")} active={!!person} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.person, title: t("debt.who"), value: person } })} />
             <Chip icon="coloncurrencysign.circle" label={currency} active onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: currency } })} />
-            <Chip icon="calendar" label={dueDate ? humanDayTime(dueDate) : "No due date"} active={!!dueDate} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: dueDate ?? todayLocal() } })} />
-            {dueDate ? <Chip icon="xmark.circle" compact label="Clear date" onPress={() => setDueDate(null)} /> : null}
+            <Chip icon="calendar" label={dueDate ? humanDayTime(dueDate) : t("debt.noDueDate")} active={!!dueDate} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: dueDate ?? todayLocal() } })} />
+            {dueDate ? <Chip icon="xmark.circle" compact label={t("debt.clearDate")} onPress={() => setDueDate(null)} /> : null}
           </ChipRow>
           <ChipRow>
-            <Chip icon="creditcard" label={account?.name ?? "Account (optional)"} active={!!account} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.account, selected: accountId ?? "" } })} />
-            {account ? <Chip icon="xmark.circle" compact label="No account" onPress={() => setAccountId(null)} /> : null}
-            <Chip icon="note.text" label={notes || "Notes"} active={!!notes} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.notes, title: "Notes", value: notes, multiline: "1" } })} />
-            {dueDate ? <Chip icon={notify ? "bell.fill" : "bell.slash"} label={notify ? "Reminder on" : "Reminder off"} active={notify} onPress={() => setNotify((v) => !v)} /> : null}
+            <Chip icon="creditcard" label={acctName(account) ?? t("debt.account")} active={!!account} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.account, selected: accountId ?? "" } })} />
+            {account ? <Chip icon="xmark.circle" compact label={t("debt.noAccount")} onPress={() => setAccountId(null)} /> : null}
+            <Chip icon="note.text" label={notes || t("debt.notes")} active={!!notes} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.notes, title: t("debt.notes"), value: notes, multiline: "1" } })} />
+            {dueDate ? <Chip icon={notify ? "bell.fill" : "bell.slash"} label={notify ? t("debt.reminderOn") : t("debt.reminderOff")} active={notify} onPress={() => setNotify((v) => !v)} /> : null}
             {dueDate && notify ? <Chip icon="clock" label={notifyTime} active onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: notifyTime } })} /> : null}
           </ChipRow>
           <Keypad value={expr} onChange={setExpr} onToggleSign={() => setDirection((d) => (d === "owed_to_me" ? "i_owe" : "owed_to_me"))} />
-          <ConfirmBar amount={shown} label={valid ? (existing ? "Tap to save" : "Tap to add") : person.trim() ? "Enter an amount" : "Who owes what?"} onPress={commit} disabled={!valid} color={direction === "owed_to_me" ? (C.green as unknown as string) : undefined} />
-          {existing && !existing.settled_date ? <DeleteRow icon="checkmark.circle" label="Mark as paid back" onPress={markPaid} /> : null}
+          <ConfirmBar amount={shown} label={valid ? (existing ? t("debt.confirm.save") : t("debt.confirm.add")) : person.trim() ? t("debt.confirm.amount") : t("debt.confirm.who")} onPress={commit} disabled={!valid} color={direction === "owed_to_me" ? (C.green as unknown as string) : undefined} />
+          {existing && !existing.settled_date ? <DeleteRow icon="checkmark.circle" label={t("debt.paid.row")} onPress={markPaid} /> : null}
           {existing?.settled_date ? (
             <>
-              <Subtle style={{ textAlign: "center" }}>Paid back {humanDayTime(existing.settled_date)}</Subtle>
-              <DeleteRow icon="arrow.uturn.backward" label="Reopen" onPress={reopen} />
+              <Subtle style={{ textAlign: "center" }}>{t("debt.paidBack", { date: humanDayTime(existing.settled_date) })}</Subtle>
+              <DeleteRow icon="arrow.uturn.backward" label={t("debt.reopen.confirm")} onPress={reopen} />
             </>
           ) : null}
-          {existing ? <DeleteRow label="Delete debt" onPress={del} /> : null}
+          {existing ? <DeleteRow label={t("debt.delete.row")} onPress={del} /> : null}
         </>
       }
     />

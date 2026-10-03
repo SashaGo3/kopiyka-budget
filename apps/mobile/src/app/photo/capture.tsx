@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolvePick } from "@/store/pick";
 import { BigButton } from "@/components/ui";
 import { S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 /**
  * Quick photo for a transaction: one shutter tap, no preview step. Pictures are taken at
@@ -36,7 +37,7 @@ export default function PhotoCapture() {
       const uri = r.canceled ? null : r.assets?.[0]?.uri;
       if (uri) { resolvePick(key, uri); router.back(); return; }
     } catch (e) {
-      Alert.alert("Cannot open the library", (e as Error).message);
+      Alert.alert(t("photo.libraryError"), (e as Error).message);
     }
     setBusy(false);
   };
@@ -54,26 +55,26 @@ export default function PhotoCapture() {
   if (!permission.granted) {
     return (
       <View style={[styles.screen, styles.center, { paddingTop: insets.top }]}>
-        <Text style={styles.msg}>{permission.canAskAgain ? "Camera access is needed to take a photo." : "Camera access is off. Enable it in the Settings app."}</Text>
-        {permission.canAskAgain ? <BigButton label="Allow camera" onPress={() => void requestPermission()} /> : null}
-        <BigButton label="Choose from library" onPress={() => void pickFromLibrary()} />
-        <BigButton label="Close" onPress={() => router.back()} />
+        <Text style={styles.msg}>{permission.canAskAgain ? t("photo.cameraNeeded") : t("photo.cameraOff")}</Text>
+        {permission.canAskAgain ? <BigButton label={t("photo.allowCamera")} onPress={() => void requestPermission()} /> : null}
+        <BigButton label={t("photo.fromLibrary")} onPress={() => void pickFromLibrary()} />
+        <BigButton label={t("common.close")} onPress={() => router.back()} />
       </View>
     );
   }
   return (
     <View style={styles.screen}>
       <CameraView ref={setCam} style={StyleSheet.absoluteFill} facing="back" pictureSize="1920x1080" mute />
-      <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel="Close">
+      <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
         <SymbolView name="xmark" size={18} tintColor="white" weight="semibold" />
       </Pressable>
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, S.lg) + S.md }]}>
         {/* A row with a spacer on the right, so the shutter stays centred on screen rather than
             being pushed off by the library button. */}
-        <Pressable onPress={() => void pickFromLibrary()} disabled={busy} hitSlop={12} style={({ pressed }) => [styles.library, styles.libraryButton, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Choose from library">
+        <Pressable onPress={() => void pickFromLibrary()} disabled={busy} hitSlop={12} style={({ pressed }) => [styles.library, styles.libraryButton, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("photo.fromLibrary")}>
           <SymbolView name="photo.on.rectangle" size={22} tintColor="white" />
         </Pressable>
-        <Pressable onPress={() => void shoot()} disabled={busy} style={({ pressed }) => [styles.shutter, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Take photo">
+        <Pressable onPress={() => void shoot()} disabled={busy} style={({ pressed }) => [styles.shutter, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("photo.take")}>
           {busy ? <ActivityIndicator color="black" /> : <View style={styles.shutterInner} />}
         </Pressable>
         <View style={styles.library} />

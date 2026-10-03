@@ -8,7 +8,9 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, DeleteRow, ModalHeader, Row, SectionHeader, Segmented } from "@/components/ui";
 import { C, S } from "@/constants/theme";
-import { INSIGHT_LOOK, addableKinds } from "@/lib/insights";
+import { INSIGHT_LOOK, addableKinds, kindHint, kindTitle, perPeriod, ruleTitle } from "@/lib/insights";
+import { catName, acctName } from "@/lib/names";
+import { t } from "@/i18n";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 
 /** Pick a kind, then fill in its parameters; each one opens the matching picker sheet. */
@@ -20,7 +22,7 @@ export default function InsightEdit() {
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
   const exit = useDiscardGuard(useDirty([kind, p]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
-  const names = useQuery((d) => ({ accounts: new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a])), categories: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, c.name])), tags: new Map(listRows(d, "tags", "1=1").map((t) => [t.id, t.name])) }));
+  const names = useQuery((d) => ({ accounts: new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a])), categories: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, catName(c)])), tags: new Map(listRows(d, "tags", "1=1").map((x) => [x.id, x.name])) }));
   const subs = useQuery((d) => subscriptionsPerYear(d).lines);
   const others = useQuery((d) => (listRows(d, "insights", "deleted=0") as Insight[]).filter((i) => i.id !== existing?.id));
   const kinds = addableKinds(others);
@@ -33,8 +35,8 @@ export default function InsightEdit() {
   usePickResult<number>(keys.monthly, useCallback((v: number) => setP((s) => ({ ...s, monthly_minor: v })), []));
   usePickResult<string>(keys.months, useCallback((v: string) => setP((s) => ({ ...s, months: Number(v) })), []));
   usePickResult<string[]>(keys.cats, useCallback((v: string[]) => setP((s) => ({ ...s, category_ids: v.filter((x) => x !== "none") })), []));
-  usePickResult<string>(keys.tx, useCallback((txId: string) => { const t = getRow(db, "transactions", txId); if (t) setP((s) => ({ ...s, templates: [...(s.templates ?? []), templateFromTransaction(t)] })); }, []));
-  const meta = INSIGHT_KINDS.find((k) => k.kind === kind);
+  usePickResult<string>(keys.tx, useCallback((txId: string) => { const tx = getRow(db, "transactions", txId); if (tx) setP((s) => ({ ...s, templates: [...(s.templates ?? []), templateFromTransaction(tx)] })); }, []));
+  const kindName = kind ? kindTitle(kind) : "";
   const account = p.account_id ? names.accounts.get(p.account_id) : undefined;
   const currency = account?.currency ?? "EUR";
   const needsAccount = kind === "savings_goal" || kind === "account_balance" || kind === "safety_buffer";
@@ -48,68 +50,68 @@ export default function InsightEdit() {
     mutate((d) => existing ? save(d, "insights", { ...existing, kind: k, params: JSON.stringify(params) }) : createInsight(d, { kind: k, params: JSON.stringify(params), sort: nextSort(d) }));
     leave();
   };
-  const del = () => existing && Alert.alert("Remove this insight?", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); leave(); } }]);
-  const money = (minor?: number) => (minor != null ? `${formatMinor(minor, currency)} ${currency}` : "Not set");
+  const del = () => existing && Alert.alert(t("insights.edit.removeTitle"), undefined, [{ text: t("common.cancel"), style: "cancel" }, { text: t("insights.edit.remove"), style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); leave(); } }]);
+  const money = (minor?: number) => (minor != null ? `${formatMinor(minor, currency)} ${currency}` : t("insights.edit.notSet"));
   const catList = (p.category_ids ?? []).map((cid) => names.categories.get(cid) ?? "?").join(", ");
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={existing ? "Edit insight" : "New insight"} left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Save", onPress: () => commit(), disabled: !valid }} />
+      <ModalHeader title={existing ? t("insights.edit.editTitle") : t("insights.edit.newTitle")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.save"), onPress: () => commit(), disabled: !valid }} />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
         {!kind ? (
           <>
-            <SectionHeader>What do you want to see?</SectionHeader>
-            <Card>{kinds.map((k, i) => <Row key={k.kind} icon={INSIGHT_LOOK[k.kind].icon} iconColor={INSIGHT_LOOK[k.kind].color} title={k.title} subtitle={k.hint} onPress={() => (k.instant ? commit(k.kind, {}) : setKind(k.kind))} style={i > 0 ? styles.divider : undefined} />)}</Card>
-            {kinds.length < INSIGHT_KINDS.length ? <Text style={[styles.hint, { marginTop: S.sm }]}>Cards with nothing to set are offered once — the ones you already have are not listed again.</Text> : null}
+            <SectionHeader>{t("insights.edit.question")}</SectionHeader>
+            <Card>{kinds.map((k, i) => <Row key={k.kind} icon={INSIGHT_LOOK[k.kind].icon} iconColor={INSIGHT_LOOK[k.kind].color} title={kindTitle(k.kind)} subtitle={kindHint(k.kind)} onPress={() => (k.instant ? commit(k.kind, {}) : setKind(k.kind))} style={i > 0 ? styles.divider : undefined} />)}</Card>
+            {kinds.length < INSIGHT_KINDS.length ? <Text style={[styles.hint, { marginTop: S.sm }]}>{t("insights.edit.offeredOnce")}</Text> : null}
           </>
         ) : (
           <>
-            <SectionHeader>{meta?.title}</SectionHeader>
-            <Text style={styles.hint}>{meta?.hint}</Text>
+            <SectionHeader>{kindName}</SectionHeader>
+            <Text style={styles.hint}>{kindHint(kind)}</Text>
             <Card style={{ marginTop: S.sm }}>
-              <Row icon="textformat" iconColor="#8E8E93" title="Title" subtitle={p.title || `Default: ${meta?.title}`} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.title, title: "Title", value: p.title ?? "" } })} />
-              {needsAccount ? <Row icon="creditcard" title="Account" subtitle={account?.name ?? "Choose"} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: p.account_id ?? "" } })} style={styles.divider} /> : null}
-              {needsTarget ? <Row icon="flag" iconColor="#34C759" title="Target" subtitle={money(p.target_minor)} onPress={() => router.push({ pathname: "/pick/amount", params: { key: keys.target, title: "Target", currency, value: String(p.target_minor ?? "") } })} style={styles.divider} /> : null}
-              {kind === "checklist" || kind === "regular" ? <Row icon="folder" iconColor="#FF9F0A" title="Categories" subtitle={catList || "Choose"} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cats, selected: (p.category_ids ?? []).join(","), title: "Categories" } })} style={styles.divider} /> : null}
+              <Row icon="textformat" iconColor="#8E8E93" title={t("insights.edit.title")} subtitle={p.title || t("insights.edit.defaultTitle", { title: kindName })} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.title, title: t("insights.edit.title"), value: p.title ?? "" } })} />
+              {needsAccount ? <Row icon="creditcard" title={t("insights.edit.account")} subtitle={acctName(account) ?? t("insights.edit.choose")} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: p.account_id ?? "" } })} style={styles.divider} /> : null}
+              {needsTarget ? <Row icon="flag" iconColor="#34C759" title={t("insights.edit.target")} subtitle={money(p.target_minor)} onPress={() => router.push({ pathname: "/pick/amount", params: { key: keys.target, title: t("insights.edit.target"), currency, value: String(p.target_minor ?? "") } })} style={styles.divider} /> : null}
+              {kind === "checklist" || kind === "regular" ? <Row icon="folder" iconColor="#FF9F0A" title={t("insights.edit.categories")} subtitle={catList || t("insights.edit.choose")} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cats, selected: (p.category_ids ?? []).join(","), title: t("insights.edit.categories") } })} style={styles.divider} /> : null}
             </Card>
-            {kind === "regular" ? <View style={{ paddingHorizontal: S.lg, marginTop: S.md }}><Segmented<"weekly" | "monthly"> value={p.frequency ?? "monthly"} onChange={(v) => setP((s) => ({ ...s, frequency: v }))} options={[{ value: "weekly", label: "Per week" }, { value: "monthly", label: "Per month" }]} /></View> : null}
+            {kind === "regular" ? <View style={{ paddingHorizontal: S.lg, marginTop: S.md }}><Segmented<"weekly" | "monthly"> value={p.frequency ?? "monthly"} onChange={(v) => setP((s) => ({ ...s, frequency: v }))} options={[{ value: "weekly", label: t("insights.edit.perWeek") }, { value: "monthly", label: t("insights.edit.perMonth") }]} /></View> : null}
             {/* How long you want to be able to go on paying for the essentials. The amount is not
                 asked for: the whole point of this card is that the target is computed. */}
             {kind === "safety_buffer" ? (
               <>
-                <SectionHeader>Months to cover</SectionHeader>
+                <SectionHeader>{t("insights.edit.monthsToCover")}</SectionHeader>
                 <View style={{ paddingHorizontal: S.lg }}>
                   <Segmented<"3" | "6" | "12"> value={String(p.months ?? 3) as "3" | "6" | "12"} onChange={(v) => setP((s) => ({ ...s, months: Number(v) }))}
-                    options={[{ value: "3", label: "3 months" }, { value: "6", label: "6 months" }, { value: "12", label: "12 months" }]} />
+                    options={[{ value: "3", label: t("insights.months", { count: 3 }) }, { value: "6", label: t("insights.months", { count: 6 }) }, { value: "12", label: t("insights.months", { count: 12 }) }]} />
                 </View>
               </>
             ) : null}
             {kind === "subscriptions" ? (
               <>
-                <SectionHeader>Included rules</SectionHeader>
+                <SectionHeader>{t("insights.edit.includedRules")}</SectionHeader>
                 <Card>
                   {subs.map((l, i) => (
-                    <Row key={l.rule.id} title={l.title} subtitle={`${formatMinor(Math.abs(l.rule.amount_minor), l.currency)} ${l.currency} ${l.per_period} · ${formatMinor(l.yearly_minor, l.currency)} ${l.currency} per year`} onPress={() => toggleRule(l.rule.id)} style={i > 0 ? styles.divider : undefined}
+                    <Row key={l.rule.id} title={ruleTitle(l.rule)} subtitle={t("insights.edit.ruleLine", { amount: `${formatMinor(Math.abs(l.rule.amount_minor), l.currency)} ${l.currency}`, per: perPeriod(l.rule.frequency, l.rule.interval), yearly: `${formatMinor(l.yearly_minor, l.currency)} ${l.currency}` })} onPress={() => toggleRule(l.rule.id)} style={i > 0 ? styles.divider : undefined}
                       right={<SymbolView name={excluded.has(l.rule.id) ? "circle" : "checkmark.circle.fill"} size={22} tintColor={excluded.has(l.rule.id) ? C.tertiary : C.tint} />} />
                   ))}
-                  {subs.length === 0 ? <Row title="No active expense rules" subtitle="Add recurring rules first" /> : null}
+                  {subs.length === 0 ? <Row title={t("insights.edit.noRules")} subtitle={t("insights.edit.noRulesHint")} /> : null}
                 </Card>
               </>
             ) : null}
             {kind === "upcoming" ? (
               <>
-                <SectionHeader>Payments</SectionHeader>
+                <SectionHeader>{t("insights.edit.payments")}</SectionHeader>
                 <Card>
-                  {(p.templates ?? []).map((t, i) => (
-                    <Row key={i} title={t.notes || (t.category_id ? names.categories.get(t.category_id) : null) || "Payment"} subtitle={`${formatMinor(Math.abs(t.amount_minor), names.accounts.get(t.account_id)?.currency ?? "")} ${names.accounts.get(t.account_id)?.currency ?? ""}${t.category_id ? ` · ${names.categories.get(t.category_id)}` : ""}${t.tag_ids.length ? ` · ${t.tag_ids.map((id) => `#${names.tags.get(id) ?? "tag"}`).join(" ")}` : ""}`}
-                      onPress={() => setP((s) => ({ ...s, templates: (s.templates ?? []).filter((_, j) => j !== i) }))} right={<Text style={styles.remove}>Remove</Text>} style={i > 0 ? styles.divider : undefined} />
+                  {(p.templates ?? []).map((tp, i) => (
+                    <Row key={i} title={tp.notes || (tp.category_id ? names.categories.get(tp.category_id) : null) || t("insights.payment")} subtitle={`${formatMinor(Math.abs(tp.amount_minor), names.accounts.get(tp.account_id)?.currency ?? "")} ${names.accounts.get(tp.account_id)?.currency ?? ""}${tp.category_id ? ` · ${names.categories.get(tp.category_id)}` : ""}${tp.tag_ids.length ? ` · ${tp.tag_ids.map((id) => `#${names.tags.get(id) ?? t("budgets.title.tag")}`).join(" ")}` : ""}`}
+                      onPress={() => setP((s) => ({ ...s, templates: (s.templates ?? []).filter((_, j) => j !== i) }))} right={<Text style={styles.remove}>{t("insights.edit.remove")}</Text>} style={i > 0 ? styles.divider : undefined} />
                   ))}
-                  <Row icon="plus.circle" title="Add from a transaction" subtitle="Matched by category, tags and note" onPress={() => router.push({ pathname: "/pick/transaction", params: { key: keys.tx, title: "Which payment repeats?" } })} style={(p.templates?.length ?? 0) > 0 ? styles.divider : undefined} />
+                  <Row icon="plus.circle" title={t("insights.edit.addFromTx")} subtitle={t("insights.edit.addFromTxHint")} onPress={() => router.push({ pathname: "/pick/transaction", params: { key: keys.tx, title: t("insights.edit.whichPayment") } })} style={(p.templates?.length ?? 0) > 0 ? styles.divider : undefined} />
                 </Card>
               </>
             ) : null}
-            {!existing ? <View style={{ marginTop: S.lg }}><Row title="Change type" onPress={() => setKind(null)} style={{ backgroundColor: "transparent" }} /></View> : null}
-            {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label="Remove insight" onPress={del} /></View> : null}
+            {!existing ? <View style={{ marginTop: S.lg }}><Row title={t("insights.edit.changeType")} onPress={() => setKind(null)} style={{ backgroundColor: "transparent" }} /></View> : null}
+            {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label={t("insights.edit.removeInsight")} onPress={del} /></View> : null}
           </>
         )}
       </ScrollView>

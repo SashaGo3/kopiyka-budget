@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
+import { t } from "@/i18n";
 
 /**
  * Multi-step flows (adding a recurring rule) answer one question per sheet, so a stray swipe
@@ -9,10 +10,12 @@ import { usePreventRemove } from "expo-router/build/react-navigation/core/usePre
  * such a flow take a `guard` param naming what is being built, turn the dismiss gesture off,
  * and route their Cancel through here.
  */
-export function confirmDiscard(what: string, onDiscard: () => void): void {
-  Alert.alert(`Discard this ${what}?`, "Nothing has been saved yet.", [
-    { text: "Keep going", style: "cancel" },
-    { text: "Discard", style: "destructive", onPress: onDiscard },
+export function confirmDiscard(onDiscard: () => void): void {
+  // The question does not name what is being discarded: a noun dropped into a sentence cannot be
+  // translated (Ukrainian would need its gender and case), and the screen behind it already says.
+  Alert.alert(t("misc.discard.flowTitle"), t("misc.discard.flowBody"), [
+    { text: t("misc.discard.keepGoing"), style: "cancel" },
+    { text: t("misc.discard.discard"), style: "destructive", onPress: onDiscard },
   ]);
 }
 
@@ -44,9 +47,9 @@ export function useDiscardGuard(dirty: boolean): (go: () => void) => void {
   const navigation = useNavigation();
   const [leaving, setLeaving] = useState<{ go: () => void } | null>(null);
   usePreventRemove(dirty && !leaving, ({ data }) => {
-    Alert.alert("Discard your changes?", "What you changed here has not been saved.", [
-      { text: "Keep editing", style: "cancel" },
-      { text: "Discard", style: "destructive", onPress: () => navigation.dispatch(data.action) },
+    Alert.alert(t("misc.discard.changesTitle"), t("misc.discard.changesBody"), [
+      { text: t("misc.discard.keepEditing"), style: "cancel" },
+      { text: t("misc.discard.discard"), style: "destructive", onPress: () => navigation.dispatch(data.action) },
     ]);
   });
   useEffect(() => { leaving?.go(); }, [leaving]);

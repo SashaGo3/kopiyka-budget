@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Image, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { eraseAll, listRows } from "@kopiyka/core";
@@ -9,17 +9,23 @@ import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { pickAndImport } from "@/lib/importers";
+import { errorText } from "@/lib/errors";
 import { setOnboarded } from "@/lib/onboarding";
 import { markBooted } from "@/lib/boot";
 import { findRestorable, markContainerSeen, restoreBackup, type BackupEntry } from "@/lib/backup";
 import { humanDayTime } from "@/lib/dates";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
+import { newPickKey, usePickResult } from "@/store/pick";
+import { LANGUAGES, deviceLanguage, getLanguage, isFollowingDevice, setLanguage, t, type LanguageCode } from "@/i18n";
 
-const POINTS: { icon: SFSymbol; title: string; text: string }[] = [
-  { icon: "iphone", title: "Yours, on your phone", text: "Every number stays on the device. No sign-up, no servers." },
-  { icon: "applewatch", title: "Log in two taps", text: RECEIPT_SCANNER_ENABLED ? "From the watch, Siri, a Shortcut or a photo of the receipt." : "From the watch, Siri or a Shortcut." },
-  { icon: "icloud", title: "Backed up to iCloud", text: "A copy is saved to your iCloud Drive every day, up to seven times a day." },
+/** Built per render, never at import: the words are in whatever language the app is in now. */
+const points = (): { icon: SFSymbol; title: string; text: string }[] => [
+  { icon: "iphone", title: t("onboarding.welcome.localTitle"), text: t("onboarding.welcome.localText") },
+  { icon: "applewatch", title: t("onboarding.welcome.quickTitle"), text: RECEIPT_SCANNER_ENABLED ? t("onboarding.welcome.quickText") : t("onboarding.welcome.quickTextNoReceipt") },
+  { icon: "icloud", title: t("onboarding.welcome.icloudTitle"), text: t("onboarding.welcome.icloudText") },
 ];
+
+const ownName = (code: string) => LANGUAGES.find((l) => l.code === code)?.name ?? code;
 
 /** How often the container is looked at while this screen is up, and for how long. */
 const LOOK_EVERY_MS = 4_000;
@@ -33,6 +39,19 @@ export default function Welcome() {
   // work starts rather than during render, so the poll can never see a stale `false`.
   const working = useRef(false);
   useEffect(() => { markBooted(); }, []);
+  // Language, before anything is written in one: the categories seeded at the last step are named in
+  // it. The same picker and the same deferred switch as Settings; the root layout brings the
+  // re-mounted app back here rather than to Settings while onboarding is unfinished.
+  const [langKey] = useState(() => newPickKey("oblanguage"));
+  usePickResult<string>(langKey, useCallback((v: string) => {
+    setTimeout(() => setLanguage(v === "system" ? null : (v as LanguageCode)), 450);
+  }, []));
+  const pickLanguage = () => router.push({ pathname: "/pick/option", params: {
+    key: langKey, title: t("common.language.title"), selected: isFollowingDevice() ? "system" : getLanguage(),
+    options: JSON.stringify([
+      { value: "system", label: t("common.language.system"), subtitle: ownName(deviceLanguage()) },
+      ...LANGUAGES.map((l) => ({ value: l.code, label: l.name, subtitle: l.code === getLanguage() ? undefined : l.english })),
+    ]) } });
   const enter = () => {
     setOnboarded();
     router.replace(listRows(db, "accounts", "deleted=0").length > 0 ? "/transactions" : "/onboarding/account");
@@ -47,8 +66,8 @@ export default function Welcome() {
       // Whatever was in the container has now been decided about: the phone is this file, and
       // auto-sync must not pour a second history on top of it the moment the app opens.
       await markContainerSeen();
-      Alert.alert("Backup restored", summary, [{ text: "Continue", onPress: enter }]);
-    } catch (e) { Alert.alert("Could not restore", (e as Error).message); }
+      Alert.alert(t("onboarding.restore.done"), summary, [{ text: t("onboarding.restore.continue"), onPress: enter }]);
+    } catch (e) { Alert.alert(t("onboarding.restore.failed"), errorText(e)); }
     finally { working.current = false; setBusy(false); }
   };
 
@@ -70,9 +89,9 @@ export default function Welcome() {
       // minute each, and none of them is a reason to keep the user on the welcome screen.
       const summary = await restoreBackup(f, "merge", { photos: "background" });
       await markContainerSeen();
-      Alert.alert("Restored from iCloud", `Your data as of ${humanDayTime(f.day)}.\n\n${summary}`, [
-        { text: "Start fresh instead", style: "destructive", onPress: () => { mutate((d) => eraseAll(d, { everywhere: false })); working.current = false; setCloud("idle"); } },
-        { text: "Continue", onPress: enter },
+      Alert.alert(t("onboarding.welcome.cloudRestored"), t("onboarding.welcome.cloudRestoredBody", { date: humanDayTime(f.day), summary }), [
+        { text: t("onboarding.welcome.startFresh"), style: "destructive", onPress: () => { mutate((d) => eraseAll(d, { everywhere: false })); working.current = false; setCloud("idle"); } },
+        { text: t("onboarding.restore.continue"), onPress: enter },
       ]);
     } catch {
       working.current = false;
@@ -98,16 +117,16 @@ export default function Welcome() {
   }, [autoRestore]));
 
   return (
-    <OnboardingFrame step={1} title="Kopiyka" subtitle="Local-first budgeting. Set up in under a minute."
+    <OnboardingFrame step={1} title={t("onboarding.welcome.title")} subtitle={t("onboarding.welcome.subtitle")}
       primary={cloud === "restoring"
-        ? { label: "Restoring from iCloud…", onPress: () => {}, disabled: true }
-        : { label: "Get started", onPress: () => router.push("/onboarding/location") }}
-      secondary={cloud === "restoring" ? undefined : { label: busy ? "Restoring…" : "Restore from a backup", onPress: () => void restore() }}>
+        ? { label: t("onboarding.welcome.restoringCloud"), onPress: () => {}, disabled: true }
+        : { label: t("onboarding.welcome.start"), onPress: () => router.push("/onboarding/location") }}
+      secondary={cloud === "restoring" ? undefined : { label: busy ? t("onboarding.restore.busy") : t("onboarding.welcome.restore"), onPress: () => void restore() }}>
       <View style={styles.hero}>
         <Image source={require("../../../assets/images/icon.png")} style={styles.icon} accessibilityIgnoresInvertColors />
       </View>
       <View style={styles.points}>
-        {POINTS.map((p, i) => (
+        {points().map((p, i) => (
           <FadeIn key={p.title} delay={200 + i * 90} style={styles.point}>
             <View style={styles.badge}><SymbolView name={p.icon} size={22} tintColor={C.tint} /></View>
             <View style={{ flex: 1 }}>
@@ -117,6 +136,12 @@ export default function Welcome() {
           </FadeIn>
         ))}
       </View>
+      <Pressable onPress={pickLanguage} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("onboarding.welcome.languageA11y", { name: ownName(getLanguage()) })}
+        style={({ pressed }) => [styles.language, pressed && { opacity: 0.5 }]}>
+        <SymbolView name="globe" size={15} tintColor={C.secondary} />
+        <Text style={styles.languageText}>{ownName(getLanguage())}</Text>
+        <SymbolView name="chevron.up.chevron.down" size={11} tintColor={C.tertiary} />
+      </Pressable>
     </OnboardingFrame>
   );
 }
@@ -129,4 +154,6 @@ const styles = StyleSheet.create({
   badge: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   pointTitle: { fontSize: 16, fontWeight: "700", color: C.label },
   pointText: { fontSize: 14, color: C.secondary, marginTop: 2 },
+  language: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, alignSelf: "center", minHeight: 44, marginTop: S.md, paddingHorizontal: S.md },
+  languageText: { fontSize: 15, fontWeight: "600", color: C.secondary },
 });

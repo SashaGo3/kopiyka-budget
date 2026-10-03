@@ -7,11 +7,17 @@ import { Card, Money, Row, ScreenNote, SectionHeader, accountIcon, Empty } from 
 import { NetWorth } from "@/components/AccountsSummary";
 import { C } from "@/constants/theme";
 import { getCurrentAccount } from "@/lib/settings";
+import { t } from "@/i18n";
+import { acctName, groupName } from "@/lib/names";
+
+const TYPES = ["cash", "bank", "card", "investment", "savings", "other"] as const;
+/** "Card", "Готівка": an account's type as shown; anything unknown reads as Other. */
+const typeLabel = (type: string) => t(`settingsLists.accounts.type.${(TYPES as readonly string[]).includes(type) ? (type as (typeof TYPES)[number]) : "other"}`);
 
 export default function AccountsSettings() {
   const data = useQuery((db) => {
     const current = getCurrentAccount();
-    const accounts = listRows(db, "accounts", "deleted=0", [], "archived, sort, name").map((a) => ({ ...a, balance: accountBalanceMinor(db, a.id), type: a.id === current ? `${a.type} · current` : a.type }));
+    const accounts = listRows(db, "accounts", "deleted=0", [], "archived, sort, name").map((a) => ({ ...a, balance: accountBalanceMinor(db, a.id), label: a.id === current ? t("settingsLists.accounts.current", { type: typeLabel(a.type) }) : typeLabel(a.type) }));
     const nw = new Map<string, number>();
     for (const a of accounts) if (!a.archived && a.include_in_net_worth) nw.set(a.currency, (nw.get(a.currency) ?? 0) + a.balance);
     return { accounts, totals: [...nw].map(([currency, minor]) => ({ currency, minor })) };
@@ -21,26 +27,26 @@ export default function AccountsSettings() {
   const archived = data.accounts.filter((a) => a.archived);
   return (
     <>
-      <Stack.Screen options={{ title: "Accounts", headerRight: () => <Pressable onPress={() => router.push({ pathname: "/account/edit", params: { id: "new" } })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Add"><SymbolView name="plus" size={20} tintColor={C.tint} /></Pressable> }} />
+      <Stack.Screen options={{ title: t("settingsLists.accounts.title"), headerRight: () => <Pressable onPress={() => router.push({ pathname: "/account/edit", params: { id: "new" } })} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("settingsLists.accounts.add")}><SymbolView name="plus" size={20} tintColor={C.tint} /></Pressable> }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
-        <ScreenNote>An account is somewhere money sits: cash, a card, a bank account. Every transaction belongs to one, balances and net worth are added up from them, and a group (“Personal”, “Business”) is how the app is scoped to a subset of them.</ScreenNote>
-        {data.accounts.length ? <NetWorth totals={data.totals} /> : <Empty title="No accounts yet" hint="Tap + to add one, or restore a backup in Settings." />}
+        <ScreenNote>{t("settingsLists.accounts.intro")}</ScreenNote>
+        {data.accounts.length ? <NetWorth totals={data.totals} /> : <Empty title={t("settingsLists.accounts.emptyTitle")} hint={t("settingsLists.accounts.emptyHint")} />}
         {[...groups].map(([group, accounts]) => (
-          <SectionGroup key={group} title={group || "Accounts"} accounts={accounts} />
+          <SectionGroup key={group} title={groupName(group) || t("settingsLists.accounts.group")} accounts={accounts} />
         ))}
-        {archived.length ? <SectionGroup title="Archived" accounts={archived} disabled /> : null}
+        {archived.length ? <SectionGroup title={t("settingsLists.accounts.archived")} accounts={archived} disabled /> : null}
       </ScrollView>
     </>
   );
 }
 
-function SectionGroup({ title, accounts, disabled }: { title: string; accounts: { id: string; name: string; type: string; currency: string; balance: number; color: string | null }[]; disabled?: boolean }) {
+function SectionGroup({ title, accounts, disabled }: { title: string; accounts: { id: string; name: string; type: string; label: string; currency: string; balance: number; color: string | null }[]; disabled?: boolean }) {
   return (
     <>
       <SectionHeader right={accounts.length > 1 ? <GroupTotal accounts={accounts} /> : undefined}>{title}</SectionHeader>
       <Card>
         {accounts.map((a, i) => (
-          <Row key={a.id} title={a.name} subtitle={disabled ? `${a.type} · archived` : a.type} icon={accountIcon(a.type)} iconColor={a.color ?? undefined}
+          <Row key={a.id} title={acctName(a)} subtitle={disabled ? t("settingsLists.accounts.archivedType", { type: typeLabel(a.type) }) : a.label} icon={accountIcon(a.type)} iconColor={a.color ?? undefined}
             right={<Money minor={a.balance} currency={a.currency} />} onPress={() => router.push({ pathname: "/accounts/[id]", params: { id: a.id } })}
             style={[i > 0 ? styles.divider : undefined, disabled && styles.disabled]} />
         ))}

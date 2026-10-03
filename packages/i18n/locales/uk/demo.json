@@ -1,0 +1,107 @@
+{
+  "account": {
+    "main": "Монобанк",
+    "cash": "Готівка",
+    "savings": "Заощадження",
+    "card": "Валютна картка",
+    "joint": "Спільний",
+    "group": "Родина"
+  },
+  "tag": {
+    "lunch": "Обід",
+    "work": "Робота",
+    "weekend": "Вихідні",
+    "gift": "Подарунок",
+    "kids": "Діти",
+    "coffee": "Кава"
+  },
+  "category": {
+    "classes": { "name": "Курси англійської", "description": "заняття з англійської мови" },
+    "padel": { "name": "Падел", "description": "оренда корту для паделу" }
+  },
+  "home": "вул. Хрещатик, Київ",
+  "shop": {
+    "groceries1": { "name": "Сільпо", "place": "Сільпо, вул. Велика Васильківська" },
+    "groceries2": { "name": "АТБ", "place": "АТБ, вул. Саксаганського" },
+    "groceries3": { "name": "Novus", "place": "Novus, Поділ" },
+    "groceries4": { "name": "Бессарабський ринок", "place": "Бессарабський ринок, Бессарабська площа" },
+    "coffee1": { "name": "Aroma Kava", "place": "Aroma Kava, Хрещатик" },
+    "coffee2": { "name": "Львівські круасани", "place": "Львівські круасани, Ярославів Вал" },
+    "lunch1": { "name": "Пузата Хата", "place": "Пузата Хата, Басейна" },
+    "lunch2": { "name": "Musafir", "place": "Musafir, вул. Богдана Хмельницького" },
+    "dinner1": { "name": "Пузата Хата", "place": "Пузата Хата, Басейна" },
+    "dinner2": { "name": "Musafir", "place": "Musafir, вул. Богдана Хмельницького" },
+    "dinner3": { "name": "Остання барикада", "place": "Остання барикада, Майдан Незалежності" },
+    "taxi1": { "name": "Uklon", "place": "Uklon" },
+    "taxi2": { "name": "Bolt", "place": "Bolt" },
+    "metro": { "name": "Київський метрополітен", "place": "Метро Хрещатик" },
+    "fuel": { "name": "WOG", "place": "WOG, просп. Берестейський" },
+    "clothes": { "name": "Intertop", "place": "Intertop, ТРЦ Gulliver" },
+    "electronics": { "name": "Rozetka", "place": "Rozetka, вул. Лаврська" },
+    "hobbies": { "name": "Decathlon", "place": "Decathlon, Respublika Park" },
+    "furniture": { "name": "Епіцентр", "place": "Епіцентр, Почайна" },
+    "household": { "name": "EVA", "place": "EVA, вул. Велика Васильківська" },
+    "pharmacy": { "name": "Аптека АНЦ", "place": "Аптека АНЦ, Хрещатик" },
+    "cinema": { "name": "Multiplex", "place": "Multiplex, ТРЦ Gulliver" },
+    "presents1": { "name": "Квіткова крамниця", "place": "Квіткова крамниця, Ярославів Вал" },
+    "presents2": { "name": "Книгарня Є", "place": "Книгарня Є, вул. Лисенка" },
+    "kids1": { "name": "Будинок іграшок", "place": "Будинок іграшок, Ocean Plaza" },
+    "kids2": { "name": "Антошка", "place": "Антошка, Lavina Mall" }
+  },
+  "card": {
+    "apple": "Apple",
+    "amazon": "AliExpress",
+    "adobe": "Adobe"
+  },
+  "trip": {
+    "past": {
+      "name": "Львів",
+      "hotel": "Готель, Львів",
+      "dinner": "Вечеря, Львів",
+      "museum": "Львівська копальня кави",
+      "metro": "Трамвай, Львів"
+    },
+    "current": {
+      "name": "відпочинок в Трускавці",
+      "train": "Потяг Інтерсіті+",
+      "hotel": "Готель",
+      "dinner": "Вечеря, Трускавець",
+      "tasting": "Бювет",
+      "lunch": "Банош із бринзою",
+      "extra": "мінералка нафтуся"
+    }
+  },
+  "transfer": "Заощадження",
+  "rule": {
+    "rent": "Оренда",
+    "icloud": "iCloud",
+    "spotify": "Spotify",
+    "netflix": "Netflix",
+    "gym": "Спортзал",
+    "phone": "Київстар",
+    "energy": "Комуналка",
+    "salary": "Зарплата",
+    "carInsurance": "Автоцивілка"
+  },
+  "debt": {
+    "d1": { "person": "Олександр", "note": "Квитки на концерт" },
+    "d2": { "person": "Дарина", "note": "Велосипед" },
+    "d3": { "person": "Ольга", "note": "Вечеря в Нью-Йорку" },
+    "d4": { "person": "Максим", "note": "Корт для паделу" },
+    "d5": { "person": "Олесь", "note": "Обід" },
+    "d6": { "person": "Азукі", "note": "Квиток на фестиваль" },
+    "d7": { "person": "Пусік" },
+    "d8": { "person": "Сірі", "note": "Кіно" }
+  },
+  "goal": "Подушка безпеки",
+  "extra": {
+    "trousers": "штани за 40 гривнів",
+    "chocolate": "шоколядка",
+    "gambler": "набір молодого гемблера",
+    "teeth": "лікування молочних зубів після шоколадки"
+  },
+  "capture": {
+    "logAmount": "285",
+    "logNote": "Обід у Пузатій Хаті"
+  }
+}

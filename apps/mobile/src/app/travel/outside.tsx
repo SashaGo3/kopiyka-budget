@@ -10,6 +10,7 @@ import { ModalHeader } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { t } from "@/i18n";
 
 /**
  * Which of a trip's payments stay outside its budget. Everything carrying the tag counts until it is
@@ -36,11 +37,11 @@ export default function TripOutside() {
   const sum = rows.filter((r) => selected.has(r.id)).reduce((a, r) => (r.currency === trip?.currency ? a - r.amount_minor : a), 0);
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title="Outside the budget" left={{ label: "Cancel", onPress: () => router.back() }} />
+      <ModalHeader title={t("travel.outside.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }} />
       <TransactionList rows={rows} selected={selected} onToggle={toggle}
-        header={<Text style={styles.hint}>Tick what the budget was not meant for — the flights booked months ago, say. It is still part of the trip, just not of its budget.</Text>} />
+        header={<Text style={styles.hint}>{t("travel.outside.hint")}</Text>} />
       <View style={{ paddingTop: S.sm, paddingBottom: Math.max(insets.bottom, S.md) }}>
-        <ConfirmBar amount={n ? `${n} outside${sum && trip ? ` · ${formatMinor(sum, trip.currency)} ${trip.currency}` : ""}` : "Everything counts"} label="Tap to save" onPress={done} />
+        <ConfirmBar amount={n ? `${t("travel.outside.count", { count: n })}${sum && trip ? ` · ${formatMinor(sum, trip.currency)} ${trip.currency}` : ""}` : t("travel.outside.everything")} label={t("travel.outside.save")} onPress={done} />
       </View>
     </View>
   );

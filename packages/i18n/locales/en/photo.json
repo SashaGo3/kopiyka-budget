@@ -1,0 +1,36 @@
+{
+  "libraryError": "Cannot open the library",
+  "cameraNeeded": "Camera access is needed to take a photo.",
+  "cameraOff": "Camera access is off. Enable it in the Settings app.",
+  "allowCamera": "Allow camera",
+  "fromLibrary": {
+    "message": "Choose from library",
+    "note": "Pick a picture from the photo library instead of taking one."
+  },
+  "take": "Take photo",
+  "attached": {
+    "message": "Attached photo",
+    "note": "VoiceOver label of the full-screen photo."
+  },
+  "remove": "Remove photo",
+  "receipt": {
+    "hold": {
+      "message": "Lay the receipt flat and hold still",
+      "note": "Status over the camera while it waits to read a receipt."
+    },
+    "reading": "Reading…",
+    "looking": "Looking for the receipt…",
+    "failed": {
+      "message": "Could not read it: {error}",
+      "note": "error is a short reason, possibly from the system."
+    },
+    "noPhoto": "No photo",
+    "noTotal": "No total found",
+    "lightTip": {
+      "message": "more light or closer helps",
+      "note": "Added after the status, after \" · \", once several tries have failed. Lowercase."
+    },
+    "cameraNeeded": "Camera access is needed to photograph the receipt.",
+    "takeNow": "Take photo now"
+  }
+}

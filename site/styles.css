@@ -213,6 +213,46 @@ p {
   border-color: var(--border);
 }
 
+/* The language switcher: two quiet links in the header, the current one in graphite. */
+.brand-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lang-switch {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lang-switch a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 9px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+.lang-switch a:hover {
+  color: var(--text);
+}
+
+.lang-switch a[aria-current="page"] {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* The header button says "App Store" on a phone; the full label everywhere else. */
+.btn .short {
+  display: none;
+}
+
 /* ---------- sections ---------- */
 
 section {
@@ -719,8 +759,20 @@ section:first-of-type {
     padding: 7px 14px;
   }
 
+  .brand-actions {
+    gap: 8px;
+  }
+
   .brand-actions .btn .long {
     display: none;
+  }
+
+  .brand-actions .btn .short {
+    display: inline;
+  }
+
+  .lang-switch a {
+    padding: 3px 7px;
   }
 
   .strip,
@@ -763,6 +815,7 @@ section:first-of-type {
 
 @media print {
   .site-header,
+  .lang-switch,
   .strip-controls,
   .copy-btn {
     display: none;

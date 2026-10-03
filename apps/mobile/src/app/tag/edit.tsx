@@ -11,6 +11,9 @@ import { ALL_TIME } from "@/lib/filters";
 import { dismissTo } from "@/lib/nav";
 import { C, S } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { catName, catNameById } from "@/lib/names";
+import { colorLabel } from "@/app/pick/color";
+import { t } from "@/i18n";
 
 /** Tag editor: name, colour, and which categories (or whole folders) it belongs to. */
 export default function TagEdit() {
@@ -33,9 +36,11 @@ export default function TagEdit() {
   usePickResult<string>(keys.folder, useCallback((folder: string) => {
     if (!existing) return;
     const parent = folder === "top" ? null : folder;
-    Alert.alert(`Turn “${existing.name}” into a category?`, `${uses} transaction${uses === 1 ? "" : "s"} will get the category “${existing.name}”${parent ? ` in ${getRow(db, "categories", parent)?.name ?? "the folder"}` : ""} and lose the tag. The tag is removed.`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Convert", style: "destructive", onPress: () => runBusy(
+    const folderName = parent ? catNameById(parent, t("tag.convert.theFolder")) ?? t("tag.convert.theFolder") : null;
+    Alert.alert(t("tag.convert.title", { name: existing.name }),
+      folderName ? t("tag.convert.bodyFolder", { count: uses, name: existing.name, folder: folderName }) : t("tag.convert.body", { count: uses, name: existing.name }), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("tag.convert.confirm"), style: "destructive", onPress: () => runBusy(
         () => setConverting(true),
         () => mutate((d) => convertTagToCategory(d, existing.id, { parent_id: parent })),
         () => { setConverting(false); leave(); },
@@ -51,10 +56,10 @@ export default function TagEdit() {
   };
   const convert = () => {
     const folders = [...cats.values()].filter((c) => !c.parent_id);
-    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: "Which folder?", options: JSON.stringify([...folders.map((f) => ({ value: f.id, label: f.name, subtitle: "Category inside this folder" })), { value: "top", label: "Top level", subtitle: "Becomes a folder of its own" }]) } });
+    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("tag.convert.whichFolder"), options: JSON.stringify([...folders.map((f) => ({ value: f.id, label: catName(f), subtitle: t("tag.convert.inFolder") })), { value: "top", label: t("tag.convert.top"), subtitle: t("tag.convert.topSubtitle") }]) } });
   };
   const valid = name.trim().length > 0;
-  const scopeLabel = scope.length ? scope.map((id) => cats.get(id)?.name ?? "?").join(", ") : "Any category";
+  const scopeLabel = scope.length ? scope.map((id) => { const c = cats.get(id); return c ? catName(c) : "?"; }).join(", ") : t("tag.anyCategory");
   const colorName = COLORS.find((c) => c.hex === color)?.name;
   const commit = () => {
     if (!valid) return;
@@ -80,71 +85,71 @@ export default function TagEdit() {
     if (!existing) return;
     if (existing.archived) { mutate((d) => save(d, "tags", { ...existing, archived: 0 } as Tag)); leave(); return; }
     if (onTrip) {
-      Alert.alert("Travel mode is using this tag", "It is being put on everything you log right now. End travel mode first — on its card at the top of Transactions, or in Settings — then archive the tag.", [{ text: "OK" }]);
+      Alert.alert(t("tag.archive.tripTitle"), t("tag.archive.tripBody"), [{ text: t("common.ok") }]);
       return;
     }
-    Alert.alert("Archive this tag?",
-      [`Its ${uses} transaction${uses === 1 ? "" : "s"} keep it, and a budget on it still counts.`,
-       rules ? `${rules} recurring rule${rules === 1 ? "" : "s"} still put it on what they post — open those if that is not what you want.` : "",
-       "It stops being offered for anything new.",
+    Alert.alert(t("tag.archive.title"),
+      [t("tag.archive.keep", { count: uses }),
+       rules ? t("tag.archive.rules", { count: rules }) : "",
+       t("tag.archive.offered"),
       ].filter(Boolean).join(" "), [
-      { text: "Cancel", style: "cancel" },
-      { text: "Archive", onPress: () => { mutate((d) => save(d, "tags", { ...existing, archived: 1 } as Tag)); leave(); } },
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("tag.archive.confirm"), onPress: () => { mutate((d) => save(d, "tags", { ...existing, archived: 1 } as Tag)); leave(); } },
     ]);
   };
-  const del = () => existing && Alert.alert("Delete tag?", "Transactions keep everything else.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => { mutate((d) => remove(d, "tags", existing.id)); leave(); } },
+  const del = () => existing && Alert.alert(t("tag.delete.title"), t("tag.delete.body"), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "tags", existing.id)); leave(); } },
   ]);
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={existing ? (existing.archived ? "Archived tag" : "Edit tag") : "New tag"} left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Save", onPress: commit, disabled: !valid }} />
+      <ModalHeader title={existing ? (existing.archived ? t("tag.title.archived") : t("tag.title.edit")) : t("tag.title.new")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.save"), onPress: commit, disabled: !valid }} />
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 60 }}>
         {/* The field on its own line and the preview under it: side by side, a long name's pill took
             half the width and left the text being edited too narrow to read or select. Multiline so a
             long name wraps whole instead of scrolling sideways; Return still saves, never a new line. */}
         <View style={styles.nameBlock}>
-          <TextInput value={name} onChangeText={setName} placeholder="Tag name" placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing}
-            multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} autoCapitalize="none" accessibilityLabel="Tag name" />
-          <View style={styles.preview}><TagPill name={name || "tag"} color={color} /></View>
+          <TextInput value={name} onChangeText={setName} placeholder={t("tag.name")} placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing}
+            multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} autoCapitalize="none" accessibilityLabel={t("tag.name")} />
+          <View style={styles.preview}><TagPill name={name || t("tag.pillPlaceholder")} color={color} /></View>
         </View>
-        <SectionHeader>Appearance</SectionHeader>
+        <SectionHeader>{t("tag.appearance")}</SectionHeader>
         <Card>
-          <Row icon="paintpalette.fill" iconColor="#8E8E93" title="Colour" subtitle={color ? (colorName ?? color) : "Automatic"} onPress={() => router.push({ pathname: "/pick/color", params: { key: keys.color, selected: color ?? "" } })}
+          <Row icon="paintpalette.fill" iconColor="#8E8E93" title={t("tag.colour")} subtitle={color ? (colorName ? colorLabel(colorName) : color) : t("tag.automatic")} onPress={() => router.push({ pathname: "/pick/color", params: { key: keys.color, selected: color ?? "" } })}
             right={<View style={styles.right}><View style={[styles.swatch, { backgroundColor: tagColor(name, color) }]} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
         </Card>
-        <Text style={styles.hint}>Automatic picks a colour from the tag’s name, so no two tags next to each other look alike. Renaming the tag picks another one.</Text>
-        <SectionHeader>Where it is offered</SectionHeader>
+        <Text style={styles.hint}>{t("tag.automaticHint")}</Text>
+        <SectionHeader>{t("tag.scope.header")}</SectionHeader>
         <Card>
-          <Row icon="folder" iconColor="#FF9F0A" title="Categories" subtitle={scopeLabel} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cats, selected: scope.join(","), title: "Offer this tag for" } })} />
+          <Row icon="folder" iconColor="#FF9F0A" title={t("tag.scope.categories")} subtitle={scopeLabel} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cats, selected: scope.join(","), title: t("tag.scope.pickTitle") } })} />
         </Card>
-        <Text style={styles.hint}>{scope.length ? "Offered only when one of these categories (or a category in a selected folder) is chosen." : "Nothing selected: the tag is offered for every category."}</Text>
+        <Text style={styles.hint}>{scope.length ? t("tag.scope.some") : t("tag.scope.all")}</Text>
         {existing ? (
           <>
-            <SectionHeader>Transactions</SectionHeader>
-            <Card><Row icon="list.bullet" iconColor="#8E8E93" title={`${uses} transaction${uses === 1 ? "" : "s"}`} subtitle="With this tag, all time" onPress={uses ? showTransactions : undefined} /></Card>
-            <SectionHeader>Convert</SectionHeader>
+            <SectionHeader>{t("tag.transactions.header")}</SectionHeader>
+            <Card><Row icon="list.bullet" iconColor="#8E8E93" title={t("tag.transactions.count", { count: uses })} subtitle={t("tag.transactions.subtitle")} onPress={uses ? showTransactions : undefined} /></Card>
+            <SectionHeader>{t("tag.convert.header")}</SectionHeader>
             <Card>
-              <Row icon="arrow.turn.down.right" iconColor="#5E5CE6" title="Turn into a category" subtitle={`Moves ${uses} transaction${uses === 1 ? "" : "s"} to a new category and removes the tag`} onPress={convert} />
+              <Row icon="arrow.turn.down.right" iconColor="#5E5CE6" title={t("tag.convert.row")} subtitle={t("tag.convert.rowSubtitle", { count: uses })} onPress={convert} />
             </Card>
           </>
         ) : null}
         {existing ? (
           <>
-            <SectionHeader>Archive</SectionHeader>
+            <SectionHeader>{t("tag.archive.header")}</SectionHeader>
             <Card>
               <Row icon={existing.archived ? "tray.and.arrow.up" : "archivebox"} iconColor="#FF9F0A"
-                title={existing.archived ? "Bring this tag back" : "Archive this tag"}
-                subtitle={existing.archived ? "Offered again everywhere it used to be"
-                  : onTrip ? "Not while travel mode is using it — end travel mode first"
-                  : "Keeps every transaction and every budget; just stops being offered"}
+                title={existing.archived ? t("tag.archive.restore") : t("tag.archive.row")}
+                subtitle={existing.archived ? t("tag.archive.restoreSubtitle")
+                  : onTrip ? t("tag.archive.tripSubtitle")
+                  : t("tag.archive.rowSubtitle")}
                 onPress={archive} />
             </Card>
           </>
         ) : null}
-        {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label="Delete tag" onPress={del} /></View> : null}
+        {existing ? <View style={{ marginTop: S.xl }}><DeleteRow label={t("tag.delete.row")} onPress={del} /></View> : null}
       </ScrollView>
-      {converting ? <BusyOverlay label={`Converting ${uses} transaction${uses === 1 ? "" : "s"}…`} /> : null}
+      {converting ? <BusyOverlay label={t("tag.convert.busy", { count: uses })} /> : null}
     </View>
   );
 }

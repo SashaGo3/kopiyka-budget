@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FadeIn } from "@/components/ui";
 import { C, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 /** Shared chrome for the welcome flow: step dots, a big title, a line of context, the body, and the actions pinned at the bottom. */
 export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true }: {
@@ -14,7 +15,7 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   const insets = useSafeAreaInsets();
   const body = (
     <>
-      <View style={styles.dots} accessibilityLabel={`Step ${step} of 4`}>
+      <View style={styles.dots} accessibilityLabel={t("onboarding.stepA11y", { step, count: 4 })}>
         {[1, 2, 3, 4].map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
       </View>
       <FadeIn><Text style={styles.title} maxFontSizeMultiplier={1.3}>{title}</Text></FadeIn>

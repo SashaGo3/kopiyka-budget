@@ -39,8 +39,8 @@ struct NetWorthWidget: Widget {
       NetWorthView(entry: entry)
         .containerBackground(for: .widget) { Color("$widgetBackground") }
     }
-    .configurationDisplayName("Net worth")
-    .description("Balances across your accounts.")
+    .configurationDisplayName(LocalizedStringKey("native.widget.netWorth.name"))
+    .description(LocalizedStringKey("native.widget.netWorth.description"))
     .supportedFamilies([.systemSmall, .systemMedium])
   }
 }
@@ -52,7 +52,7 @@ struct NetWorthView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       HStack {
-        Text("Net worth").font(.caption).foregroundStyle(.secondary)
+        Text(L10n.Widget.NetWorth.title).font(.caption).foregroundStyle(.secondary)
         Spacer()
         Link(destination: KP.url("transaction/new?kind=expense")) {
           Image(systemName: "plus.circle.fill").font(.title3).foregroundStyle(Color("$accent"))
@@ -77,7 +77,7 @@ struct NetWorthView: View {
           }
         }
       } else if let a = entry.snapshot.accounts.first {
-        Text("\(a.name): \(KPFormat.compact(a.balance)) \(a.currency)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        Text(verbatim: "\(a.name): \(KPFormat.compact(a.balance)) \(a.currency)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
       }
     }
     .widgetURL(KP.url("accounts"))
@@ -93,8 +93,8 @@ struct BudgetsWidget: Widget {
       BudgetsView(entry: entry)
         .containerBackground(for: .widget) { Color("$widgetBackground") }
     }
-    .configurationDisplayName("Budgets")
-    .description("What is left in each budget this month.")
+    .configurationDisplayName(LocalizedStringKey("native.widget.budgets.name"))
+    .description(LocalizedStringKey("native.widget.budgets.description"))
     .supportedFamilies([.systemMedium, .systemLarge])
   }
 }
@@ -118,7 +118,7 @@ struct BudgetsView: View {
             HStack {
               Image(systemName: "airplane").font(.caption).foregroundStyle(.blue)
               Text(t.name).font(.subheadline).fontWeight(.semibold).lineLimit(1)
-              Text(t.allowance.map { "· \(KPFormat.money(max(0, $0), t.currency, decimals: 0))/day" } ?? "· \(t.dayLabel)").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+              Text("· " + (t.allowance.map { L10n.Budget.perDay(amount: KPFormat.money(max(0, $0), t.currency, decimals: 0)) } ?? t.dayLabel)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
               Spacer()
               Text(KPFormat.money(t.remaining, t.currency, decimals: 0))
                 .font(.subheadline).monospacedDigit().foregroundStyle(t.remaining < 0 ? .red : .primary)
@@ -128,7 +128,7 @@ struct BudgetsView: View {
         }
       }
       if entry.snapshot.budgets.isEmpty && entry.snapshot.trip == nil {
-        Text("No budgets yet").font(.subheadline).foregroundStyle(.secondary)
+        Text(L10n.Widget.Budgets.empty).font(.subheadline).foregroundStyle(.secondary)
         Spacer()
       } else {
         ForEach(entry.snapshot.budgets.prefix((family == .systemLarge ? 8 : 3) - (entry.snapshot.trip == nil ? 0 : 1))) { b in
@@ -159,8 +159,8 @@ struct BudgetLockWidget: Widget {
     StaticConfiguration(kind: "dev.kopiyka.lock", provider: KPProvider()) { entry in
       LockView(entry: entry).containerBackground(for: .widget) { Color.clear }
     }
-    .configurationDisplayName("Budget left")
-    .description("Remaining amount in your first budget.")
+    .configurationDisplayName(LocalizedStringKey("native.widget.lock.name"))
+    .description(LocalizedStringKey("native.widget.lock.description"))
     .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
   }
 }
@@ -181,11 +181,11 @@ struct LockView: View {
       .gaugeStyle(.accessoryCircular)
       .widgetURL(KP.url("budgets"))
     case .accessoryInline:
-      Text("\(budget?.name ?? "Budget"): \(KPFormat.compact(budget?.remaining ?? 0)) left")
+      Text(L10n.Budget.namedLeft(name: budget?.name ?? L10n.Budget.fallback, amount: KPFormat.compact(budget?.remaining ?? 0)))
     default:
       VStack(alignment: .leading) {
-        Text(budget?.name ?? "Budget").font(.headline)
-        Text("\(KPFormat.money(budget?.remaining ?? 0, budget?.currency ?? "", decimals: 0)) left").font(.caption)
+        Text(budget?.name ?? L10n.Budget.fallback).font(.headline)
+        Text(L10n.Budget.left(amount: KPFormat.money(budget?.remaining ?? 0, budget?.currency ?? "", decimals: 0))).font(.caption)
         ProgressView(value: budget?.ratio ?? 0)
       }
       .widgetURL(KP.url("budgets"))

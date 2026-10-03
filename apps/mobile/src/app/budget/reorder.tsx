@@ -9,6 +9,7 @@ import { budgetTitle, nameMaps } from "@/lib/budgetName";
 import { getBudgetScope, getBudgetsSections, setBudgetsSections, type BudgetsSection } from "@/lib/settings";
 import { scopeAccount } from "@/lib/scope";
 import { todayLocal } from "@/lib/dates";
+import { t } from "@/i18n";
 
 /**
  * Drag the budgets into the order you want them on the Budgets screen, and the screen's sections
@@ -27,11 +28,11 @@ export default function BudgetReorder() {
   const items = useMemo(() => getBudgetsSections().flatMap((sec) => {
     if (sec === "budgets") return budgets.map(({ b, title, icon }) => ({
       id: b.id, title,
-      subtitle: `${formatMinor(b.amount_minor, b.currency)} ${b.currency}${b.in_planned === 0 ? " · not in Planned" : ""}`,
+      subtitle: b.in_planned === 0 ? t("budgets.reorder.amountOff", { amount: `${formatMinor(b.amount_minor, b.currency)} ${b.currency}` }) : `${formatMinor(b.amount_minor, b.currency)} ${b.currency}`,
       icon: <CategoryIcon name={title} icon={icon?.icon ?? null} color={icon?.color ?? null} size={30} />,
     }));
     if (sec === "travel" && !hasTravel) return [];
-    return [SECTION_ROWS[sec]];
+    return [sectionRow(sec)];
   }), [budgets, hasTravel]);
   const commit = (ids: string[]) => {
     const budgetIds = ids.filter((id) => !id.startsWith(SECTION));
@@ -44,9 +45,9 @@ export default function BudgetReorder() {
     };
     setBudgetsSections([...saved].sort((a, z) => at(a) - at(z)));
   };
-  return <ReorderList title="Reorder budgets" items={items} onDone={commit}
-    hint="Drag by the grip on the right. Spending and Travel history move as whole sections."
-    empty={{ title: "No budgets", hint: "Add one on the Budgets screen first." }} />;
+  return <ReorderList title={t("budgets.reorder.title")} items={items} onDone={commit}
+    hint={t("budgets.reorder.hint")}
+    empty={{ title: t("budgets.reorder.emptyTitle"), hint: t("budgets.reorder.emptyHint") }} />;
 }
 
 const SECTION = "section:";
@@ -55,10 +56,9 @@ const sectionIcon = (name: "chart.bar.fill" | "airplane", color: string) => (
     <SymbolView name={name} size={15} tintColor="#fff" />
   </View>
 );
-const SECTION_ROWS: Record<Exclude<BudgetsSection, "budgets">, ReorderItem> = {
-  spending: { id: SECTION + "spending", title: "Spending", subtitle: "Section · what each category cost", icon: sectionIcon("chart.bar.fill", "#FF9F0A") },
-  travel: { id: SECTION + "travel", title: "Travel history", subtitle: "Section · past travel budgets", icon: sectionIcon("airplane", "#0A84FF") },
-};
+const sectionRow = (sec: Exclude<BudgetsSection, "budgets">): ReorderItem => sec === "spending"
+  ? { id: SECTION + "spending", title: t("budgets.spending.title"), subtitle: t("budgets.reorder.spendingSection"), icon: sectionIcon("chart.bar.fill", "#FF9F0A") }
+  : { id: SECTION + "travel", title: t("budgets.travelHistory.title"), subtitle: t("budgets.reorder.travelSection"), icon: sectionIcon("airplane", "#0A84FF") };
 
 /** The icon a budget wears in a list: its single category's, or nothing when it covers several. */
 function iconOf(b: Budget, d: Parameters<typeof getRow>[0]): { icon: string | null; color: string | null } | null {

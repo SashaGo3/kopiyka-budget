@@ -1,4 +1,5 @@
 export * from "./db";
+export * from "./errors";
 export * from "./ids";
 export * from "./money";
 export * from "./calc";
@@ -21,6 +22,7 @@ export * from "./regions";
 export * from "./payee";
 export * from "./suggest";
 export * from "./presets";
+export * from "./defaultNames";
 export * from "./keypad";
 export * from "./detect";
 export * from "./claim";

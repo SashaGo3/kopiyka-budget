@@ -1,0 +1,8 @@
+{
+  "$comment": "Month names and date patterns (src/lib/dates.ts). Weekdays come from Intl.",
+  "monthYear": { "message": "{month} {year}", "note": "\"September 2026\" on a month header, \"Sep 2026\" on a pill." },
+  "dayMonth": { "message": "{day} {month}", "note": "\"22 Sep\". month is the short name." },
+  "dayMonthYear": { "message": "{day} {month} {year}", "note": "\"22 Sep 2027\"." },
+  "short": { "jan": "Jan", "feb": "Feb", "mar": "Mar", "apr": "Apr", "may": "May", "jun": "Jun", "jul": "Jul", "aug": "Aug", "sep": "Sep", "oct": "Oct", "nov": "Nov", "dec": "Dec" },
+  "long": { "jan": "January", "feb": "February", "mar": "March", "apr": "April", "may": "May", "jun": "June", "jul": "July", "aug": "August", "sep": "September", "oct": "October", "nov": "November", "dec": "December" }
+}

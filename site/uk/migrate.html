@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Перехід з іншого застосунку — Копійка</title>
+    <meta name="description" content="Експортуйте дані зі старого застосунку для бюджету, передайте файл і цей запит ШІ-асистентові й імпортуйте результат у Копійку." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/uk/migrate.html" />
+    <link rel="alternate" hreflang="en" href="https://sashago3.github.io/kopiyka-budget/migrate.html" />
+    <link rel="alternate" hreflang="uk" href="https://sashago3.github.io/kopiyka-budget/uk/migrate.html" />
+    <link rel="alternate" hreflang="x-default" href="https://sashago3.github.io/kopiyka-budget/migrate.html" />
+    <link rel="icon" href="../img/icon-180.png" sizes="180x180" type="image/png" />
+    <link rel="apple-touch-icon" href="../img/icon-180.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Копійка" />
+    <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/uk/migrate.html" />
+    <meta property="og:locale" content="uk_UA" />
+    <meta property="og:locale:alternate" content="en_GB" />
+    <meta property="og:title" content="Перехід з іншого застосунку — Копійка" />
+    <meta property="og:description" content="Експортуйте дані зі старого застосунку для бюджету, передайте файл і цей запит ШІ-асистентові й імпортуйте результат у Копійку." />
+    <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Перейти до вмісту</a>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="../img/icon-180.png" alt="" width="32" height="32" />
+          <span>Копійка</span>
+        </a>
+        <nav class="site-nav" aria-label="Розділи">
+          <a href="index.html#features">Можливості</a>
+          <a href="index.html#watch">Годинник</a>
+          <a href="privacy.html">Приватність</a>
+          <a href="index.html#open-source">Відкритий код</a>
+        </nav>
+        <div class="brand-actions">
+          <nav class="lang-switch" aria-label="Мова">
+            <a href="../migrate.html" hreflang="en" lang="en" title="English">EN</a>
+            <a href="migrate.html" hreflang="uk" lang="uk" title="Українська" aria-current="page">УКР</a>
+          </nav>
+          <a class="btn" href="https://apps.apple.com/us/app/kopiyka-budget/id6809896169" rel="noopener"
+            ><span class="long">Завантажити в App Store</span><span class="short">App Store</span></a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc">
+        <div class="wrap">
+          <a class="doc-back" href="index.html">&#8592; Копійка</a>
+          <h1>Перехід з іншого застосунку (з допомогою ШІ)</h1>
+          <p>Копійка імпортує лише одне: власний формат резервної копії, один файл JSON. Імпорту з експортів інших
+          застосунків навмисно немає — кожен застосунок експортує щось своє, і конвертер, правильний для одного
+          експорту, хибний для наступного. Натомість працює ось що: експортуйте дані зі старого застосунку,
+          передайте цей файл і запит нижче ШІ-асистентові (Claude, ChatGPT, локальній моделі — будь-чому, що вміє
+          прочитати файл і написати JSON) та імпортуйте результат.</p>
+          <p>Усе займає кілька хвилин. Ваші дані потрапляють туди, куди ви їх надсилаєте, і більше нікуди; якщо
+          для вас це важливо, скористайтеся локальною моделлю або попросіть асистента написати скрипт і
+          запустіть його самі.</p>
+          <h2>Кроки</h2>
+          <ol>
+          <li><strong>Експортуйте дані зі старого застосунку.</strong> Найкраще CSV; JSON чи XLSX теж підійдуть. Вам потрібні
+          <em>операції</em> з датою, сумою, валютою, рахунком, категорією і (якщо є) нотатками, тегами й переказами.</li>
+          <li><strong>Відкрийте чат із ШІ-асистентом</strong>, прикріпіть експорт і вставте запит із наступного розділу.
+          Прочитайте його запитання — зазвичай йому треба знати вашу базову валюту і те, як у файлі
+          позначено перекази.</li>
+          <li><strong>Збережіть відповідь як <code>kopiyka-import.json</code></strong> (асистент може запропонувати файл; якщо він
+          виводить JSON текстом, скопіюйте все між зовнішніми фігурними дужками).</li>
+          <li><strong>Перенесіть файл на телефон</strong> — AirDrop, iCloud Drive, «Файли».</li>
+          <li>У Копійці: <strong>Налаштування → Керування даними → Імпорт → Замінити все файлом</strong> (на щойно
+          встановленому застосунку) або <strong>Обʼєднати</strong> (щоб додати до того, що вже є). Перед заміною
+          застосунок записує страхувальну резервну копію і повідомляє, де вона.</li>
+          <li>Перегляньте кілька місяців в «Операціях» і залишки рахунків у «Налаштування → Рахунки». Якщо
+          залишок не збігається, в експорті не було початкового залишку: задайте <code>opening_balance_minor</code>
+          для цього рахунку в JSON (або відредагуйте рахунок у застосунку), щоб сьогоднішній залишок
+          збігався з банківським.</li>
+          </ol>
+          <h2>Запит</h2>
+          <p>Скопіюйте весь цей блок. Прикріпіть експорт у тому самому повідомленні.</p>
+          <div class="codeblock"><button type="button" class="copy-btn" hidden>Копіювати</button><pre tabindex="0" role="region" aria-label="Запит для конвертації"><code class="language-text">Я переношу історію своїх особистих фінансів у застосунок під назвою Kopiyka. Він імпортує один
+          формат файлу, описаний нижче. Будь ласка, перетвори прикріплений експорт у цей формат.
+
+          Перш ніж щось писати, запитай мене (одним повідомленням) про все, чого не можеш вивести з файлу:
+          мою базову валюту, як у експорті позначено перекази між моїми рахунками, чи є категорії вкладеними
+          (папка › категорія), і який часовий пояс використовувати, якщо дати не мають зсуву.
+
+          Потім створи ОДИН документ JSON, який точно відповідає специфікації. Правила:
+
+          - Збережи кожну операцію. Не підсумовуй, не вибирай частину і не відкидай рядків. Якщо рядок не
+            вдається перетворити, перелічи його в кінці відповіді, а не пропускай мовчки.
+          - Гроші — цілі числа в мінорних одиницях валюти *рахунку* (центи, гроші, копійки):
+            12.34 EUR → 1234. Витрати відʼємні, доходи додатні.
+          - Кожному рядку потрібен `id`: використовуй новий UUID v4 для кожного рядка й той самий id усюди,
+            де на цей рядок є посилання (account_id, category_id, parent_id, tag_ids). Ніколи не виводь id з назви.
+          - Категорії: один рядок на категорію. Папка — це просто категорія, у якої `parent_id` дорівнює null
+            і на яку посилаються інші категорії. Операції мають посилатися на найглибшу категорію, ніколи не
+            на папку. Якщо в експорті плаский список категорій, зроби їх усі верхнього рівня.
+          - Теги: один рядок на кожен окремий тег; `tag_ids` операції — це *рядок* із JSON-масивом id тегів,
+            наприклад &quot;[\&quot;…\&quot;,\&quot;…\&quot;]&quot; (порожній список — &quot;[]&quot;).
+          - Перекази: в експорті зазвичай або один рядок із рахунком-джерелом і рахунком-отримувачем, або два
+            рядки (гроші вийшли, гроші прийшли). Створи дві операції — відʼємну на рахунку-джерелі й додатну на
+            рахунку-отримувачі, кожну у валюті свого рахунку, — зі спільним новим `transfer_id` і
+            `category_id` null. Якщо дві частини в різних валютах, задай `entered_amount_minor`,
+            `entered_currency` і `exchange_rate` для частини отримувача, як описано нижче.
+          - Дати — ISO 8601 зі зсувом: &quot;2026-03-17T16:28:39+01:00&quot;. Якщо в експорті є лише день, використовуй
+            12:00:00 у часовому поясі, який я назвав. `updated_at` — епоха в мілісекундах: використовуй час
+            експорту (зараз) для кожного рядка. `deleted` завжди 0.
+          - Регулярні правила, бюджети, борги й аналітика необовʼязкові. Додавай регулярні правила, лише якщо
+            в експорті вони явно є (підписки з періодом); інакше залиш масиви порожніми, і я налаштую їх у застосунку.
+          - `settings.base_currency` — моя базова валюта. Залиш `rates` порожнім масивом, якщо в експорті немає
+            курсів валют.
+          - Виведи в цьому блоці коду JSON і нічого більше. Форматуй з відступом в 1 пробіл.
+
+          === СПЕЦИФІКАЦІЯ: JSON резервної копії Kopiyka ===
+
+          {
+           &quot;format&quot;: &quot;kopiyka-backup&quot;,          // саме так
+           &quot;version&quot;: 1,
+           &quot;exported_at&quot;: &quot;2026-09-12T10:00:00.000Z&quot;,
+           &quot;settings&quot;: { &quot;base_currency&quot;: &quot;EUR&quot; },
+           &quot;accounts&quot;: [ Account ],
+           &quot;categories&quot;: [ Category ],
+           &quot;tags&quot;: [ Tag ],
+           &quot;transactions&quot;: [ Transaction ],
+           &quot;recurring_rules&quot;: [ RecurringRule ],  // може бути []
+           &quot;budgets&quot;: [],                          // може бути []
+           &quot;insights&quot;: [],                         // може бути []
+           &quot;debts&quot;: [],                            // може бути []
+           &quot;rates&quot;: []                             // може бути []
+          }
+
+          Кожен рядок у кожній таблиці має ці три поля:
+            id: string (UUID v4)   updated_at: integer (епоха в мс)   deleted: 0
+
+          Account {
+            name: string
+            currency: string                 // ISO 4217, &quot;EUR&quot;, &quot;USD&quot;, &quot;PLN&quot;, &quot;UAH&quot; …
+            type: &quot;cash&quot; | &quot;bank&quot; | &quot;card&quot; | &quot;investment&quot; | &quot;savings&quot; | &quot;other&quot;
+            group_name: string               // заголовок, під яким показано рахунки; &quot;Personal&quot;, якщо в експорті його немає
+            icon: string | null              // назва SF Symbol, напр. &quot;creditcard.fill&quot;, &quot;banknote.fill&quot;, &quot;building.columns.fill&quot;; null теж підходить
+            color: string | null             // &quot;#RRGGBB&quot; або null
+            sort: integer                    // порядок показу, 0, 1, 2 …
+            archived: 0 | 1
+            include_in_net_worth: 0 | 1      // 1, якщо це не кредитний рахунок чи позика, які ви виключаєте
+            opening_balance_minor: integer   // залишок до першої операції у файлі; 0, якщо невідомо
+          }
+
+          Category {
+            name: string
+            parent_id: string | null         // id категорії-папки або null для категорії верхнього рівня
+            icon: string | null              // назва SF Symbol або null
+            color: string | null             // &quot;#RRGGBB&quot; або null
+            sort: integer
+            kind: &quot;expense&quot; | &quot;income&quot;
+            description: string | null       // необовʼязкові слова, що описують, що сюди належить
+          }
+
+          Tag {
+            name: string
+            color: string | null
+            category_ids: string             // рядок із JSON-масивом id категорій, для яких призначено тег; &quot;[]&quot; = будь-яких
+          }
+
+          Transaction {
+            account_id: string
+            date: string                     // ISO 8601 зі зсувом
+            amount_minor: integer            // мінорні одиниці валюти рахунку; відʼємне = витрата
+            category_id: string | null       // найглибша категорія; null для переказів чи рядків без категорії
+            payee: string | null             // магазин чи контрагент, якщо експорт відокремлює його від нотатки
+            notes: string | null             // нотатка / опис
+            tag_ids: string                  // рядок із JSON-масивом id тегів, &quot;[]&quot;, якщо тегів немає
+            pending: 0 | 1                   // 0 для історії
+            transfer_id: string | null       // той самий новий UUID на обох частинах переказу, інакше null
+            entered_amount_minor: integer | null   // лише коли платіж був в іншій валюті: сума, як її списано
+            entered_currency: string | null        // … і її валюта
+            exchange_rate: number | null           // одиниць введеної валюти за 1 одиницю валюти рахунку (entered_amount / amount)
+            recurring_id: string | null      // id регулярного правила, що створило цей рядок, інакше null
+            lat: number | null               // де це записано, якщо відомо
+            lon: number | null
+            place: string | null             // назва цього місця для людей
+            photo: null                      // фото чеків так імпортувати не можна
+            source: null
+          }
+
+          RecurringRule {
+            account_id: string
+            amount_minor: integer            // відʼємне = витрата
+            category_id: string | null
+            payee: string | null
+            notes: string | null
+            tag_ids: string                  // &quot;[]&quot;, якщо тегів немає
+            frequency: &quot;daily&quot; | &quot;weekly&quot; | &quot;monthly&quot; | &quot;yearly&quot;
+            interval: integer                // 1 = кожен період, 2 = кожен другий період …
+            start_date: string               // &quot;YYYY-MM-DD&quot;
+            end_date: string | null
+            next_date: string                // &quot;YYYY-MM-DD&quot;, перше ще не записане повторення (після сьогодні)
+            notify: 0 | 1
+            notify_days_before: integer
+            auto_post: 0 | 1                 // 1 = записується сам у свій день; 0 = спершу питає
+            active: 0 | 1
+            time_of_day: string              // &quot;HH:MM&quot;
+          }
+
+          === ПРИКЛАД (два рахунки, папка з однією категорією, тег, одна витрата й один переказ) ===
+
+          {
+           &quot;format&quot;: &quot;kopiyka-backup&quot;,
+           &quot;version&quot;: 1,
+           &quot;exported_at&quot;: &quot;2026-09-12T10:00:00.000Z&quot;,
+           &quot;settings&quot;: { &quot;base_currency&quot;: &quot;EUR&quot; },
+           &quot;accounts&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Main&quot;, &quot;currency&quot;: &quot;EUR&quot;, &quot;type&quot;: &quot;bank&quot;, &quot;group_name&quot;: &quot;Personal&quot;, &quot;icon&quot;: &quot;building.columns.fill&quot;,
+              &quot;color&quot;: &quot;#2B2B2E&quot;, &quot;sort&quot;: 0, &quot;archived&quot;: 0, &quot;include_in_net_worth&quot;: 1, &quot;opening_balance_minor&quot;: 250000 },
+            { &quot;id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000002&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Cash&quot;, &quot;currency&quot;: &quot;EUR&quot;, &quot;type&quot;: &quot;cash&quot;, &quot;group_name&quot;: &quot;Personal&quot;, &quot;icon&quot;: &quot;banknote.fill&quot;,
+              &quot;color&quot;: null, &quot;sort&quot;: 1, &quot;archived&quot;: 0, &quot;include_in_net_worth&quot;: 1, &quot;opening_balance_minor&quot;: 0 }
+           ],
+           &quot;categories&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Food&quot;, &quot;parent_id&quot;: null, &quot;icon&quot;: &quot;cart.fill&quot;, &quot;color&quot;: &quot;#FF9F0A&quot;, &quot;sort&quot;: 0, &quot;kind&quot;: &quot;expense&quot;, &quot;description&quot;: null },
+            { &quot;id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000002&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Groceries&quot;, &quot;parent_id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000001&quot;, &quot;icon&quot;: &quot;cart.fill&quot;, &quot;color&quot;: &quot;#FF9F0A&quot;,
+              &quot;sort&quot;: 1, &quot;kind&quot;: &quot;expense&quot;, &quot;description&quot;: &quot;supermarket, market, bakery&quot; }
+           ],
+           &quot;tags&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0003-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;name&quot;: &quot;Weekend&quot;, &quot;color&quot;: &quot;#30D158&quot;, &quot;category_ids&quot;: &quot;[]&quot; }
+           ],
+           &quot;transactions&quot;: [
+            { &quot;id&quot;: &quot;5f1a2b3c-0004-4a00-8000-000000000001&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;account_id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000001&quot;, &quot;date&quot;: &quot;2026-09-06T18:42:00+01:00&quot;, &quot;amount_minor&quot;: -2350,
+              &quot;category_id&quot;: &quot;5f1a2b3c-0002-4a00-8000-000000000002&quot;, &quot;payee&quot;: &quot;Pingo Doce&quot;, &quot;notes&quot;: null,
+              &quot;tag_ids&quot;: &quot;[\&quot;5f1a2b3c-0003-4a00-8000-000000000001\&quot;]&quot;, &quot;pending&quot;: 0, &quot;transfer_id&quot;: null,
+              &quot;entered_amount_minor&quot;: null, &quot;entered_currency&quot;: null, &quot;exchange_rate&quot;: null, &quot;recurring_id&quot;: null,
+              &quot;lat&quot;: null, &quot;lon&quot;: null, &quot;place&quot;: null, &quot;photo&quot;: null, &quot;source&quot;: null },
+            { &quot;id&quot;: &quot;5f1a2b3c-0004-4a00-8000-000000000002&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;account_id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000001&quot;, &quot;date&quot;: &quot;2026-09-07T09:00:00+01:00&quot;, &quot;amount_minor&quot;: -10000,
+              &quot;category_id&quot;: null, &quot;payee&quot;: null, &quot;notes&quot;: &quot;ATM&quot;, &quot;tag_ids&quot;: &quot;[]&quot;, &quot;pending&quot;: 0,
+              &quot;transfer_id&quot;: &quot;5f1a2b3c-0005-4a00-8000-000000000001&quot;,
+              &quot;entered_amount_minor&quot;: null, &quot;entered_currency&quot;: null, &quot;exchange_rate&quot;: null, &quot;recurring_id&quot;: null,
+              &quot;lat&quot;: null, &quot;lon&quot;: null, &quot;place&quot;: null, &quot;photo&quot;: null, &quot;source&quot;: null },
+            { &quot;id&quot;: &quot;5f1a2b3c-0004-4a00-8000-000000000003&quot;, &quot;updated_at&quot;: 1757671200000, &quot;deleted&quot;: 0,
+              &quot;account_id&quot;: &quot;5f1a2b3c-0001-4a00-8000-000000000002&quot;, &quot;date&quot;: &quot;2026-09-07T09:00:00+01:00&quot;, &quot;amount_minor&quot;: 10000,
+              &quot;category_id&quot;: null, &quot;payee&quot;: null, &quot;notes&quot;: &quot;ATM&quot;, &quot;tag_ids&quot;: &quot;[]&quot;, &quot;pending&quot;: 0,
+              &quot;transfer_id&quot;: &quot;5f1a2b3c-0005-4a00-8000-000000000001&quot;,
+              &quot;entered_amount_minor&quot;: null, &quot;entered_currency&quot;: null, &quot;exchange_rate&quot;: null, &quot;recurring_id&quot;: null,
+              &quot;lat&quot;: null, &quot;lon&quot;: null, &quot;place&quot;: null, &quot;photo&quot;: null, &quot;source&quot;: null }
+           ],
+           &quot;recurring_rules&quot;: [],
+           &quot;budgets&quot;: [],
+           &quot;insights&quot;: [],
+           &quot;debts&quot;: [],
+           &quot;rates&quot;: []
+          }
+          </code></pre></div>
+          <h2>Перевірка результату перед імпортом</h2>
+          <ul>
+          <li>Файл має починатися з <code>&quot;format&quot;: &quot;kopiyka-backup&quot;</code> і містити масив <code>accounts</code>, інакше застосунок
+          відхилить його з помилкою «Not a Kopiyka backup» («Це не резервна копія Копійки»).</li>
+          <li>Кожен <code>account_id</code> / <code>category_id</code> / <code>parent_id</code> / id тегу має існувати у файлі. Під час імпорту
+          застосунок цього не перевіряє: операція, що посилається на невідомий рахунок, ніде не зʼявиться і
+          не врахується в жодному залишку.</li>
+          <li>Суми мають бути цілими числами. <code>12.34</code> — неправильно; <code>1234</code> — правильно.</li>
+          <li>Переказ — це два рядки з однаковим <code>transfer_id</code> і протилежними знаками.</li>
+          <li>Якщо ви запускали конвертацію двічі, імпортуйте лише останній файл: id щоразу генеруються заново,
+          тож імпорт обох подвоїть усе. (Якщо ви <em>справді</em> хочете повторно імпортувати виправлену версію,
+          використовуйте <em>Замінити все</em> — обʼєднання ніколи нічого не видаляє, тож старі рядки лишилися б.)</li>
+          </ul>
+          <p>Повний набір правил, яких дотримується імпорт, — id визначає запис, обʼєднання ніколи не видаляє,
+          заміна видаляє, курси валют ніколи не відкидаються, — описано в <a href="https://github.com/SashaGo3/kopiyka-budget/blob/main/DATA.md">DATA.md</a> (англійською)
+          у корені репозиторію. Повний приклад резервної копії з бюджетами, правилами, подорожами й боргами —
+          демонстраційний набір даних, на якому зроблено знімки екрана:
+          <code>apps/mobile/screenshots/demo/kopiyka-demo.json</code>.</p>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href="privacy.html">Приватність</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="terms.html">Умови</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://github.com/SashaGo3/kopiyka-budget">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="index.html#bug">Повідомити про помилку</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>© Автори Копійки</span>
+        <span class="made">Зроблено на React Native і трохи на Swift.</span>
+      </div>
+    </footer>
+    <script>
+      document.querySelectorAll('.copy-btn').forEach(function (b) {
+        if (!navigator.clipboard) return;
+        b.hidden = false;
+        b.onclick = function () {
+          navigator.clipboard.writeText(b.parentNode.querySelector('pre').innerText).then(function () {
+            b.textContent = "Скопійовано";
+            setTimeout(function () { b.textContent = "Копіювати"; }, 1600);
+          });
+        };
+      });
+    </script>
+  </body>
+</html>

@@ -48,7 +48,7 @@ extension KPWrites {
     let timeouts = pendingTimeouts; pendingTimeouts = [:]
     lock.unlock()
     for t in timeouts.values { t.cancel() }
-    for c in waiting.values { c.resume(returning: .fail("The app reloaded")) }
+    for c in waiting.values { c.resume(returning: .fail(L10n.Writes.reloaded)) }
   }
 
   /// JS reports the outcome of a forwarded write.
@@ -78,7 +78,7 @@ extension KPWrites {
         try? await Task.sleep(for: .seconds(timeout))
         // If `finish` already answered this request, cancellation made the sleep above throw and
         // `try?` swallowed it — calling `finish` again here is a harmless no-op (nothing pending).
-        finish(request: request, ok: false, error: "The app did not answer", reply: [:])
+        finish(request: request, ok: false, error: L10n.Writes.noAnswer, reply: [:])
       }
       lock.lock(); pending[request] = c; pendingTimeouts[request] = timeoutTask; lock.unlock()
       fwd(m)
@@ -88,7 +88,7 @@ extension KPWrites {
   /// A *read* forwarded to JS over the same channel (only JS may touch the file while it is claimed).
   /// Fails fast when JS is not up — the caller then has a SQLite path of its own.
   static func query(_ op: [String: Any], timeout: TimeInterval = 3) async -> Result {
-    await perform(op, timeout: timeout) { .fail("The app is not running") }
+    await perform(op, timeout: timeout) { .fail(L10n.Writes.notRunning) }
   }
 
   // MARK: Writes
@@ -116,7 +116,7 @@ extension KPWrites {
   }
 
   static func deleteTransaction(id: String) async -> Result {
-    await perform(["op": "delete", "id": id]) { KPStore.deleteTransaction(id: id) ? .ok : .fail("Not found") }
+    await perform(["op": "delete", "id": id]) { KPStore.deleteTransaction(id: id) ? .ok : .fail(L10n.Writes.notFound) }
   }
 
   static func updatePlace(id: String, place: String) async -> Result {
@@ -184,7 +184,7 @@ extension KPWrites {
     if !tagIds.isEmpty { op["tag_ids"] = tagIds }
     if let lat, let lon { op["lat"] = lat; op["lon"] = lon }
     return await perform(op, timeout: timeout) {
-      KPStore.fillIn(id: id, payee: payee, place: place, categoryId: categoryId, tagIds: tagIds, lat: lat, lon: lon, confirm: confirm) ? .ok : .fail("Nothing to fill in")
+      KPStore.fillIn(id: id, payee: payee, place: place, categoryId: categoryId, tagIds: tagIds, lat: lat, lon: lon, confirm: confirm) ? .ok : .fail(L10n.Writes.nothingToFill)
     }
   }
 }

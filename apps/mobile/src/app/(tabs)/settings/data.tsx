@@ -9,12 +9,14 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
-import { BACKUP_POLICY, applyRetention, backupNow, lastBackupLine, mirrorPhotos, photoBackupState, pullFromCloud, setBackupEnabled, setSyncEnabled, useBackupState, type PhotoBackupState } from "@/lib/backup";
+import { BACKUP_POLICY, applyRetention, backupNow, backupWhen, joinList, lastBackupLine, mirrorPhotos, photoBackupState, pullFromCloud, setBackupEnabled, setSyncEnabled, useBackupState, type PhotoBackupState } from "@/lib/backup";
 import { bundleFile, importBundle } from "@/lib/bundle";
+import { errorText } from "@/lib/errors";
 import * as DocumentPicker from "expo-document-picker";
 import type { ImportMode } from "@kopiyka/core";
 import { BACKUP_KEEP_DAYS_OPTIONS, getBackupKeepDays, setBackupKeepDays } from "@/lib/settings";
 import { pickAndImport } from "@/lib/importers";
+import { t } from "@/i18n";
 
 type ExportKind = "backup" | "generic";
 
@@ -22,43 +24,44 @@ type ExportKind = "backup" | "generic";
 /** Data management: automatic iCloud backups, export everything on this phone, or import a backup into it. */
 /** "3 transactions, 1 account and 47 categories" — empty kinds are left out, so a fresh phone does not
  *  get told it is about to lose "0 tags". Returns "" when there is nothing to count. */
-function countList(parts: [number, string, string?][]): string {
-  const said = parts.filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n === 1 ? one : many ?? `${one}s`}`);
-  if (said.length < 2) return said[0] ?? "";
-  return `${said.slice(0, -1).join(", ")} and ${said[said.length - 1]}`;
+function countList(parts: [number, (count: number) => string][]): string {
+  return joinList(parts.filter(([n]) => n > 0).map(([n, say]) => say(n)));
 }
 
 export default function DataScreen() {
   const [busy, setBusy] = useState(false);
   const backup = useBackupState();
   const lastLine = lastBackupLine(backup.last?.at);
-  const backupSubtitle = !backup.supported ? "Needs the native build"
-    : backup.error ? `Failed: ${backup.error}`
-    : backup.busy ? "Backing up…"
-    : !backup.enabled ? "Off · nothing is copied anywhere"
-    : `${lastLine} · ${backup.count} kept${backup.dirty ? " · changes pending" : ""}${backup.icloud ? "" : " · iCloud is off on this phone, kept in the app's folder"}`;
+  const kept = { last: lastLine, count: backup.count };
+  const backupSubtitle = !backup.supported ? t("data.needsNative")
+    : backup.error ? t("data.icloud.failed", { error: backup.error })
+    : backup.busy ? t("data.icloud.backingUp")
+    : !backup.enabled ? t("data.icloud.off")
+    : backup.icloud ? (backup.dirty ? t("data.icloud.statePending", kept) : t("data.icloud.state", kept))
+    : backup.dirty ? t("data.icloud.statePendingLocal", kept) : t("data.icloud.stateLocal", kept);
   const runBackup = async () => {
     const f = await backupNow();
-    if (f) Alert.alert("Backed up", `${f.name}\n${(f.size / 1024).toFixed(0)} KB${backup.icloud ? " · uploading to iCloud Drive" : " · saved on this phone"}`);
-    else if (!backup.supported) Alert.alert("Backups need the native build");
+    const size = ((f?.size ?? 0) / 1024).toFixed(0);
+    if (f) Alert.alert(t("data.icloud.backedUp"), backup.icloud ? t("data.icloud.backedUpICloud", { name: f.name, size }) : t("data.icloud.backedUpLocal", { name: f.name, size }));
+    else if (!backup.supported) Alert.alert(t("data.backupsNeedNative"));
   };
   /**
    * Auto-sync reads the same container the backups go to, so it can only say something useful once
    * it has looked: "checked, nothing new" is the answer on almost every poll and is the one that
    * needs saying, because silence here looks exactly like a feature that is not working.
    */
-  const syncSubtitle = !backup.supported ? "Needs the native build"
-    : !backup.sync ? "Off · backups from your other devices are ignored"
-    : !backup.icloud ? "iCloud is off on this phone, so there is nothing to merge"
-    : backup.syncing ? "Merging…"
+  const syncSubtitle = !backup.supported ? t("data.needsNative")
+    : !backup.sync ? t("data.icloud.mergeOff")
+    : !backup.icloud ? t("data.icloud.mergeNoICloud")
+    : backup.syncing ? t("data.icloud.merging")
     : backup.lastSync
-      ? `${backup.lastSync.rows ? `${backup.lastSync.rows} row${backup.lastSync.rows === 1 ? "" : "s"} merged` : "Nothing new"} · checked ${lastBackupLine(backup.lastSync.at).replace("Last backup ", "")}`
-      : "Checked when you open the app and every few minutes";
+      ? (backup.lastSync.rows ? t("data.icloud.merged", { count: backup.lastSync.rows, when: backupWhen(backup.lastSync.at) }) : t("data.icloud.mergedNothing", { when: backupWhen(backup.lastSync.at) }))
+      : t("data.icloud.mergeWhen");
   const checkNow = async () => {
     const rows = await pullFromCloud("manual");
-    Alert.alert(rows ? "Merged" : "Nothing new", rows
-      ? `${rows} row${rows === 1 ? "" : "s"} came in from another device. Nothing was deleted: rows already newer here were kept.`
-      : "No backup in iCloud that this phone has not already taken in.");
+    Alert.alert(rows ? t("data.icloud.mergedTitle") : t("data.icloud.nothingNewTitle"), rows
+      ? t("data.icloud.mergedMessage", { count: rows })
+      : t("data.icloud.nothingNewMessage"));
   };
 
   const counts = useQuery((d) => ({
@@ -70,18 +73,21 @@ export default function DataScreen() {
   // Erasing asks twice. The first tap is easy to make by accident on a row like this one; the second
   // prompt counts out loud what is about to go, so agreeing to it takes actually reading the numbers.
   const confirmReset = () => {
-    const doomed = countList([[counts.tx, "transaction"], [counts.accounts, "account"], [counts.categories, "category", "categories"], [counts.tags, "tag"]]);
-    Alert.alert("Last chance", doomed ? `${doomed} will be deleted from this phone.` : "Everything on this phone will be deleted.", [
-      { text: "Keep my data", style: "cancel" },
+    const doomed = countList([
+      [counts.tx, (count) => t("data.count.transactions", { count })], [counts.accounts, (count) => t("data.count.accounts", { count })],
+      [counts.categories, (count) => t("data.count.categories", { count })], [counts.tags, (count) => t("data.count.tags", { count })],
+    ]);
+    Alert.alert(t("data.reset.lastChance"), doomed ? t("data.reset.doomed", { list: doomed }) : t("data.reset.everything"), [
+      { text: t("data.reset.keep"), style: "cancel" },
       // A wiped phone is a first launch again: eraseAll clears the `onboarded` flag, and the welcome
       // flow replaces the tabs so the user is not left on an empty Settings screen.
-      { text: "Erase everything", style: "destructive", onPress: () => { mutate((d) => eraseAll(d, { everywhere: false })); router.replace("/onboarding"); } },
+      { text: t("data.reset.eraseEverything"), style: "destructive", onPress: () => { mutate((d) => eraseAll(d, { everywhere: false })); router.replace("/onboarding"); } },
     ]);
   };
-  const resetAll = () => Alert.alert("Erase this phone?", "This cannot be undone. iCloud backups are kept; you can restore one afterwards.", [
-    { text: "Cancel", style: "cancel" },
+  const resetAll = () => Alert.alert(t("data.reset.confirmTitle"), t("data.reset.confirmMessage"), [
+    { text: t("common.cancel"), style: "cancel" },
     // The first alert has to finish dismissing before the second opens, or iOS drops it (same as pickDay).
-    { text: "Erase", style: "destructive", onPress: () => setTimeout(confirmReset, 350) },
+    { text: t("data.reset.erase"), style: "destructive", onPress: () => setTimeout(confirmReset, 350) },
   ]);
 
 
@@ -91,8 +97,8 @@ export default function DataScreen() {
   const keepDays = useQuery(() => getBackupKeepDays());
   const keepKey = useMemo(() => newPickKey("backupkeepdays"), []);
   usePickResult<string>(keepKey, useCallback((v: string) => { setBackupKeepDays(Number(v)); void applyRetention(); }, []));
-  const pickKeepDays = () => router.push({ pathname: "/pick/option", params: { key: keepKey, title: "Keep backups for", selected: String(keepDays),
-    options: JSON.stringify(BACKUP_KEEP_DAYS_OPTIONS.map((n) => ({ value: String(n), label: n >= 30 && n % 30 === 0 ? `${n} days · ${n / 30} month${n === 30 ? "" : "s"}` : `${n} days` }))) } });
+  const pickKeepDays = () => router.push({ pathname: "/pick/option", params: { key: keepKey, title: t("data.icloud.keep"), selected: String(keepDays),
+    options: JSON.stringify(BACKUP_KEEP_DAYS_OPTIONS.map((n) => ({ value: String(n), label: n >= 30 && n % 30 === 0 ? t("data.icloud.keepMonths", { days: n, months: n / 30 }) : t("data.icloud.keepDays", { count: n }) }))) } });
 
   // Photos do not travel inside a backup — they are mirrored beside it, a few after each one — so the
   // only honest way to say "everything is safe" is to count them.
@@ -100,10 +106,10 @@ export default function DataScreen() {
   const refreshPhotos = useCallback(() => { void photoBackupState().then(setPhotos).catch(() => setPhotos(null)); }, []);
   useEffect(refreshPhotos, [refreshPhotos]);
   useFocusEffect(refreshPhotos);
-  const photoLine = !photos || !photos.local ? "No photos attached to transactions yet"
-    : !photos.icloud ? `${photos.local} on this phone · turn iCloud on to back them up`
-    : photos.pending ? `${photos.local - photos.pending} of ${photos.local} copied · ${photos.pending} still to go`
-    : `All ${photos.local} copied to iCloud`;
+  const photoLine = !photos || !photos.local ? t("data.icloud.photosNone")
+    : !photos.icloud ? t("data.icloud.photosNoICloud", { count: photos.local })
+    : photos.pending ? t("data.icloud.photosPending", { done: photos.local - photos.pending, total: photos.local, left: photos.pending })
+    : t("data.icloud.photosAll", { count: photos.local });
 
   const exportAs = async (kind: ExportKind) => {
     setBusy(true);
@@ -117,7 +123,7 @@ export default function DataScreen() {
       // expo-sharing is only needed for this one tap, not to paint the screen.
       const Sharing = require("expo-sharing") as typeof import("expo-sharing"); // eslint-disable-line @typescript-eslint/no-require-imports
       await Sharing.shareAsync(f.uri, { mimeType: mime, UTI: uti, dialogTitle: name });
-    } catch (e) { Alert.alert("Export failed", (e as Error).message); }
+    } catch (e) { Alert.alert(t("data.export.failed"), (e as Error).message); }
     finally { setBusy(false); }
   };
 
@@ -129,7 +135,7 @@ export default function DataScreen() {
       const Sharing = require("expo-sharing") as typeof import("expo-sharing"); // eslint-disable-line @typescript-eslint/no-require-imports
       await Sharing.shareAsync(file.uri, { mimeType: "application/zip", UTI: "public.zip-archive", dialogTitle: file.name });
       if (__DEV__) console.log(`[bundle] ${file.name} ${(size / 1024).toFixed(0)} KB, ${photos} photos`);
-    } catch (e) { Alert.alert("Export failed", (e as Error).message); }
+    } catch (e) { Alert.alert(t("data.export.failed"), (e as Error).message); }
     finally { setBusy(false); }
   };
 
@@ -139,17 +145,15 @@ export default function DataScreen() {
       const picked = await DocumentPicker.getDocumentAsync({ type: ["public.zip-archive", "application/zip"], copyToCacheDirectory: true, multiple: false });
       const asset = picked.assets?.[0];
       if (picked.canceled || !asset) return;
-      const ok = await new Promise<boolean>((resolve) => Alert.alert(mode === "replace" ? "Replace everything with this bundle?" : "Import this bundle?",
-        mode === "replace"
-          ? `${asset.name}\n\nEverything on this phone is replaced by the bundle. Rows it does not mention are deleted. A copy of what you have now is saved first.`
-          : `${asset.name}\n\nRows are merged by id and the photos are added; nothing is deleted.`,
-        [{ text: "Cancel", style: "cancel", onPress: () => resolve(false) }, { text: mode === "replace" ? "Replace" : "Import", style: mode === "replace" ? "destructive" : "default", onPress: () => resolve(true) }]));
+      const ok = await new Promise<boolean>((resolve) => Alert.alert(mode === "replace" ? t("data.import.bundleReplaceTitle") : t("data.import.bundleTitle"),
+        mode === "replace" ? t("data.import.bundleReplace", { name: asset.name }) : t("data.import.bundleMerge", { name: asset.name }),
+        [{ text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) }, { text: mode === "replace" ? t("data.import.replaceButton") : t("data.import.confirm"), style: mode === "replace" ? "destructive" : "default", onPress: () => resolve(true) }]));
       if (!ok) return;
       const safety = mode === "replace" ? await backupNow("before-replace") : null;
       const { summary } = importBundle(new File(asset.uri).bytesSync(), mode);
-      Alert.alert("Bundle imported", `${summary}${safety ? `\n\nYour previous data was saved as ${safety.name}.` : ""}`);
+      Alert.alert(t("data.import.bundleDone"), safety ? t("data.import.savedAs", { summary, name: safety.name }) : summary);
       refreshPhotos();
-    } catch (e) { Alert.alert("Import failed", (e as Error).message); }
+    } catch (e) { Alert.alert(t("data.import.failed"), errorText(e)); }
     finally { setBusy(false); }
   };
 
@@ -157,8 +161,8 @@ export default function DataScreen() {
     setBusy(true);
     try {
       const summary = await pickAndImport();
-      if (summary) Alert.alert("Backup imported", summary);
-    } catch (e) { Alert.alert("Import failed", (e as Error).message); }
+      if (summary) Alert.alert(t("data.import.done"), summary);
+    } catch (e) { Alert.alert(t("data.import.failed"), errorText(e)); }
     finally { setBusy(false); }
   };
 
@@ -172,64 +176,64 @@ export default function DataScreen() {
     try {
       const safety = await backupNow("before-replace");
       if (!safety && backup.supported) {
-        const go = await new Promise<boolean>((resolve) => Alert.alert("Could not save a copy first",
-          "The backup that would let you undo this could not be written. Replacing now means there is no way back.",
-          [{ text: "Cancel", style: "cancel", onPress: () => resolve(false) }, { text: "Replace anyway", style: "destructive", onPress: () => resolve(true) }]));
+        const go = await new Promise<boolean>((resolve) => Alert.alert(t("data.import.noCopyTitle"),
+          t("data.import.noCopyMessage"),
+          [{ text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) }, { text: t("data.import.replaceAnyway"), style: "destructive", onPress: () => resolve(true) }]));
         if (!go) return;
       }
       const summary = await pickAndImport({ mode: "replace" });
       if (!summary) return;
-      Alert.alert("Everything replaced", `${summary}${safety ? `\n\nYour previous data was saved as ${safety.name}. To go back: Restore from a backup → that file → Replace everything.` : ""}`);
-    } catch (e) { Alert.alert("Replace failed", (e as Error).message); }
+      Alert.alert(t("data.import.replacedTitle"), safety ? t("data.import.replacedSavedAs", { summary, name: safety.name }) : summary);
+    } catch (e) { Alert.alert(t("data.import.replaceFailed"), errorText(e)); }
     finally { setBusy(false); refreshPhotos(); }
   };
 
   const off = busy ? undefined : (fn: () => Promise<void>) => () => void fn();
   return (
     <>
-      <Stack.Screen options={{ title: "Data management" }} />
+      <Stack.Screen options={{ title: t("data.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 60 }}>
-        <SectionHeader>iCloud</SectionHeader>
+        <SectionHeader>{t("data.icloud.section")}</SectionHeader>
         <Card>
-          <ToggleRow icon="icloud" iconColor="#0A84FF" title="Back up to iCloud" subtitle={backupSubtitle} value={backup.enabled && backup.supported} onChange={setBackupEnabled} />
-          <Row icon="arrow.clockwise.icloud" iconColor="#0A84FF" title={backup.busy ? "Backing up…" : "Back up now"} onPress={backup.busy || !backup.supported ? undefined : () => void runBackup()} style={styles.divider} />
-          <ToggleRow icon="arrow.triangle.2.circlepath" iconColor="#5E5CE6" title="Merge from other devices" subtitle={syncSubtitle} value={backup.sync && backup.supported} onChange={setSyncEnabled} style={styles.divider} />
+          <ToggleRow icon="icloud" iconColor="#0A84FF" title={t("data.icloud.backUp")} subtitle={backupSubtitle} value={backup.enabled && backup.supported} onChange={setBackupEnabled} />
+          <Row icon="arrow.clockwise.icloud" iconColor="#0A84FF" title={backup.busy ? t("data.icloud.backingUp") : t("data.icloud.backUpNow")} onPress={backup.busy || !backup.supported ? undefined : () => void runBackup()} style={styles.divider} />
+          <ToggleRow icon="arrow.triangle.2.circlepath" iconColor="#5E5CE6" title={t("data.icloud.merge")} subtitle={syncSubtitle} value={backup.sync && backup.supported} onChange={setSyncEnabled} style={styles.divider} />
           {backup.sync && backup.supported ? (
-            <Row icon="icloud.and.arrow.down" iconColor="#5E5CE6" title={backup.syncing ? "Merging…" : "Check iCloud now"} onPress={backup.syncing ? undefined : () => void checkNow()} style={styles.divider} />
+            <Row icon="icloud.and.arrow.down" iconColor="#5E5CE6" title={backup.syncing ? t("data.icloud.merging") : t("data.icloud.checkNow")} onPress={backup.syncing ? undefined : () => void checkNow()} style={styles.divider} />
           ) : null}
-          <Row icon="clock.arrow.circlepath" iconColor="#30D158" title="Restore from a backup" subtitle={backup.count ? `${backup.count} backup${backup.count === 1 ? "" : "s"}, ${backup.today} today` : "Nothing to restore yet"} onPress={() => router.push("/settings/backups")} style={styles.divider} />
-          <Row icon="photo.on.rectangle" iconColor="#FF9F0A" title="Receipt photos" subtitle={photoLine}
+          <Row icon="clock.arrow.circlepath" iconColor="#30D158" title={t("data.icloud.restore")} subtitle={backup.count ? t("data.icloud.restoreCount", { count: backup.count, today: backup.today }) : t("data.icloud.restoreNone")} onPress={() => router.push("/settings/backups")} style={styles.divider} />
+          <Row icon="photo.on.rectangle" iconColor="#FF9F0A" title={t("data.icloud.photos")} subtitle={photoLine}
             onPress={!photos?.pending || !photos.icloud || backup.busy ? undefined : () => { void mirrorPhotos(500).then(refreshPhotos); }} style={styles.divider} />
-          <Row icon="square.stack.3d.up" iconColor="#0A84FF" title="Keep backups for" subtitle={`${keepDays} days · ${backup.count} file${backup.count === 1 ? "" : "s"} in iCloud now`} onPress={pickKeepDays} style={styles.divider} />
+          <Row icon="square.stack.3d.up" iconColor="#0A84FF" title={t("data.icloud.keep")} subtitle={t("data.icloud.keepState", { days: keepDays, files: backup.count })} onPress={pickKeepDays} style={styles.divider} />
         </Card>
-        <Text style={styles.hint}>A backup is written shortly after each change and at least once a day. Each day keeps its first backup plus the newest ones, up to {BACKUP_POLICY.perDay} in all, and days outside the window above are deleted — that window is what decides how much of your iCloud storage this uses. Files live in Files → iCloud Drive → Kopiyka → Backups and open on any of your devices.</Text>
-        <Text style={styles.hint}>Your other devices back up to the same place, so merging is how an iPhone and an iPad stay level: each takes in what the other wrote, in the background, while you carry on. Nothing is ever deleted by it — where both changed the same thing, the newer edit wins — and a backup you have not merged is never deleted to make room. One exception to know about: “Replace everything” below is local, so rows it removes can come back from another device’s next backup. Replace on each device, or turn merging off while you do it.</Text>
+        <Text style={styles.hint}>{t("data.icloud.hintPolicy", { perDay: BACKUP_POLICY.perDay })}</Text>
+        <Text style={styles.hint}>{t("data.icloud.hintMerge")}</Text>
 
-        <SectionHeader>Export</SectionHeader>
+        <SectionHeader>{t("data.export.section")}</SectionHeader>
         <Card>
-          <Row icon="square.and.arrow.up" title="Full backup (JSON)" subtitle="Everything: accounts, categories, tags, transactions, recurring rules, budgets, exchange rates, preferences" onPress={off?.(() => exportAs("backup"))} />
-          <Row icon="doc.zipper" iconColor="#5E5CE6" title="Bundle (ZIP)" subtitle={`The backup and ${photos?.local ? `all ${photos.local} receipt photo${photos.local === 1 ? "" : "s"}` : "any receipt photos"} in one file — everything, portable`} onPress={off?.(exportBundle)} style={styles.divider} />
-          <Row icon="tablecells" iconColor="#FF9F0A" title="Transactions CSV" subtitle="One row per transaction with parent and child category, tags, notes, transfer id" onPress={off?.(() => exportAs("generic"))} style={styles.divider} />
+          <Row icon="square.and.arrow.up" title={t("data.export.json")} subtitle={t("data.export.jsonSubtitle")} onPress={off?.(() => exportAs("backup"))} />
+          <Row icon="doc.zipper" iconColor="#5E5CE6" title={t("data.export.bundle")} subtitle={photos?.local ? t("data.export.bundleSubtitleCount", { count: photos.local }) : t("data.export.bundleSubtitle")} onPress={off?.(exportBundle)} style={styles.divider} />
+          <Row icon="tablecells" iconColor="#FF9F0A" title={t("data.export.csv")} subtitle={t("data.export.csvSubtitle")} onPress={off?.(() => exportAs("generic"))} style={styles.divider} />
         </Card>
-        <Text style={styles.hint}>{counts.tx} transactions in {counts.accounts} accounts. Share to Files, AirDrop, Mail, or straight into another app.</Text>
+        <Text style={styles.hint}>{t("data.export.hint", { transactions: counts.tx, accounts: counts.accounts })}</Text>
 
-        <SectionHeader>Import</SectionHeader>
+        <SectionHeader>{t("data.import.section")}</SectionHeader>
         <Card>
-          <Row icon="square.and.arrow.down" iconColor="#30D158" title="Kopiyka backup (JSON)" subtitle="A full backup from this app" onPress={off?.(() => importAs())} />
-          <Row icon="doc.zipper" iconColor="#5E5CE6" title="Bundle (ZIP)" subtitle="A bundle exported from this app: the backup and its receipt photos together" onPress={off?.(() => importBundleFile("merge"))} style={styles.divider} />
-          <Row icon="arrow.triangle.2.circlepath" iconColor="#FF3B30" title="Replace everything with a file" destructive
-            subtitle="For an export you have restructured elsewhere: the file becomes the whole database and anything missing from it is deleted. A copy of what you have now is saved first."
-            onPress={off ? () => Alert.alert("Replace from what?", "A bundle carries the photos as well; a JSON file is the data only.", [
-              { text: "Cancel", style: "cancel" },
-              { text: "Bundle (ZIP)", onPress: () => void importBundleFile("replace") },
-              { text: "Backup (JSON)", onPress: () => void replaceEverything() },
+          <Row icon="square.and.arrow.down" iconColor="#30D158" title={t("data.import.json")} subtitle={t("data.import.jsonSubtitle")} onPress={off?.(() => importAs())} />
+          <Row icon="doc.zipper" iconColor="#5E5CE6" title={t("data.import.bundle")} subtitle={t("data.import.bundleSubtitle")} onPress={off?.(() => importBundleFile("merge"))} style={styles.divider} />
+          <Row icon="arrow.triangle.2.circlepath" iconColor="#FF3B30" title={t("data.import.replace")} destructive
+            subtitle={t("data.import.replaceSubtitle")}
+            onPress={off ? () => Alert.alert(t("data.import.replaceFrom"), t("data.import.replaceFromMessage"), [
+              { text: t("common.cancel"), style: "cancel" },
+              { text: t("data.import.replaceBundle"), onPress: () => void importBundleFile("replace") },
+              { text: t("data.import.replaceJson"), onPress: () => void replaceEverything() },
             ]) : undefined} style={styles.divider} />
         </Card>
-        <Text style={styles.hint}>Imported rows are merged by id; the next iCloud backup includes them. Coming from another app? See the migration guide in the repository.</Text>
+        <Text style={styles.hint}>{t("data.import.hint")}</Text>
 
-        <SectionHeader>Start over</SectionHeader>
+        <SectionHeader>{t("data.reset.section")}</SectionHeader>
         <Card>
-          <Row icon="trash" iconColor="#FF3B30" title="Reset all data" subtitle="Delete every account, category, tag, budget and transaction" destructive onPress={resetAll} />
+          <Row icon="trash" iconColor="#FF3B30" title={t("data.reset.title")} subtitle={t("data.reset.subtitle")} destructive onPress={resetAll} />
         </Card>
       </ScrollView>
     </>

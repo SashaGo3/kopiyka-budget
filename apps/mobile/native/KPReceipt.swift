@@ -20,7 +20,7 @@ enum KPReceipt {
   enum Failure: LocalizedError {
     case noImage, noText
     var errorDescription: String? {
-      switch self { case .noImage: return "The photo could not be read."; case .noText: return "No text found. Hold the phone flat over the receipt with good light." }
+      switch self { case .noImage: return L10n.Receipt.noImage; case .noText: return L10n.Receipt.noText }
     }
   }
 
@@ -42,7 +42,10 @@ enum KPReceipt {
         parse.category_id = c.id; parse.category_name = c.path
       }
     }
-    parse.summary = KPReceiptText.summary(parse)
+    // The parser (KPReceiptParse.swift, also built on its own by scripts/receipt-parse) names a shop
+    // it could not read "Receipt"; the name is saved as the payee, so it is put in the app's language here.
+    if parse.merchant == "Receipt" { parse.merchant = L10n.Receipt.untitled }
+    parse.summary = summary(parse)
     parse.text = lines.joined(separator: "\n")
     return parse
   }
@@ -168,6 +171,23 @@ enum KPReceipt {
     return categories.first { $0.name.lowercased() == leaf } ?? categories.first { $0.parent != nil && ($0.name.lowercased().contains(leaf) || leaf.contains($0.name.lowercased())) }
   }
 
+  /// The note a scanned receipt is saved with, in the app's language:
+  /// "Żabka · 2 items: Kanapka … 10.99, … · total 22.98 PLN · paid 23.48". `KPReceiptText.summary` is
+  /// the same in English, kept for the parse harness, which builds without the String Catalog.
+  static func summary(_ p: Parse) -> String {
+    let cur = p.currency ?? ""
+    // The language's decimal mark, like `KPFormat.money` ("10.99" / "10,99"); no grouping, as printed.
+    let fmt: (Double) -> String = { String(format: "%.2f", locale: KPL.numberLocale, $0) }
+    var parts: [String] = [p.merchant]
+    if !p.items.isEmpty {
+      let shown = p.items.prefix(8).map { "\($0.name) \(fmt($0.price))" }.joined(separator: ", ")
+      parts.append("\(L10n.Receipt.items(count: p.items.count)): \(shown)\(p.items.count > 8 ? " …" : "")")
+    }
+    parts.append(L10n.Receipt.total(amount: cur.isEmpty ? fmt(p.total) : "\(fmt(p.total)) \(cur)"))
+    if let paid = p.paid { parts.append(L10n.Receipt.paid(amount: fmt(paid))) }
+    return parts.joined(separator: " · ")
+  }
+
   // MARK: - Saving (Shortcut path: straight into the database as a pending row)
 
   struct Saved { let id: String; let amountMinor: Int; let currency: String; let converted: Bool; let parse: Parse }
@@ -180,7 +200,7 @@ enum KPReceipt {
     let id = UUID().uuidString.lowercased()
     let date = p.date.map { "\($0)T12:00:00\(KPStore.isoNow().suffix(6))" }
     var note = p.summary
-    if let rc = p.currency, rc != account.currency, !converted { note += " (in \(rc), no exchange rate)" }
+    if let rc = p.currency, rc != account.currency, !converted { note = L10n.Receipt.noRate(note: note, currency: rc) }
     guard await KPWrites.addTransaction(id: id, accountId: account.id, amountMinor: -minor, categoryId: p.category_id, note: note, payee: p.merchant, place: p.merchant, pending: true, date: date, source: "receipt").ok else { return nil }
     return Saved(id: id, amountMinor: minor, currency: account.currency, converted: converted, parse: p)
   }

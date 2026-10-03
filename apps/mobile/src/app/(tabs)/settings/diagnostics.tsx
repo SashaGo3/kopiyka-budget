@@ -7,6 +7,7 @@ import { C, Fonts, S } from "@/constants/theme";
 import { APP_VERSION } from "@/constants/app";
 import { clearLastCrash, readLastCrash, type CrashRecord } from "@/lib/crashlog";
 import { bootTrace } from "@/lib/boot";
+import { getLocale, t } from "@/i18n";
 
 /** Version + the last uncaught JS error captured by lib/crashlog.ts, so a TestFlight crash leaves something to look at besides the native log. */
 export default function Diagnostics() {
@@ -21,31 +22,31 @@ export default function Diagnostics() {
       const f = new File(Paths.cache, "last-crash.json");
       f.write(JSON.stringify(crash, null, 2));
       await Sharing.shareAsync(f.uri, { mimeType: "application/json", UTI: "public.json", dialogTitle: "last-crash.json" });
-    } catch (e) { Alert.alert("Share failed", (e as Error).message); }
+    } catch (e) { Alert.alert(t("data.diagnostics.shareFailed"), (e as Error).message); }
   };
   const clear = () => { clearLastCrash(); setCrash(null); };
 
   return (
     <>
-      <Stack.Screen options={{ title: "Diagnostics" }} />
+      <Stack.Screen options={{ title: t("data.diagnostics.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 80 }}>
-        <SectionHeader>App</SectionHeader>
-        <Card><Row title="Version" subtitle={APP_VERSION} /></Card>
+        <SectionHeader>{t("data.diagnostics.app")}</SectionHeader>
+        <Card><Row title={t("data.diagnostics.version")} subtitle={APP_VERSION} /></Card>
 
-        <SectionHeader>Last launch</SectionHeader>
+        <SectionHeader>{t("data.diagnostics.lastLaunch")}</SectionHeader>
         <Card>
           {trace.map((r, i) => (
-            <Row key={r.label} title={r.label} subtitle={r.deltaMs != null ? `+${r.deltaMs} ms` : "not reached this launch"} style={i ? styles.divider : undefined} />
+            <Row key={r.label} title={r.label} subtitle={r.deltaMs != null ? `+${r.deltaMs} ms` : t("data.diagnostics.notReached")} style={i ? styles.divider : undefined} />
           ))}
         </Card>
 
-        <SectionHeader>Last crash</SectionHeader>
+        <SectionHeader>{t("data.diagnostics.lastCrash")}</SectionHeader>
         {crash ? (
           <>
             <Card>
-              <Row title={crash.fatal ? "Fatal error" : "Error"} subtitle={new Date(crash.at).toLocaleString()} />
-              <Row title="Message" subtitle={crash.message} style={styles.divider} />
-              <Row title="App version" subtitle={crash.version} style={styles.divider} />
+              <Row title={crash.fatal ? t("data.diagnostics.fatal") : t("data.diagnostics.error")} subtitle={new Date(crash.at).toLocaleString(getLocale())} />
+              <Row title={t("data.diagnostics.errorMessage")} subtitle={crash.message} style={styles.divider} />
+              <Row title={t("data.diagnostics.appVersion")} subtitle={crash.version} style={styles.divider} />
             </Card>
             {crash.stack ? (
               <Card style={styles.stackCard}>
@@ -53,12 +54,12 @@ export default function Diagnostics() {
               </Card>
             ) : null}
             <Card style={{ marginTop: S.md }}>
-              <Row icon="square.and.arrow.up" title="Share" onPress={() => void share()} />
+              <Row icon="square.and.arrow.up" title={t("data.diagnostics.share")} onPress={() => void share()} />
             </Card>
-            <View style={{ marginTop: S.xl }}><DeleteRow label="Clear" onPress={clear} /></View>
+            <View style={{ marginTop: S.xl }}><DeleteRow label={t("data.diagnostics.clear")} onPress={clear} /></View>
           </>
         ) : (
-          <Card><Empty title="No crashes recorded" hint="Nothing has been logged since install, or since the last Clear." /></Card>
+          <Card><Empty title={t("data.diagnostics.noCrashes")} hint={t("data.diagnostics.noCrashesHint")} /></Card>
         )}
       </ScrollView>
     </>

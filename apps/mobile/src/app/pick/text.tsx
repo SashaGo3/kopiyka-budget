@@ -5,6 +5,7 @@ import { resolvePick } from "@/store/pick";
 import { ModalHeader } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { t } from "@/i18n";
 
 /** Text entry modal: input at the top, so the keyboard never covers it. Used for names and groups. */
 export default function PickText() {
@@ -16,7 +17,7 @@ export default function PickText() {
   const done = () => { resolvePick(key, text.trim()); leave(); };
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={title ?? "Text"} left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Done", onPress: done }} />
+      <ModalHeader title={title ?? t("pick.text.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.done"), onPress: done }} />
       <TextInput autoFocus value={text} onChangeText={setText} multiline={multiline === "1"} placeholder={title} placeholderTextColor={C.tertiary}
         style={[styles.input, multiline === "1" && { minHeight: 140 }]} returnKeyType={multiline === "1" ? "default" : "done"} onSubmitEditing={multiline === "1" ? undefined : done} />
     </View>

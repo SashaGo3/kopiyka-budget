@@ -5,6 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolvePick } from "@/store/pick";
 import { S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 /** Full-screen look at a transaction's photo. "Remove" resolves `true` to the caller; retaking happens from the sheet. */
 export default function PhotoView() {
@@ -12,14 +13,14 @@ export default function PhotoView() {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.screen}>
-      <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="contain" accessibilityLabel="Attached photo" />
-      <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, right: S.lg }]} accessibilityRole="button" accessibilityLabel="Close">
+      <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="contain" accessibilityLabel={t("photo.attached")} />
+      <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, right: S.lg }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
         <SymbolView name="xmark" size={18} tintColor="white" weight="semibold" />
       </Pressable>
       {key ? (
-        <Pressable onPress={() => { resolvePick(key, true); router.back(); }} style={[styles.remove, { bottom: Math.max(insets.bottom, S.lg) + S.md }]} accessibilityRole="button" accessibilityLabel="Remove photo">
+        <Pressable onPress={() => { resolvePick(key, true); router.back(); }} style={[styles.remove, { bottom: Math.max(insets.bottom, S.lg) + S.md }]} accessibilityRole="button" accessibilityLabel={t("photo.remove")}>
           <SymbolView name="trash" size={16} tintColor="white" />
-          <Text style={styles.removeText}>Remove photo</Text>
+          <Text style={styles.removeText}>{t("photo.remove")}</Text>
         </Pressable>
       ) : null}
     </View>

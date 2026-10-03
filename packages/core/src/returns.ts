@@ -20,6 +20,7 @@
  */
 import type { SqlDriver } from "./db";
 import { getRow, save } from "./repo";
+import { KopiykaError } from "./errors";
 import type { Transaction } from "./models";
 
 /** What left the account before anything came back. Equals `amount_minor` when nothing did. */
@@ -66,7 +67,7 @@ export function checkReturn(db: SqlDriver, id: string, deltaMinor: number): Retu
  */
 export function applyReturn(db: SqlDriver, id: string, deltaMinor: number): Transaction {
   const c = checkReturn(db, id, deltaMinor);
-  if (!c.ok) throw new Error(`cannot book a return on ${id}: ${c.reason}`);
+  if (!c.ok) throw new KopiykaError("return_not_possible", `cannot book a return on ${id}: ${c.reason}`, c.reason);
   const t = getRow(db, "transactions", id)!;
   // A row that came in pending has been reviewed the moment its amount is corrected by hand.
   return save(db, "transactions", { ...t, amount_minor: c.amount_minor, refunded_minor: c.refunded_minor });

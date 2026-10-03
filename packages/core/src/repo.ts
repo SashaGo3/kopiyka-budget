@@ -9,7 +9,7 @@ import { SYNCED_TABLES } from "./models";
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor"],
-  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance"],
+  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset"],
   tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
     "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor"],
@@ -98,7 +98,7 @@ export function createAccount(db: SqlDriver, a: Partial<Account> & Pick<Account,
 }
 
 export function createCategory(db: SqlDriver, c: Partial<Category> & Pick<Category, "name">): Category {
-  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, ...c } as Category);
+  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, preset: null, ...c } as Category);
 }
 
 export function createTag(db: SqlDriver, t: Partial<Tag> & Pick<Tag, "name">): Tag {
@@ -483,13 +483,14 @@ export function suggestCategoryNear(db: SqlDriver, lat: number, lon: number, rad
  * A folder is refused: converting it would leave its categories parentless, and the caller is
  * expected to say so rather than have the shape of the tree changed behind the question.
  */
-export function convertCategoryToTag(db: SqlDriver, categoryId: string, o: { moveTo: string | null }): Tag {
+/** `name`: what the tag is called — the category's name as shown (a ready-made one translated, rule 16); defaults to the stored name. */
+export function convertCategoryToTag(db: SqlDriver, categoryId: string, o: { moveTo: string | null; name?: string }): Tag {
   const cat = getRow(db, "categories", categoryId);
   if (!cat) throw new Error("Category not found");
   if (folderIds(listRows(db, "categories", "deleted=0")).has(categoryId)) throw new Error("A folder cannot become a tag while it has categories inside it");
   if (o.moveTo === categoryId) throw new Error("A category cannot be moved into itself");
   return db.transaction(() => {
-    const tag = createTag(db, { name: cat.name, color: cat.color, category_ids: o.moveTo ? JSON.stringify([o.moveTo]) : "[]" });
+    const tag = createTag(db, { name: o.name ?? cat.name, color: cat.color, category_ids: o.moveTo ? JSON.stringify([o.moveTo]) : "[]" });
     const withTag = (ids: string[]) => JSON.stringify(ids.includes(tag.id) ? ids : [...ids, tag.id]);
     for (const t of listRows(db, "transactions", "deleted=0 AND category_id=?", [categoryId])) {
       save(db, "transactions", { ...t, category_id: o.moveTo, tag_ids: withTag(tagIdsOf(t)) });

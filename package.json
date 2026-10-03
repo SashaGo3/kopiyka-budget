@@ -17,7 +17,9 @@
     "prebuild:clean": "bun run --cwd apps/mobile prebuild:clean",
     "site": "node site/build.mjs",
     "test": "bun test",
-    "typecheck": "bun run --filter '*' typecheck"
+    "typecheck": "bun run --filter '*' typecheck",
+    "i18n": "bun packages/i18n/src/cli.ts",
+    "i18n:watch": "bun packages/i18n/src/cli.ts --watch"
   },
   "devDependencies": {
     "@types/bun": "^1.2.19",

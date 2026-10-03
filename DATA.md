@@ -130,7 +130,13 @@ the language picker — the app is English only); an old backup still carrying t
 import, and on 2026-09-20 `shortcut_notify` joined the list, so a restored phone keeps the answer
 the old one gave about hearing from the automation; `recurring_wait` and `recurring_wait_days`
 joined it on 2026-09-21 with rule 13, and `budgets_sections` (the order of the Budgets screen's
-sections) on 2026-09-25. `backup.test.ts` pins the list so the next drift shows up in a
+sections) on 2026-09-25. `language` came back on 2026-10-01 with the translations (1.0.3): `""` follows
+the phone, a code is a language picked in Settings, and a restore that carries one switches the app
+to it. 1.0.1 had written the same key with another meaning — the phone's language at first
+launch, stored whether anyone chose it or not — so a stale copy is not allowed back in: the v18
+migration deletes `meta.language` (nothing in 1.0.2 wrote it, and a 1.0.3 choice lives in a database
+already past v18), and a backup's `language` is applied only when the file's `schema` (written from
+1.0.3 on) is 18 or later. `backup.test.ts` pins the list so the next drift shows up in a
 diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -296,6 +302,70 @@ Two things the writer must keep doing:
 Like `archived`, importance is a fact about the category and not about the money: it filters
 nothing, hides nothing and changes no total.
 
+## 16. A ready-made category speaks the app's language until you rename it
+
+`categories.preset` (v18) records which of the ready-made categories a row was created from —
+`food` for a folder, `food.groceries` for a category in it — and is NULL for anything you made. The
+names and receipt keywords live in `packages/i18n/locales/<lang>/preset.json` under the same keys.
+
+One rule decides the name shown: **a preset category is translated for as long as its stored `name`
+is still one of that preset's own names, in any language** (case and spacing aside). Rename
+"Groceries" to "Їжа вдома" and it is yours from then on, shown exactly as written. There is no flag
+recording "renamed", so there is nothing to keep in step: a rename made on the other phone, in an
+edited export or by a build that never heard of presets counts exactly like one made here. Icon,
+colour and folder do not matter; only the name decides. The `name` column always holds a real name
+(in whatever language the row was seeded in), so CSV, older builds and backups never see a key.
+
+Where it is enforced: `categoryName` / `categoryDescription` (`packages/core/src/presets.ts`) and,
+in the app, `catName` / `catNameById` (`apps/mobile/src/lib/names.ts`). Read a name through them,
+never off the row — the same arrangement as `archivedCategoryIds` (rule 14) and
+`categoryImportance` (rule 15), for the same reason. The receipt reader matches against
+`categoryMatchText`: an untouched preset description is every language's keywords at once, because
+a receipt is in the shop's language, not the app's.
+
+Three things are load-bearing:
+
+- **The key is forever.** It is what the rows hold on every phone; renaming a key in `presetData.ts`
+  silently stops every category made from it being translated. Add new keys; never rename one.
+- **The v18 backfill matches by name, once per arrival.** Categories an earlier build seeded in
+  English are tagged when their name and folder match the English preset exactly — by the v18
+  migration, and again by `importBackup` after it writes the categories of a file from before v18
+  (no `schema`, or below 18), or a 1.0.2 backup restored onto a fresh 1.0.3 phone would never be
+  translated. Only rows whose `preset` is still NULL are touched; a file from v18 on is taken at its
+  word. That is the one place a row is matched by name (rule 1 forbids it for identity), allowed
+  because it only *labels* a row and never merges or replaces one. It does **not** touch `updated_at` — forty untouched categories
+  stamped "now" would win the next merge against the other phone (rule 15's lesson).
+- **A file without the column keeps what the phone knows.** `preset` is not in `ROW_DEFAULTS`, so a
+  backup from a 1.0.2 build — newer or not — never clears a key, and an older build importing a newer
+  backup simply ignores the column.
+
+## 17. So do the names the app chose for you
+
+Onboarding names the first account ("Main", or "Основний" if it ran in Ukrainian), and every account
+lands in a group nobody picked (`DEFAULT_ACCOUNT_GROUP`, "Personal" — `createAccount` and the v9
+migration that filled empty groups). Those are the app's words, written into your data, and they
+follow the same rule as a ready-made category (rule 16): **shown in the app's language for as long as
+the stored value is still one of that default's names, in any language** (case and spacing aside).
+Rename "Main" to "Monobank" and it is yours.
+
+Nothing is rewritten to get there. The stored value stays what it was — no `updated_at` moves, no
+merge is won by a row nobody touched (rule 15's lesson) — and there is no `preset` column on accounts
+because there is nothing to tell apart: the default is one name per kind. The names live in
+`preset.json` as `preset.account.name` and `preset.accountGroup.name`.
+
+Where it is enforced: `accountName` / `accountGroupName` (`packages/core/src/defaultNames.ts`), in the
+app `acctName` / `groupName` (`apps/mobile/src/lib/names.ts`), and in Swift `KPPreset.name(_, preset:
+"account")`. Two things to hold on to:
+
+- **Translate for display, compare what is stored.** A `group:` scope, a picker's sections and the
+  group sheet all match on the stored `group_name`; only the label is translated. A group typed by
+  hand as "Особисті" beside the default "Personal" is two groups that read the same on a Ukrainian
+  phone — which is what they are. The group sheet finds the default by its shown name, so typing it
+  picks the existing group rather than creating its twin.
+- **An editor shows the shown name and writes back the stored one if it was left alone**
+  (`account/edit.tsx`, as `category/edit.tsx` does for presets), or opening and saving an account
+  would quietly make "Основний" the user's own and stop it following the language.
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import
@@ -304,7 +374,8 @@ back. What to tell it:
 1. **Keep every `id`** you are not deliberately deleting (rule 1).
 2. Rename and re-parent freely — `parent_id` is how a category joins a folder, and a folder is just a
    category with children (rule 5).
-3. Do not touch `rates`, `settings`, or any `photo` field (rules 3, 4, 7).
+3. Do not touch `rates`, `settings`, or any `photo` field (rules 3, 4, 7). Leave `preset` as it is: a
+   renamed category stops being translated on its own (rule 16), so there is never a reason to edit it.
 4. Leave `amount_minor` and every transaction alone unless the point of the pass is the transactions.
    Leave `importance` alone too, or say nothing about it: a column the file omits keeps whatever the
    phone already had, but an `importance: 0` written over a marked category erases an answer only a

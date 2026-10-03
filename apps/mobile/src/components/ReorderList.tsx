@@ -6,6 +6,7 @@ import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { Empty, ModalHeader } from "@/components/ui";
 import { C, R, S } from "@/constants/theme";
+import { t } from "@/i18n";
 
 /** Every row the same height, which is what lets a drag be arithmetic rather than a measurement. */
 const H = 60;
@@ -112,7 +113,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
     // The root view gesture-handler needs is put on here rather than around the whole app: these
     // are the only screens with a gesture, and a modal is its own view hierarchy anyway.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={title} left={{ label: "Cancel", onPress: () => router.back() }} right={{ label: "Done", onPress: commit }} />
+      <ModalHeader title={title} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.done"), onPress: commit }} />
       <GestureDetector gesture={scrolling}>
         <ScrollView scrollEnabled={!dragId} contentContainerStyle={{ padding: S.lg, gap: 0 }}>
           {order.length === 0 ? <Empty title={empty.title} hint={empty.hint} /> : null}
@@ -129,7 +130,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
                   {row.subtitle ? <Text style={styles.sub} numberOfLines={1}>{row.subtitle}</Text> : null}
                 </View>
                 <GestureDetector gesture={grip}>
-                  <View style={styles.grip} accessibilityRole="adjustable" accessibilityLabel={`Reorder ${row.title}`}>
+                  <View style={styles.grip} accessibilityRole="adjustable" accessibilityLabel={t("ui.reorderA11y", { title: row.title })}>
                     <SymbolView name="line.3.horizontal" size={18} tintColor={C.tertiary} />
                   </View>
                 </GestureDetector>

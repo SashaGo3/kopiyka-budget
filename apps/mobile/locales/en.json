@@ -1,0 +1,13 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Kopiyka Budget",
+    "NSCameraUsageDescription": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
+    "NSLocationAlwaysUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
+    "NSLocationWhenInUseUsageDescription": "Remember where you log expenses so the category can be suggested next time.",
+    "NSMicrophoneUsageDescription": "Kopiyka doesn't record audio. Receipt photos are taken with sound off.",
+    "NSMotionUsageDescription": "Kopiyka doesn't use motion or fitness data.",
+    "NSPhotoLibraryUsageDescription": "Attach a receipt you already photographed.",
+    "quickActionLog": "Log expense"
+  }
+}

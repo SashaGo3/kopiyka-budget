@@ -4,20 +4,21 @@ import { Money, Chip, ChipRow } from "@/components/ui";
 import { C, S } from "@/constants/theme";
 import { getBaseCurrency, setBaseCurrency, useRates } from "@/lib/rates";
 import { useState } from "react";
+import { t } from "@/i18n";
 
 /** Net worth per currency plus a converted total in the base currency. */
 export function NetWorth({ totals }: { totals: { currency: string; minor: number }[] }) {
   const [base, setBase] = useState(getBaseCurrency());
-  const { rateFor, loading } = useRates(totals.map((t) => t.currency), base);
+  const { rateFor, loading } = useRates(totals.map((x) => x.currency), base);
   const sum = sumInBase(totals, base, rateFor);
-  const currencies = [...new Set(totals.map((t) => t.currency))];
+  const currencies = [...new Set(totals.map((x) => x.currency))];
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Net worth</Text>
+      <Text style={styles.label}>{t("period.netWorth.title")}</Text>
       <Money minor={sum.minor} currency={base} style={styles.big} />
-      {sum.missing.length ? <Text style={styles.warn}>{loading ? `Fetching ${sum.missing.join(", ")} rate…` : `No rate yet for ${sum.missing.join(", ")}. Connect to the internet once.`}</Text> : null}
+      {sum.missing.length ? <Text style={styles.warn}>{loading ? t("period.netWorth.fetching", { currencies: sum.missing.join(", ") }) : t("period.netWorth.noRate", { currencies: sum.missing.join(", ") })}</Text> : null}
       <View style={styles.lines}>
-        {totals.map((t) => <Money key={t.currency} minor={t.minor} currency={t.currency} style={styles.line} />)}
+        {totals.map((x) => <Money key={x.currency} minor={x.minor} currency={x.currency} style={styles.line} />)}
       </View>
       {currencies.length > 1 ? (
         <ChipRow>

@@ -11,6 +11,7 @@ import { C, S } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { resolvePick } from "@/store/pick";
+import { t } from "@/i18n";
 
 /**
  * When the travel is: the second step of starting travel mode, and the way to move the dates of the
@@ -53,20 +54,20 @@ export default function TravelDates() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>{editing ? "Travel dates" : p.name ? `When ${past ? "was" : "is"} ${p.name}?` : past ? "When was it?" : "When is it?"}</Title>
-          <Subtle>{end ? `${humanDayTime(start)} → ${humanDayTime(end)} · ${days} day${days === 1 ? "" : "s"}` : "Now tap the last day"}</Subtle>
+          <Title>{editing ? t("travel.dates.title") : p.name ? (past ? t("travel.dates.whenWasName", { name: p.name }) : t("travel.dates.whenIsName", { name: p.name })) : past ? t("travel.dates.whenWas") : t("travel.dates.whenIs")}</Title>
+          <Subtle>{end ? t("travel.dates.span", { from: humanDayTime(start), to: humanDayTime(end), count: days ?? 0 }) : t("travel.dates.tapLast")}</Subtle>
         </View>
       }
       bottom={
         <>
           <ChipRow>
-            <Chip icon="calendar" label="Today" active={start === today}
+            <Chip icon="calendar" label={t("common.today")} active={start === today}
               onPress={() => { setStart(today); setEnd((e) => (e && e >= today ? e : null)); setJump((j) => j + 1); }} />
           </ChipRow>
           <RangeCalendar key={jump} start={start} end={end} maxStart={today} maxEnd={past ? today : undefined} onChange={(s, e) => { setStart(s); setEnd(e); }} />
-          <Text style={styles.hint}>{past ? "Tap the first day, then the last." : "Tap the first day, then the last. It can start today at the latest, and end whenever you like."}</Text>
-          <ConfirmBar amount={editing ? (end ? `${days} day${days === 1 ? "" : "s"}` : "Pick the last day") : `${formatMinor(amount, currency)} ${currency}${days ? ` · ${days} day${days === 1 ? "" : "s"}` : ""}`}
-            label={!end ? "Tap the last day on the calendar" : editing ? "Tap to save the dates" : past ? "Tap to add it" : "Tap to start travel mode"} onPress={confirm} disabled={!end} />
+          <Text style={styles.hint}>{past ? t("travel.dates.hintPast") : t("travel.dates.hint")}</Text>
+          <ConfirmBar amount={editing ? (end ? t("travel.days", { count: days ?? 0 }) : t("travel.dates.pickLast")) : `${formatMinor(amount, currency)} ${currency}${days ? ` · ${t("travel.days", { count: days })}` : ""}`}
+            label={!end ? t("travel.dates.tapLastCalendar") : editing ? t("travel.dates.save") : past ? t("travel.dates.add") : t("travel.dates.start")} onPress={confirm} disabled={!end} />
         </>
       }
     />

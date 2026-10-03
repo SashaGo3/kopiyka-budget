@@ -1,0 +1,147 @@
+{
+  "$comment": "The Insights tab, the insight editor and the reorder sheet. `period` arguments are \"Aug 2026\" or \"15 Aug – 14 Sep\"; `amount` arguments are formatted money with the currency code.",
+  "screenTitle": "Insights",
+  "add": "Add insight",
+  "empty": "No insights yet",
+  "emptyHint": "Cards that answer one question each — what is safe to spend, how long until salary, how a savings goal is going, what your subscriptions cost a year. Add them with + at the top.",
+  "editLabel": { "message": "Edit {title}", "note": "VoiceOver label of a card's header; title is the card's name." },
+  "reorderHint": "Long press to reorder the insights",
+  "gone": "This kind of insight is no longer available — remove it with the ⋯ button.",
+  "noBudgets": "No budgets for this period yet.",
+  "chooseAccount": "Choose an account.",
+  "payment": { "message": "Payment", "note": "Name of an upcoming payment with no note and no category." },
+  "recurring": { "message": "Recurring", "note": "Name of a recurring rule with no payee and no category." },
+  "showList": "Show list",
+  "hideList": "Hide list",
+  "days": { "message": "{count, plural, one {# day} other {# days}}", "note": "Big number on the Until salary card." },
+  "months": { "message": "{count, plural, one {# month} other {# months}}", "note": "\"3 months\"; also the big number on Safety buffer, which may be a fraction (1.5)." },
+  "perDay": { "message": "<b>{amount}</b> per day", "note": "Line under a card; the tag makes the amount bold." },
+  "of": { "message": "<b>{have}</b> of <b>{target}</b>", "note": "Progress towards a target: \"1 200.00 EUR of 5 000.00 EUR\"." },
+  "free": { "left": { "message": "Left of your budgets · {period}" } },
+  "salary": { "until": { "message": "until {day}", "note": "Under \"12 days\"; day is \"22 Sep\"." } },
+  "balance": {
+    "left": { "message": "left on {account}", "note": "Under the balance; account is an account name." },
+    "leftPending": { "message": "left on {account} · {amount} with pending", "note": "amount is the balance once the pending entries are counted." },
+    "inOut": { "message": "<g>{income}</g> in · <b>{spent}</b> out", "note": "What came in and went out this period." }
+  },
+  "checklist": {
+    "doneLabel": { "message": "{name}, done", "note": "VoiceOver; name is a category." },
+    "notYetLabel": { "message": "{name}, not yet", "note": "VoiceOver; name is a category." },
+    "last": { "message": "Last {amount} · {day}", "note": "The last payment in this category; day is \"22 Sep\"." },
+    "choose": "Choose categories to watch.",
+    "missing": { "message": "{count} still missing · {period}" }
+  },
+  "recurringSpend": {
+    "none": { "message": "No recurring rule has posted anything in {period}." },
+    "noneWaiting": { "message": "No recurring rule has posted anything in {period}. {count} waiting to be confirmed." },
+    "from": { "message": "from {count, plural, one {# rule} other {# rules}} · {period}" },
+    "fromDue": { "message": "from {count, plural, one {# rule} other {# rules}} · {period} · {due} still due" },
+    "editRule": { "message": "{title}, edit rule", "note": "VoiceOver; title is a payee or category." },
+    "allRules": "All rules",
+    "allRulesLabel": "All recurring rules"
+  },
+  "subscriptions": {
+    "perYear": { "message": "per year · {included} of {count, plural, one {# rule} other {# rules}}", "note": "Under the yearly total." },
+    "amountPer": { "message": "{amount} {per}", "note": "\"9.99 EUR per month\"; per is insights.per.*." }
+  },
+  "per": {
+    "daily": "{count, plural, =1 {per day} one {every # day} other {every # days}}",
+    "weekly": "{count, plural, =1 {per week} one {every # week} other {every # weeks}}",
+    "monthly": "{count, plural, =1 {per month} one {every # month} other {every # months}}",
+    "yearly": "{count, plural, =1 {per year} one {every # year} other {every # years}}"
+  },
+  "upcoming": {
+    "loggedLabel": { "message": "{name}, logged", "note": "VoiceOver; name is a note or category." },
+    "logLabel": { "message": "{name}, tap to log", "note": "VoiceOver; name is a note or category." },
+    "empty": "Add payments from your history in the editor.",
+    "toGo": { "message": "{count} to go · {period}" }
+  },
+  "regular": {
+    "weekly": { "message": "per week on {names} · last week {last}", "note": "names is a list of categories." },
+    "monthly": { "message": "per month on {names} · last month {last}", "note": "names is a list of categories." },
+    "choose": "Choose categories."
+  },
+  "values": {
+    "nothing": "Nothing spent this period yet.",
+    "share": { "message": "of {period} went on what you could not live without", "note": "Under a big percentage." },
+    "level": {
+      "l3": { "message": "Could not live without", "note": "Legend: categories of high importance." },
+      "l2": { "message": "In between", "note": "Legend: medium importance." },
+      "l1": { "message": "Could stop tomorrow", "note": "Legend: low importance." },
+      "l0": { "message": "Not marked yet", "note": "Legend: categories nobody has marked." }
+    },
+    "trendSame": "Essentials were {pct}% six periods ago — about the same",
+    "trendLess": "Essentials were {pct}% six periods ago — less room than there was",
+    "trendMore": "Essentials were {pct}% six periods ago — more room than there was",
+    "sixPeriods": "Six periods, oldest first.",
+    "unmarked": "Categories nobody has marked are counted separately, not guessed at."
+  },
+  "buffer": {
+    "noEssentials": "Nothing is marked as essential yet.",
+    "noEssentialsHint": "Settings → Categories → Set what matters. Then this says how many months this account would cover.",
+    "covered": { "message": "{account} covered, at what your essentials actually cost", "note": "Under \"4.5 months\"; account is an account name." },
+    "coveredThis": "This account covered, at what your essentials actually cost",
+    "explain": { "message": "{count, plural, one {# month} other {# months}} of essentials, averaging {amount} a month over {periods} periods. The target moves on its own as life gets more expensive." }
+  },
+  "safe": {
+    "none": "No budgets for this period yet, and nothing due before the next salary.",
+    "over": { "message": "safe to spend over {count, plural, one {# day} other {# days}} until {day}", "note": "Under the big amount; day is \"30 Sep\"." },
+    "less": { "message": "{free} less {committed}", "note": "free and committed are lists of insights.safe.free / .committed joined with \" · \"." },
+    "free": { "message": "{amount} free" },
+    "committed": { "message": "{amount} still to be charged" },
+    "nothingElse": "Nothing else is due before then.",
+    "short": { "message": "{amount} more is due than the budgets have left — worth a look before payday." }
+  },
+  "goal": {
+    "toGo": { "message": "{amount} to go" },
+    "reached": "Goal reached 🎉"
+  },
+  "kind": {
+    "free_money": { "title": "Free to spend", "hint": "What is left of your budgets this period" },
+    "days_to_salary": { "title": "Until salary", "hint": "Days left in the period and what you can spend per day" },
+    "savings_goal": { "title": "Savings goal", "hint": "Progress of an account towards a target" },
+    "account_balance": { "title": "Account balance", "hint": "What is left on one account, and what moved this period" },
+    "checklist": { "title": "Payments checklist", "hint": "Which of these categories still have no transaction this period" },
+    "subscriptions": { "title": "Subscriptions per year", "hint": "What your recurring expenses cost yearly" },
+    "recurring_spend": { "title": "Recurring this period", "hint": "What your recurring rules have actually taken so far this period" },
+    "upcoming": { "title": "Upcoming payments", "hint": "Templates from past transactions: tap to log the same again" },
+    "regular": { "title": "Regular spending", "hint": "Weekly or monthly average for a category" },
+    "values": { "title": "What it went on", "hint": "This period split by how much each category matters to you" },
+    "safety_buffer": { "title": "Safety buffer", "hint": "How many months of essentials an account would cover" },
+    "safe_to_spend": { "title": "Safe to spend", "hint": "What is free once everything still coming out is taken off" }
+  },
+  "edit": {
+    "newTitle": "New insight",
+    "editTitle": "Edit insight",
+    "question": "What do you want to see?",
+    "offeredOnce": "Cards with nothing to set are offered once — the ones you already have are not listed again.",
+    "title": { "message": "Title", "note": "Row: the card's own title." },
+    "defaultTitle": { "message": "Default: {title}", "note": "Subtitle when no title is set; title is the kind's name." },
+    "account": "Account",
+    "choose": { "message": "Choose", "note": "Row subtitle when nothing is picked yet." },
+    "target": "Target",
+    "categories": "Categories",
+    "notSet": "Not set",
+    "perWeek": { "message": "Per week", "max": 16 },
+    "perMonth": { "message": "Per month", "max": 16 },
+    "monthsToCover": "Months to cover",
+    "includedRules": "Included rules",
+    "ruleLine": { "message": "{amount} {per} · {yearly} per year", "note": "per is insights.per.* (\"per month\")." },
+    "noRules": "No active expense rules",
+    "noRulesHint": "Add recurring rules first",
+    "payments": "Payments",
+    "remove": "Remove",
+    "addFromTx": "Add from a transaction",
+    "addFromTxHint": "Matched by category, tags and note",
+    "whichPayment": "Which payment repeats?",
+    "changeType": "Change type",
+    "removeInsight": "Remove insight",
+    "removeTitle": "Remove this insight?"
+  },
+  "reorder": {
+    "title": "Reorder insights",
+    "hint": "Drag by the grip on the right. The order here is the order on Insights.",
+    "emptyTitle": "No insights",
+    "emptyHint": "Add one on the Insights tab first."
+  }
+}

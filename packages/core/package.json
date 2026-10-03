@@ -10,6 +10,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@kopiyka/i18n": "workspace:*",
     "fflate": "^0.8.3",
     "papaparse": "^5.4.1"
   },

@@ -1,0 +1,75 @@
+{
+  "$comment": "The App Store: screenshot captions (apps/mobile/screenshots/shots.json names these keys; scripts/screenshots/frame.mjs sets them) and the listing (`listing.*`, written to apps/mobile/screenshots/metadata/<App Store language>/<field>.txt to paste into App Store Connect). Plain text. In captions a line break is a manual break — the framer keeps it and only wraps further if a line does not fit — so re-break a translation where it reads well rather than where the English broke.",
+  "shots": {
+    "log": {
+      "title": { "message": "Money in.\nMoney out.\nTwo taps.", "note": "Slide 1, the entry sheet. Headline: at most three short lines.", "max": 44 },
+      "subtitle": { "message": "Amount, category, done —\nbefore the receipt has finished printing.", "max": 130 }
+    },
+    "data": {
+      "title": { "message": "Your money.\nYour data.\nYour phone.", "note": "Slide 2, data management: nothing leaves the phone.", "max": 44 },
+      "subtitle": { "message": "No account, no server, no ads, no trackers.\nA copy in your own iCloud, CSV or JSON\nexport whenever you like.", "max": 130 },
+      "note": { "message": "Free. Forever. Not a trial.", "note": "Small closing line at the bottom of the slide; one line.", "max": 48 }
+    },
+    "budgets": {
+      "title": { "message": "Months that\nstart on payday", "note": "Slide 3, budgets on a month that starts on the 25th.", "max": 44 },
+      "subtitle": { "message": "Paid on the 25th? Your budget month\nruns 25 Aug – 24 Sep.\nThe calendar can mind its own business.", "max": 130 }
+    },
+    "transactions": {
+      "title": { "message": "It learns\nwhere you shop", "note": "Slide 4, the transaction list; the category is suggested from the place.", "max": 44 },
+      "subtitle": { "message": "Coffee at the same corner twice —\nthe third time it files itself.\nPlace, tags and account on every row.", "max": 130 }
+    },
+    "watch": {
+      "title": { "message": "Log it from\nyour wrist", "note": "Slide 5, the iPhone with the Apple Watch keypad beside it.", "max": 44 },
+      "subtitle": { "message": "Amount, category, tags — the whole flow\non Apple Watch, phone still in your pocket.", "max": 130 }
+    },
+    "insights": {
+      "title": { "message": "Insights you\nactually asked for", "note": "Slide 6, the Insights tab.", "max": 44 },
+      "subtitle": { "message": "Free to spend, days until salary,\na savings goal, what your subscriptions cost\na year. You pick the cards.", "max": 130 }
+    },
+    "trip": {
+      "title": { "message": "Trip mode", "note": "Slide 7, travel mode: one trip's spending.", "max": 44 },
+      "subtitle": { "message": "One budget for the trip, a daily allowance,\nevery espresso tagged on its own.\nEnds when you come home.", "max": 130 }
+    },
+    "recurring": {
+      "title": { "message": "Rent asks.\nNetflix doesn’t.", "note": "Slide 8, recurring payments: subscriptions post themselves, variable bills wait for a tap.", "max": 44 },
+      "subtitle": { "message": "Subscriptions post themselves on the day;\nbills that change wait for your tap.", "max": 130 }
+    },
+    "debts": {
+      "title": { "message": "Who owes whom", "note": "Slide 9, debts.", "max": 44 },
+      "subtitle": { "message": "Lent 20 for lunch? It’s written down —\nwith a nudge on the due date.", "max": 130 }
+    },
+    "shortcut": {
+      "title": { "message": "Your bank pings.\nKopiyka listens.", "note": "Slide 10, the bank-notification automation (beta).", "max": 44 },
+      "subtitle": { "message": "A Shortcuts automation reads the amount and\nthe shop out of the notification, on your phone.\nYou just approve.", "max": 130 },
+      "note": { "message": "Beta — needs a bank app that sends payment notifications.", "note": "Small closing line; must keep saying beta and that a bank app is needed.", "max": 80 }
+    },
+    "accounts": {
+      "title": { "message": "Every account,\nany currency", "note": "Spare slide: accounts and net worth.", "max": 44 },
+      "subtitle": { "message": "Cash, cards, savings in euro or dollars —\nnet worth in one number.", "max": 130 }
+    },
+    "categories": {
+      "title": { "message": "Folders, categories,\ntags", "note": "Spare slide: the category tree.", "max": 44 },
+      "subtitle": { "message": "Your own tree, your own icons,\ntags scoped to where they make sense.", "max": 130 }
+    },
+    "welcome": {
+      "title": { "message": "Set up in\nunder a minute", "note": "Spare slide: onboarding.", "max": 44 },
+      "subtitle": { "message": "Name an account, keep the preset categories,\nstart logging.", "max": 130 }
+    }
+  },
+  "watch": {
+    "$comment": "Titles of the raw Apple Watch screenshots. Not printed on the images (watchOS screenshots must be bare); kept for the contact sheet and the website.",
+    "keypad": { "message": "Tap the amount", "max": 24 },
+    "categories": { "message": "Pick a category", "max": 24 },
+    "tags": { "message": "Tag it", "max": 24 },
+    "history": { "message": "Recent expenses", "max": 24 },
+    "budgets": { "message": "Budget left", "max": 24 }
+  },
+  "listing": {
+    "name": { "message": "Kopiyka Budget", "note": "App Store name. Never 'beta'.", "max": 30 },
+    "subtitle": { "message": "Local-first expense tracking", "note": "Under the name in search results. Indexed for search together with the name and keywords.", "max": 30 },
+    "promotionalText": { "message": "Free forever, no account, no ads, no trackers. Log an expense in two taps on phone or watch, budgets that start on payday, export everything as CSV or JSON.", "note": "Above the description; editable without a new build.", "max": 170 },
+    "keywords": { "message": "spending,money,finance,cash,wallet,savings,offline,privacy,csv,export,debt,recurring,travel,receipt", "note": "Comma-separated, no spaces after commas, no word already in the name or subtitle, singulars only. Search terms people type in this language, not a translation of the English list.", "max": 100 },
+    "description": { "message": "Kopiyka Budget keeps your money on your phone. No account, no server, no ads, no trackers, no subscription - it is free now and it stays free.\n\nEverything you enter belongs to you: export the lot as CSV, as a full JSON backup, or as one ZIP that carries your receipt photos with it. A copy is written to your own iCloud Drive every day, and you can restore from it whenever you want.\n\nLogging is meant to take two taps. The entry sheet opens on a calculator keypad - type the amount, with Category and Tags on the keys beside it, then one tap to add. The same keypad is on your Apple Watch, and Siri can add an entry without opening the app.\n\nWHAT IS IN IT\n\n- Budgets for a category, a folder, a tag or for everything, in a month that starts on your payday rather than on the 1st.\n- Several accounts in several currencies - cash, bank, card, savings, investment - with net worth and transfers. Exchange rates come from the European Central Bank, kept day by day, so an old transfer still converts correctly.\n- Recurring payments: a subscription posts itself on the day and tells you it did, while the ones whose amount moves around wait for your tap. Kopiyka also spots repeats in your history and offers to make rules from them.\n- Categories inside folders, each with its own icon and colour, and tags that can be limited to the categories they make sense for.\n- Insights you pick yourself: free to spend, days until salary, savings goals, a payments checklist, subscriptions per year, upcoming payments.\n- Travel mode: name a trip, give it a budget and a last day, and every new expense is tagged and counted against it, in whatever currency you spend.\n- Debts, so you know who owes whom, with a reminder before the due date.\n- A category suggested from where you are: buy coffee at the same place twice and the third time it is filled in. Your location never leaves the phone.\n- Receipt photos on any entry, backed up beside your data.\n- An Apple Watch app with the keypad, today's entries, your budgets and a watch-face complication.\n- In English and Ukrainian.\n\nBANK NOTIFICATIONS (BETA)\n\niOS never hands card transactions to an app. What it does allow is a Shortcuts automation: when your bank notifies you about a payment, it passes the notification to Kopiyka, which reads the amount, the shop, the card and the time out of the text - on the device, silently, with the app closed. The entry waits in Pending until you approve it. Settings walks you through the setup once.\n\nKopiyka is open source. No analytics, no trackers, no third-party SDKs: nothing is collected and nothing is sent anywhere.", "note": "The first two lines show before 'more'. Never claim a bank connection, sync between devices, or an Android version.", "max": 4000 },
+    "whatsNew": { "message": "Kopiyka now speaks Ukrainian. The app, the Apple Watch and the notifications follow your phone's language, or pick one in Settings.", "note": "What's New for this version.", "max": 4000 }
+  }
+}

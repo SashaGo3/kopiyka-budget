@@ -1,4 +1,5 @@
 import { DynamicColorIOS, Platform, PlatformColor, type ColorValue, type ViewStyle } from "react-native";
+import { t } from "@/i18n";
 
 const dyn = (light: string, dark: string) => (Platform.OS === "ios" ? DynamicColorIOS({ light, dark }) : light);
 
@@ -45,13 +46,16 @@ export const ValueRamp = {
   0: Platform.OS === "ios" ? PlatformColor("tertiarySystemFill") : "#eee",
 } satisfies Record<0 | 1 | 2 | 3, ColorValue>;
 
-/** What each step of `ValueRamp` is called, wherever the split is shown. */
-export const VALUE_LABEL = {
-  3: "Could not live without",
-  2: "In between",
-  1: "Could stop tomorrow",
-  0: "Not marked yet",
-} as const;
+/**
+ * What each step of `ValueRamp` is called, wherever the split is shown. Getters rather than strings:
+ * the words are looked up when read, in the language the app is in then, not once at import.
+ */
+export const VALUE_LABEL: Readonly<Record<0 | 1 | 2 | 3, string>> = {
+  get 3() { return t("ui.value.high"); },
+  get 2() { return t("ui.value.medium"); },
+  get 1() { return t("ui.value.low"); },
+  get 0() { return t("ui.value.none"); },
+};
 
 export const S = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 /** `card` is the one radius every content card uses; `pill` is "fully round" for anything pill-shaped. */

@@ -122,14 +122,14 @@ struct LogPage: View {
       }
       .buttonStyle(.plain)
       .disabled(!hasAmount || account == nil)
-      .accessibilityLabel("Amount \(shown) \(account?.currency ?? "")")
-      .accessibilityHint(hasAmount ? "Next: choose a category" : "Type an amount on the keypad below")
+      .accessibilityLabel(L10n.Watch.amount(amount: "\(shown) \(account?.currency ?? "")"))
+      .accessibilityHint(hasAmount ? L10n.Watch.hintNext : L10n.Watch.hintType)
       .accessibilityAddTraits(.isHeader)
 
       KeypadGrid(keyHeight: keyHeight, gap: gap, decimals: KPFormat.decimals(account?.currency ?? "")).equatable()
 
       if !hasData {
-        Text("Open Kopiyka on your iPhone once to sync.").font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+        Text(L10n.Watch.syncOnce).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
       }
     }
     // Bottom-aligned: the page's top inset moves during a swipe, its bottom edge does not.
@@ -138,7 +138,7 @@ struct LogPage: View {
     .padding(.bottom, Self.bottomInset)
     .ignoresSafeArea(edges: .bottom)
     .accessibilityElement(children: .contain)
-    .accessibilityLabel("Add expense")
+    .accessibilityLabel(L10n.Watch.addExpense)
     // `@Published` hands a new subscriber the current value, so this also fills the two fields in.
     .onReceive(WatchSession.shared.$state) { s in
       if s.defaultAccount != account { account = s.defaultAccount }
@@ -201,7 +201,7 @@ struct KeyButton: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .accessibilityLabel(key == "⌫" ? "Delete last digit" : key == "." ? "Decimal point" : key)
+    .accessibilityLabel(key == "⌫" ? L10n.Watch.deleteDigit : key == "." ? L10n.Watch.decimalPoint : key)
   }
 }
 
@@ -242,16 +242,16 @@ struct CategoryPickView: View {
   var body: some View {
     let near = session.suggestedCategoryId
     List {
-      if items.isEmpty { Text("Categories sync from your iPhone.").foregroundStyle(.secondary) }
+      if items.isEmpty { Text(L10n.Watch.Category.empty).foregroundStyle(.secondary) }
       ForEach(items) { c in
         CategoryRow(category: c, near: c.id == near) { pick(c) }
       }
       Button { pick(nil) } label: {
-        HStack(spacing: 8) { CategoryIconView(category: nil); Text("No category").font(.body).foregroundStyle(.secondary) }
+        HStack(spacing: 8) { CategoryIconView(category: nil); Text(L10n.Watch.Category.none).font(.body).foregroundStyle(.secondary) }
       }
-      .accessibilityHint("Save without a category")
+      .accessibilityHint(L10n.Watch.Category.noneHint)
     }
-    .navigationTitle("Category")
+    .navigationTitle(L10n.Watch.Category.title)
   }
 }
 
@@ -268,13 +268,18 @@ struct CategoryRow: View {
           HStack(spacing: 4) {
             // The arrow alone says "near here" — the words next to it only squeezed the folder name.
             if near { Image(systemName: "location.fill").font(.footnote.weight(.semibold)).foregroundStyle(.secondary) }
-            Text(category.parent_name ?? "Folder").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            Text(category.parent_name ?? L10n.Watch.Category.folder).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
           }
         }
       }
     }
-    .accessibilityLabel((near ? "Near here: " : "") + (category.parent_name.map { "\(category.name), in \($0)" } ?? "\(category.name) folder"))
-    .accessibilityHint("Choose this category")
+    .accessibilityLabel(a11yLabel)
+    .accessibilityHint(L10n.Watch.Category.hint)
+  }
+
+  private var a11yLabel: String {
+    let label = category.parent_name.map { L10n.Watch.Category.inFolder(name: category.name, folder: $0) } ?? L10n.Watch.Category.isFolder(name: category.name)
+    return near ? L10n.Watch.Category.near(label: label) : label
   }
 }
 
@@ -291,7 +296,7 @@ struct TagsPickView: View {
   /// Travel mode: the trip tag starts ticked (the phone adds it anyway; this shows it).
   private let tripTag: String? = WatchSession.shared.state.snapshot?.trip?.tag_id
 
-  var saveLabel: String { "Save \(amountLabel)\(category.map { " for \($0.name)" } ?? "")" }
+  var saveLabel: String { category.map { L10n.Watch.Tags.saveFor(amount: amountLabel, category: $0.name) } ?? L10n.Watch.Tags.save(amount: amountLabel) }
 
   var body: some View {
     let first = ranked.filter { $0.rank == 0 }, rest = ranked.filter { $0.rank != 0 }
@@ -300,30 +305,30 @@ struct TagsPickView: View {
         HStack(spacing: 8) {
           Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(.green)
           VStack(alignment: .leading, spacing: 1) {
-            Text(tripTag == nil ? "No tags" : "Just the travel tag").font(.body.weight(.semibold))
+            Text(tripTag == nil ? L10n.Watch.Tags.none : L10n.Watch.Tags.tripOnly).font(.body.weight(.semibold))
             Text(amountLabel).font(.caption2).foregroundStyle(.secondary)
           }
         }
       }
-      .accessibilityLabel("No tags")
+      .accessibilityLabel(L10n.Watch.Tags.none)
       .accessibilityHint(saveLabel)
       if category != nil && !first.isEmpty {
-        Section("Used with \(category!.name)") { ForEach(first) { r in tagRow(r) } }
-        if !rest.isEmpty { Section("Other tags") { ForEach(rest) { r in tagRow(r) } } }
+        Section(L10n.Watch.Tags.usedWith(category: category!.name)) { ForEach(first) { r in tagRow(r) } }
+        if !rest.isEmpty { Section(L10n.Watch.Tags.other) { ForEach(rest) { r in tagRow(r) } } }
       } else {
-        Section("Tags") { ForEach(ranked) { r in tagRow(r) } }
+        Section(L10n.Watch.Tags.title) { ForEach(ranked) { r in tagRow(r) } }
       }
     }
-    .navigationTitle("Tags")
+    .navigationTitle(L10n.Watch.Tags.title)
     .onAppear { if ranked.isEmpty { rerank() } }
     .toolbar {
       if !chosen.isEmpty {
         ToolbarItem(placement: .bottomBar) {
           // Small on purpose: it sits over the list, so it takes the least room that still reads.
-          Button { save(ranked.map(\.tag.id).filter { chosen.contains($0) }) } label: { Label("Save · \(chosen.count) tag\(chosen.count == 1 ? "" : "s")", systemImage: "checkmark").font(.caption.weight(.semibold)) }
+          Button { save(ranked.map(\.tag.id).filter { chosen.contains($0) }) } label: { Label(L10n.Watch.Tags.saveCount(count: chosen.count), systemImage: "checkmark").font(.caption.weight(.semibold)) }
             .buttonStyle(.borderedProminent).tint(.green).controlSize(.small)
             .fixedSize()
-            .accessibilityLabel(saveLabel + " with \(chosen.count) tag\(chosen.count == 1 ? "" : "s")")
+            .accessibilityLabel(saveLabel + ", " + L10n.Watch.Tags.count(count: chosen.count))
         }
       }
     }
@@ -346,8 +351,8 @@ struct TagsPickView: View {
       }
     }
     .accessibilityLabel(r.tag.name)
-    .accessibilityValue(on ? "selected" : "not selected")
-    .accessibilityHint(on ? "Double tap to remove this tag" : "Double tap to add this tag")
+    .accessibilityValue(on ? L10n.Watch.Tags.selected : L10n.Watch.Tags.notSelected)
+    .accessibilityHint(on ? L10n.Watch.Tags.hintRemove : L10n.Watch.Tags.hintAdd)
     .accessibilityAddTraits(on ? .isSelected : [])
   }
 
@@ -360,7 +365,7 @@ struct TagsPickView: View {
 
 /// Secondary pages have no title bar content: the list starts right under the clock (the bar itself is hidden on the TabView).
 struct PageBar: ViewModifier {
-  func body(content: Content) -> some View { content.navigationTitle("") }
+  func body(content: Content) -> some View { content.navigationTitle(Text(verbatim: "")) }
 }
 
 // MARK: - History
@@ -377,7 +382,7 @@ struct HistoryPage: View {
           .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
       }
       if session.historyDays.isEmpty {
-        Text(session.hasData ? "Nothing today or yesterday." : "Open Kopiyka on your iPhone once to sync.").font(.footnote).foregroundStyle(.secondary)
+        Text(session.hasData ? L10n.Watch.History.empty : L10n.Watch.syncOnce).font(.footnote).foregroundStyle(.secondary)
       }
       ForEach(session.historyDays) { d in
         Section(d.label) {
@@ -452,18 +457,18 @@ struct BudgetsPage: View {
   var body: some View {
     List {
       if let t = snapshot?.trip {
-        Section("Travel mode") {
+        Section(L10n.Watch.Budgets.travel) {
           VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
               Image(systemName: "airplane").font(.caption2).foregroundStyle(.blue)
               Text(t.name).font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.5)
             }
-            Text("\(KPFormat.money(t.remaining, t.currency, decimals: 0)) left").font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(t.remaining < 0 ? Color.red : Color.primary)
+            Text(L10n.Budget.left(amount: KPFormat.money(t.remaining, t.currency, decimals: 0))).font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(t.remaining < 0 ? Color.red : Color.primary)
             ProgressView(value: t.ratio).tint(t.remaining < 0 ? .red : t.ratio > 0.85 ? .orange : .blue)
-            Text(t.allowance.map { "\(t.dayLabel) · \(KPFormat.money(max(0, $0), t.currency, decimals: 0))/day" } ?? t.dayLabel).font(.caption2).foregroundStyle(.secondary)
+            Text(t.allowance.map { "\(t.dayLabel) · " + L10n.Budget.perDay(amount: KPFormat.money(max(0, $0), t.currency, decimals: 0)) } ?? t.dayLabel).font(.caption2).foregroundStyle(.secondary)
           }
           .accessibilityElement(children: .ignore)
-          .accessibilityLabel("Travel \(t.name), \(KPFormat.money(t.remaining, t.currency, decimals: 0)) left, \(t.dayLabel)")
+          .accessibilityLabel(L10n.Watch.Budgets.travelA11y(name: t.name, amount: KPFormat.money(t.remaining, t.currency, decimals: 0), day: t.dayLabel))
         }
       }
       if let s = snapshot, !s.budgets.isEmpty {
@@ -471,15 +476,15 @@ struct BudgetsPage: View {
           ForEach(s.budgets) { b in
             VStack(alignment: .leading, spacing: 4) {
               Text(b.name).font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.5).allowsTightening(true)
-              Text("\(KPFormat.money(b.remaining, b.currency, decimals: 0)) left").font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(b.remaining < 0 ? Color.red : Color.primary)
+              Text(L10n.Budget.left(amount: KPFormat.money(b.remaining, b.currency, decimals: 0))).font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(b.remaining < 0 ? Color.red : Color.primary)
               ProgressView(value: b.ratio).tint(b.remaining < 0 ? .red : b.ratio > 0.85 ? .orange : .green)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(b.name), \(KPFormat.money(b.remaining, b.currency, decimals: 0)) left")
+            .accessibilityLabel(L10n.Watch.Budgets.budgetA11y(name: b.name, amount: KPFormat.money(b.remaining, b.currency, decimals: 0)))
           }
         }
       } else if snapshot?.trip == nil {
-        Text(session.hasData ? "No budgets yet. Add one on your iPhone." : "Open Kopiyka on your iPhone once to sync.").font(.footnote).foregroundStyle(.secondary)
+        Text(session.hasData ? L10n.Watch.Budgets.empty : L10n.Watch.syncOnce).font(.footnote).foregroundStyle(.secondary)
       }
     }
     .modifier(PageBar())
@@ -493,7 +498,7 @@ struct StatusPage: View {
   @EnvironmentObject var session: WatchSession
 
   var updatedAt: String {
-    guard let d = KPFormat.parseIso(session.state.generated_at) else { return "never" }
+    guard let d = KPFormat.parseIso(session.state.generated_at) else { return L10n.Watch.Status.never }
     let t = KPFormat.timePrinter.string(from: d)
     return Calendar.current.isDateInToday(d) ? t : KPFormat.dayLabel(String(session.state.generated_at.prefix(10))) + " " + t
   }
@@ -505,27 +510,27 @@ struct StatusPage: View {
         Button { session.refresh() } label: {
           HStack(spacing: 8) {
             if session.loading { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.triangle.2.circlepath").font(.title3) }
-            Text(session.loading ? "Refreshing…" : "Refresh").font(.body.weight(.semibold))
+            Text(session.loading ? L10n.Watch.Status.refreshing : L10n.Watch.Status.refresh).font(.body.weight(.semibold))
           }
           .padding(.horizontal, 6).frame(minHeight: 40)
         }
         .buttonStyle(.borderedProminent).tint(Color("$accent")).disabled(session.loading).fixedSize()
-        .accessibilityHint("Asks the iPhone for the latest accounts, categories and history")
+        .accessibilityHint(L10n.Watch.Status.refreshHint)
         Spacer(minLength: 0)
       }
       .listRowBackground(Color.clear).listRowInsets(EdgeInsets())
 
-      Section("Status") {
+      Section(L10n.Watch.Status.title) {
         StatusRow(icon: session.reachable ? "iphone" : "iphone.slash", tint: session.reachable ? .green : .orange,
-                  title: session.reachable ? "iPhone connected" : "iPhone not reachable",
-                  detail: session.reachable ? "Entries are saved on the iPhone at once" : "Entries wait on the watch until it is back")
-        StatusRow(icon: "clock.arrow.circlepath", tint: .secondary, title: "Data from iPhone", detail: updatedAt)
+                  title: session.reachable ? L10n.Watch.Status.connected : L10n.Watch.Status.unreachable,
+                  detail: session.reachable ? L10n.Watch.Status.connectedDetail : L10n.Watch.Status.unreachableDetail)
+        StatusRow(icon: "clock.arrow.circlepath", tint: .secondary, title: L10n.Watch.Status.data, detail: updatedAt)
         StatusRow(icon: session.queued.isEmpty ? "checkmark.circle" : "tray.full", tint: session.queued.isEmpty ? .green : .orange,
-                  title: session.queued.isEmpty ? "Nothing waiting" : "\(session.queued.count) waiting for iPhone",
-                  detail: session.queued.isEmpty ? "All watch entries delivered" : "Delivered automatically when the iPhone is near")
+                  title: session.queued.isEmpty ? L10n.Watch.Status.nothingWaiting : L10n.Watch.Status.waiting(count: session.queued.count),
+                  detail: session.queued.isEmpty ? L10n.Watch.Status.nothingWaitingDetail : L10n.Watch.Status.waitingDetail)
         if let w = session.lastWrite {
           StatusRow(icon: w.ok ? "checkmark.circle" : "xmark.octagon", tint: w.ok ? .green : .red, title: w.text,
-                    detail: "Last entry")
+                    detail: L10n.Watch.Status.lastEntry)
         }
       }
     }
@@ -543,7 +548,7 @@ struct StatusRow: View {
         Text(detail).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
       }
     }
-    .accessibilityElement(children: .ignore).accessibilityLabel("\(title). \(detail)")
+    .accessibilityElement(children: .ignore).accessibilityLabel(Text(verbatim: "\(title). \(detail)"))
   }
 }
 
