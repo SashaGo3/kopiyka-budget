@@ -174,25 +174,34 @@ export function createDebt(db: SqlDriver, d: Partial<Debt> & Pick<Debt, "person"
 /**
  * Create both legs of a transfer atomically. `fromAmountMinor` is positive, in the
  * source account currency; `toAmountMinor` in the destination currency.
+ *
+ * `keep` turns an existing expense or income into a transfer: that row becomes the leg on its own
+ * account — `out` for money that left it, `in` for money that arrived — and keeps its id, payee,
+ * place and photo (DATA.md rules 1 and 4), so whatever pointed at it still does. Only the other
+ * leg is new. Returns booked against it are dropped: a transfer has nobody to hand money back.
  */
 export function createTransfer(db: SqlDriver, p: {
   from_account_id: string; to_account_id: string; date: string;
   from_amount_minor: number; to_amount_minor: number;
   from_currency: string; to_currency: string;
   category_id?: string | null; tag_ids?: string; notes?: string | null; pending?: 0 | 1;
+  keep?: { row: Transaction; leg: "out" | "in" };
 }): { out: Transaction; in: Transaction; transfer_id: string } {
   const transfer_id = newId();
   const cross = p.from_currency !== p.to_currency;
   // rate = destination units per 1 source unit
   const rate = cross ? (p.to_amount_minor / p.from_amount_minor) : null;
+  const kept = (leg: "out" | "in"): Partial<Transaction> => (p.keep?.leg === leg ? { ...p.keep.row, refunded_minor: 0, deleted: 0 } : {});
   return db.transaction(() => {
     const out = createTransaction(db, {
+      ...kept("out"),
       account_id: p.from_account_id, date: p.date, amount_minor: -p.from_amount_minor, transfer_id,
       category_id: p.category_id ?? null, tag_ids: p.tag_ids ?? "[]", notes: p.notes ?? null, pending: p.pending ?? 0,
       entered_amount_minor: cross ? p.to_amount_minor : null, entered_currency: cross ? p.to_currency : null,
       exchange_rate: rate,
     });
     const inn = createTransaction(db, {
+      ...kept("in"),
       account_id: p.to_account_id, date: p.date, amount_minor: p.to_amount_minor, transfer_id,
       category_id: p.category_id ?? null, tag_ids: p.tag_ids ?? "[]", notes: p.notes ?? null, pending: p.pending ?? 0,
       entered_amount_minor: cross ? p.from_amount_minor : null, entered_currency: cross ? p.from_currency : null,

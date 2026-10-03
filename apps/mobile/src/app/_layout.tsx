@@ -9,13 +9,12 @@ import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
 import { writeWidgetSnapshot } from "@/lib/widget";
 import { KPBridge } from "@/lib/bridge";
-import { BootSkeleton } from "@/components/BootSkeleton";
-import { ThemeKeyed, themeKeyedLayoutExcept } from "@/components/ThemeKeyed";
+import { themeKeyedLayoutExcept } from "@/components/ThemeKeyed";
 import { notifyChange } from "@/store";
 import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
-import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
+import { markAppCodeStart, markBooted, markRootLayoutRender, onBooted } from "@/lib/boot";
 import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { needsOnboarding } from "@/lib/onboarding";
 import { isPad, screenContentStyle } from "@/constants/layout";
@@ -130,7 +129,7 @@ export default function RootLayout() {
   }, [lang]);
   useEffect(() => {
     // Startup-only work waits for the first frame (and any deep-linked sheet on top of it) to paint,
-    // so a cold launch is never delayed by it. BootSkeleton's safety timeout guarantees this still
+    // so a cold launch is never delayed by it. The safety timeout below guarantees this still
     // runs even when the landing screen never mounts (e.g. a deep link straight to a sheet).
     // expo-notifications (handler setup, native module discovery) is a heavy import nothing here
     // needs before the first frame, so it's required here instead of at module load.
@@ -168,7 +167,10 @@ export default function RootLayout() {
     const sub = Notifications.addNotificationResponseReceivedListener(follow);
     void Notifications.getLastNotificationResponseAsync().then(follow).catch(() => {});
     const offWatch = KPBridge.onExternalChange(() => notifyChange());
-    return () => { offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
+    // Safety: a launch whose first screen never calls `markBooted()` (a deep link straight to some
+    // other screen) still gets its splash lifted and its startup work run.
+    const safety = setTimeout(markBooted, 1500);
+    return () => { clearTimeout(safety); offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
   }, []);
   const { fit, medium, picker, modal } = sheetOptions(theme);
   return (
@@ -230,7 +232,6 @@ export default function RootLayout() {
           <Stack.Screen name="insight/reorder" options={{ ...modal, gestureEnabled: false }} />
           <Stack.Screen name="filter" options={modal} />
         </Stack>
-        <ThemeKeyed><BootSkeleton /></ThemeKeyed>
       </View>}
     </ThemeProvider>
   );

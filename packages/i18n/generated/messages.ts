@@ -1390,6 +1390,8 @@ export interface Messages {
   "recurring.due.waitingIntro": { count: number };
   /** <sum> is replaced by the total amount; its text is ignored. */
   "recurring.due.waitingIntroSum": { count: number };
+  "recurring.duplicate.row": undefined;
+  "recurring.duplicate.subtitle": undefined;
   "recurring.expense": undefined;
   "recurring.fromTx.guessed": undefined;
   "recurring.fromTx.pickTitle": undefined;
@@ -1397,6 +1399,9 @@ export interface Messages {
   "recurring.fromTx.seen": { count: string | number; repeat: string | number };
   "recurring.fromTx.subtitle": undefined;
   "recurring.fromTx.title": undefined;
+  "recurring.fromTx.updateSubtitle": undefined;
+  /** Row on an existing recurring rule: refill its fields from a payment. */
+  "recurring.fromTx.updateTitle": undefined;
   "recurring.income": undefined;
   "recurring.match.amountHint": undefined;
   "recurring.match.amountOnly": undefined;
@@ -1465,6 +1470,17 @@ export interface Messages {
   "settings.about.diagnosticsSubtitle": undefined;
   "settings.about.privacy": undefined;
   "settings.about.privacySubtitle": undefined;
+  /** Development builds only. */
+  "settings.about.testData": undefined;
+  "settings.about.testDataAction": undefined;
+  "settings.about.testDataBody": undefined;
+  "settings.about.testDataDone": undefined;
+  "settings.about.testDataFailed": undefined;
+  "settings.about.testDataLoading": undefined;
+  /** name is a backup file name. */
+  "settings.about.testDataSafety": { name: string | number };
+  "settings.about.testDataSubtitle": undefined;
+  "settings.about.testDataTitle": undefined;
   "settings.about.whatsNew": undefined;
   /** version is "1.0.3". */
   "settings.about.whatsNewSubtitle": { version: string | number };
@@ -1523,6 +1539,7 @@ export interface Messages {
   "settings.recurring.title": undefined;
   "settings.section.about": undefined;
   "settings.section.backup": undefined;
+  "settings.section.location": undefined;
   "settings.section.preferences": undefined;
   "settings.section.shortcuts": undefined;
   "settings.section.tracking": undefined;
@@ -1863,6 +1880,8 @@ export interface Messages {
   /** VoiceOver label: the entry has map coordinates but no place name. */
   "transaction.entry.locationPinned": undefined;
   "transaction.entry.makeTransfer.action": undefined;
+  /** Turning a saved expense or income into a transfer. */
+  "transaction.entry.makeTransfer.convert": undefined;
   "transaction.entry.makeTransfer.empty": undefined;
   "transaction.entry.makeTransfer.moved": { amount: string | number; currency: string | number };
   "transaction.entry.makeTransfer.title": undefined;
@@ -2074,6 +2093,12 @@ export interface Messages {
   "transfer.balanceAfterA11y": { balance: string | number; after: string | number; currency: string | number };
   "transfer.category": undefined;
   "transfer.chooseAccount": undefined;
+  /** Label of the disabled confirm button until both accounts of a transfer are chosen. */
+  "transfer.chooseAccounts": undefined;
+  /** Hint under the cards of a new transfer while the From account is not chosen. */
+  "transfer.chooseFrom": undefined;
+  /** Hint under the cards of a new transfer while the To account is not chosen. */
+  "transfer.chooseTo": undefined;
   "transfer.delete": undefined;
   "transfer.deleteTitle": undefined;
   /** Chip that goes back to the fetched rate after the receiving amount was typed by hand. */

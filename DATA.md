@@ -15,6 +15,10 @@ deleted and the new one starts empty, and the history detaches.
 
 Generating new ids is right in exactly one case: a row that genuinely did not exist before.
 
+The same holds inside the app. Turning a saved expense or income into a transfer makes that row one
+leg of it — `createTransfer`'s `keep` (`packages/core/src/repo.ts`) — so its id, payee, place and
+photo stay put and only the other leg is new.
+
 ## 2. Merge is the default and never deletes; replace makes the file the truth
 
 `importBackup(db, file, { mode })` — `packages/core/src/backup.ts`.

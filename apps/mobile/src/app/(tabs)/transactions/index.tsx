@@ -52,7 +52,7 @@ export default function TransactionsScreen() {
   const p = useLocalSearchParams<Params>();
   const isSearchTab = usePathname().startsWith("/search");
   const [period, setPeriod] = usePeriod();   // the same month Budgets is showing
-  useEffect(() => { markBooted(); }, []); // the landing tab's first content frame: the root layout drops its shimmer skeleton
+  useEffect(() => { markBooted(); }, []); // the landing tab's first content frame: the native launch screen fades off it (lib/boot.ts)
   // The account scope is the same one Budgets shows, switched from the pill here as well.
   const scope = useQuery(() => getBudgetScope());
   const scopeAccounts = useQuery((db) => scopeAccountIds(scope, listRows(db, "accounts", "deleted=0")), [scope]);

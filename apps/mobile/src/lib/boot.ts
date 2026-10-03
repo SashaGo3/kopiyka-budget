@@ -1,9 +1,24 @@
 /**
- * First-paint signal. The root layout shows a shimmering skeleton over the navigator until the
- * landing screen (Budgets, or Welcome on first run) has committed its first frame and calls
- * `markBooted()`; the overlay then fades out. Module state, not React: it only ever flips once.
+ * First-paint signal. The native launch screen — the silhouette of the Transactions screen
+ * (plugins/withSilhouetteLaunchScreen.js) — stays up until the landing screen (Transactions, or
+ * Welcome on first run) has committed its first frame and calls `markBooted()`, or a sheet a deep
+ * link opened has painted (`markSheetPainted`); it then fades into the real screen. Module state,
+ * not React: it only ever flips once. The root layout also calls `markBooted()` after a safety
+ * timeout, so a launch that lands somewhere else is never left behind the splash.
  */
 import { requireOptionalNativeModule } from "expo-modules-core";
+import * as SplashScreen from "expo-splash-screen";
+
+// Before expo-router's own first render would hide it: this module is imported by the root layout.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({ fade: true, duration: 250 });
+let splashUp = true;
+function hideSplash() {
+  if (!splashUp) return;
+  splashUp = false;
+  // A frame later, so what was just committed is on the glass before the splash fades off it.
+  requestAnimationFrame(() => SplashScreen.hide());
+}
 
 let booted = false;
 const listeners = new Set<() => void>();
@@ -13,6 +28,7 @@ export const isBooted = () => booted;
 export function markBooted() {
   if (booted) return;
   booted = true;
+  hideSplash();
   for (const l of listeners) l();
   listeners.clear();
   marks.budgetsPainted = Date.now();
@@ -58,6 +74,7 @@ export const markRootLayoutRender = () => once("rootLayoutRender");
 /** Call once the Log sheet (transaction/[id]) has committed its first frame. */
 export function markSheetPainted() {
   once("sheetPainted");
+  hideSplash();
   printTraceOnce();
 }
 

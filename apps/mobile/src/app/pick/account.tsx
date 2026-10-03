@@ -10,8 +10,9 @@ import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
 
 export default function PickAccount() {
-  const { key, selected } = useLocalSearchParams<{ key: string; selected?: string }>();
-  const accounts = useQuery((db) => listRows(db, "accounts", "deleted=0 AND archived=0", [], "sort, name").map((a) => ({ ...a, balance: accountBalanceMinor(db, a.id) })));
+  // `exclude`: an account that may not be chosen here — the other side of a transfer.
+  const { key, selected, exclude } = useLocalSearchParams<{ key: string; selected?: string; exclude?: string }>();
+  const accounts = useQuery((db) => listRows(db, "accounts", "deleted=0 AND archived=0", [], "sort, name").filter((a) => a.id !== exclude).map((a) => ({ ...a, balance: accountBalanceMinor(db, a.id) })), [exclude]);
   return (
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={accounts} keyExtractor={(a) => a.id} contentContainerStyle={{ paddingTop: S.sm, paddingBottom: 60 }}
       ListHeaderComponent={<Text style={styles.title}>{t("pick.account.title")}</Text>}

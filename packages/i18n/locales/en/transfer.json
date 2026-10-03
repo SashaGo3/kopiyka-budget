@@ -23,6 +23,18 @@
   },
   "noAccount": "no account",
   "chooseAccount": "choose an account",
+  "chooseFrom": {
+    "message": "Choose the account the money leaves.",
+    "note": "Hint under the cards of a new transfer while the From account is not chosen."
+  },
+  "chooseTo": {
+    "message": "Choose the account the money arrives in.",
+    "note": "Hint under the cards of a new transfer while the To account is not chosen."
+  },
+  "chooseAccounts": {
+    "message": "Choose both accounts",
+    "note": "Label of the disabled confirm button until both accounts of a transfer are chosen."
+  },
   "pickA11y": "{role}: {account}",
   "balanceA11y": "Balance {balance} {currency}",
   "balanceAfterA11y": "Balance {balance}, after {after} {currency}",

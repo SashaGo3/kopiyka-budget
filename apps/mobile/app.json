@@ -69,7 +69,7 @@
     "plugins": [
       "expo-router",
       [
-        "./plugins/withFlatLaunchScreen",
+        "./plugins/withSilhouetteLaunchScreen",
         {
           "backgroundColor": "#F4F4F1"
         }

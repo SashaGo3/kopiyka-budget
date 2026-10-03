@@ -256,12 +256,13 @@ export default function TransactionSheet() {
       { text: t("transaction.entry.forgetReturns.action"), style: "destructive", onPress: () => { mutate((d) => clearReturns(d, existing.id)); setDone(true); router.back(); } },
     ]);
 
-  // Tapping the amount copies it, plain and ungrouped so it pastes into anything.
+  // Tapping the amount copies it, plain, unsigned and ungrouped so it pastes into anything.
   const [copied, setCopied] = useState(false);
   // The Return pill's width, so the amount keeps the same room on both sides of it and stays centred.
   const copyAmount = () => {
     if (value === null) return;
-    const text = formatMinor(toMinor(value, currency) * (kind === "expense" ? -1 : 1), currency, { grouping: "", decimal: "." });
+    // The magnitude only: the sign is the entry's kind, not part of the number being copied.
+    const text = formatMinor(toMinor(value, currency), currency, { grouping: "", decimal: "." });
     if (!copyToClipboard(text)) return;
     void Haptics.selectionAsync();
     setCopied(true);
@@ -413,8 +414,14 @@ export default function TransactionSheet() {
   };
   const changeKind = (k: Kind) => {
     if (k === "transfer") {
-      const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", from: accountId, amount: value !== null ? String(value) : "", stacked: "1" } }); };
-      Alert.alert(t("transaction.entry.makeTransfer.title"), value !== null ? t("transaction.entry.makeTransfer.moved", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("transaction.entry.makeTransfer.empty"), [
+      // A saved entry becomes one leg of the transfer — the side its sign says, on its own account —
+      // and keeps its id (createTransfer's `keep`); it brings along everything typed here so far.
+      // Nothing is written until the transfer sheet saves, and Back returns here unchanged.
+      const params = existing
+        ? { convert: existing.id, [kind === "income" ? "to" : "from"]: accountId, date, ...(note.trim() ? { note: note.trim() } : {}), ...(categoryId ? { category: categoryId } : {}), ...(tagIds.length ? { tags: tagIds.join(",") } : {}) }
+        : { from: accountId, date, ...(note.trim() ? { note: note.trim() } : {}) };
+      const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", ...params, amount: value !== null ? String(value) : "", stacked: "1" } }); };
+      Alert.alert(t("transaction.entry.makeTransfer.title"), existing ? t("transaction.entry.makeTransfer.convert") : value !== null ? t("transaction.entry.makeTransfer.moved", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("transaction.entry.makeTransfer.empty"), [
         { text: t("common.cancel"), style: "cancel" },
         { text: t("transaction.entry.makeTransfer.action"), onPress: go },
       ]);
@@ -516,11 +523,12 @@ export default function TransactionSheet() {
             ) : null}
           </View>
           <View style={styles.accountRow}>
-            <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
+            {/* With one account there is nothing to choose between, so the pill goes; the balance stays. */}
+            {accounts.length > 1 || !account ? <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
               <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
               <Text style={styles.accountText} numberOfLines={1}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</Text>
               <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
-            </Pressable>
+            </Pressable> : null}
             <Pressable onPress={unwrap} hitSlop={8} style={styles.unwrap} accessibilityRole="button" accessibilityLabel={expanded ? t("transaction.entry.hideBalance") : t("transaction.entry.showBalance")} accessibilityState={{ expanded }}>
               <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
               <Text style={styles.accountBal}>{t("transaction.entry.balance")}</Text>
@@ -549,8 +557,9 @@ export default function TransactionSheet() {
       ) : (
         <>
           <View style={{ paddingHorizontal: S.md }}>
-            {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered. */}
-            <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("transaction.entry.kind.expense") }, { value: "income", label: t("transaction.entry.kind.income"), color: C.green as unknown as string }, ...(isNew && accounts.length > 1 ? [{ value: "transfer" as Kind, label: t("transaction.entry.kind.transfer") }] : [])]} />
+            {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered; nor while
+                parts are carved off, since a split is several entries and a transfer is one movement. */}
+            <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("transaction.entry.kind.expense") }, { value: "income", label: t("transaction.entry.kind.income"), color: C.green as unknown as string }, ...(accounts.length > 1 && !existing?.transfer_id && !parts.length ? [{ value: "transfer" as Kind, label: t("transaction.entry.kind.transfer") }] : [])]} />
           </View>
           {/* Only while the entry is being written: "what was it this time?" is a question about a
               new expense. An entry already saved has its answer, and the row cost the confirm bar

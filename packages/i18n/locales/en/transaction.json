@@ -91,6 +91,10 @@
       "title": "Make this a transfer?",
       "moved": "{amount} {currency} will be moved to the transfer.",
       "empty": "Move money between two accounts.",
+      "convert": {
+        "message": "This entry becomes one side of the transfer and keeps its note, place and photo. Choose the other account next.",
+        "note": "Turning a saved expense or income into a transfer."
+      },
       "action": "Make transfer"
     }
   },

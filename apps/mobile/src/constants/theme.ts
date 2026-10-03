@@ -1,5 +1,5 @@
 import { DynamicColorIOS, Platform, PlatformColor, type ColorValue, type ViewStyle } from "react-native";
-import { DEFAULT_THEME, THEMES, themeOf, type Theme, type ThemeId, type ThemeSide } from "@kopiyka/core";
+import { DEFAULT_THEME, THEMES, themeOf, type ExtraHue, type Theme, type ThemeId, type ThemeSide } from "@kopiyka/core";
 import { t } from "@/i18n";
 
 /**
@@ -120,7 +120,8 @@ export const C = {
  * with, and clashes in every other one: an iOS indigo square on Gruvbox's warm cream is a stranger
  * on the page. So the hex is read as a *role* rather than a colour — red/pink, orange/yellow/brown,
  * green/mint, grey, or anything blue-to-purple (which becomes the theme's accent) — and drawn in the
- * theme's own colour for that role. Default theme: the hex as given, untouched.
+ * theme's own colour for that role. Default theme: the hex as given, untouched. A theme that names
+ * finer hues (`ThemeSide.hues`: pink, yellow, teal, blue, purple) has those drawn in its own instead.
  *
  * Only for chrome. Category, tag and account colours are the user's data (DATA.md) and are drawn as
  * chosen; never pass one through here.
@@ -142,6 +143,22 @@ function hueRole(hex: string): HueRole {
   return "accent"; // teal, cyan, blue, indigo, purple
 }
 
+/** The finer hue a theme may name for `hex` (`ThemeSide.hues`), or null for red, orange, green and grey. */
+function extraHue(hex: string): ExtraHue | null {
+  const [r, g, b] = rgb(hex).map((v) => v / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  const l = (max + Math.min(r, g, b)) / 2;
+  if (d === 0 || d / (1 - Math.abs(2 * l - 1)) < 0.2) return null;
+  const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  if (h >= 320 && h < 355) return "pink"; // #FF375F, #FF2D55
+  if (h >= 40 && h < 70) return "yellow"; // #FFD60A, #FFCC00
+  if (h >= 160 && h < 200) return "teal"; // mint, teal, cyan
+  if (h >= 200 && h < 235) return "blue"; // #0A84FF, #007AFF
+  if (h >= 235 && h < 320) return "purple"; // indigo #5E5CE6, purple #BF5AF2
+  return null;
+}
+
 function luminance(hex: string): number {
   const [r, g, b] = rgb(hex).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }) as [number, number, number];
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -157,14 +174,16 @@ const tones = new Map<string, Tone>();
 export function themeTone(hex: string): Tone {
   if (current.id === DEFAULT_THEME || !/^#[0-9a-f]{6}/i.test(hex)) return { fill: hex, glyph: "#FFFFFF" };
   const role = hueRole(hex);
-  const key = `${current.id}:${role}`;
+  const extra = extraHue(hex);
+  const key = `${current.id}:${extra ?? role}`;
   let tone = tones.get(key);
   if (!tone) {
     const { light: l, dark: d } = current;
-    const pick = (s: ThemeSide) => (role === "muted" ? s.muted : s[role]);
-    tone = role === "accent"
-      ? { fill: dyn(l.accent, d.accent), glyph: dyn(l.onAccent, d.onAccent) }
-      : { fill: dyn(pick(l), pick(d)), glyph: dyn(glyphOn(pick(l), l), glyphOn(pick(d), d)) };
+    // Per side: the theme's own colour for the finer hue where that side names one, else the role's.
+    const own = (s: ThemeSide) => (extra ? s.hues?.[extra] : undefined);
+    const fill = (s: ThemeSide) => own(s) ?? (role === "muted" ? s.muted : s[role]);
+    const glyph = (s: ThemeSide) => (!own(s) && role === "accent" ? s.onAccent : glyphOn(fill(s), s));
+    tone = { fill: dyn(fill(l), fill(d)), glyph: dyn(glyph(l), glyph(d)) };
     tones.set(key, tone);
   }
   return tone;

@@ -1,11 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { createDebt, getRow, remove, save, settleDebt, toMinor, fromMinor, trimNumber, DEFAULT_DEBT_NOTIFY_TIME, type Debt, type DebtDirection } from "@kopiyka/core";
+import { createDebt, formatMinor, getRow, remove, save, settleDebt, toMinor, fromMinor, trimNumber, DEFAULT_DEBT_NOTIFY_TIME, type Debt, type DebtDirection } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Keypad, ConfirmBar, evalExpr } from "@/components/Keypad";
+import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { Chip, ChipRow, DeleteRow, Segmented, SheetFrame, Subtle, Title } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, localIso, todayLocal } from "@/lib/dates";
@@ -54,10 +54,11 @@ export default function DebtEdit() {
   usePickResult<string>(keys.time, setNotifyTime);
   usePickResult<string>(keys.notes, setNotes);
 
-  const value = evalExpr(expr);
+  // `evalPartial`, as on the entry sheet: the big number is where the sum stands, the sum is spelled out under it.
+  const value = evalPartial(expr);
   const amountMinor = toMinor(value ?? 0, currency);
   const valid = person.trim().length > 0 && amountMinor > 0;
-  const shown = `${expr || "0"} ${currency}`;
+  const shown = `${value !== null ? formatMinor(toMinor(value, currency), currency) : "0"} ${currency}`;
   const heroTitle = person || (direction === "owed_to_me" ? t("debt.lent") : t("debt.borrowed"));
   const summary = [
     direction === "owed_to_me" ? t("debt.summary.owesYou") : t("debt.summary.youOwe"),
@@ -111,6 +112,7 @@ export default function DebtEdit() {
         <View style={styles.top}>
           <Title>{heroTitle}</Title>
           <Text style={[styles.amount, direction === "owed_to_me" ? { color: C.green } : { color: C.red }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={t("debt.amountA11y", { amount: shown })}>{shown}</Text>
+          <CalcLine expr={expr} style={{ textAlign: "left" }} />
           <Subtle>{summary}</Subtle>
         </View>
       }

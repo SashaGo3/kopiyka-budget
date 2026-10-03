@@ -1,0 +1,24 @@
+{
+  "images": [
+    {
+      "idiom": "ipad",
+      "filename": "SplashPadColumn-light@2x.png",
+      "scale": "2x"
+    },
+    {
+      "idiom": "ipad",
+      "filename": "SplashPadColumn-dark@2x.png",
+      "scale": "2x",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
+    }
+  ],
+  "info": {
+    "version": 1,
+    "author": "make-splash"
+  }
+}

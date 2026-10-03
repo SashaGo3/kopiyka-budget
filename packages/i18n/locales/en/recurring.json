@@ -29,7 +29,9 @@
     "subtitle": "Search your history; amount, category, tags and period are filled in",
     "pickTitle": "Which transaction repeats?",
     "seen": { "message": "Seen {count}× · {repeat}", "note": "How often a series was found in history; repeat is a lowercased cadence label (\"every month\")." },
-    "guessed": "Monthly guessed from one transaction"
+    "guessed": "Monthly guessed from one transaction",
+    "updateTitle": { "message": "Update from a transaction", "note": "Row on an existing recurring rule: refill its fields from a payment." },
+    "updateSubtitle": "Amount, category, tags and period from a payment; the next date stays"
   },
   "titleRow": { "message": "Title", "note": "Row and field: the rule's name (payee)." },
   "titleRequired": "Required — e.g. Netflix, Rent",
@@ -76,6 +78,10 @@
     "row": "Delete rule",
     "title": "Delete recurring rule?",
     "body": "Already posted transactions stay."
+  },
+  "duplicate": {
+    "row": "Duplicate rule",
+    "subtitle": "Opens a copy to change before adding it"
   },
   "confirm": {
     "amount": "Enter an amount",

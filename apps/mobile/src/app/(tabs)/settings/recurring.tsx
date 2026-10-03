@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { WAIT_DAYS_OPTIONS, reminderLabel, reminderOptions, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
-import { Stack, router } from "expo-router";
+import { Stack, router, useFocusEffect } from "expo-router";
 import { listRows, dueOccurrences, detectRecurring, adoptCandidate, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
-import { ensureNotificationPermission } from "@/lib/notifications";
+import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S, themed } from "@/constants/theme";
@@ -97,6 +97,18 @@ export default function RecurringList() {
   }, []));
   const addRule = () => router.push({ pathname: "/pick/option", params: { key: w.post, title: t("settingsLists.recurring.posting.title"), options: JSON.stringify(postingChoice()) } });
 
+  // Notifications are for these reminders, so they are switched on here. iOS state is read on every
+  // focus (the user may come back from the Settings app), and only the Settings app can revoke it.
+  const [notif, setNotif] = useState<"granted" | "denied" | "undetermined">("undetermined");
+  const refreshNotif = useCallback(() => { void notificationStatus().then(setNotif); }, []);
+  useEffect(refreshNotif, [refreshNotif]);
+  useFocusEffect(refreshNotif);
+  const toggleNotifications = async (on: boolean) => {
+    if (!on || notif === "denied") { void Linking.openSettings(); return; }
+    await ensureNotificationPermission();
+    refreshNotif();
+  };
+
   const adopt = async (cs: RecurringCandidate[]) => {
     await ensureNotificationPermission();
     mutate((db) => { for (const c of cs) adoptCandidate(db, c); });
@@ -114,7 +126,8 @@ export default function RecurringList() {
         ) : null}
         {yearly.missing.length ? <Text style={styles.warn}>{t("settingsLists.recurring.noRate", { currencies: yearly.missing.join(", ") })}</Text> : null}
         <Card style={{ marginTop: S.sm }}>
-          <Row icon="bell" iconColor="#FF375F" title={t("settingsLists.recurring.defaultReminder")} subtitle={reminderLabel(remind)} onPress={pickRemind} />
+          <ToggleRow icon="bell.badge" iconColor="#FF3B30" title={t("settings.notifications.title")} subtitle={notif === "granted" ? t("settings.notifications.granted") : notif === "denied" ? t("settings.notifications.denied") : t("settings.notifications.ask")} value={notif === "granted"} onChange={(v) => void toggleNotifications(v)} />
+          <Row icon="bell" iconColor="#FF375F" title={t("settingsLists.recurring.defaultReminder")} subtitle={reminderLabel(remind)} onPress={pickRemind} style={styles.divider} />
           <ToggleRow icon="hourglass" iconColor="#64D2FF" title={t("settingsLists.recurring.wait")} style={styles.divider}
             subtitle={t("settingsLists.recurring.waitSubtitle")}
             value={wait} onChange={setRecurringWait} />

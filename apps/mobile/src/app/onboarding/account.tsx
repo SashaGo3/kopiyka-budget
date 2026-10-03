@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import { router } from "expo-router";
-import { createAccount, formatMinor, listRows, toMinor, type AccountType } from "@kopiyka/core";
+import { createAccount, formatMinor, listRows, save, toMinor, type Account, type AccountType } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
-import { Keypad, evalExpr } from "@/components/Keypad";
+import { Keypad, CalcLine, evalPartial } from "@/components/Keypad";
 import { C, S, themed } from "@/constants/theme";
 import { currencyName, isKnownCurrency, suggestedCurrency } from "@/lib/currencies";
 import { countryCode, locationStatus, quickLocation } from "@/lib/location";
@@ -48,13 +48,19 @@ export default function OnboardingAccount() {
   const type: AccountType = "bank";
   const [expr, setExpr] = useState("");
   const [busy, setBusy] = useState(false);
-  // An empty keypad means zero: an account can start with nothing on it.
-  const value = expr ? evalExpr(expr.replace(/−/g, "-")) : 0;
+  // An empty keypad means zero: an account can start with nothing on it. `evalPartial`, as on the
+  // entry sheet: the big number is where the sum stands, and the sum is written out under it.
+  const value = expr ? evalPartial(expr) : 0;
   const valid = name.trim().length > 0 && value !== null;
   const shown = value !== null && expr ? formatMinor(toMinor(value, currency), currency) : expr || "0";
+  // Back from the next step and Continue again edits the account this step made, rather than adding
+  // a second one beside it. This screen stays mounted under the next step, so a ref carries it.
+  const made = useRef<Account | null>(null);
   const next = () => {
     if (!valid) return;
-    const acc = mutate((d) => createAccount(d, { name: name.trim(), currency, type, opening_balance_minor: toMinor(value ?? 0, currency) }));
+    const fields = { name: name.trim(), currency, type, opening_balance_minor: toMinor(value ?? 0, currency) };
+    const acc = mutate((d) => (made.current ? save(d, "accounts", { ...made.current, ...fields }) : createAccount(d, fields)));
+    made.current = acc;
     setCurrentAccount(acc.id);
     router.push("/onboarding/categories");
   };
@@ -83,10 +89,12 @@ export default function OnboardingAccount() {
             <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
           </Pressable>
           <Text style={styles.balanceValue} numberOfLines={1} adjustsFontSizeToFit>{shown} <Text style={styles.balanceCur}>{currency}</Text></Text>
+          <CalcLine expr={expr} style={{ textAlign: "left" }} />
         </View>
       </View>
       <View style={{ height: S.md }} />
-      <Keypad value={expr} onChange={setExpr} onToggleSign={() => setExpr((o) => (o.startsWith("−") ? o.slice(1) : "−" + o))} />
+      {/* What is on the first account is money you have; a card in debt can be added later, where ± is. */}
+      <Keypad value={expr} onChange={setExpr} allowSign={false} />
     </OnboardingFrame>
   );
 }

@@ -45,39 +45,44 @@ function askOption(key: string, title: string, options: { value: string; label: 
  * picker), keypad and confirm pinned at the bottom. Nothing is squeezed into the title.
  */
 export default function RecurringEdit() {
-  const { id, auto, amount, repeat, remind, name, tx } = useLocalSearchParams<{ id: string; auto?: string; amount?: string; repeat?: string; remind?: string; name?: string; tx?: string }>();
+  const { id, auto, amount, repeat, remind, name, tx, copy } = useLocalSearchParams<{ id: string; auto?: string; amount?: string; repeat?: string; remind?: string; name?: string; tx?: string; copy?: string }>();
   const insets = useSafeAreaInsets();
   const existing = id === "new" ? null : getRow(db, "recurring_rules", id) ?? null;
+  // Duplicate: a new rule that starts as a copy of `copy` — every setting but the bank's name for
+  // the charge, which would have two rules racing to claim the same payment (DATA.md rule 13).
+  const [copyOf] = useState(() => (id === "new" && copy ? getRow(db, "recurring_rules", copy) ?? null : null));
+  /** What the fields start from: the rule being edited, or the one being copied. */
+  const from = existing ?? copyOf;
   // Chosen in the add wizard: everything the transaction can tell us, read once at mount.
   const [seedTx] = useState(() => (id === "new" && tx ? candidateFromTransaction(db, tx, todayLocal()) : null));
   const accounts = useQuery((d) => listRows(d, "accounts", "deleted=0 AND archived=0", [], "sort, name"));
-  const [accountId, setAccountId] = useState(existing?.account_id ?? seedTx?.account_id ?? accounts[0]?.id ?? "");
+  const [accountId, setAccountId] = useState(from?.account_id ?? seedTx?.account_id ?? accounts[0]?.id ?? "");
   const account = accounts.find((a) => a.id === accountId);
   const currency = account?.currency ?? "EUR";
-  const [kind, setKind] = useState<"expense" | "income">((existing ?? seedTx) && (existing ?? seedTx)!.amount_minor > 0 ? "income" : "expense");
-  const [amountMinor, setAmountMinor] = useState<number>(Math.abs(existing ? existing.amount_minor : seedTx ? seedTx.amount_minor : Number(amount) || 0));
-  const [categoryId, setCategoryId] = useState<string | null>(existing?.category_id ?? seedTx?.category_id ?? null);
-  const [payee, setPayee] = useState(existing?.payee ?? seedTx?.title ?? catNameById(seedTx?.category_id, seedTx?.category_name ?? null) ?? name ?? "");
+  const [kind, setKind] = useState<"expense" | "income">((from ?? seedTx) && (from ?? seedTx)!.amount_minor > 0 ? "income" : "expense");
+  const [amountMinor, setAmountMinor] = useState<number>(Math.abs(from ? from.amount_minor : seedTx ? seedTx.amount_minor : Number(amount) || 0));
+  const [categoryId, setCategoryId] = useState<string | null>(from?.category_id ?? seedTx?.category_id ?? null);
+  const [payee, setPayee] = useState(from?.payee ?? seedTx?.title ?? catNameById(seedTx?.category_id, seedTx?.category_name ?? null) ?? name ?? "");
   // Copied onto every transaction this rule posts (`postOccurrence`), and what names the entry when
   // there is no title — the same fallback detection uses when it reads a series out of history.
-  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [notes, setNotes] = useState(from?.notes ?? "");
   // "monthly/1" or "daily/5" from the wizard; a transaction brings its own detected cadence.
   const seeded = repeat ? parseRepeat(repeat) : null;
-  const [freq, setFreq] = useState<Frequency>(existing?.frequency ?? seedTx?.frequency ?? seeded?.freq ?? "monthly");
-  const [interval, setInterval_] = useState(existing?.interval ?? seedTx?.interval ?? seeded?.interval ?? 1);
-  const [start, setStart] = useState(existing?.next_date ?? seedTx?.next_date ?? todayLocal());
-  const [daysBefore, setDaysBefore] = useState<number | null>(existing ? (existing.notify ? existing.notify_days_before : null) : remind ? (remind === "off" ? null : Number(remind)) : getReminderDaysBefore());
-  const [autoPost, setAutoPost] = useState(existing ? existing.auto_post === 1 : auto === "1");
-  const [time, setTime] = useState(existing?.time_of_day ?? seedTx?.time_of_day ?? timeLabel(localIso()));
+  const [freq, setFreq] = useState<Frequency>(from?.frequency ?? seedTx?.frequency ?? seeded?.freq ?? "monthly");
+  const [interval, setInterval_] = useState(from?.interval ?? seedTx?.interval ?? seeded?.interval ?? 1);
+  const [start, setStart] = useState(from?.next_date ?? seedTx?.next_date ?? todayLocal());
+  const [daysBefore, setDaysBefore] = useState<number | null>(from ? (from.notify ? from.notify_days_before : null) : remind ? (remind === "off" ? null : Number(remind)) : getReminderDaysBefore());
+  const [autoPost, setAutoPost] = useState(from ? from.auto_post === 1 : auto === "1");
+  const [time, setTime] = useState(from?.time_of_day ?? seedTx?.time_of_day ?? timeLabel(localIso()));
   // Only offered while waiting is switched on app-wide: with it off the row would set a number that
   // nothing reads. null follows the default window.
   const waiting = useQuery(() => getRecurringWait());
   const waitFallback = useQuery(() => getRecurringWaitDays());
-  const [waitDays, setWaitDays] = useState<number | null>(existing?.wait_days ?? null);
+  const [waitDays, setWaitDays] = useState<number | null>(from?.wait_days ?? null);
   // The name the bank prints on this charge, which is rarely the name you gave the rule. Taken from
   // a payment you point at, so the rule recognises next month's even if the price has changed.
   const [matchPayee, setMatchPayee] = useState<string | null>(existing?.match_payee ?? seedTx?.match_payee ?? null);
-  const [tagIds, setTagIds] = useState<string[]>(() => jsonIds((existing ?? seedTx)?.tag_ids ?? ""));
+  const [tagIds, setTagIds] = useState<string[]>(() => jsonIds((from ?? seedTx)?.tag_ids ?? ""));
   const customUnit = useRef<Frequency>("monthly");
   const [fromTx, setFromTx] = useState<string | null>(seedTx ? seenLabel(seedTx) : null);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
@@ -87,15 +92,20 @@ export default function RecurringEdit() {
   const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((tg) => tagIds.includes(tg.id)), [tagIds.join(",")]);
   const keys = useMemo(() => ({ cat: newPickKey("rcat"), acc: newPickKey("racc"), date: newPickKey("rdate"), time: newPickKey("rtime"), payee: newPickKey("rpayee"), notes: newPickKey("rnotes"), amount: newPickKey("ramount"), repeat: newPickKey("rrep"), unit: newPickKey("runit"), count: newPickKey("rcount"), remind: newPickKey("rrem"), post: newPickKey("rpost"), wait: newPickKey("rwait"), match: newPickKey("rmatch"), tags: newPickKey("rtags"), tx: newPickKey("rtx") }), []);
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
+  // On a rule that already exists this updates it from a payment — the price went up, the category
+  // changed — but leaves the next date alone: moving it could skip an occurrence still waiting to be
+  // posted or claimed. A title the payment cannot supply keeps the one the rule has.
+  const editing = !!existing;
   usePickResult<string>(keys.tx, useCallback((id: string) => {
     const c = candidateFromTransaction(db, id, todayLocal());
     if (!c) return;
     setAccountId(c.account_id); setKind(c.amount_minor > 0 ? "income" : "expense");
     setAmountMinor(Math.abs(c.amount_minor));
-    setCategoryId(c.category_id); setPayee(c.title ?? ""); setFreq(c.frequency); setInterval_(c.interval); setStart(c.next_date); setTime(c.time_of_day); setTagIds(jsonIds(c.tag_ids));
-    setMatchPayee(c.match_payee);
+    setCategoryId(c.category_id); setPayee((p) => c.title ?? (editing ? p : "")); setFreq(c.frequency); setInterval_(c.interval); setTime(c.time_of_day); setTagIds(jsonIds(c.tag_ids));
+    if (!editing) setStart(c.next_date);
+    setMatchPayee((m) => c.match_payee ?? (editing ? m : null));
     setFromTx(seenLabel(c));
-  }, []));
+  }, [editing]));
   usePickResult<string>(keys.time, useCallback((v: string) => setTime(v), []));
   usePickResult<number>(keys.amount, useCallback((v: number) => setAmountMinor(Math.abs(v)), []));
   usePickResult<string>(keys.payee, useCallback((v: string) => setPayee(v), []));
@@ -148,6 +158,9 @@ export default function RecurringEdit() {
     { text: t("common.cancel"), style: "cancel" },
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "recurring_rules", existing.id)); leave(); } },
   ]);
+  // The copy opens in place of this sheet, as a new rule nothing is written for until it is added.
+  // From what is stored, so unsaved edits here are asked about (the discard guard) rather than copied.
+  const duplicate = () => existing && router.replace({ pathname: "/recurring/[id]", params: { id: "new", copy: existing.id } });
   const option = (key: string, title: string, options: { value: string; label: string; subtitle?: string }[], selected?: string) => router.push({ pathname: "/pick/option", params: { key, title, options: JSON.stringify(options), ...(selected ? { selected } : {}) } });
   const repeats = repeatLabel(freq, interval);
   const remindLabel = daysBefore === null ? t("recurring.reminder.off") : reminderOptions().find((o) => o.value === String(daysBefore))?.label ?? t("recurring.reminder.daysBefore", { count: daysBefore });
@@ -164,16 +177,15 @@ export default function RecurringEdit() {
           <Text style={styles.summary}>{amountMinor ? t("recurring.summary", { repeat: repeats.toLowerCase(), next: humanDayTime(start, time) }) : t("recurring.tapAmount")}</Text>
         </Pressable>
         <View style={{ paddingHorizontal: S.md, marginBottom: S.md }}><Segmented value={kind} onChange={setKind} options={[{ value: "expense", label: t("recurring.expense") }, { value: "income", label: t("recurring.income"), color: C.green as unknown as string }]} /></View>
-        {!existing ? (
-          <Card style={{ marginBottom: S.md }}>
-            <Row icon="clock.arrow.circlepath" title={t("recurring.fromTx.title")} subtitle={fromTx ?? t("recurring.fromTx.subtitle")} onPress={() => router.push({ pathname: "/pick/transaction", params: { key: keys.tx, title: t("recurring.fromTx.pickTitle") } })} />
-          </Card>
-        ) : null}
+        <Card style={{ marginBottom: S.md }}>
+          <Row icon="clock.arrow.circlepath" title={existing ? t("recurring.fromTx.updateTitle") : t("recurring.fromTx.title")} subtitle={fromTx ?? (existing ? t("recurring.fromTx.updateSubtitle") : t("recurring.fromTx.subtitle"))} onPress={() => router.push({ pathname: "/pick/transaction", params: { key: keys.tx, title: t("recurring.fromTx.pickTitle") } })} />
+        </Card>
         <Card>
           <Row icon="textformat" iconColor="#8E8E93" title={t("recurring.titleRow")} subtitle={payee || t("recurring.titleRequired")} subtitleColor={titled ? undefined : C.orange} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.payee, title: t("recurring.titleRow"), value: payee } })} />
           <Row icon="text.alignleft" iconColor="#8E8E93" title={t("recurring.note")} subtitle={notes || t("recurring.noteHint")} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.notes, title: t("recurring.note"), value: notes } })} style={styles.divider} />
           <Row icon={(catIcon?.icon as SFSymbol) ?? "folder"} iconFill={catIcon?.color} iconColor="#FF9F0A" title={t("recurring.category")} subtitle={cat ? catName(cat) : t("common.none")} onPress={() => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind, selected: categoryId ?? "" } })} style={styles.divider} />
-          <Row icon="creditcard" title={t("recurring.account")} subtitle={acctName(account) ?? t("recurring.choose")} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.divider} />
+          {/* Nothing to choose with one account: the rule goes on the only one there is. */}
+          {accounts.length > 1 || !account ? <Row icon="creditcard" title={t("recurring.account")} subtitle={acctName(account) ?? t("recurring.choose")} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.divider} /> : null}
           <Row icon="number" iconColor="#5E5CE6" title={t("recurring.tags")} subtitle={tags.length ? tags.map((tg) => `#${tg.name}`).join(" ") : t("common.none")} onPress={() => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } })} style={styles.divider} />
         </Card>
         <Card style={{ marginTop: S.md }}>
@@ -193,6 +205,11 @@ export default function RecurringEdit() {
               onPress={() => option(keys.wait, t("recurring.wait.title"), waitOptions(waitFallback), waitDays === null ? "default" : String(waitDays))} style={styles.divider} />
           ) : null}
         </Card>
+        {existing ? (
+          <Card style={{ marginTop: S.md }}>
+            <Row icon="plus.square.on.square" title={t("recurring.duplicate.row")} subtitle={t("recurring.duplicate.subtitle")} onPress={duplicate} />
+          </Card>
+        ) : null}
         {existing ? <View style={{ marginTop: S.md }}><DeleteRow label={t("recurring.delete.row")} onPress={del} /></View> : null}
       </ScrollView>
       <View style={{ paddingTop: S.sm, paddingBottom: Math.max(insets.bottom, S.md), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator }}>
