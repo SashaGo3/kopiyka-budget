@@ -79,10 +79,10 @@ function reloadAppearance(): void {
  * Force light or dark, or follow the phone again (""). Cross-faded like a theme switch, but nothing
  * re-mounts: the colours resolve to the other side natively, so two frames are enough to wait.
  */
-export async function switchAppearance(next: AppearanceChoice): Promise<void> {
+export async function switchAppearance(next: AppearanceChoice, at?: TapPoint): Promise<void> {
   if (next === appearance) return;
   await nextFrame();
-  const covered = await beginThemeTransition();
+  const covered = await beginThemeTransition(at);
   try {
     setMeta(db, APPEARANCE_META_KEY, next);
     reloadAppearance();
@@ -110,23 +110,26 @@ export function setTheme(id: ThemeId, from?: ThemePickerRoute): void {
   reloadTheme();
 }
 
-/** How long the old screen takes to fade off the new one. */
-const FADE_SECONDS = 0.35;
+/** How long the new theme takes to grow over the screen from the tap. */
+const FADE_SECONDS = 0.5;
+/** A tap on the screen, in window points: where the new theme is revealed from. */
+export type TapPoint = { x: number; y: number };
 /** The longest the cover waits for the new tree before fading anyway (native has its own 2 s). */
 const MOUNT_TIMEOUT_MS = 1500;
 let mounted: (() => void) | null = null;
 
 /**
- * Switch theme from a picker, animated: cover → switch → wait for the new tree to paint → fade. The
+ * Switch theme from a picker, animated: cover (with a loader at the tap if it is slow) → switch →
+ * wait for the new tree to paint → reveal it in a circle growing from the tap. The
  * app icon follows only after the fade, because iOS answers it with an alert of its own and that
  * should not land on top of a screen still changing colour. Safe to call where the cover is not
  * available (off iOS, an older build): the switch then happens without it.
  */
-export async function switchTheme(id: ThemeId, from: ThemePickerRoute): Promise<void> {
+export async function switchTheme(id: ThemeId, from: ThemePickerRoute, at?: TapPoint): Promise<void> {
   if (themeOf(id).id === current) return;
   // A frame for the tick the picker just drew, so the snapshot already shows it.
   await nextFrame();
-  const covered = await beginThemeTransition();
+  const covered = await beginThemeTransition(at);
   const painted = new Promise<void>((resolve) => {
     const timer = setTimeout(resolve, MOUNT_TIMEOUT_MS);
     mounted = () => { clearTimeout(timer); resolve(); };

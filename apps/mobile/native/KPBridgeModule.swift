@@ -31,7 +31,7 @@ private enum KPLaunch {
 ///  - launchTimestamps(): boot-trace marks for Settings → Diagnostics (src/lib/boot.ts)
 ///  - setLanguage(code): the app's language, for every Swift surface (native/KPLocale.swift)
 ///  - setAppIcon(id): the home-screen icon for a colour theme (plugins/withAppIcons.js)
-///  - beginThemeTransition() / endThemeTransition(s): the cross-fade over a theme switch (KPThemeTransition)
+///  - beginThemeTransition(x, y) / endThemeTransition(s): the circular reveal over a theme switch (KPThemeTransition)
 ///  - setWindowBackground(light, dark): the theme's background behind everything React draws
 final class KPBridgeModule: Module {
   private var observer: NSObjectProtocol?
@@ -112,8 +112,8 @@ final class KPBridgeModule: Module {
     /// Freeze the screen as it is: a snapshot of the key window laid over it, which the theme switch
     /// happens underneath (src/lib/theme.ts). Resolves once the snapshot is up; false when there is
     /// no window to cover, and the switch then simply happens in plain sight.
-    AsyncFunction("beginThemeTransition") { (promise: Promise) in
-      DispatchQueue.main.async { promise.resolve(KPThemeTransition.begin()) }
+    AsyncFunction("beginThemeTransition") { (x: Double?, y: Double?, promise: Promise) in
+      DispatchQueue.main.async { promise.resolve(KPThemeTransition.begin(at: x.flatMap { x in y.map { CGPoint(x: x, y: $0) } })) }
     }
     /// Fade the snapshot out over `duration` seconds, uncovering the app in its new colours. Resolves
     /// when the fade is over (or at once, with nothing to fade).
@@ -159,8 +159,15 @@ enum KPThemeTransition {
     return scene?.windows.first { $0.isKeyWindow } ?? scene?.windows.first
   }
 
-  /// Lay a snapshot of the key window over it. A second call replaces the first snapshot.
-  static func begin() -> Bool {
+  /// Where the new theme grows from: the tap that asked for it, or the middle of the window.
+  nonisolated(unsafe) private static var origin: CGPoint?
+  /// Shown on the snapshot only if the new tree takes a moment, so a quick switch never flashes it.
+  private static let loaderDelay: CFTimeInterval = 0.15
+
+  /// Lay a snapshot of the key window over it, with a loader at `point` that fades in if the switch
+  /// is slow. Both are Core Animation, so they keep moving while JS rebuilds the tree underneath.
+  /// A second call replaces the first snapshot.
+  static func begin(at point: CGPoint?) -> Bool {
     guard let window = keyWindow(), let snapshot = window.snapshotView(afterScreenUpdates: false) else { return false }
     cover?.removeFromSuperview()
     snapshot.frame = window.bounds
@@ -168,6 +175,9 @@ enum KPThemeTransition {
     // Taps land on the picture, not on the tree being rebuilt underneath it.
     snapshot.isUserInteractionEnabled = true
     snapshot.accessibilityElementsHidden = true
+    let at = point ?? CGPoint(x: window.bounds.midX, y: window.bounds.midY)
+    origin = at
+    snapshot.addSubview(loader(at: at))
     window.addSubview(snapshot)
     cover = snapshot
     generation += 1
@@ -178,17 +188,65 @@ enum KPThemeTransition {
     return true
   }
 
-  /// Fade the snapshot out and remove it; `done` runs when it is gone (at once if there is none).
+  /// A small frosted disc with a spinner, invisible until `loaderDelay` has passed (a CA animation,
+  /// not a timer, so a busy main thread cannot hold it back).
+  private static func loader(at point: CGPoint) -> UIView {
+    let size: CGFloat = 44
+    let disc = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterial))
+    disc.frame = CGRect(x: point.x - size / 2, y: point.y - size / 2, width: size, height: size)
+    disc.layer.cornerRadius = size / 2
+    disc.clipsToBounds = true
+    let spinner = UIActivityIndicatorView(style: .medium)
+    spinner.center = CGPoint(x: size / 2, y: size / 2)
+    spinner.startAnimating()
+    disc.contentView.addSubview(spinner)
+    // Hidden by its model value; the animation, held at its end, is what shows it.
+    disc.layer.opacity = 0
+    let appear = CABasicAnimation(keyPath: "opacity")
+    appear.fromValue = 0; appear.toValue = 1
+    appear.beginTime = CACurrentMediaTime() + loaderDelay
+    appear.duration = 0.2
+    appear.fillMode = .forwards
+    appear.isRemovedOnCompletion = false
+    disc.layer.add(appear, forKey: "appear")
+    return disc
+  }
+
+  /// Reveal the new theme: a circle grows from the tap until it covers the window, cutting the
+  /// snapshot away, which is then removed. `done` runs when it is gone (at once if there is none).
   static func end(duration: Double, done: @escaping () -> Void) {
     guard let snapshot = cover else { done(); return }
     cover = nil
     generation += 1
-    UIView.animate(withDuration: max(0, duration), delay: 0, options: [.curveEaseInOut, .beginFromCurrentState], animations: {
-      snapshot.alpha = 0
-    }, completion: { _ in
+    snapshot.subviews.forEach { $0.removeFromSuperview() }  // the loader goes first
+    let bounds = snapshot.bounds
+    let at = origin ?? CGPoint(x: bounds.midX, y: bounds.midY)
+    // Far enough from the tap to reach the furthest corner.
+    let radius = [CGPoint(x: bounds.minX, y: bounds.minY), CGPoint(x: bounds.maxX, y: bounds.minY),
+                  CGPoint(x: bounds.minX, y: bounds.maxY), CGPoint(x: bounds.maxX, y: bounds.maxY)]
+      .map { hypot($0.x - at.x, $0.y - at.y) }.max() ?? 0
+    func hole(_ r: CGFloat) -> CGPath {
+      let path = UIBezierPath(rect: bounds)
+      path.append(UIBezierPath(arcCenter: at, radius: r, startAngle: 0, endAngle: .pi * 2, clockwise: true))
+      return path.cgPath
+    }
+    let mask = CAShapeLayer()
+    mask.frame = bounds
+    mask.fillRule = .evenOdd
+    mask.path = hole(radius)
+    snapshot.layer.mask = mask
+    CATransaction.begin()
+    CATransaction.setCompletionBlock {
       snapshot.removeFromSuperview()
       done()
-    })
+    }
+    let grow = CABasicAnimation(keyPath: "path")
+    grow.fromValue = hole(0.01)
+    grow.toValue = hole(radius)
+    grow.duration = max(0.01, duration)
+    grow.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+    mask.add(grow, forKey: "reveal")
+    CATransaction.commit()
   }
 
   /// The theme's background, light and dark, on every window of the app's scenes and their root views.

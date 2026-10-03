@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { THEMES, THEME_IDS, type ThemeId, type ThemeSide } from "@kopiyka/core";
 import { Card, Segmented } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
-import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type ThemePickerRoute } from "@/lib/theme";
+import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type TapPoint, type ThemePickerRoute } from "@/lib/theme";
 import { t } from "@/i18n";
 
 /** A theme's name in the app's language: brand names stay as they are, the app's own is translated. */
@@ -26,9 +26,11 @@ export function AppearancePicker() {
     { value: "light", label: appearanceName("light") },
     { value: "dark", label: appearanceName("dark") },
   ];
+  // Segmented reports only the value; the touch that led to it says where to reveal from.
+  const touch = useRef<TapPoint | undefined>(undefined);
   return (
-    <View style={styles.appearance}>
-      <Segmented value={appearance} options={options} onChange={(v) => { void Haptics.selectionAsync(); void switchAppearance(v); }} />
+    <View style={styles.appearance} onTouchStart={(e) => { touch.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }; }}>
+      <Segmented value={appearance} options={options} onChange={(v) => { void Haptics.selectionAsync(); void switchAppearance(v, touch.current); }} />
     </View>
   );
 }
@@ -64,11 +66,11 @@ function Preview({ side, label }: { side: ThemeSide; label: string }) {
 export function ThemePicker({ from }: { from: ThemePickerRoute }) {
   // Ticked at once, so the tap is answered before the tree re-mounts in the new colours.
   const [picked, setPicked] = useState(getTheme);
-  const pick = (id: ThemeId) => {
+  const pick = (id: ThemeId, at: TapPoint) => {
     if (id === picked) return;
     setPicked(id);
     void Haptics.selectionAsync();
-    void switchTheme(id, from).catch(() => setPicked(getTheme()));
+    void switchTheme(id, from, at).catch(() => setPicked(getTheme()));
   };
   return (
     <>
@@ -78,7 +80,7 @@ export function ThemePicker({ from }: { from: ThemePickerRoute }) {
         const theme = THEMES[id];
         const on = id === picked;
         return (
-          <Pressable key={id} onPress={() => pick(id)} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={themeName(id)}
+          <Pressable key={id} onPress={(e) => pick(id, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={themeName(id)}
             style={({ pressed }) => [styles.row, i > 0 && styles.divider, pressed && { backgroundColor: C.fill }]}>
             <View style={styles.previews} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <Preview side={theme.light} label={t("theme.light")} />

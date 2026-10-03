@@ -27,7 +27,7 @@ type Bridge = {
   claimDatabase(): void;
   setLanguage(code: string): void;
   setAppIcon(id: string | null): Promise<void>;
-  beginThemeTransition(): Promise<boolean>;
+  beginThemeTransition(x: number | null, y: number | null): Promise<boolean>;
   endThemeTransition(duration: number): Promise<void>;
   setWindowBackground(light: string, dark: string): void;
   finishNativeWrite(request: string, ok: boolean, error: string | null, reply: Record<string, unknown>): void;
@@ -59,16 +59,17 @@ export async function setAppIcon(themeId: string): Promise<void> {
 
 /**
  * Lay a snapshot of the screen over the app (native/KPBridgeModule.swift, `KPThemeTransition`), so a
- * theme switch can re-mount the tree out of sight. Resolves true once the cover is up; false off iOS,
- * on a build made before this existed, or with no window to cover — the switch then just happens.
- * Native removes the cover by itself after two seconds if `endThemeTransition` never comes.
+ * theme switch can re-mount the tree out of sight. `at` is the tap, in window points: the new theme
+ * is revealed from there, and a loader appears there if the switch takes a moment. Resolves true
+ * once the cover is up; false off iOS, on a build made before this existed, or with no window — the
+ * switch then just happens. Native removes the cover by itself after two seconds if `end` never comes.
  */
-export async function beginThemeTransition(): Promise<boolean> {
+export async function beginThemeTransition(at?: { x: number; y: number }): Promise<boolean> {
   if (Platform.OS !== "ios" || typeof native?.beginThemeTransition !== "function") return false;
-  try { return await native.beginThemeTransition(); } catch { return false; }
+  try { return await native.beginThemeTransition(at?.x ?? null, at?.y ?? null); } catch { return false; }
 }
 
-/** Fade the cover out over `seconds`; resolves when it is gone. No-op where `begin` would be. */
+/** Reveal the new theme over `seconds` (a circle growing from the tap); resolves when the cover is gone. No-op where `begin` would be. */
 export async function endThemeTransition(seconds = 0.35): Promise<void> {
   if (Platform.OS !== "ios" || typeof native?.endThemeTransition !== "function") return;
   try { await native.endThemeTransition(seconds); } catch { /* the native safety timer removes it */ }
