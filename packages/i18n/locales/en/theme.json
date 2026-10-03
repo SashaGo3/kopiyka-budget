@@ -4,7 +4,6 @@
     "message": "Theme",
     "note": "Settings row and screen title; the colour theme of the app."
   },
-  "footer": "Every theme has a light and a dark side: Automatic follows the iPhone, Light and Dark keep to one.",
   "light": {
     "message": "Light",
     "note": "VoiceOver label of the light-mode preview tile of a theme."
@@ -19,7 +18,6 @@
     "light": { "message": "Light", "note": "Always the light side. Segment label.", "max": 14 },
     "dark": { "message": "Dark", "note": "Always the dark side. Segment label.", "max": 14 }
   },
-  "credits": { "message": "Palettes after Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub Primer, all under the MIT licence. Thanks to their authors.", "note": "Small print under the theme list. Keep the project names in Latin script." },
   "icon": {
     "title": { "message": "App icon", "note": "Section header above the row of home-screen icons on Settings → Theme." },
     "a11y": { "message": "{name} icon", "note": "VoiceOver label of one icon in that row; name is a theme name." }

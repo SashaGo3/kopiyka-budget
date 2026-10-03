@@ -7,7 +7,7 @@ import { Image } from "expo-image";
 import { Card, Segmented } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { getAppIcon, setAppIcon } from "@/lib/bridge";
-import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type TapPoint, type ThemePickerRoute } from "@/lib/theme";
+import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type TapPoint } from "@/lib/theme";
 import { t } from "@/i18n";
 
 /** A theme's name in the app's language: brand names stay as they are, the app's own is translated. */
@@ -107,17 +107,17 @@ function Preview({ side, label }: { side: ThemeSide; label: string }) {
 
 /**
  * Every theme with a light and a dark preview of it; a tap applies it at once. The new colours grow
- * over the old screen from the tap, the app already re-mounted in them and back on `from`
+ * over the old screen from the tap, every screen's content already re-mounted in them where it was
  * (src/lib/theme.ts). The app icon is chosen separately (AppIconPicker).
  */
-export function ThemePicker({ from }: { from: ThemePickerRoute }) {
-  // Ticked at once, so the tap is answered before the tree re-mounts in the new colours.
+export function ThemePicker() {
+  // Ticked at once, so the tap is answered before the screens re-mount in the new colours.
   const [picked, setPicked] = useState(getTheme);
   const pick = (id: ThemeId, at: TapPoint) => {
     if (id === picked) return;
     setPicked(id);
     void Haptics.selectionAsync();
-    void switchTheme(id, from, at).catch(() => setPicked(getTheme()));
+    void switchTheme(id, at).catch(() => setPicked(getTheme()));
   };
   return (
     <>

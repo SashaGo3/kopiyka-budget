@@ -4,12 +4,13 @@ import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Te
 import "@/db"; // opens + migrates synchronously before first render
 import { C, R, S, themed } from "@/constants/theme";
 import { themeOf, type ThemeId } from "@kopiyka/core";
-import { registerThemeNavigation, takeThemeReturn, themeMounted, useTheme, type NavState, type ThemePickerRoute } from "@/lib/theme";
+import { useTheme } from "@/lib/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
 import { writeWidgetSnapshot } from "@/lib/widget";
 import { KPBridge } from "@/lib/bridge";
 import { BootSkeleton } from "@/components/BootSkeleton";
+import { ThemeKeyed, themeKeyedLayoutExcept } from "@/components/ThemeKeyed";
 import { notifyChange } from "@/store";
 import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
@@ -43,9 +44,9 @@ export const unstable_settings = { anchor: "(tabs)" };
  * content fits inside, and the content is pinned to its bottom edge so the room that is left over
  * appears above it, where the design already puts empty space.
  */
-// Both take the theme as an argument although they read it through `C`: this component is the one
-// that does not remount on a switch, and the React Compiler memoises a call on its arguments — a
-// call with none (or only `dark`) kept handing back the colours of an earlier theme.
+// Both take the theme as an argument although they read it through `C`: no layout remounts on a
+// theme switch (only each screen's content does, src/lib/theme.ts), and the React Compiler memoises a
+// call on its arguments — a call with none (or only `dark`) kept handing back an earlier theme's colours.
 function sheetOptions(_theme: ThemeId) {
   const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
   const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
@@ -65,10 +66,16 @@ function sheetOptions(_theme: ThemeId) {
  * `(tabs)` is left out too — the tab bar belongs to the window, not to the content.
  */
 const pushed = { contentStyle: screenContentStyle };
+/**
+ * A theme switch re-mounts each screen's content (`ThemeKeyed`) but never a navigator: `(tabs)` holds
+ * the selected tab and every tab's stack, `onboarding` the welcome flow's step — their own stacks
+ * re-key their screens instead.
+ */
+const rootScreenLayout = themeKeyedLayoutExcept(["(tabs)", "onboarding"]);
 
 /**
  * Navigation colours that match the theme's backgrounds, so native headers never differ from the
- * content. Built at render: the theme is whichever is current when the tree (re-)mounts.
+ * content. Built at render from the theme passed in, so a switch re-renders them in place.
  */
 function navigationTheme(dark: boolean, theme: ThemeId) {
   const s = themeOf(theme)[dark ? "dark" : "light"];
@@ -82,8 +89,6 @@ export default function RootLayout() {
   // `+native-intent` navigates warm deep links itself, and needs the navigation state to do it.
   const navRef = useNavigationContainerRef();
   registerNavigationRef(navRef);
-  // A theme switch captures where it was picked before the tree goes (src/lib/theme.ts).
-  registerThemeNavigation(() => (navRef.isReady() ? (navRef.getRootState() as NavState | undefined) : undefined));
   // A new language mounts the whole tree again (see src/i18n): every screen, every memoised label.
   // The navigator starts over with it, so go back to where languages are changed — Settings, or the
   // restore that brought a different one in, which also lives there — or, before the welcome flow is
@@ -91,45 +96,31 @@ export default function RootLayout() {
   // What this layout wrote outside the tree is in the old language too: the widget snapshot and the
   // watch state carry names, and JS-scheduled reminders carry their text.
   const lang = useLanguage();
-  // A new theme mounts the tree again the same way (src/lib/theme.ts). Picked on a picker, it comes
-  // back to exactly the navigation state it left, in one step and with nothing animating, because the
-  // whole switch happens under a snapshot of the old screen that fades once the new one has painted.
-  // Without a picker — a restore that carried a theme — it goes where a language goes.
+  // A new theme does not: the navigators stay, with every tab and stack where it was, and only each
+  // screen's content mounts again (`rootScreenLayout` here, `themeKeyedLayout` in the other layouts;
+  // src/lib/theme.ts). What this layout draws itself takes the theme and re-renders in place.
   const theme = useTheme();
-  // The language and theme the tree on screen was mounted in. When they differ the tree is "parked":
-  // one render with no navigator at all, so the old one's state is gone (it clears it on unmount)
-  // before the saved state is put back, and the new navigator mounts straight into it.
-  const [shown, setShown] = useState({ lang, theme });
-  const parked = shown.lang !== lang || shown.theme !== theme;
-  const afterMount = useRef<{ restored: boolean; back: ThemePickerRoute | null } | null>(null);
+  // The language the tree on screen was mounted in. When it differs the tree is "parked": one render
+  // with no navigator at all, so the old one's state is gone (it clears it on unmount) before the new
+  // navigator mounts.
+  const [shown, setShown] = useState(lang);
+  const parked = shown !== lang;
+  const remounted = useRef(false);
   useEffect(() => {
     if (!parked) return;
-    const back = shown.theme !== theme ? takeThemeReturn() : null;
-    let restored = false;
-    if (back?.state && shown.lang === lang && navRef.isReady()) {
-      try { navRef.resetRoot(back.state as Parameters<typeof navRef.resetRoot>[0]); restored = true; } catch { /* go by the route below */ }
-    }
-    afterMount.current = { restored, back: back?.route ?? null };
+    remounted.current = true;
     // Deliberately a second commit: the parked one had to land first (see `shown`).
-    setShown({ lang, theme }); // eslint-disable-line react-hooks/set-state-in-effect
-  }, [parked, shown, lang, theme, navRef]);
+    setShown(lang); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [parked, lang]);
   useEffect(() => {
-    const after = afterMount.current;
-    afterMount.current = null;
-    if (!after) return;
-    // The restored state put us back on the picker; if it did not take, navigate there the old way
-    // (animated, but still under the cover).
-    const back = after.back;
-    const there = after.restored && (navRef.getCurrentRoute() as { name?: string } | undefined)?.name === "theme";
-    const id = there ? undefined : setTimeout(() => {
-      if (needsOnboarding()) { router.navigate(back === "/onboarding/theme" ? back : "/onboarding"); return; }
+    if (!remounted.current) return;
+    remounted.current = false;
+    const id = setTimeout(() => {
+      if (needsOnboarding()) { router.navigate("/onboarding"); return; }
       router.navigate("/settings");
-      if (back === "/settings/theme") router.push(back);
     }, 0);
-    // Two frames: one for the new tree to be committed, one for it to be on the glass.
-    let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => themeMounted()); });
-    return () => { if (id !== undefined) clearTimeout(id); cancelAnimationFrame(frame); };
-  }, [shown, navRef]);
+    return () => clearTimeout(id);
+  }, [shown]);
   const firstLang = useRef(lang);
   useEffect(() => {
     if (lang === firstLang.current) return;
@@ -182,8 +173,8 @@ export default function RootLayout() {
   const { fit, medium, picker, modal } = sheetOptions(theme);
   return (
     <ThemeProvider value={navigationTheme(scheme === "dark", theme)}>
-      {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={`${shown.lang}:${shown.theme}`} style={{ flex: 1 }}>
-        <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
+      {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={shown} style={{ flex: 1 }}>
+        <Stack screenLayout={rootScreenLayout} screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
@@ -239,7 +230,7 @@ export default function RootLayout() {
           <Stack.Screen name="insight/reorder" options={{ ...modal, gestureEnabled: false }} />
           <Stack.Screen name="filter" options={modal} />
         </Stack>
-        <BootSkeleton />
+        <ThemeKeyed><BootSkeleton /></ThemeKeyed>
       </View>}
     </ThemeProvider>
   );

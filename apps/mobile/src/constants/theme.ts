@@ -8,10 +8,12 @@ import { t } from "@/i18n";
  * is still followed natively.
  *
  * The names (`C`, `Brand`, `ValueRamp`) are read through getters, so a call site reads the theme that
- * is current *when it reads*. Nothing tries to repaint in place: a change of theme re-keys the root
- * layout and the whole tree mounts again (src/lib/theme.ts), exactly like a change of language. What
+ * is current *when it reads*. Screens do not repaint in place: a change of theme re-mounts every
+ * screen's content (`ThemeKeyed`, src/lib/theme.ts) while the navigators around them stay. What
  * follows is the one rule: never capture a colour at module scope. Styles go through `themed`, which
- * rebuilds them for the theme that is current.
+ * rebuilds them for the theme that is current. The few things drawn outside a screen — by a
+ * `_layout` — are not re-mounted, so they compute their colours in a function that takes the theme
+ * id (the React Compiler memoises on arguments) and call `useTheme()`.
  */
 let current: Theme = THEMES[DEFAULT_THEME];
 

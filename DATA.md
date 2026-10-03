@@ -139,7 +139,7 @@ already past v18), and a backup's `language` is applied only when the file's `sc
 1.0.3 on) is 18 or later. `theme` joined on 2026-10-02 with the colour themes: an id from
 `THEME_IDS` (`packages/core/src/themes.ts`), absent or unknown meaning the default (`graphite`;
 pre-release 1.0.3 builds stored it as `kopiyka`, which `themeOf` still reads), and a restore
-that carries one re-mounts the app in it the way a language does. `appearance` joined on 2026-10-03:
+that carries one recolours the screens where they are (each screen's content re-mounts; the navigation stays). `appearance` joined on 2026-10-03:
 `light` or `dark` keeps the theme on one side whatever the phone says, `""` (or absent) follows the
 phone. `backup.test.ts` pins the list so the
 next drift shows up in a diff.

@@ -6,16 +6,18 @@
  * id from `THEME_IDS` (anything else, or nothing, is the default), and travels in a backup (DATA.md
  * rule 7).
  *
- * A switch is the same as a switch of language (src/i18n): nothing re-renders in place. The root
- * layout is keyed on the theme as well as the language, so the whole tree mounts again with every
- * style sheet rebuilt (`themed`) and every memoised colour read afresh, and then goes back to where
- * the theme was picked (`takeThemeReturn`).
+ * A switch re-mounts every screen's *content* and nothing else. Each navigator wraps its screens in
+ * `ThemeKeyed` (src/components/ThemeKeyed.tsx, passed as `screenLayout` in every `_layout`), which is
+ * keyed on the theme: the content mounts again with every style sheet rebuilt (`themed`) and every
+ * memoised colour read afresh, while the navigators stay mounted — the tab that is selected, every
+ * stack and every open sheet are untouched, and nothing navigates. What the layouts draw outside a
+ * screen (the navigation theme, sheet and tab bar colours) takes the theme as an argument and simply
+ * re-renders. A language change is different: it still re-mounts the whole tree (src/app/_layout.tsx).
  *
  * The colours are DynamicColorIOS values baked into those style sheets, so there is nothing to
- * animate in JS. A switch from the picker (`switchTheme`) is a cross-fade instead: native lays a
- * snapshot of the old screen over the window, the tree re-mounts underneath it and is put back on
- * the picker in one step (the navigation state captured here, restored by the root layout before the
- * navigator mounts — so no push animates), and once that has painted the snapshot fades away.
+ * animate in JS. A switch from the picker (`switchTheme`) is a reveal instead: native lays a
+ * snapshot of the old screen over the window, the screens re-mount underneath it, and once that has
+ * painted the new colours grow over the snapshot from the tap.
  */
 import { useSyncExternalStore } from "react";
 import { Appearance } from "react-native";
@@ -40,14 +42,6 @@ applyThemePalette(current);
 applyWindowBackground(current);
 let appearance: AppearanceChoice = resolveAppearance();
 Appearance.setColorScheme(appearance || "unspecified");
-/** The routes a theme is picked on, which the re-mounted app goes back to. */
-export type ThemePickerRoute = "/settings/theme" | "/onboarding/theme";
-/** A navigation state as the container reports it — only the shape `partialState` walks. */
-export type NavState = { index?: number; routes: { name: string; params?: object; state?: NavState }[] };
-/** Where to go back to after the re-mount: the picker, and the whole navigation state it was on. */
-export type ThemeReturn = { route: ThemePickerRoute; state: NavState | null };
-let returnTo: ThemeReturn | null = null;
-let readNavigation: (() => NavState | undefined) | null = null;
 const listeners = new Set<() => void>();
 
 function resolve(): ThemeId {
@@ -94,19 +88,10 @@ export async function switchAppearance(next: AppearanceChoice, at?: TapPoint): P
 
 export function getTheme(): ThemeId { return current; }
 
-/** The root layout hands over how to read the navigation state, so a switch can capture it first. */
-export function registerThemeNavigation(read: () => NavState | undefined): void { readNavigation = read; }
-
-/**
- * Switch theme. The tree re-mounts in it; `from` is the route to come back to afterwards (the picker
- * that was tapped), otherwise the root layout goes to Settings, as it does for a language.
- */
-export function setTheme(id: ThemeId, from?: ThemePickerRoute): void {
+/** Switch theme. Every screen's content re-mounts in it where it is; nothing navigates. */
+export function setTheme(id: ThemeId): void {
   if (themeOf(id).id === current) return;
   setMeta(db, THEME_META_KEY, id);
-  let state: NavState | null = null;
-  if (from) { try { state = partialState(readNavigation?.()) ?? null; } catch { /* go by the route */ } }
-  returnTo = from ? { route: from, state } : null;
   reloadTheme();
 }
 
@@ -114,18 +99,18 @@ export function setTheme(id: ThemeId, from?: ThemePickerRoute): void {
 const FADE_SECONDS = 0.5;
 /** A tap on the screen, in window points: where the new theme is revealed from. */
 export type TapPoint = { x: number; y: number };
-/** The longest the cover waits for the new tree before fading anyway (native has its own 2 s). */
+/** The longest the cover waits for the re-mounted screens before revealing anyway (native has its own 2 s). */
 const MOUNT_TIMEOUT_MS = 1500;
 let mounted: (() => void) | null = null;
 
 /**
  * Switch theme from a picker, animated: cover (with a loader at the tap if it is slow) → switch →
- * wait for the new tree to paint → reveal it in a circle growing from the tap. The app icon is
+ * wait for the re-mounted screens to paint → reveal them in a circle growing from the tap. The app icon is
  * not part of it: it is chosen on its own (AppIconPicker), because iOS answers every icon change
  * with an alert of its own. Safe to call where the cover is not available (off iOS, an older
  * build): the switch then happens without it.
  */
-export async function switchTheme(id: ThemeId, from: ThemePickerRoute, at?: TapPoint): Promise<void> {
+export async function switchTheme(id: ThemeId, at?: TapPoint): Promise<void> {
   if (themeOf(id).id === current) return;
   // A frame for the tick the picker just drew, so the snapshot already shows it.
   await nextFrame();
@@ -134,34 +119,27 @@ export async function switchTheme(id: ThemeId, from: ThemePickerRoute, at?: TapP
     const timer = setTimeout(resolve, MOUNT_TIMEOUT_MS);
     mounted = () => { clearTimeout(timer); resolve(); };
   });
-  try { setTheme(id, from); } finally {
+  try { setTheme(id); } finally {
     if (covered) { await painted; await endThemeTransition(FADE_SECONDS); }
     mounted = null;
   }
 }
 
-/** The root layout, once the re-mounted tree is back where it belongs and has painted. */
-export function themeMounted(): void { mounted?.(); }
+/**
+ * `ThemeKeyed`, once the screens it wraps have committed in the new theme. Two frames more — one for
+ * the commit to reach native, one for it to be on the glass — and the cover can reveal it. Called by
+ * every `ThemeKeyed` on the screen (and by any that merely mounts), so only the first call during a
+ * switch counts.
+ */
+export function themeMounted(): void {
+  const done = mounted;
+  if (!done) return;
+  mounted = null;
+  void nextFrame().then(nextFrame).then(done);
+}
 
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
-}
-
-/**
- * The navigation state with everything a navigator fills in for itself taken off — keys, `stale`,
- * route name lists, history — so a freshly mounted navigator rehydrates it as its initial state
- * rather than checking it against keys that died with the old tree.
- */
-function partialState(state: NavState | undefined): NavState | undefined {
-  if (!state?.routes?.length) return undefined;
-  return {
-    index: state.index,
-    routes: state.routes.map((r) => ({
-      name: r.name,
-      ...(r.params ? { params: r.params } : null),
-      ...(r.state ? { state: partialState(r.state) } : null),
-    })),
-  };
 }
 
 /** The window behind everything React draws takes the theme's background, light and dark. */
@@ -180,13 +158,6 @@ export function reloadTheme(): void {
   for (const l of listeners) l();
 }
 
-/** Where the root layout should go after a theme change, once: the picker that made it, if any. */
-export function takeThemeReturn(): ThemeReturn | null {
-  const r = returnTo;
-  returnTo = null;
-  return r;
-}
-
 function subscribe(cb: () => void) { listeners.add(cb); return () => { listeners.delete(cb); }; }
 
 /** The forced appearance ("" = the phone's), re-rendering when it changes. */
@@ -194,7 +165,10 @@ export function useAppearance(): AppearanceChoice {
   return useSyncExternalStore(subscribe, getAppearance, getAppearance);
 }
 
-/** The current theme, re-rendering when it changes. Only the root layout and the picker need this. */
+/**
+ * The current theme, re-rendering when it changes. `ThemeKeyed` and the layouts that draw colours
+ * outside a screen need this; a screen's content does not — it is re-mounted instead.
+ */
 export function useTheme(): ThemeId {
   return useSyncExternalStore(subscribe, getTheme, getTheme);
 }
