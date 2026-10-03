@@ -38,7 +38,7 @@ function build(theme: Theme): Palette {
   const { light: l, dark: d } = theme;
   const both = (f: (s: ThemeSide) => string) => dyn(f(l), f(d));
   // The default theme is the graphite the app shipped with, which leans on iOS's own semantic colours
-  // for text, fills and status; keeping them means "Kopiyka" stays exactly the app people already
+  // for text, fills and status; keeping them means Graphite stays exactly the app people already
   // know. Every other theme derives the same roles from its own palette, so its greys carry its hue.
   const native = theme.id === DEFAULT_THEME;
   const fill = native ? sys("tertiarySystemFill", "#eee") : dyn(alpha(l.text, 0.07), alpha(d.text, 0.13));
@@ -110,6 +110,65 @@ export const C = {
   get greenSoft(): ColorValue { return palette().C.greenSoft; },
   get orangeSoft(): ColorValue { return palette().C.orangeSoft; },
 };
+
+/**
+ * Icon colours for UI chrome — the filled squares on Settings, automation and data rows, insight
+ * kinds, the travel blue. Call sites name them in iOS's own system hexes ("#FF9F0A", "#5E5CE6",
+ * "#30D158", …), which is exactly right in the default Graphite theme, the iOS look the app shipped
+ * with, and clashes in every other one: an iOS indigo square on Gruvbox's warm cream is a stranger
+ * on the page. So the hex is read as a *role* rather than a colour — red/pink, orange/yellow/brown,
+ * green/mint, grey, or anything blue-to-purple (which becomes the theme's accent) — and drawn in the
+ * theme's own colour for that role. Default theme: the hex as given, untouched.
+ *
+ * Only for chrome. Category, tag and account colours are the user's data (DATA.md) and are drawn as
+ * chosen; never pass one through here.
+ */
+type HueRole = "red" | "orange" | "green" | "accent" | "muted";
+
+function hueRole(hex: string): HueRole {
+  const [r, g, b] = rgb(hex).map((v) => v / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  const l = (max + min) / 2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (s < 0.2) return "muted"; // #8E8E93 and other greys (#A2845E brown is ~0.27 and stays orange)
+  const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  if (h >= 330 || h < 15) return "red"; // red, pink (#FF375F, #FF2D55)
+  if (h < 70) return "orange"; // orange, yellow, brown
+  if (h < 180) return "green"; // green, mint
+  return "accent"; // teal, cyan, blue, indigo, purple
+}
+
+function luminance(hex: string): number {
+  const [r, g, b] = rgb(hex).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const contrast = (a: string, b: string) => { const [x, y] = [luminance(a), luminance(b)]; return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+/** White or the page background on `fill`, whichever reads better: dark themes' greens and oranges are pale. */
+const glyphOn = (fill: string, side: ThemeSide) => (contrast("#FFFFFF", fill) >= contrast(side.bg, fill) ? "#FFFFFF" : side.bg);
+
+interface Tone { fill: ColorValue; glyph: ColorValue }
+const tones = new Map<string, Tone>();
+
+/** `hex` as the current theme draws it: the fill of an icon square, and the glyph on top of it. */
+export function themeTone(hex: string): Tone {
+  if (current.id === DEFAULT_THEME || !/^#[0-9a-f]{6}/i.test(hex)) return { fill: hex, glyph: "#FFFFFF" };
+  const role = hueRole(hex);
+  const key = `${current.id}:${role}`;
+  let tone = tones.get(key);
+  if (!tone) {
+    const { light: l, dark: d } = current;
+    const pick = (s: ThemeSide) => (role === "muted" ? s.muted : s[role]);
+    tone = role === "accent"
+      ? { fill: dyn(l.accent, d.accent), glyph: dyn(l.onAccent, d.onAccent) }
+      : { fill: dyn(pick(l), pick(d)), glyph: dyn(glyphOn(pick(l), l), glyphOn(pick(d), d)) };
+    tones.set(key, tone);
+  }
+  return tone;
+}
+/** The fill alone, for a chrome colour drawn on the page rather than as a square (a bar, a lone glyph). */
+export const themeHue = (hex: string): ColorValue => themeTone(hex).fill;
 
 /**
  * Styles that follow the theme: `const styles = themed(() => StyleSheet.create({ ... }))`, then

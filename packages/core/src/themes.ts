@@ -5,7 +5,8 @@
  * appearance; a theme is a palette, not a mode.
  *
  * The id is what `meta.theme` stores (DATA.md rule 7) and what names an alternate app icon, so like a
- * preset key it is forever: add themes, never rename one. The palettes are the editor themes'
+ * preset key it is forever: add themes, never rename one. (The default was renamed once, "kopiyka" →
+ * "graphite", before any release carried it; `themeOf` still reads the old id.) The palettes are the editor themes'
  * published colours; where one of them reads poorly as text on its own background (Nord's green on
  * Snow Storm), the darker shade the theme itself uses for that role is taken instead, and an accent
  * or muted grey that missed WCAG AA (4.5:1 for button text on the accent and for muted text on both
@@ -38,13 +39,13 @@ export interface Theme {
   dark: ThemeSide;
 }
 
-export const THEME_IDS = ["kopiyka", "solarized", "catppuccin", "gruvbox", "nord", "tokyonight", "rosepine", "github"] as const;
+export const THEME_IDS = ["graphite", "solarized", "catppuccin", "gruvbox", "nord", "tokyonight", "rosepine", "github"] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
-export const DEFAULT_THEME: ThemeId = "kopiyka";
+export const DEFAULT_THEME: ThemeId = "graphite";
 
 export const THEMES: Record<ThemeId, Theme> = {
-  kopiyka: {
-    id: "kopiyka",
+  graphite: {
+    id: "graphite",
     light: { bg: "#F4F4F1", card: "#FFFFFF", text: "#141413", muted: "#6E6E73", accent: "#2B2B2E", onAccent: "#FFFFFF", border: "#D9D9D4", red: "#FF3B30", green: "#34C759", orange: "#FF9500" },
     dark: { bg: "#141413", card: "#1F1F1E", text: "#F4F4F1", muted: "#A0A09C", accent: "#F4F4F1", onAccent: "#141413", border: "#2E2E2C", red: "#FF453A", green: "#30D158", orange: "#FF9F0A" },
   },
@@ -85,7 +86,17 @@ export const THEMES: Record<ThemeId, Theme> = {
   },
 };
 
+/**
+ * Ids a theme was stored under before it got its current one, read as that theme. The default was
+ * "kopiyka" in pre-release 1.0.3 builds (dev and TestFlight installs may have it in `meta.theme`, and
+ * a backup from one carries it); it was renamed "graphite" before release, because that is what the
+ * palette is. Reading the old id falls to the default anyway, but saying so keeps it true if the
+ * default ever changes.
+ */
+const RENAMED: Record<string, ThemeId> = { kopiyka: "graphite" };
+
 /** A stored `meta.theme` as a theme: anything unknown (an older build, a typo in an edited export) is the default. */
 export function themeOf(id: string | null | undefined): Theme {
-  return THEMES[(THEME_IDS as readonly string[]).includes(id ?? "") ? (id as ThemeId) : DEFAULT_THEME];
+  const key = RENAMED[id ?? ""] ?? id ?? "";
+  return THEMES[(THEME_IDS as readonly string[]).includes(key) ? (key as ThemeId) : DEFAULT_THEME];
 }

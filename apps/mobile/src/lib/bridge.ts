@@ -27,6 +27,9 @@ type Bridge = {
   claimDatabase(): void;
   setLanguage(code: string): void;
   setAppIcon(id: string | null): Promise<void>;
+  beginThemeTransition(): Promise<boolean>;
+  endThemeTransition(duration: number): Promise<void>;
+  setWindowBackground(light: string, dark: string): void;
   finishNativeWrite(request: string, ok: boolean, error: string | null, reply: Record<string, unknown>): void;
   addListener(event: "externalChange", cb: () => void): { remove(): void };
   addListener(event: "nativeWrite", cb: (w: NativeWrite) => void): { remove(): void };
@@ -52,6 +55,33 @@ export function setNativeLanguage(code: string): void {
 export async function setAppIcon(themeId: string): Promise<void> {
   if (Platform.OS !== "ios" || typeof native?.setAppIcon !== "function") return;
   await native.setAppIcon(themeId === DEFAULT_THEME ? null : themeId);
+}
+
+/**
+ * Lay a snapshot of the screen over the app (native/KPBridgeModule.swift, `KPThemeTransition`), so a
+ * theme switch can re-mount the tree out of sight. Resolves true once the cover is up; false off iOS,
+ * on a build made before this existed, or with no window to cover — the switch then just happens.
+ * Native removes the cover by itself after two seconds if `endThemeTransition` never comes.
+ */
+export async function beginThemeTransition(): Promise<boolean> {
+  if (Platform.OS !== "ios" || typeof native?.beginThemeTransition !== "function") return false;
+  try { return await native.beginThemeTransition(); } catch { return false; }
+}
+
+/** Fade the cover out over `seconds`; resolves when it is gone. No-op where `begin` would be. */
+export async function endThemeTransition(seconds = 0.35): Promise<void> {
+  if (Platform.OS !== "ios" || typeof native?.endThemeTransition !== "function") return;
+  try { await native.endThemeTransition(seconds); } catch { /* the native safety timer removes it */ }
+}
+
+/**
+ * The theme's background (hex, light and dark side) on the window and root view, so nothing of
+ * another palette shows behind a sheet as it slides, or before React has drawn. Follows the phone's
+ * appearance natively. No-op off iOS and on older builds.
+ */
+export function setWindowBackground(light: string, dark: string): void {
+  if (Platform.OS !== "ios" || typeof native?.setWindowBackground !== "function") return;
+  try { native.setWindowBackground(light, dark); } catch { /* older build */ }
 }
 
 export const KPBridge = {

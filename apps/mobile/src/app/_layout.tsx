@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
 import { Brand, C, R, S, currentTheme, themed } from "@/constants/theme";
-import { takeThemeReturn, useTheme } from "@/lib/theme";
+import { registerThemeNavigation, takeThemeReturn, themeMounted, useTheme, type NavState, type ThemePickerRoute } from "@/lib/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
 import { writeWidgetSnapshot } from "@/lib/widget";
@@ -76,7 +76,10 @@ export default function RootLayout() {
   markRootLayoutRender(); // boot trace: first render, not first effect — closer to when the tree starts committing
   const scheme = useColorScheme();
   // `+native-intent` navigates warm deep links itself, and needs the navigation state to do it.
-  registerNavigationRef(useNavigationContainerRef());
+  const navRef = useNavigationContainerRef();
+  registerNavigationRef(navRef);
+  // A theme switch captures where it was picked before the tree goes (src/lib/theme.ts).
+  registerThemeNavigation(() => (navRef.isReady() ? (navRef.getRootState() as NavState | undefined) : undefined));
   // A new language mounts the whole tree again (see src/i18n): every screen, every memoised label.
   // The navigator starts over with it, so go back to where languages are changed — Settings, or the
   // restore that brought a different one in, which also lives there — or, before the welcome flow is
@@ -84,29 +87,51 @@ export default function RootLayout() {
   // What this layout wrote outside the tree is in the old language too: the widget snapshot and the
   // watch state carry names, and JS-scheduled reminders carry their text.
   const lang = useLanguage();
-  const firstLang = useRef(lang);
-  // A new theme mounts the tree again the same way (src/lib/theme.ts), and comes back to the picker
-  // that chose it. Without one — a restore that carried a theme — it goes where a language goes.
+  // A new theme mounts the tree again the same way (src/lib/theme.ts). Picked on a picker, it comes
+  // back to exactly the navigation state it left, in one step and with nothing animating, because the
+  // whole switch happens under a snapshot of the old screen that fades once the new one has painted.
+  // Without a picker — a restore that carried a theme — it goes where a language goes.
   const theme = useTheme();
-  const firstTheme = useRef(theme);
+  // The language and theme the tree on screen was mounted in. When they differ the tree is "parked":
+  // one render with no navigator at all, so the old one's state is gone (it clears it on unmount)
+  // before the saved state is put back, and the new navigator mounts straight into it.
+  const [shown, setShown] = useState({ lang, theme });
+  const parked = shown.lang !== lang || shown.theme !== theme;
+  const afterMount = useRef<{ restored: boolean; back: ThemePickerRoute | null } | null>(null);
   useEffect(() => {
-    if (theme === firstTheme.current) return;
-    firstTheme.current = theme;
-    const back = takeThemeReturn();
-    const id = setTimeout(() => {
+    if (!parked) return;
+    const back = shown.theme !== theme ? takeThemeReturn() : null;
+    let restored = false;
+    if (back?.state && shown.lang === lang && navRef.isReady()) {
+      try { navRef.resetRoot(back.state as Parameters<typeof navRef.resetRoot>[0]); restored = true; } catch { /* go by the route below */ }
+    }
+    afterMount.current = { restored, back: back?.route ?? null };
+    // Deliberately a second commit: the parked one had to land first (see `shown`).
+    setShown({ lang, theme }); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [parked, shown, lang, theme, navRef]);
+  useEffect(() => {
+    const after = afterMount.current;
+    afterMount.current = null;
+    if (!after) return;
+    // The restored state put us back on the picker; if it did not take, navigate there the old way
+    // (animated, but still under the cover).
+    const back = after.back;
+    const there = after.restored && (navRef.getCurrentRoute() as { name?: string } | undefined)?.name === "theme";
+    const id = there ? undefined : setTimeout(() => {
       if (needsOnboarding()) { router.navigate(back === "/onboarding/theme" ? back : "/onboarding"); return; }
       router.navigate("/settings");
       if (back === "/settings/theme") router.push(back);
     }, 0);
-    return () => clearTimeout(id);
-  }, [theme]);
+    // Two frames: one for the new tree to be committed, one for it to be on the glass.
+    let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => themeMounted()); });
+    return () => { if (id !== undefined) clearTimeout(id); cancelAnimationFrame(frame); };
+  }, [shown, navRef]);
+  const firstLang = useRef(lang);
   useEffect(() => {
     if (lang === firstLang.current) return;
     firstLang.current = lang;
-    const id = setTimeout(() => router.navigate(needsOnboarding() ? "/onboarding" : "/settings"), 0);
     writeWidgetSnapshot();
     void (require("@/lib/notifications") as typeof import("@/lib/notifications")).rescheduleRecurringNotifications(); // eslint-disable-line @typescript-eslint/no-require-imports
-    return () => clearTimeout(id);
   }, [lang]);
   useEffect(() => {
     // Startup-only work waits for the first frame (and any deep-linked sheet on top of it) to paint,
@@ -153,7 +178,7 @@ export default function RootLayout() {
   const { fit, medium, picker, modal } = sheetOptions();
   return (
     <ThemeProvider value={navigationTheme(scheme === "dark")}>
-      <View key={`${lang}:${theme}`} style={{ flex: 1 }}>
+      {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={`${shown.lang}:${shown.theme}`} style={{ flex: 1 }}>
         <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
@@ -211,7 +236,7 @@ export default function RootLayout() {
           <Stack.Screen name="filter" options={modal} />
         </Stack>
         <BootSkeleton />
-      </View>
+      </View>}
     </ThemeProvider>
   );
 }

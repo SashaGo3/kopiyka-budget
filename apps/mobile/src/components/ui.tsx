@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, R, S, themed } from "@/constants/theme";
+import { C, R, S, themeTone, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
 import { t } from "@/i18n";
 
@@ -79,13 +79,20 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   );
 }
 
-/** `titleNode` draws something else where the title text goes (a tag's pill); `title` is still what VoiceOver reads. */
-export function Row({ title, titleNode, subtitle, subtitleColor, left, right, onPress, icon, iconColor, destructive, style }: {
-  title: string; titleNode?: ReactNode; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; destructive?: boolean; style?: StyleProp<ViewStyle>;
+/**
+ * `titleNode` draws something else where the title text goes (a tag's pill); `title` is still what VoiceOver reads.
+ *
+ * The icon square: `iconColor` is a chrome colour named as an iOS system hex, redrawn in the current
+ * theme's colour for that role (`themeTone` — an iOS indigo square clashes on Gruvbox); `iconFill` is
+ * the user's own colour (an account's, a category's) and is drawn exactly as chosen. Neither: the accent.
+ */
+export function Row({ title, titleNode, subtitle, subtitleColor, left, right, onPress, icon, iconColor, iconFill, destructive, style }: {
+  title: string; titleNode?: ReactNode; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; iconFill?: string | null; destructive?: boolean; style?: StyleProp<ViewStyle>;
 }) {
+  const tone = iconFill ? { fill: iconFill, glyph: "white" } : iconColor ? themeTone(iconColor) : { fill: C.tint, glyph: C.onTint };
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title} style={({ pressed }) => [styles.row, pressed && { backgroundColor: C.fill }, style]}>
-      {left ?? (icon ? <View style={[styles.iconBox, { backgroundColor: iconColor ?? C.tint }]}><SymbolView name={icon} size={16} tintColor={iconColor ? "white" : C.onTint} /></View> : null)}
+      {left ?? (icon ? <View style={[styles.iconBox, { backgroundColor: tone.fill }]}><SymbolView name={icon} size={16} tintColor={tone.glyph} /></View> : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
         {titleNode ? <View style={{ flexDirection: "row" }}>{titleNode}</View> : <Text numberOfLines={2} style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
         {subtitle ? <Text numberOfLines={3} style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}

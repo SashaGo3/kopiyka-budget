@@ -46,7 +46,7 @@ export default function PickAccounts() {
         );
       }}
       renderItem={({ item: a }) => (
-        <Row title={acctName(a)} subtitle={[a.currency, a.archived ? t("pick.accounts.archived") : null].filter(Boolean).join(" · ")} icon={accountIcon(a.type)} iconColor={a.color ?? undefined} style={styles.account}
+        <Row title={acctName(a)} subtitle={[a.currency, a.archived ? t("pick.accounts.archived") : null].filter(Boolean).join(" · ")} icon={accountIcon(a.type)} iconFill={a.color} style={styles.account}
           onPress={() => toggle(a.id)} right={<SymbolView name={chosen.includes(a.id) ? "checkmark.circle.fill" : "circle"} size={22} tintColor={chosen.includes(a.id) ? C.tint : C.tertiary} />} />
       )} />
   );

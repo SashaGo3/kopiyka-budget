@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { accountLeftover, categoryChecklist, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, recurringSpendInsight, regularSpending, safeToSpend, safetyBuffer, savingsGoal, subscriptionsPerYear, upcomingPayments, valueSplit, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { CategoryIcon, Empty, FadeIn, Money, ProgressBar, TagPill } from "@/components/ui";
-import { C, S, ValueRamp, themed } from "@/constants/theme";
+import { C, S, ValueRamp, themed, themeHue } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { currentPeriod, getPeriodStartDay } from "@/lib/period";
 import { getBudgetScope } from "@/lib/settings";
@@ -50,7 +50,7 @@ function InsightCard({ insight, reorder }: { insight: Insight; reorder?: () => v
     <View style={styles.card}>
       <Pressable onPress={() => router.push({ pathname: "/insight/edit", params: { id: insight.id } })} onLongPress={reorder} style={styles.head}
         accessibilityRole="button" accessibilityLabel={t("insights.editLabel", { title })} accessibilityHint={reorder ? t("insights.reorderHint") : undefined}>
-        {look ? <SymbolView name={look.icon} size={15} tintColor={look.color} weight="semibold" /> : null}
+        {look ? <SymbolView name={look.icon} size={15} tintColor={themeHue(look.color)} weight="semibold" /> : null}
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
         <SymbolView name="ellipsis.circle" size={18} tintColor={C.tertiary} />
       </Pressable>

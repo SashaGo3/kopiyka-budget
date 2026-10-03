@@ -2,9 +2,9 @@
    there and rerun `bun run site`. Every colour on the site is one of these custom properties. */
 
 :root,
-:root[data-theme="kopiyka"],
-[data-palette="kopiyka"],
-[data-palette="kopiyka-light"] {
+:root[data-theme="graphite"],
+[data-palette="graphite"],
+[data-palette="graphite-light"] {
   --bg: #F4F4F1;
   --card: #FFFFFF;
   --text: #141413;
@@ -122,7 +122,7 @@
   --orange: #BC4C00;
 }
 
-[data-palette="kopiyka-dark"] {
+[data-palette="graphite-dark"] {
   --bg: #141413;
   --card: #1F1F1E;
   --text: #F4F4F1;
@@ -228,8 +228,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root,
-  :root[data-theme="kopiyka"],
-  [data-palette="kopiyka"] {
+  :root[data-theme="graphite"],
+  [data-palette="graphite"] {
     --bg: #141413;
     --card: #1F1F1E;
     --text: #F4F4F1;

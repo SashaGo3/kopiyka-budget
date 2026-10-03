@@ -1730,9 +1730,9 @@ export interface Messages {
   "theme.light": undefined;
   "theme.name.catppuccin": undefined;
   "theme.name.github": undefined;
+  /** The default theme: graphite grey on off-white (and the reverse in dark mode). Translate the colour name. */
+  "theme.name.graphite": undefined;
   "theme.name.gruvbox": undefined;
-  /** The default theme, named after the app. */
-  "theme.name.kopiyka": undefined;
   "theme.name.nord": undefined;
   "theme.name.rosepine": undefined;
   "theme.name.solarized": undefined;

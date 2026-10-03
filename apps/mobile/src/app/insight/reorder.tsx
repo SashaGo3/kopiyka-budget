@@ -5,6 +5,7 @@ import { getRow, listRows, parseInsightParams, save, type Insight } from "@kopiy
 import { mutate, useQuery } from "@/store";
 import { ReorderList } from "@/components/ReorderList";
 import { INSIGHT_LOOK, kindHint, kindTitle } from "@/lib/insights";
+import { themeTone } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /** Drag the insight cards into the order you want them on the Insights tab. */
@@ -17,7 +18,7 @@ export default function InsightReorder() {
     return {
       id: i.id, title,
       subtitle: title !== kind ? kind : kindHint(i.kind),
-      icon: look ? <View style={[styles.icon, { backgroundColor: look.color }]}><SymbolView name={look.icon} size={16} tintColor="white" /></View> : undefined,
+      icon: look ? <View style={[styles.icon, { backgroundColor: themeTone(look.color).fill }]}><SymbolView name={look.icon} size={16} tintColor={themeTone(look.color).glyph} /></View> : undefined,
     };
   }), [insights]);
   const commit = (ids: string[]) => mutate((d) => ids.forEach((id, n) => { const i = getRow(d, "insights", id); if (i && i.sort !== n) save(d, "insights", { ...i, sort: n } as Insight); }));

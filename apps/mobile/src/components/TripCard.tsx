@@ -6,7 +6,7 @@ import { formatMinor, getRow, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { useQuery } from "@/store";
 import { AmountPill, CategoryIcon, Money, ProgressBar } from "@/components/ui";
-import { C, R, S, themed } from "@/constants/theme";
+import { C, R, S, themed, themeHue, themeTone } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useRates } from "@/lib/rates";
 import { catName } from "@/lib/names";
@@ -51,7 +51,7 @@ export function TripCard({ budget, compact, onPress }: { budget: Budget; compact
   return (
     <View style={[styles.card, compact && styles.compact]}>
       <Pressable onPress={onPress ?? (() => show())} style={styles.head} accessibilityRole="button" accessibilityLabel={t("travel.card.label", { name: tripTitle, amount: `${fmt(s.remaining_minor)} ${s.currency}` })}>
-        <View style={styles.icon}><SymbolView name="airplane" size={18} tintColor="#fff" /></View>
+        <View style={styles.icon}><SymbolView name="airplane" size={18} tintColor={themeTone(TRAVEL).glyph} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{tripTitle}</Text>
           <Text style={styles.sub}>{when}</Text>
@@ -64,7 +64,7 @@ export function TripCard({ budget, compact, onPress }: { budget: Budget; compact
           <Text style={styles.heroLabel}>{hero.label}</Text>
         </View>
       ) : null}
-      <ProgressBar ratio={ratio} color={over || ratio > 0.85 ? C.orange : "#0A84FF"} />
+      <ProgressBar ratio={ratio} color={over || ratio > 0.85 ? C.orange : themeHue(TRAVEL)} />
       <Text style={styles.sub}>{line}</Text>
       {!compact && !s.active ? (
         <View style={styles.verdict}>
@@ -102,11 +102,14 @@ export function TripCard({ budget, compact, onPress }: { budget: Budget; compact
   );
 }
 
+/** Travel mode's colour wherever it is chrome: iOS blue in the default theme, the accent in the others (`themeTone`). */
+const TRAVEL = "#0A84FF";
+
 const styles = themed(() => StyleSheet.create({
   card: { marginHorizontal: S.lg, marginBottom: S.sm, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: 6 },
   compact: { marginBottom: S.xs },
   head: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  icon: { width: 34, height: 34, borderRadius: 10, backgroundColor: "#0A84FF", alignItems: "center", justifyContent: "center" },
+  icon: { width: 34, height: 34, borderRadius: 10, backgroundColor: themeHue(TRAVEL), alignItems: "center", justifyContent: "center" },
   name: { fontSize: 17, fontWeight: "600", color: C.label },
   sub: { fontSize: 13, color: C.secondary },
   warn: { fontSize: 12, color: C.orange },

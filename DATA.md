@@ -137,7 +137,8 @@ launch, stored whether anyone chose it or not — so a stale copy is not allowed
 migration deletes `meta.language` (nothing in 1.0.2 wrote it, and a 1.0.3 choice lives in a database
 already past v18), and a backup's `language` is applied only when the file's `schema` (written from
 1.0.3 on) is 18 or later. `theme` joined on 2026-10-02 with the colour themes: an id from
-`THEME_IDS` (`packages/core/src/themes.ts`), absent or unknown meaning the default, and a restore
+`THEME_IDS` (`packages/core/src/themes.ts`), absent or unknown meaning the default (`graphite`;
+pre-release 1.0.3 builds stored it as `kopiyka`, which `themeOf` still reads), and a restore
 that carries one re-mounts the app in it the way a language does. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 

@@ -31,6 +31,8 @@ private enum KPLaunch {
 ///  - launchTimestamps(): boot-trace marks for Settings → Diagnostics (src/lib/boot.ts)
 ///  - setLanguage(code): the app's language, for every Swift surface (native/KPLocale.swift)
 ///  - setAppIcon(id): the home-screen icon for a colour theme (plugins/withAppIcons.js)
+///  - beginThemeTransition() / endThemeTransition(s): the cross-fade over a theme switch (KPThemeTransition)
+///  - setWindowBackground(light, dark): the theme's background behind everything React draws
 final class KPBridgeModule: Module {
   private var observer: NSObjectProtocol?
   /// The moment this module instance was created — Expo builds it while setting up the bridge,
@@ -107,6 +109,23 @@ final class KPBridgeModule: Module {
       }
     }
 
+    /// Freeze the screen as it is: a snapshot of the key window laid over it, which the theme switch
+    /// happens underneath (src/lib/theme.ts). Resolves once the snapshot is up; false when there is
+    /// no window to cover, and the switch then simply happens in plain sight.
+    AsyncFunction("beginThemeTransition") { (promise: Promise) in
+      DispatchQueue.main.async { promise.resolve(KPThemeTransition.begin()) }
+    }
+    /// Fade the snapshot out over `duration` seconds, uncovering the app in its new colours. Resolves
+    /// when the fade is over (or at once, with nothing to fade).
+    AsyncFunction("endThemeTransition") { (duration: Double, promise: Promise) in
+      DispatchQueue.main.async { KPThemeTransition.end(duration: duration) { promise.resolve() } }
+    }
+    /// The theme's background on the window and the root view, as a colour that follows light/dark:
+    /// what shows behind a sheet as it slides, and wherever React has not drawn yet.
+    Function("setWindowBackground") { (light: String, dark: String) in
+      DispatchQueue.main.async { KPThemeTransition.setBackground(light: light, dark: dark) }
+    }
+
     // Device odds and ends (native/KPDevice.swift; JS side: src/lib/device.ts).
     Function("copyToClipboard") { (text: String) in KPDevice.copy(text) }
     Function("readClipboard") { () -> String in KPDevice.paste() }
@@ -116,5 +135,82 @@ final class KPBridgeModule: Module {
     AsyncFunction("searchPlaces") { (query: String, lat: Double?, lon: Double?, limit: Int) async throws -> [[String: Any]] in
       try await KPDevice.searchPlaces(query: query, lat: lat, lon: lon, limit: limit)
     }
+  }
+}
+
+/// The theme switch's cover and the window's background (JS side: src/lib/theme.ts). Everything here
+/// runs on the main thread; the module hops there before calling in.
+///
+/// The app's colours are DynamicColorIOS values baked into style sheets, so a switch is a re-mount of
+/// the whole tree rather than colours animating in place. What makes it look animated is this: a
+/// snapshot of the old screen goes over the window first, the tree re-mounts and finds its way back
+/// underneath it, and then the snapshot fades away.
+enum KPThemeTransition {
+  nonisolated(unsafe) private static var cover: UIView?
+  /// Bumped by every `begin`, so a safety timer only ever removes the snapshot it was set for.
+  nonisolated(unsafe) private static var generation = 0
+  /// If JS never says the new tree is up (an exception mid-switch), the cover still goes.
+  private static let safety: TimeInterval = 2
+  private static let safetyFade: TimeInterval = 0.35
+
+  static func keyWindow() -> UIWindow? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+    return scene?.windows.first { $0.isKeyWindow } ?? scene?.windows.first
+  }
+
+  /// Lay a snapshot of the key window over it. A second call replaces the first snapshot.
+  static func begin() -> Bool {
+    guard let window = keyWindow(), let snapshot = window.snapshotView(afterScreenUpdates: false) else { return false }
+    cover?.removeFromSuperview()
+    snapshot.frame = window.bounds
+    snapshot.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    // Taps land on the picture, not on the tree being rebuilt underneath it.
+    snapshot.isUserInteractionEnabled = true
+    snapshot.accessibilityElementsHidden = true
+    window.addSubview(snapshot)
+    cover = snapshot
+    generation += 1
+    let mine = generation
+    DispatchQueue.main.asyncAfter(deadline: .now() + safety) {
+      if mine == generation { end(duration: safetyFade) {} }
+    }
+    return true
+  }
+
+  /// Fade the snapshot out and remove it; `done` runs when it is gone (at once if there is none).
+  static func end(duration: Double, done: @escaping () -> Void) {
+    guard let snapshot = cover else { done(); return }
+    cover = nil
+    generation += 1
+    UIView.animate(withDuration: max(0, duration), delay: 0, options: [.curveEaseInOut, .beginFromCurrentState], animations: {
+      snapshot.alpha = 0
+    }, completion: { _ in
+      snapshot.removeFromSuperview()
+      done()
+    })
+  }
+
+  /// The theme's background, light and dark, on every window of the app's scenes and their root views.
+  static func setBackground(light: String, dark: String) {
+    guard let l = color(hex: light), let d = color(hex: dark) else { return }
+    let dynamic = UIColor { $0.userInterfaceStyle == .dark ? d : l }
+    for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+      for window in scene.windows {
+        window.backgroundColor = dynamic
+        window.rootViewController?.view.backgroundColor = dynamic
+      }
+    }
+  }
+
+  /// "#RGB", "#RRGGBB" or "#RRGGBBAA".
+  static func color(hex: String) -> UIColor? {
+    var s = hex.trimmingCharacters(in: .whitespaces)
+    if s.hasPrefix("#") { s.removeFirst() }
+    if s.count == 3 { s = s.map { "\($0)\($0)" }.joined() }
+    guard s.count == 6 || s.count == 8, let v = UInt64(s, radix: 16) else { return nil }
+    let rgba = s.count == 6 ? (v << 8) | 0xFF : v
+    return UIColor(red: CGFloat((rgba >> 24) & 0xFF) / 255, green: CGFloat((rgba >> 16) & 0xFF) / 255,
+                   blue: CGFloat((rgba >> 8) & 0xFF) / 255, alpha: CGFloat(rgba & 0xFF) / 255)
   }
 }

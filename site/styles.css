@@ -5,7 +5,7 @@
   /* The colours (--bg, --card, --text, --muted, --accent, --on-accent, --border, --red, --green,
      --orange) come from themes.css, which build.mjs generates from packages/core/src/themes.ts —
      never write a hex value here. --rule is the thin decorative line above each heading: the
-     theme's accent, except in Kopiyka's own theme, which keeps the site's warm gold. */
+     theme's accent, except in the default Graphite theme, which keeps the site's warm gold. */
   --rule: var(--accent);
   --radius: 14px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
@@ -14,7 +14,7 @@
 }
 
 :root:not([data-theme]),
-:root[data-theme="kopiyka"] {
+:root[data-theme="graphite"] {
   --rule: #c8a96a;
 }
 
@@ -58,7 +58,7 @@ a:hover {
 }
 
 /* The text colour, not the accent: the focus ring has to clear 3:1 against the
-   page, and several themes' accents (and Kopiyka's gold rule) do not. */
+   page, and several themes' accents (and Graphite's gold rule) do not. */
 :focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 3px;

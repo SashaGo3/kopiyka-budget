@@ -5,8 +5,7 @@ import * as Haptics from "expo-haptics";
 import { THEMES, THEME_IDS, type ThemeId, type ThemeSide } from "@kopiyka/core";
 import { Card } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
-import { setAppIcon } from "@/lib/bridge";
-import { getTheme, setTheme, type ThemePickerRoute } from "@/lib/theme";
+import { getTheme, switchTheme, type ThemePickerRoute } from "@/lib/theme";
 import { t } from "@/i18n";
 
 /** A theme's name in the app's language: brand names stay as they are, the app's own is translated. */
@@ -38,9 +37,9 @@ function Preview({ side, label }: { side: ThemeSide; label: string }) {
 }
 
 /**
- * Every theme with a light and a dark preview of it; a tap applies it at once. The app mounts again
- * in the new colours and comes back to `from` (src/lib/theme.ts), and the app icon follows — iOS says
- * so itself, with an alert of its own.
+ * Every theme with a light and a dark preview of it; a tap applies it at once. The old screen fades
+ * off the app re-mounted in the new colours and already back on `from` (src/lib/theme.ts), and then
+ * the app icon follows — iOS says so itself, with an alert of its own.
  */
 export function ThemePicker({ from }: { from: ThemePickerRoute }) {
   // Ticked at once, so the tap is answered before the tree re-mounts in the new colours.
@@ -49,8 +48,7 @@ export function ThemePicker({ from }: { from: ThemePickerRoute }) {
     if (id === picked) return;
     setPicked(id);
     void Haptics.selectionAsync();
-    setAppIcon(id).catch(() => { /* an older build, or iOS refused: the colours still change */ });
-    setTimeout(() => setTheme(id, from), 120);
+    void switchTheme(id, from).catch(() => setPicked(getTheme()));
   };
   return (
     <Card>

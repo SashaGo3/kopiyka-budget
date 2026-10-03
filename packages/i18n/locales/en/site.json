@@ -96,11 +96,11 @@
   },
   "themes": {
     "title": "Eight themes, light and dark",
-    "intro": "Kopiyka’s own graphite, and seven from code editors you know — Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub. Each comes in light and dark, follows your phone’s appearance, and the app icon follows the theme.",
+    "intro": "Graphite, the app’s own, and seven from code editors you know — Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub. Each comes in light and dark, follows your phone’s appearance, and the app icon follows the theme.",
     "hint": "Tap one to try it on this page.",
     "switcher": { "message": "Colour theme", "note": "aria-label of the row of theme swatches in the footer" },
     "name": {
-      "kopiyka": { "message": "Kopiyka", "note": "The app's own theme. The other seven are the names of code-editor themes and stay as they are in every language" },
+      "graphite": { "message": "Graphite", "note": "The app's own default theme, graphite grey on off-white: translate the colour name. The other seven are the names of code-editor themes and stay as they are in every language" },
       "solarized": "Solarized",
       "catppuccin": "Catppuccin",
       "gruvbox": "Gruvbox",

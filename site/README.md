@@ -138,9 +138,9 @@ or the next deployment drops it.
 
 ## House rules for the page
 
-- Colours: whatever the theme says (above) — the default is Kopiyka's own off-white and graphite.
+- Colours: whatever the theme says (above) — the default is Graphite, the app's own off-white and graphite.
   The one colour of the site's own is the warm gold `#C8A96A` (`--rule`), the thin line above each
-  heading, in the Kopiyka theme only; other themes draw it in their accent. **No system blue** in
+  heading, in the Graphite theme only; other themes draw it in their accent. **No system blue** in
   the default theme — the same rule as the app.
 - The system font stack only. Nothing is fetched from a CDN.
 - Every image needs alt text, in every language: alt texts and captions are `site.shots.*`,

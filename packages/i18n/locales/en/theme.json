@@ -15,9 +15,9 @@
   },
   "name": {
     "$comment": "Theme names. Brand names of the editor themes they come from: keep them as they are, except the app's own.",
-    "kopiyka": {
-      "message": "Kopiyka",
-      "note": "The default theme, named after the app."
+    "graphite": {
+      "message": "Graphite",
+      "note": "The default theme: graphite grey on off-white (and the reverse in dark mode). Translate the colour name."
     },
     "solarized": "Solarized",
     "catppuccin": "Catppuccin",

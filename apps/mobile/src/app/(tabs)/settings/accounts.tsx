@@ -46,7 +46,7 @@ function SectionGroup({ title, accounts, disabled }: { title: string; accounts: 
       <SectionHeader right={accounts.length > 1 ? <GroupTotal accounts={accounts} /> : undefined}>{title}</SectionHeader>
       <Card>
         {accounts.map((a, i) => (
-          <Row key={a.id} title={acctName(a)} subtitle={disabled ? t("settingsLists.accounts.archivedType", { type: typeLabel(a.type) }) : a.label} icon={accountIcon(a.type)} iconColor={a.color ?? undefined}
+          <Row key={a.id} title={acctName(a)} subtitle={disabled ? t("settingsLists.accounts.archivedType", { type: typeLabel(a.type) }) : a.label} icon={accountIcon(a.type)} iconFill={a.color}
             right={<Money minor={a.balance} currency={a.currency} />} onPress={() => router.push({ pathname: "/accounts/[id]", params: { id: a.id } })}
             style={[i > 0 ? styles.divider : undefined, disabled && styles.disabled]} />
         ))}
