@@ -5,7 +5,7 @@ import { Host, DatePicker } from "@expo/ui/swift-ui";
 import { datePickerStyle, environment } from "@expo/ui/swift-ui/modifiers";
 import { resolvePick } from "@/store/pick";
 import { BigButton, Chip } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getLocale, t } from "@/i18n";
@@ -32,7 +32,7 @@ export default function PickDate() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   host: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.sm },
   chips: { flexDirection: "row", gap: S.sm, paddingHorizontal: S.md },
-});
+}));

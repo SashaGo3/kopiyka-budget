@@ -1,14 +1,14 @@
-import { useCallback, useMemo, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { WAIT_DAYS_OPTIONS, reminderLabel, reminderOptions, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
-import { Stack, router } from "expo-router";
+import { Stack, router, useFocusEffect } from "expo-router";
 import { listRows, dueOccurrences, detectRecurring, adoptCandidate, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
-import { ensureNotificationPermission } from "@/lib/notifications";
-import { AmountPill, Card, Chip, Empty, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
+import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
+import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { catName, catNameById, acctName } from "@/lib/names";
@@ -97,6 +97,18 @@ export default function RecurringList() {
   }, []));
   const addRule = () => router.push({ pathname: "/pick/option", params: { key: w.post, title: t("settingsLists.recurring.posting.title"), options: JSON.stringify(postingChoice()) } });
 
+  // Notifications are for these reminders, so they are switched on here. iOS state is read on every
+  // focus (the user may come back from the Settings app), and only the Settings app can revoke it.
+  const [notif, setNotif] = useState<"granted" | "denied" | "undetermined">("undetermined");
+  const refreshNotif = useCallback(() => { void notificationStatus().then(setNotif); }, []);
+  useEffect(refreshNotif, [refreshNotif]);
+  useFocusEffect(refreshNotif);
+  const toggleNotifications = async (on: boolean) => {
+    if (!on || notif === "denied") { void Linking.openSettings(); return; }
+    await ensureNotificationPermission();
+    refreshNotif();
+  };
+
   const adopt = async (cs: RecurringCandidate[]) => {
     await ensureNotificationPermission();
     mutate((db) => { for (const c of cs) adoptCandidate(db, c); });
@@ -114,13 +126,14 @@ export default function RecurringList() {
         ) : null}
         {yearly.missing.length ? <Text style={styles.warn}>{t("settingsLists.recurring.noRate", { currencies: yearly.missing.join(", ") })}</Text> : null}
         <Card style={{ marginTop: S.sm }}>
-          <Row icon="bell" iconColor="#FF375F" title={t("settingsLists.recurring.defaultReminder")} subtitle={reminderLabel(remind)} onPress={pickRemind} />
+          <ToggleRow icon="bell.badge" iconColor="#FF3B30" title={t("settings.notifications.title")} subtitle={notif === "granted" ? t("settings.notifications.granted") : notif === "denied" ? t("settings.notifications.denied") : t("settings.notifications.ask")} value={notif === "granted"} onChange={(v) => void toggleNotifications(v)} />
+          <Row icon="bell" iconColor="#FF375F" title={t("settingsLists.recurring.defaultReminder")} subtitle={reminderLabel(remind)} onPress={pickRemind} style={styles.divider} />
           <ToggleRow icon="hourglass" iconColor="#64D2FF" title={t("settingsLists.recurring.wait")} style={styles.divider}
             subtitle={t("settingsLists.recurring.waitSubtitle")}
             value={wait} onChange={setRecurringWait} />
           {wait ? <Row icon="clock.badge.exclamationmark" iconColor="#FF9F0A" title={t("settingsLists.recurring.waitUpTo")} subtitle={dayCount(waitDays)} onPress={pickWait} style={styles.divider} /> : null}
         </Card>
-        <ScreenNote>{wait ? t("settingsLists.recurring.noteWait") : t("settingsLists.recurring.noteNoWait")}</ScreenNote>
+        <ScreenNote more={wait ? t("settingsLists.recurring.noteMoreWait") : t("settingsLists.recurring.noteMoreNoWait")}>{t("settingsLists.recurring.noteShort")}</ScreenNote>
         {rules.length === 0 && suggestions.length === 0 ? <Empty title={t("settingsLists.recurring.emptyTitle")} hint={t("settingsLists.recurring.emptyHint")} /> : null}
         {expecting.length ? <SectionHeader>{t("settingsLists.recurring.expecting")}</SectionHeader> : null}
         {expecting.length ? <Card>{expecting.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
@@ -147,7 +160,7 @@ export default function RecurringList() {
             ))}
           </Card>
         ) : null}
-        <Text style={styles.foot}>{wait ? t("settingsLists.recurring.footWait") : t("settingsLists.recurring.footNoWait")}</Text>
+        <Footnote style={styles.foot} more={wait ? t("settingsLists.recurring.footMoreWait") : t("settingsLists.recurring.footMoreNoWait")}>{t("settingsLists.recurring.footShort")}</Footnote>
       </ScrollView>
       <BottomBar visible={visible}><BarButton icon="plus" label={t("settingsLists.recurring.add")} onPress={addRule} a11y={t("settingsLists.recurring.addA11y")} /></BottomBar>
     </>
@@ -179,11 +192,11 @@ function RuleRow({ r, first, confirm }: { r: RuleRowData; first: boolean; confir
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-  foot: { color: C.tertiary, fontSize: 13, textAlign: "center", marginTop: S.xl, paddingHorizontal: S.xl },
+  foot: { marginTop: S.xl },
   addAll: { color: C.tint, fontSize: 15, fontWeight: "600" },
   warn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingTop: 2 },
   right: { alignItems: "flex-end", gap: 4 },
   when: { fontSize: 13, color: C.secondary },
-});
+}));

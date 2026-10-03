@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, DeleteRow, ModalHeader, Row, SectionHeader, Segmented } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { INSIGHT_LOOK, addableKinds, kindHint, kindTitle, perPeriod, ruleTitle } from "@/lib/insights";
 import { catName, acctName } from "@/lib/names";
 import { t } from "@/i18n";
@@ -124,8 +124,8 @@ function nextSort(d: Parameters<typeof listRows>[0]): number {
   return (listRows(d, "insights", "deleted=0") as Insight[]).reduce((m, i) => Math.max(m, i.sort + 1), 0);
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl },
   remove: { color: C.red, fontSize: 15 },
-});
+}));

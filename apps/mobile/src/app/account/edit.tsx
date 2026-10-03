@@ -5,9 +5,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { DEFAULT_ACCOUNT_GROUP, accountBalanceMinor, createAccount, formatMinor, getRow, remove, save, toMinor, fromMinor, type Account, type AccountType } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
-import { Keypad, ConfirmBar, evalExpr } from "@/components/Keypad";
+import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { Chip, SheetFrame, Subtle, Title, ChipRow, DeleteRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { currencyName } from "@/lib/currencies";
 import { getCurrentAccount, setCurrentAccount } from "@/lib/settings";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -46,7 +46,9 @@ export default function AccountEdit() {
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
   const exit = useDiscardGuard(useDirty([name, currency, type, group, amount, inNet, current]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
-  const value = evalExpr(amount.replace(/−/g, "-")) ?? 0;
+  // `evalPartial`, as on the entry sheet: the big number is where the sum stands, the sum is spelled out under it.
+  const partial = evalPartial(amount);
+  const value = partial ?? 0;
   const valid = name.trim().length > 0;
   const nameToSave = () => (existing && name.trim() === shownName?.trim() ? existing.name : name.trim());
 
@@ -89,7 +91,7 @@ export default function AccountEdit() {
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "accounts", existing.id)); exit(() => router.dismissAll()); } },
   ]);
   const pickName = () => router.push({ pathname: "/pick/text", params: { key: keys.name, title: t("account.nameTitle"), value: name } });
-  const shown = `${amount || "0"} ${currency}`;
+  const shown = `${partial !== null ? formatMinor(toMinor(partial, currency), currency) : amount.startsWith("−") ? "−0" : "0"} ${currency}`;
   const changed = existing ? toMinor(value, currency) !== balanceNow : false;
 
   return (
@@ -99,6 +101,7 @@ export default function AccountEdit() {
           <Title>{name || (existing ? t("account.editTitle") : t("account.newTitle"))}</Title>
           <Text style={styles.balanceLabel}>{existing ? t("account.balanceNow") : t("account.openingBalance")}</Text>
           <Text style={[styles.balance, untouched && { color: C.tint }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={existing ? t("account.balanceA11y", { amount: shown }) : t("account.openingA11y", { amount: shown })}>{shown}</Text>
+          <CalcLine expr={amount} style={{ textAlign: "left" }} />
           <Subtle>
             {existing
               ? changed ? t("account.openingBecomes", { amount: `${formatMinor(existing.opening_balance_minor + (toMinor(value, currency) - balanceNow), currency)} ${currency}` }) : untouched ? t("account.typeToReplace") : t("account.openingIs", { amount: `${formatMinor(existing.opening_balance_minor, currency)} ${currency}` })
@@ -130,8 +133,8 @@ export default function AccountEdit() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.md, gap: 4 },
   balanceLabel: { fontSize: 13, color: C.secondary, marginTop: S.sm },
   balance: { fontSize: 34, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
-});
+}));

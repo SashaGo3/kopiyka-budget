@@ -83,12 +83,13 @@
       "bg": "#F4F4F1"
     },
     {
-      "id": "debts",
-      "title": "store.shots.debts.title",
-      "subtitle": "store.shots.debts.subtitle",
-      "theme": "light",
-      "layout": "phone-bottom",
-      "bg": "#ECEAE3"
+      "id": "themes",
+      "title": "store.shots.themes.title",
+      "subtitle": "store.shots.themes.subtitle",
+      "theme": "dark",
+      "layout": "phone",
+      "bg": "#1E1E2E",
+      "accent": "#CBA6F7"
     },
     {
       "id": "shortcut",
@@ -102,6 +103,14 @@
     }
   ],
   "extras": [
+    {
+      "id": "debts",
+      "title": "store.shots.debts.title",
+      "subtitle": "store.shots.debts.subtitle",
+      "theme": "light",
+      "layout": "phone-bottom",
+      "bg": "#ECEAE3"
+    },
     {
       "id": "accounts",
       "title": "store.shots.accounts.title",

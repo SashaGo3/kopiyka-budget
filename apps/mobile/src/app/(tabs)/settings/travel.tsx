@@ -4,7 +4,7 @@ import { listTrips } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { TripCard } from "@/components/TripCard";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /**
@@ -21,7 +21,7 @@ export default function TravelSettings() {
     <>
       <Stack.Screen options={{ title: t("travel.settings.title"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}>
-        <ScreenNote>{t("travel.settings.note")}</ScreenNote>
+        <ScreenNote more={t("travel.settings.noteMore")}>{t("travel.settings.noteShort")}</ScreenNote>
         {active ? (
           <>
             <SectionHeader>{t("travel.settings.now")}</SectionHeader>
@@ -40,6 +40,6 @@ export default function TravelSettings() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-});
+}));

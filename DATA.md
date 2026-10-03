@@ -15,6 +15,10 @@ deleted and the new one starts empty, and the history detaches.
 
 Generating new ids is right in exactly one case: a row that genuinely did not exist before.
 
+The same holds inside the app. Turning a saved expense or income into a transfer makes that row one
+leg of it — `createTransfer`'s `keep` (`packages/core/src/repo.ts`) — so its id, payee, place and
+photo stay put and only the other leg is new.
+
 ## 2. Merge is the default and never deletes; replace makes the file the truth
 
 `importBackup(db, file, { mode })` — `packages/core/src/backup.ts`.
@@ -136,8 +140,13 @@ to it. 1.0.1 had written the same key with another meaning — the phone's langu
 launch, stored whether anyone chose it or not — so a stale copy is not allowed back in: the v18
 migration deletes `meta.language` (nothing in 1.0.2 wrote it, and a 1.0.3 choice lives in a database
 already past v18), and a backup's `language` is applied only when the file's `schema` (written from
-1.0.3 on) is 18 or later. `backup.test.ts` pins the list so the next drift shows up in a
-diff.
+1.0.3 on) is 18 or later. `theme` joined on 2026-10-02 with the colour themes: an id from
+`THEME_IDS` (`packages/core/src/themes.ts`), absent or unknown meaning the default (`graphite`;
+pre-release 1.0.3 builds stored it as `kopiyka`, which `themeOf` still reads), and a restore
+that carries one recolours the screens where they are (each screen's content re-mounts; the navigation stays). `appearance` joined on 2026-10-03:
+`light` or `dark` keeps the theme on one side whatever the phone says, `""` (or absent) follows the
+phone. `backup.test.ts` pins the list so the
+next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
 `device_id`, `last_pulled_seq`, `onboarded`, and auto-sync's own bookkeeping (`icloud_sync`,

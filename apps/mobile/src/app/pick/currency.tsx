@@ -6,7 +6,7 @@ import { listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { Row } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { CURRENCY_LIST, currencyName, type CurrencyInfo } from "@/lib/currencies";
 import { t } from "@/i18n";
 
@@ -47,10 +47,10 @@ export default function PickCurrency() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingVertical: S.md },
   search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginBottom: S.sm, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
   input: { flex: 1, fontSize: 16, color: C.label },
   section: { fontSize: 13, fontWeight: "600", color: C.secondary, textTransform: "uppercase", paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xs },
   empty: { color: C.secondary, textAlign: "center", padding: S.xl },
-});
+}));

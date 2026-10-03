@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { sumInBase } from "@kopiyka/core";
 import { Money, Chip, ChipRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { getBaseCurrency, setBaseCurrency, useRates } from "@/lib/rates";
 import { useState } from "react";
 import { t } from "@/i18n";
@@ -29,11 +29,11 @@ export function NetWorth({ totals }: { totals: { currency: string; minor: number
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   wrap: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm, gap: 4 },
   label: { color: C.secondary, fontSize: 14 },
   big: { fontSize: 34, fontWeight: "700" },
   warn: { color: C.orange, fontSize: 12 },
   lines: { flexDirection: "row", flexWrap: "wrap", gap: S.md, marginTop: 2, marginBottom: S.sm },
   line: { fontSize: 15, color: C.secondary },
-});
+}));

@@ -5,7 +5,7 @@ import { listRows, listTrips } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { BigButton, Card, Chip, ChipRow, ModalHeader, Row, SectionHeader, Segmented } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { ALL_TIME, EMPTY_FILTER, prevDay, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { currentPeriod, shiftPeriod } from "@/lib/period";
 import { humanDayTime, monthBounds, shiftMonth, todayLocal } from "@/lib/dates";
@@ -128,10 +128,10 @@ function typeLabel(type: TxType): string {
   return type === "expense" ? t("transactions.filter.expenses") : type === "income" ? t("transactions.filter.income") : t("transactions.filter.transfers");
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   pad: { paddingHorizontal: S.lg },
   active: { paddingTop: S.sm },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
   bottom: { paddingTop: S.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator, backgroundColor: C.bgGrouped },
-});
+}));

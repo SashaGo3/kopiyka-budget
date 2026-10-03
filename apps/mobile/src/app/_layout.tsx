@@ -1,18 +1,20 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
-import { Brand, C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
+import { themeOf, type ThemeId } from "@kopiyka/core";
+import { useTheme } from "@/lib/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
 import { writeWidgetSnapshot } from "@/lib/widget";
 import { KPBridge } from "@/lib/bridge";
-import { BootSkeleton } from "@/components/BootSkeleton";
+import { themeKeyedLayoutExcept } from "@/components/ThemeKeyed";
 import { notifyChange } from "@/store";
 import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
-import { markAppCodeStart, markRootLayoutRender, onBooted } from "@/lib/boot";
+import { markAppCodeStart, markBooted, markRootLayoutRender, onBooted } from "@/lib/boot";
 import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { needsOnboarding } from "@/lib/onboarding";
 import { isPad, screenContentStyle } from "@/constants/layout";
@@ -41,31 +43,51 @@ export const unstable_settings = { anchor: "(tabs)" };
  * content fits inside, and the content is pinned to its bottom edge so the room that is left over
  * appears above it, where the design already puts empty space.
  */
-const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
-const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
-/** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
-const fit = { ...sheet, sheetAllowedDetents: "fitToContents" as const };
-const medium = { ...sheet, sheetAllowedDetents: [0.55, 0.92] };
-/** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
-const picker = { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 };
-/** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
-const modal = { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: C.bgGrouped } };
+// Both take the theme as an argument although they read it through `C`: no layout remounts on a
+// theme switch (only each screen's content does, src/lib/theme.ts), and the React Compiler memoises a
+// call on its arguments — a call with none (or only `dark`) kept handing back an earlier theme's colours.
+function sheetOptions(_theme: ThemeId) {
+  const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
+  const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
+  return {
+    /** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
+    fit: { ...sheet, sheetAllowedDetents: "fitToContents" as const },
+    medium: { ...sheet, sheetAllowedDetents: [0.55, 0.92] },
+    /** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
+    picker: { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 },
+    /** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
+    modal: { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: C.bgGrouped } },
+  };
+}
 /**
  * A pushed full screen keeps the iPad column (constants/layout.ts). Sheets and modals do not: on a
  * tablet iOS already sizes those itself, and a column inside a centred card is a card with margins.
  * `(tabs)` is left out too — the tab bar belongs to the window, not to the content.
  */
 const pushed = { contentStyle: screenContentStyle };
+/**
+ * A theme switch re-mounts each screen's content (`ThemeKeyed`) but never a navigator: `(tabs)` holds
+ * the selected tab and every tab's stack, `onboarding` the welcome flow's step — their own stacks
+ * re-key their screens instead.
+ */
+const rootScreenLayout = themeKeyedLayoutExcept(["(tabs)", "onboarding"]);
 
-/** Navigation colours that match iOS grouped backgrounds, so native headers never differ from the content. */
-const lightTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: Brand.bg, card: Brand.bg, primary: Brand.accent, border: Brand.border } };
-const darkTheme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: Brand.bgDark, card: Brand.bgDark, primary: Brand.accentDark, border: Brand.borderDark } };
+/**
+ * Navigation colours that match the theme's backgrounds, so native headers never differ from the
+ * content. Built at render from the theme passed in, so a switch re-renders them in place.
+ */
+function navigationTheme(dark: boolean, theme: ThemeId) {
+  const s = themeOf(theme)[dark ? "dark" : "light"];
+  const base = dark ? DarkTheme : DefaultTheme;
+  return { ...base, colors: { ...base.colors, background: s.bg, card: s.bg, primary: s.accent, border: s.border, text: s.text } };
+}
 
 export default function RootLayout() {
   markRootLayoutRender(); // boot trace: first render, not first effect — closer to when the tree starts committing
   const scheme = useColorScheme();
   // `+native-intent` navigates warm deep links itself, and needs the navigation state to do it.
-  registerNavigationRef(useNavigationContainerRef());
+  const navRef = useNavigationContainerRef();
+  registerNavigationRef(navRef);
   // A new language mounts the whole tree again (see src/i18n): every screen, every memoised label.
   // The navigator starts over with it, so go back to where languages are changed — Settings, or the
   // restore that brought a different one in, which also lives there — or, before the welcome flow is
@@ -73,18 +95,41 @@ export default function RootLayout() {
   // What this layout wrote outside the tree is in the old language too: the widget snapshot and the
   // watch state carry names, and JS-scheduled reminders carry their text.
   const lang = useLanguage();
+  // A new theme does not: the navigators stay, with every tab and stack where it was, and only each
+  // screen's content mounts again (`rootScreenLayout` here, `themeKeyedLayout` in the other layouts;
+  // src/lib/theme.ts). What this layout draws itself takes the theme and re-renders in place.
+  const theme = useTheme();
+  // The language the tree on screen was mounted in. When it differs the tree is "parked": one render
+  // with no navigator at all, so the old one's state is gone (it clears it on unmount) before the new
+  // navigator mounts.
+  const [shown, setShown] = useState(lang);
+  const parked = shown !== lang;
+  const remounted = useRef(false);
+  useEffect(() => {
+    if (!parked) return;
+    remounted.current = true;
+    // Deliberately a second commit: the parked one had to land first (see `shown`).
+    setShown(lang); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [parked, lang]);
+  useEffect(() => {
+    if (!remounted.current) return;
+    remounted.current = false;
+    const id = setTimeout(() => {
+      if (needsOnboarding()) { router.navigate("/onboarding"); return; }
+      router.navigate("/settings");
+    }, 0);
+    return () => clearTimeout(id);
+  }, [shown]);
   const firstLang = useRef(lang);
   useEffect(() => {
     if (lang === firstLang.current) return;
     firstLang.current = lang;
-    const id = setTimeout(() => router.navigate(needsOnboarding() ? "/onboarding" : "/settings"), 0);
     writeWidgetSnapshot();
     void (require("@/lib/notifications") as typeof import("@/lib/notifications")).rescheduleRecurringNotifications(); // eslint-disable-line @typescript-eslint/no-require-imports
-    return () => clearTimeout(id);
   }, [lang]);
   useEffect(() => {
     // Startup-only work waits for the first frame (and any deep-linked sheet on top of it) to paint,
-    // so a cold launch is never delayed by it. BootSkeleton's safety timeout guarantees this still
+    // so a cold launch is never delayed by it. The safety timeout below guarantees this still
     // runs even when the landing screen never mounts (e.g. a deep link straight to a sheet).
     // expo-notifications (handler setup, native module discovery) is a heavy import nothing here
     // needs before the first frame, so it's required here instead of at module load.
@@ -122,12 +167,16 @@ export default function RootLayout() {
     const sub = Notifications.addNotificationResponseReceivedListener(follow);
     void Notifications.getLastNotificationResponseAsync().then(follow).catch(() => {});
     const offWatch = KPBridge.onExternalChange(() => notifyChange());
-    return () => { offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
+    // Safety: a launch whose first screen never calls `markBooted()` (a deep link straight to some
+    // other screen) still gets its splash lifted and its startup work run.
+    const safety = setTimeout(markBooted, 1500);
+    return () => { clearTimeout(safety); offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
   }, []);
+  const { fit, medium, picker, modal } = sheetOptions(theme);
   return (
-    <ThemeProvider value={scheme === "dark" ? darkTheme : lightTheme}>
-      <View key={lang} style={{ flex: 1 }}>
-        <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
+    <ThemeProvider value={navigationTheme(scheme === "dark", theme)}>
+      {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={shown} style={{ flex: 1 }}>
+        <Stack screenLayout={rootScreenLayout} screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
@@ -183,8 +232,7 @@ export default function RootLayout() {
           <Stack.Screen name="insight/reorder" options={{ ...modal, gestureEnabled: false }} />
           <Stack.Screen name="filter" options={modal} />
         </Stack>
-        <BootSkeleton />
-      </View>
+      </View>}
     </ThemeProvider>
   );
 }
@@ -209,10 +257,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
-const errorStyles = StyleSheet.create({
+const errorStyles = themed(() => StyleSheet.create({
   screen: { flex: 1, alignItems: "center", justifyContent: "center", gap: S.md, padding: S.xl, backgroundColor: C.bgGrouped },
   title: { fontSize: 20, fontWeight: "700", color: C.label },
   message: { fontSize: 14, color: C.secondary, textAlign: "center" },
   button: { marginTop: S.md, paddingHorizontal: S.xl, paddingVertical: S.md, borderRadius: R.lg, backgroundColor: C.tint },
   buttonText: { fontSize: 16, fontWeight: "600", color: C.onTint },
-});
+}));

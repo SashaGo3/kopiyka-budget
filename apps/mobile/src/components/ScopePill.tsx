@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SymbolView } from "expo-symbols";
-import { C, R } from "@/constants/theme";
+import { C, R, themed } from "@/constants/theme";
 import { Glass } from "@/components/glass";
 import { t } from "@/i18n";
 
@@ -18,10 +18,10 @@ export function ScopePill({ label, active, onPress }: { label: string; active: b
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   pill: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: R.pill, paddingHorizontal: 12, minHeight: 34, paddingVertical: 3, maxWidth: 180 },
   fill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: R.pill },
   solid: { backgroundColor: C.fill },
   activeFill: { backgroundColor: C.tint },
   text: { fontSize: 15, fontWeight: "600", color: C.tint, flexShrink: 1 },
-});
+}));

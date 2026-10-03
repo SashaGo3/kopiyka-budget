@@ -4,7 +4,7 @@ import { Stack, router } from "expo-router";
 import { debtTotals, isOverdue, listDebts, listRows, type Debt, type DebtTotal } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Empty, Money, Row, ScreenNote, SectionHeader } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { t } from "@/i18n";
 import { acctName } from "@/lib/names";
@@ -28,7 +28,7 @@ export default function DebtsSettings() {
     <>
       <Stack.Screen options={{ title: t("settingsLists.debts.title"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>{t("settingsLists.debts.intro")}</ScreenNote>
+        <ScreenNote more={t("settingsLists.debts.introMore")}>{t("settingsLists.debts.introShort")}</ScreenNote>
         {data.totals.length ? <Summary totals={data.totals} /> : <Empty title={t("settingsLists.debts.emptyTitle")} hint={t("settingsLists.debts.emptyHint")} />}
         {owedToMe.length ? <SectionHeader>{t("settingsLists.debts.owedToYou")}</SectionHeader> : null}
         {owedToMe.length ? <Card>{owedToMe.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} />)}</Card> : null}
@@ -79,7 +79,7 @@ function DebtRow({ d, first, today, settled }: { d: DebtWithAccount; first: bool
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   disabled: { opacity: 0.45 },
   summary: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm, gap: S.sm },
@@ -87,4 +87,4 @@ const styles = StyleSheet.create({
   summaryItem: { gap: 1 },
   summaryMoney: { fontSize: 20, fontWeight: "700" },
   summaryLabel: { fontSize: 12, color: C.tertiary },
-});
+}));

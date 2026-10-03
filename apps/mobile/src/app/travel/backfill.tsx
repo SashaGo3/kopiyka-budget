@@ -9,7 +9,7 @@ import { TransactionList, useTransactions } from "@/components/TransactionList";
 import { ModalHeader } from "@/components/ui";
 import { ConfirmBar } from "@/components/Keypad";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { EMPTY_FILTER, activeCount, buildWhere, type TxFilter } from "@/lib/filters";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
@@ -72,7 +72,7 @@ export default function TravelBackfill() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hint: { color: C.secondary, fontSize: 14, paddingHorizontal: S.lg, paddingBottom: S.md },
   footer: { paddingTop: S.sm },
   searchRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingBottom: S.sm },
@@ -81,4 +81,4 @@ const styles = StyleSheet.create({
   filter: { flexDirection: "row", alignItems: "center", gap: 4, height: 40, minWidth: 40, paddingHorizontal: 10, borderRadius: 12, backgroundColor: C.fill, justifyContent: "center" },
   filterOn: { backgroundColor: C.tint },
   filterCount: { color: C.onTint, fontSize: 14, fontWeight: "700" },
-});
+}));

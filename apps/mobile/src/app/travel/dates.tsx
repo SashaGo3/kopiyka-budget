@@ -7,7 +7,7 @@ import { mutate } from "@/store";
 import { ConfirmBar } from "@/components/Keypad";
 import { RangeCalendar } from "@/components/RangeCalendar";
 import { Chip, ChipRow, SheetFrame, Subtle, Title } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { resolvePick } from "@/store/pick";
@@ -74,7 +74,7 @@ export default function TravelDates() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.xs, gap: 4 },
   hint: { fontSize: 13, color: C.tertiary, textAlign: "center", paddingHorizontal: S.xl },
-});
+}));

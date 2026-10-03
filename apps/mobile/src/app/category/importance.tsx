@@ -9,7 +9,7 @@ import {
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { BigButton, Card, Empty, ModalHeader, CategoryIcon } from "@/components/ui";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
 
@@ -39,7 +39,7 @@ const steps = () => [
 
 const levelTitle = (level: Exclude<Importance, 0>): string =>
   level === 3 ? t("category.importance.level.high") : level === 2 ? t("category.importance.level.medium") : t("category.importance.level.low");
-const LEVEL_TINT: Record<Exclude<Importance, 0>, ColorValue> = { 3: C.green, 2: C.secondary, 1: C.orange };
+const LEVEL_TINT = themed((): Record<Exclude<Importance, 0>, ColorValue> => ({ 3: C.green, 2: C.secondary, 1: C.orange }));
 
 type Group = { folder: Category | null; kids: Category[] };
 
@@ -208,7 +208,7 @@ export default function ImportanceFlow() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   head: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm },
   step: { fontSize: 13, color: C.tertiary, fontWeight: "600" },
   question: { fontSize: 22, fontWeight: "700", color: C.label, paddingTop: 2 },
@@ -225,4 +225,4 @@ const styles = StyleSheet.create({
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingHorizontal: S.xl, paddingVertical: S.xxl },
   foot: { fontSize: 13, color: C.secondary, paddingHorizontal: S.xl, paddingTop: S.lg, lineHeight: 18 },
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: S.xxl, paddingTop: S.sm, backgroundColor: C.bgGrouped },
-});
+}));

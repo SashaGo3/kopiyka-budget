@@ -4,7 +4,7 @@ import { Stack, useFocusEffect } from "expo-router";
 import { File, Paths } from "expo-file-system";
 import { SymbolView } from "expo-symbols";
 import { Card, Empty, Row, SectionHeader } from "@/components/ui";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { dayMonth, todayLocal } from "@/lib/dates";
 import { t } from "@/i18n";
 import { clearParseLog, parseLogCsv, readParseLog, type ParseEntry, type ParseOutcome } from "@/lib/parselog";
@@ -102,7 +102,7 @@ function when(at: string): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} · ${dayMonth(d.getDate(), d.getMonth() + 1)}`;
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
   entry: { marginHorizontal: S.lg, backgroundColor: C.card, paddingHorizontal: S.md, paddingVertical: 10, gap: 4 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
@@ -116,4 +116,4 @@ const styles = StyleSheet.create({
   why: { color: C.secondary, fontSize: 13, fontStyle: "italic" },
   field: { color: C.label, fontSize: 13 },
   fieldKey: { color: C.secondary },
-});
+}));

@@ -5,7 +5,7 @@ import { accountBalanceMinor, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Money, Row, ScreenNote, SectionHeader, accountIcon, Empty } from "@/components/ui";
 import { NetWorth } from "@/components/AccountsSummary";
-import { C } from "@/constants/theme";
+import { C, themed } from "@/constants/theme";
 import { getCurrentAccount } from "@/lib/settings";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
@@ -29,7 +29,7 @@ export default function AccountsSettings() {
     <>
       <Stack.Screen options={{ title: t("settingsLists.accounts.title"), headerRight: () => <Pressable onPress={() => router.push({ pathname: "/account/edit", params: { id: "new" } })} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("settingsLists.accounts.add")}><SymbolView name="plus" size={20} tintColor={C.tint} /></Pressable> }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
-        <ScreenNote>{t("settingsLists.accounts.intro")}</ScreenNote>
+        <ScreenNote more={t("settingsLists.accounts.introMore")}>{t("settingsLists.accounts.introShort")}</ScreenNote>
         {data.accounts.length ? <NetWorth totals={data.totals} /> : <Empty title={t("settingsLists.accounts.emptyTitle")} hint={t("settingsLists.accounts.emptyHint")} />}
         {[...groups].map(([group, accounts]) => (
           <SectionGroup key={group} title={groupName(group) || t("settingsLists.accounts.group")} accounts={accounts} />
@@ -46,7 +46,7 @@ function SectionGroup({ title, accounts, disabled }: { title: string; accounts: 
       <SectionHeader right={accounts.length > 1 ? <GroupTotal accounts={accounts} /> : undefined}>{title}</SectionHeader>
       <Card>
         {accounts.map((a, i) => (
-          <Row key={a.id} title={acctName(a)} subtitle={disabled ? t("settingsLists.accounts.archivedType", { type: typeLabel(a.type) }) : a.label} icon={accountIcon(a.type)} iconColor={a.color ?? undefined}
+          <Row key={a.id} title={acctName(a)} subtitle={disabled ? t("settingsLists.accounts.archivedType", { type: typeLabel(a.type) }) : a.label} icon={accountIcon(a.type)} iconFill={a.color}
             right={<Money minor={a.balance} currency={a.currency} />} onPress={() => router.push({ pathname: "/accounts/[id]", params: { id: a.id } })}
             style={[i > 0 ? styles.divider : undefined, disabled && styles.disabled]} />
         ))}
@@ -75,10 +75,10 @@ function GroupTotal({ accounts }: { accounts: { balance: number; currency: strin
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator }, disabled: { opacity: 0.45 },
   total: { flexDirection: "row", alignItems: "center", gap: 4 },
   totalItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   totalSep: { color: C.tertiary, fontSize: 13 },
   totalMoney: { fontSize: 13, fontWeight: "500", color: C.secondary },
-});
+}));

@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { ICON_CATALOG, ICON_GROUPS, searchIcons, type CatalogIcon, type IconGroup } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 const COLS = 6;
@@ -103,7 +103,7 @@ export default function PickIcon() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.lg, marginBottom: S.md, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
   input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
   autoRow: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 44, marginBottom: S.sm },
@@ -114,4 +114,4 @@ const styles = StyleSheet.create({
   cell: { flex: 1, aspectRatio: 1, maxWidth: 48, minHeight: 48, borderRadius: 12, backgroundColor: C.card, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "transparent", marginBottom: S.sm },
   pad: { backgroundColor: "transparent", borderColor: "transparent" },
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingVertical: S.xl },
-});
+}));

@@ -6,7 +6,7 @@ import { archivedCategoryIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, HeaderBar } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
 
@@ -109,7 +109,7 @@ export default function PickCategories() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   head: { paddingTop: S.md, paddingBottom: S.sm, backgroundColor: C.bgGrouped },
   link: { color: C.tint, fontSize: 15 },
   doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
@@ -120,4 +120,4 @@ const styles = StyleSheet.create({
   noIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   name: { flex: 1, fontSize: 17, color: C.label },
   all: { fontSize: 13, color: C.secondary, fontWeight: "400" },
-});
+}));

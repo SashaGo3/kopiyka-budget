@@ -4,6 +4,7 @@ import { SymbolView } from "expo-symbols";
 import { View } from "react-native";
 import { mutate, useQuery } from "@/store";
 import { CategoryIcon } from "@/components/ui";
+import { themeTone } from "@/constants/theme";
 import { ReorderList, type ReorderItem } from "@/components/ReorderList";
 import { budgetTitle, nameMaps } from "@/lib/budgetName";
 import { getBudgetScope, getBudgetsSections, setBudgetsSections, type BudgetsSection } from "@/lib/settings";
@@ -52,8 +53,8 @@ export default function BudgetReorder() {
 
 const SECTION = "section:";
 const sectionIcon = (name: "chart.bar.fill" | "airplane", color: string) => (
-  <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: color, alignItems: "center", justifyContent: "center" }}>
-    <SymbolView name={name} size={15} tintColor="#fff" />
+  <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: themeTone(color).fill, alignItems: "center", justifyContent: "center" }}>
+    <SymbolView name={name} size={15} tintColor={themeTone(color).glyph} />
   </View>
 );
 const sectionRow = (sec: Exclude<BudgetsSection, "budgets">): ReorderItem => sec === "spending"

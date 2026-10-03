@@ -16,6 +16,7 @@
   "yesterday": "Yesterday",
   "atTime": { "message": "{day} at {time}", "note": "A day and a time: \"22 Sep at 11:17\"." },
   "noCategory": "No category",
+  "moreInfo": { "message": "More about this", "note": "VoiceOver label of the ⓘ next to a short note; tapping it unfolds the full explanation." },
   "language": {
     "title": "Language",
     "system": { "message": "Same as the phone", "note": "First option of the language picker: follow the iPhone's language." },

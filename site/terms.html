@@ -6,15 +6,36 @@
     <title>Terms of Use — Kopiyka Budget</title>
     <meta name="description" content="Kopiyka Budget is free, is a personal record-keeping tool rather than financial advice, and your data is yours to keep." />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
     <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/terms.html" />
     <link rel="alternate" hreflang="en" href="https://sashago3.github.io/kopiyka-budget/terms.html" />
     <link rel="alternate" hreflang="uk" href="https://sashago3.github.io/kopiyka-budget/uk/terms.html" />
     <link rel="alternate" hreflang="x-default" href="https://sashago3.github.io/kopiyka-budget/terms.html" />
     <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
     <link rel="apple-touch-icon" href="img/icon-180.png" />
+    <link rel="stylesheet" href="themes.css" />
     <link rel="stylesheet" href="styles.css" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <script>
+      (function () {
+        var T = {"graphite":["#F4F4F1","#141413"],"solarized":["#EEE8D5","#002B36"],"catppuccin":["#E6E9EF","#1E1E2E"],"gruvbox":["#F2E5BC","#282828"],"nord":["#E5E9F0","#2E3440"],"tokyonight":["#E1E2E7","#1A1B26"],"rosepine":["#FAF4ED","#191724"],"github":["#F6F8FA","#0D1117"]}, K = "kopiyka-budget.theme", D = "graphite";
+        function apply(id) {
+          if (!Object.prototype.hasOwnProperty.call(T, id)) id = D;
+          document.documentElement.setAttribute('data-theme', id);
+          var m = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < m.length; i++) m[i].setAttribute('content', T[id][/dark/.test(m[i].media) ? 1 : 0]);
+          return id;
+        }
+        var saved = null;
+        try { saved = localStorage.getItem(K); } catch (e) {}
+        apply(saved);
+        window.kopiykaTheme = function (id) {
+          id = apply(id);
+          try { localStorage.setItem(K, id); } catch (e) {}
+          return id;
+        };
+      })();
+    </script>
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Kopiyka Budget" />
     <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/terms.html" />
@@ -145,8 +166,41 @@
         <span class="sep" aria-hidden="true">·</span>
         <span>© Kopiyka contributors</span>
         <span class="made">Made with React Native and a little Swift.</span>
+        <div class="theme-switch" role="group" aria-label="Colour theme" hidden>
+          <button type="button" class="swatch" data-set-theme="graphite" aria-pressed="false" aria-label="Graphite" title="Graphite"><span data-palette="graphite"></span></button>
+          <button type="button" class="swatch" data-set-theme="solarized" aria-pressed="false" aria-label="Solarized" title="Solarized"><span data-palette="solarized"></span></button>
+          <button type="button" class="swatch" data-set-theme="catppuccin" aria-pressed="false" aria-label="Catppuccin" title="Catppuccin"><span data-palette="catppuccin"></span></button>
+          <button type="button" class="swatch" data-set-theme="gruvbox" aria-pressed="false" aria-label="Gruvbox" title="Gruvbox"><span data-palette="gruvbox"></span></button>
+          <button type="button" class="swatch" data-set-theme="nord" aria-pressed="false" aria-label="Nord" title="Nord"><span data-palette="nord"></span></button>
+          <button type="button" class="swatch" data-set-theme="tokyonight" aria-pressed="false" aria-label="Tokyo Night" title="Tokyo Night"><span data-palette="tokyonight"></span></button>
+          <button type="button" class="swatch" data-set-theme="rosepine" aria-pressed="false" aria-label="Rosé Pine" title="Rosé Pine"><span data-palette="rosepine"></span></button>
+          <button type="button" class="swatch" data-set-theme="github" aria-pressed="false" aria-label="GitHub" title="GitHub"><span data-palette="github"></span></button>
+        </div>
       </div>
     </footer>
 
+    <script>
+      // The theme switcher: the footer swatches and the landing page's previews. Without JS there is
+      // nothing to press, so the swatches stay hidden and the page keeps the default theme.
+      (function () {
+        if (!window.kopiykaTheme) return;
+        var buttons = document.querySelectorAll('[data-set-theme]');
+        var sync = function () {
+          var current = document.documentElement.getAttribute('data-theme');
+          for (var i = 0; i < buttons.length; i++) {
+            buttons[i].setAttribute('aria-pressed', String(buttons[i].getAttribute('data-set-theme') === current));
+          }
+        };
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].addEventListener('click', function () {
+            window.kopiykaTheme(this.getAttribute('data-set-theme'));
+            sync();
+          });
+        }
+        var row = document.querySelectorAll('.theme-switch');
+        for (var j = 0; j < row.length; j++) row[j].hidden = false;
+        sync();
+      })();
+    </script>
   </body>
 </html>

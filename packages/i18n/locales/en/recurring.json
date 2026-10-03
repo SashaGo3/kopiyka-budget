@@ -29,7 +29,9 @@
     "subtitle": "Search your history; amount, category, tags and period are filled in",
     "pickTitle": "Which transaction repeats?",
     "seen": { "message": "Seen {count}× · {repeat}", "note": "How often a series was found in history; repeat is a lowercased cadence label (\"every month\")." },
-    "guessed": "Monthly guessed from one transaction"
+    "guessed": "Monthly guessed from one transaction",
+    "updateTitle": { "message": "Update from a transaction", "note": "Row on an existing recurring rule: refill its fields from a payment." },
+    "updateSubtitle": "Amount, category, tags and period from a payment; the next date stays"
   },
   "titleRow": { "message": "Title", "note": "Row and field: the rule's name (payee)." },
   "titleRequired": "Required — e.g. Netflix, Rent",
@@ -77,6 +79,10 @@
     "title": "Delete recurring rule?",
     "body": "Already posted transactions stay."
   },
+  "duplicate": {
+    "row": "Duplicate rule",
+    "subtitle": "Opens a copy to change before adding it"
+  },
   "confirm": {
     "amount": "Enter an amount",
     "title": "Add a title",
@@ -100,8 +106,8 @@
     "emptyTitle": "Nothing due",
     "emptyHint": "Manual recurring payments show up here on the day they are due.",
     "waitingHeader": "Expected · waiting for the charge",
-    "waitingIntro": "{count, plural, one {Nothing has been added for this one yet.} other {Nothing has been added for these yet.}} The payment your bank notifies settles it by itself; if none arrives in time, it comes back here to be posted.",
-    "waitingIntroSum": { "message": "{count, plural, one {Nothing has been added for this one yet — <sum>total</sum>.} other {Nothing has been added for these yet — <sum>total</sum>.}} The payment your bank notifies settles it by itself; if none arrives in time, it comes back here to be posted.", "note": "<sum> is replaced by the total amount; its text is ignored." },
+    "waitingIntro": "{count, plural, one {Nothing added for this one yet.} other {Nothing added for these yet.}} Your bank’s notification settles it; if none comes in time, it returns here to be posted.",
+    "waitingIntroSum": { "message": "{count, plural, one {Nothing added for this one yet — <sum>total</sum>.} other {Nothing added for these yet — <sum>total</sum>.}} Your bank’s notification settles it; if none comes in time, it returns here to be posted.", "note": "<sum> is replaced by the total amount; its text is ignored." },
     "postAllA11y": "{count, plural, one {Post # due payment} other {Post all # due payments}}",
     "skipTitle": "{count, plural, one {Skip this one?} other {Skip # occurrences?}}",
     "skipBody": { "message": "No transaction is added for {name}; the rule moves on to its next date.", "note": "name is the rule's title." },

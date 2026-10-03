@@ -94,6 +94,23 @@
     "transactions": { "alt": "Transactions on an iPad, grouped by day", "caption": "Transactions" },
     "insights": { "alt": "Insight cards on an iPad", "caption": "Insights" }
   },
+  "themes": {
+    "title": "Eight themes, light and dark",
+    "intro": "Graphite, the app’s own, and seven from code editors you know — Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub. Each comes in light and dark, follows your phone’s appearance or keeps to one side, and has an app icon to match.",
+    "hint": "Tap one to try it on this page.",
+    "switcher": { "message": "Colour theme", "note": "aria-label of the row of theme swatches in the footer" },
+    "credits": { "message": "Palettes after Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub Primer, all under the MIT licence. Thanks to their authors.", "note": "Small print under the theme previews. Keep the project names in Latin script." },
+    "name": {
+      "graphite": { "message": "Graphite", "note": "The app's own default theme, graphite grey on off-white: translate the colour name. The other seven are the names of code-editor themes and stay as they are in every language" },
+      "solarized": "Solarized",
+      "catppuccin": "Catppuccin",
+      "gruvbox": "Gruvbox",
+      "nord": "Nord",
+      "tokyonight": "Tokyo Night",
+      "rosepine": "Rosé Pine",
+      "github": "GitHub"
+    }
+  },
   "privacy": {
     "title": "Privacy",
     "text": "Kopiyka collects nothing: there is no account and no server to send anything to. The only request it ever makes is an exchange rate from the European Central Bank.",

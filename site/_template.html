@@ -6,13 +6,13 @@
     <title>{{title}} — {{site.chrome.brand}}</title>
     <meta name="description" content="{{description}}" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
     <link rel="canonical" href="{{canonical}}" />
 {{alternates}}
     <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
     <link rel="apple-touch-icon" href="img/icon-180.png" />
+    <link rel="stylesheet" href="themes.css" />
     <link rel="stylesheet" href="styles.css" />
+{{themeHead}}
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="{{site.chrome.brand}}" />
     <meta property="og:url" content="{{canonical}}" />
@@ -67,8 +67,10 @@
         <span class="sep" aria-hidden="true">·</span>
         <span>{{site.chrome.footer.copyright}}</span>
         <span class="made">{{site.chrome.footer.made}}</span>
+{{themeSwitch}}
       </div>
     </footer>
 {{scripts}}
+{{themeScript}}
   </body>
 </html>

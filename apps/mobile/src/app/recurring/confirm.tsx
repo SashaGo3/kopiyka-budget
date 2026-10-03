@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { advanceRule, dueOccurrences, getRow, postOccurrence } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { BigButton, Money, Subtle, Title } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { catName, acctName } from "@/lib/names";
@@ -52,8 +52,8 @@ export default function RecurringConfirm() {
 }
 
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingBottom: S.xl, gap: 6 },
   amount: { fontSize: 40, fontWeight: "700" },
   hint: { color: C.tertiary, fontSize: 13, textAlign: "center", paddingHorizontal: S.xl },
-});
+}));

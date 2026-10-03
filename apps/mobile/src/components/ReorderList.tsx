@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { Empty, ModalHeader } from "@/components/ui";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /** Every row the same height, which is what lets a drag be arithmetic rather than a measurement. */
@@ -143,7 +143,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hint: { color: C.secondary, fontSize: 13, paddingBottom: S.sm },
   row: { height: H, flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card, marginBottom: S.xs },
   // Lifted off the list while it is in the hand, and drawn last so it passes over its neighbours.
@@ -151,4 +151,4 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, color: C.label },
   sub: { fontSize: 13, color: C.secondary },
   grip: { paddingHorizontal: S.sm, paddingVertical: S.md },
-});
+}));

@@ -5,7 +5,7 @@ import { accountBalanceMinor, formatMinor, getRow, listRows } from "@kopiyka/cor
 import { useQuery } from "@/store";
 import { TransactionList, useTransactions } from "@/components/TransactionList";
 import { Money, Chip, ChipRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName } from "@/lib/names";
 
@@ -39,9 +39,9 @@ export default function AccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   head: { paddingTop: S.lg, paddingBottom: S.sm, gap: 4 },
   label: { color: C.secondary, fontSize: 14, paddingHorizontal: S.xl },
   value: { fontSize: 32, fontWeight: "700", paddingHorizontal: S.xl },
   pending: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, marginBottom: S.sm },
-});
+}));

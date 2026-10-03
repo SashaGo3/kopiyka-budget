@@ -5,7 +5,7 @@ import { archivedCategoryIds, categoryImportance, listRows, markableCategories, 
 import { useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
 
@@ -45,7 +45,7 @@ export default function CategoriesScreen() {
     <>
       <Stack.Screen options={{ title: t("settingsLists.categories.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>{t("settingsLists.categories.intro")}</ScreenNote>
+        <ScreenNote more={t("settingsLists.categories.introMore")}>{t("settingsLists.categories.introShort")}</ScreenNote>
         {matters.total ? (
           <Card>
             <Row title={t("settingsLists.categories.matters")} icon="heart.text.square"
@@ -88,8 +88,8 @@ export default function CategoriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   child: { paddingLeft: S.xl + 8 },
   right: { flexDirection: "row", alignItems: "center", gap: 8 },
-});
+}));

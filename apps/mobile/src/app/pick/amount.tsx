@@ -7,7 +7,7 @@ import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, TagPill } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { catName } from "@/lib/names";
@@ -95,7 +95,7 @@ export default function PickAmount() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs, gap: 4 },
   title: { textAlign: "center", fontSize: 15, color: C.secondary },
   amountRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 8, maxWidth: "100%" },
@@ -103,4 +103,4 @@ const styles = StyleSheet.create({
   cur: { fontSize: 22, color: C.secondary, fontWeight: "600" },
   limit: { textAlign: "center", fontSize: 13, color: C.secondary },
   tagLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: S.xs },
-});
+}));

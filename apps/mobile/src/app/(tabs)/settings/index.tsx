@@ -7,22 +7,24 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { getPeriodStartDay, setPeriodStartDay } from "@/lib/period";
 import { notifyChange } from "@/store";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { APP_MARKETING_VERSION, APP_VERSION, privacyPolicyUrl } from "@/constants/app";
 import { releasesToRead } from "@/lib/whatsNew";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED } from "@/constants/features";
 import { lastBackupLine, useBackupState } from "@/lib/backup";
 import { getHideIncome, getHomeLocation, getLocationEnabled, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setShowBalance } from "@/lib/settings";
 import { ensureLocationPermission, locationStatus, placeName, preciseLocation } from "@/lib/location";
-import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { dayMonth, humanDayTime } from "@/lib/dates";
+import { appearanceName, themeName } from "@/components/ThemePicker";
+import { getTheme, useAppearance } from "@/lib/theme";
 import { LANGUAGES, deviceLanguage, getLanguage, isFollowingDevice, setLanguage, t, type LanguageCode } from "@/i18n";
 
 /** "22nd" / "22-го": a day of the month, as in "starts on the …". */
 const ordinal = (day: number) => t("settings.startDay.ordinal", { day });
 
 export default function SettingsScreen() {
+  const appearance = useAppearance();
   const backup = useBackupState();
   const prefs = useQuery(() => ({ startDay: getPeriodStartDay(), location: getLocationEnabled(), home: getHomeLocation(), hideIncome: getHideIncome(), showBalance: getShowBalance() }));
   const counts = useQuery((db) => {
@@ -76,9 +78,10 @@ export default function SettingsScreen() {
   const languageLine = isFollowingDevice() ? t("common.language.systemNow", { name: ownName(getLanguage()) }) : ownName(getLanguage());
   const trip = useActiveTrip();
   const tripStats = useTripStats(trip);
-  // Permissions: iOS state is read on every focus (the user may come back from the Settings app).
-  const [perm, setPerm] = useState<{ notif: "granted" | "denied" | "undetermined"; loc: "granted" | "denied" | "undetermined" }>({ notif: "undetermined", loc: "undetermined" });
-  const refreshPerm = useCallback(() => { void Promise.all([notificationStatus(), locationStatus()]).then(([notif, loc]) => setPerm({ notif, loc })); }, []);
+  // Permission: iOS state is read on every focus (the user may come back from the Settings app).
+  // Notifications are switched on in Settings → Recurring, beside the reminders they are for.
+  const [perm, setPerm] = useState<{ loc: "granted" | "denied" | "undetermined" }>({ loc: "undetermined" });
+  const refreshPerm = useCallback(() => { void locationStatus().then((loc) => setPerm({ loc })); }, []);
   useEffect(refreshPerm, [refreshPerm]);
   useFocusEffect(refreshPerm);
   const toggleLocation = async (on: boolean) => {
@@ -105,11 +108,21 @@ export default function SettingsScreen() {
     ];
     Alert.alert(t("settings.home.title"), t("settings.home.explain", { radius: HOME_RADIUS_M }), buttons);
   };
-  const toggleNotifications = async (on: boolean) => {
-    if (!on || perm.notif === "denied") { void Linking.openSettings(); return; }   // only the Settings app can revoke
-    await ensureNotificationPermission();
-    refreshPerm();
-  };
+  // Development builds only: the screenshot dataset, built for today, replacing everything (lib/demo.ts).
+  // Required here rather than imported, so a release build never bundles the dataset.
+  const [loadingDemo, setLoadingDemo] = useState(false);
+  const askDemo = () => Alert.alert(t("settings.about.testDataTitle"), t("settings.about.testDataBody"), [
+    { text: t("common.cancel"), style: "cancel" },
+    { text: t("settings.about.testDataAction"), style: "destructive", onPress: () => {
+      if (!__DEV__) return;
+      setLoadingDemo(true);
+      const { loadDemoData } = require("@/lib/demo") as typeof import("@/lib/demo"); // eslint-disable-line @typescript-eslint/no-require-imports
+      void loadDemoData()
+        .then((r) => Alert.alert(t("settings.about.testDataDone"), r.safety ? `${r.summary}\n\n${t("settings.about.testDataSafety", { name: r.safety })}` : r.summary))
+        .catch((e: Error) => Alert.alert(t("settings.about.testDataFailed"), e.message))
+        .finally(() => setLoadingDemo(false));
+    } },
+  ]);
   // One row leads to /settings/data, so its subtitle answers the question that screen is usually
   // opened for — when the last backup ran — and falls back to what else lives there.
   const inventory = t("settings.data.inventory", { count: counts.tx });
@@ -143,11 +156,15 @@ export default function SettingsScreen() {
         <SectionHeader>{t("settings.section.preferences")}</SectionHeader>
         <Card>
           <Row icon="globe" iconColor="#0A84FF" title={t("common.language.title")} subtitle={languageLine} onPress={pickLanguage} />
+          <Row icon="paintpalette" iconColor="#AF52DE" title={t("theme.title")} subtitle={appearance ? `${themeName(getTheme())} · ${appearanceName(appearance)}` : themeName(getTheme())} onPress={() => router.push("/settings/theme")} style={styles.divider} />
           <Row icon="calendar" iconColor="#FF9F0A" title={t("settings.startDay.title")} subtitle={startDaySubtitle} onPress={pickDay} style={styles.divider} />
-          <ToggleRow icon="bell.badge" iconColor="#FF3B30" title={t("settings.notifications.title")} subtitle={perm.notif === "granted" ? t("settings.notifications.granted") : perm.notif === "denied" ? t("settings.notifications.denied") : t("settings.notifications.ask")} value={perm.notif === "granted"} onChange={(v) => void toggleNotifications(v)} style={styles.divider} />
           <ToggleRow icon="eye.slash" iconColor="#8E8E93" title={t("settings.hideIncome.title")} subtitle={prefs.hideIncome ? t("settings.hideIncome.on") : t("settings.hideIncome.off")} value={prefs.hideIncome} onChange={setHideIncome} style={styles.divider} />
           <ToggleRow icon="eye" iconColor="#0A84FF" title={t("settings.showBalance.title")} subtitle={prefs.showBalance ? t("settings.showBalance.on") : t("settings.showBalance.off")} value={prefs.showBalance} onChange={setShowBalance} style={styles.divider} />
-          <ToggleRow icon="location" iconColor="#34C759" title={t("settings.location.title")} subtitle={perm.loc === "denied" ? t("settings.location.denied") : t("settings.location.on")} value={prefs.location && perm.loc === "granted"} onChange={(v) => void toggleLocation(v)} style={styles.divider} />
+        </Card>
+        {/* Location on its own: the switch, and the one place it never suggests anything. */}
+        <SectionHeader>{t("settings.section.location")}</SectionHeader>
+        <Card>
+          <ToggleRow icon="location" iconColor="#34C759" title={t("settings.location.title")} subtitle={perm.loc === "denied" ? t("settings.location.denied") : t("settings.location.on")} value={prefs.location && perm.loc === "granted"} onChange={(v) => void toggleLocation(v)} />
           {prefs.location && perm.loc === "granted" ? (
             <Row icon="house" iconColor="#34C759" title={t("settings.home.title")} style={styles.divider} onPress={settingHome ? undefined : pickHome}
               subtitle={settingHome ? t("settings.home.reading") : prefs.home ? t("settings.home.set", { place: prefs.home.place ?? `${prefs.home.lat.toFixed(4)}, ${prefs.home.lon.toFixed(4)}` }) : t("settings.home.unset")} />
@@ -175,6 +192,7 @@ export default function SettingsScreen() {
           {releasesToRead().length ? <Row icon="sparkles" iconColor="#8E8E93" title={t("settings.about.whatsNew")} subtitle={t("settings.about.whatsNewSubtitle", { version: APP_MARKETING_VERSION })} onPress={() => router.push("/whats-new")} style={styles.divider} /> : null}
           {/* Boot trace and the last JS crash: useful while developing, noise in a shipped build. The version lives in the footer instead. */}
           {__DEV__ ? <Row icon="stethoscope" iconColor="#8E8E93" title={t("settings.about.diagnostics")} subtitle={t("settings.about.diagnosticsSubtitle")} onPress={() => router.push("/settings/diagnostics")} style={styles.divider} /> : null}
+          {__DEV__ ? <Row icon="tray.and.arrow.down" iconColor="#8E8E93" title={t("settings.about.testData")} subtitle={loadingDemo ? t("settings.about.testDataLoading") : t("settings.about.testDataSubtitle")} onPress={loadingDemo ? undefined : askDemo} style={styles.divider} /> : null}
         </Card>
         <Text style={styles.foot}>{backup.enabled && backup.icloud ? t("settings.footICloud") : t("settings.foot")}</Text>
         <Text style={styles.version} selectable>{t("settings.version", { version: APP_VERSION })}</Text>
@@ -183,8 +201,8 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   foot: { color: C.tertiary, fontSize: 13, textAlign: "center", marginTop: S.xxl, paddingHorizontal: S.xl },
   version: { color: C.tertiary, fontSize: 12, textAlign: "center", marginTop: S.sm, fontVariant: ["tabular-nums"] },
-});
+}));

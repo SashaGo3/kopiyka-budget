@@ -1,22 +1,45 @@
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, useNavigation } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import { FadeIn } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
+import { useKeptScroll } from "@/lib/keptScroll";
 
-/** Shared chrome for the welcome flow: step dots, a big title, a line of context, the body, and the actions pinned at the bottom. */
+/** Welcome, theme, location, account, categories. */
+const STEPS = [1, 2, 3, 4, 5] as const;
+
+/**
+ * Shared chrome for the welcome flow: step dots, a big title, a line of context, the body, and the
+ * actions pinned at the bottom. Every step after the first has Back to the one before it (and the
+ * edge swipe does the same, onboarding/_layout.tsx); the first has nothing behind it.
+ */
 export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true }: {
-  step: 1 | 2 | 3 | 4; title: string; subtitle: string; children?: ReactNode;
+  step: 1 | 2 | 3 | 4 | 5; title: string; subtitle: string; children?: ReactNode;
   primary: { label: string; onPress: () => void; disabled?: boolean };
   secondary?: { label: string; onPress: () => void };
   scroll?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  // A step reached by `replace` (the welcome screen skipping ahead) has nothing to go back to.
+  const canBack = step > 1 && navigation.canGoBack();
+  // Picking a theme on step 2 re-mounts the step; the list stays where it was (lib/keptScroll.ts).
+  const kept = useKeptScroll(`onboarding.${step}`);
   const body = (
     <>
-      <View style={styles.dots} accessibilityLabel={t("onboarding.stepA11y", { step, count: 4 })}>
-        {[1, 2, 3, 4].map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
+      <View style={styles.head}>
+        {canBack ? (
+          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back")} style={styles.back}>
+            <SymbolView name="chevron.left" size={13} tintColor={C.tint} />
+            <Text style={styles.backText} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("common.back")}</Text>
+          </Pressable>
+        ) : null}
+        <View style={styles.dots} accessibilityLabel={t("onboarding.stepA11y", { step, count: STEPS.length })}>
+          {STEPS.map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
+        </View>
       </View>
       <FadeIn><Text style={styles.title} maxFontSizeMultiplier={1.3}>{title}</Text></FadeIn>
       <FadeIn delay={80}><Text style={styles.subtitle}>{subtitle}</Text></FadeIn>
@@ -25,7 +48,7 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   );
   return (
     <View style={[styles.screen, { paddingTop: insets.top + S.lg }]}>
-      {scroll ? <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{body}</ScrollView> : <View style={[styles.content, { flex: 1 }]}>{body}</View>}
+      {scroll ? <ScrollView {...kept} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{body}</ScrollView> : <View style={[styles.content, { flex: 1 }]}>{body}</View>}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, S.lg) }]}>
         <Pressable onPress={primary.onPress} disabled={primary.disabled} accessibilityRole="button" accessibilityLabel={primary.label}
           style={({ pressed }) => [styles.primary, (pressed || primary.disabled) && { opacity: 0.5 }]}>
@@ -41,10 +64,13 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { paddingHorizontal: S.xl, gap: S.md, paddingBottom: S.lg },
-  dots: { flexDirection: "row", gap: 6, marginBottom: S.sm },
+  head: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, minHeight: 28 },
+  back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, height: 28 },
+  backText: { color: C.tint, fontSize: 14, fontWeight: "600" },
+  dots: { flexDirection: "row", gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.fill2 },
   dotOn: { width: 22, backgroundColor: C.tint },
   dotDone: { backgroundColor: C.tint, opacity: 0.4 },
@@ -55,4 +81,4 @@ const styles = StyleSheet.create({
   primaryText: { color: C.onTint, fontSize: 17, fontWeight: "700" },
   secondary: { height: 44, alignItems: "center", justifyContent: "center" },
   secondaryText: { color: C.secondary, fontSize: 16, fontWeight: "600" },
-});
+}));

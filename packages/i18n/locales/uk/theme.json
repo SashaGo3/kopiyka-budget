@@ -1,0 +1,24 @@
+{
+  "title": "Тема",
+  "light": "Світла",
+  "dark": "Темна",
+  "appearance": {
+    "auto": "Автоматично",
+    "light": "Світла",
+    "dark": "Темна"
+  },
+  "icon": {
+    "title": "Іконка застосунку",
+    "a11y": "Іконка {name}"
+  },
+  "name": {
+    "graphite": "Графіт",
+    "solarized": "Соларайзд",
+    "catppuccin": "Катпучин",
+    "gruvbox": "Ґрувбокс",
+    "nord": "Норд",
+    "tokyonight": "Токіо Найт",
+    "rosepine": "Розе Пайн",
+    "github": "ГітХаб"
+  }
+}

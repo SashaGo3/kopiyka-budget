@@ -4,7 +4,7 @@ import { jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Empty, Row, ScreenNote, SectionHeader, TagPill } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t as tr } from "@/i18n";
 
@@ -31,7 +31,7 @@ export default function TagsScreen() {
     <>
       <Stack.Screen options={{ title: tr("settingsLists.tags.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
-        <ScreenNote>{tr("settingsLists.tags.intro")}</ScreenNote>
+        <ScreenNote more={tr("settingsLists.tags.introMore")}>{tr("settingsLists.tags.introShort")}</ScreenNote>
         {tags.length === 0 ? <Empty title={tr("settingsLists.tags.emptyTitle")} hint={tr("settingsLists.tags.emptyHint")} /> : null}
         {live.length ? (
           <Card style={{ marginTop: S.lg }}>
@@ -66,6 +66,6 @@ export default function TagsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-});
+}));

@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, Row } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 export interface Option {
@@ -28,7 +28,7 @@ export default function PickOption() {
       )} />
   );
 }
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingVertical: S.md },
   indent: { paddingLeft: S.lg + S.xl },
-});
+}));

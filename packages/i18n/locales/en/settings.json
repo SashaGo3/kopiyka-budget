@@ -5,6 +5,7 @@
     "tracking": "Tracking",
     "preferences": "Preferences",
     "backup": "Backup",
+    "location": "Location",
     "shortcuts": "Shortcuts",
     "about": "About"
   },
@@ -104,7 +105,16 @@
     "whatsNew": "What’s new",
     "whatsNewSubtitle": { "message": "The changes in version {version}", "note": "version is \"1.0.3\"." },
     "diagnostics": "Diagnostics",
-    "diagnosticsSubtitle": "Boot trace and the last recorded crash"
+    "diagnosticsSubtitle": "Boot trace and the last recorded crash",
+    "testData": { "message": "Load test data", "note": "Development builds only." },
+    "testDataSubtitle": "Replace everything with the screenshot dataset",
+    "testDataLoading": "Building…",
+    "testDataTitle": "Replace everything with test data?",
+    "testDataBody": "Every account, entry and setting on this device is replaced by an invented dataset built for today. A backup of what is here now is written first.",
+    "testDataAction": "Replace",
+    "testDataDone": "Test data loaded",
+    "testDataSafety": { "message": "What was here is in the backup {name}.", "note": "name is a backup file name." },
+    "testDataFailed": "Could not load test data"
   },
   "foot": "Local-first. Your data lives on this phone.",
   "footICloud": "Local-first. Your data lives on this phone, with backups in your iCloud Drive.",

@@ -9,7 +9,7 @@ import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
 import type { AmountPick } from "@/app/pick/amount";
 import { ModalHeader, TagPill } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { catName } from "@/lib/names";
@@ -199,7 +199,7 @@ export default function SplitEditor() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   content: { padding: S.md, gap: S.md },
   intro: { fontSize: 14, lineHeight: 19, color: C.secondary, paddingHorizontal: S.xs },
   card: { backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.md },
@@ -220,4 +220,4 @@ const styles = StyleSheet.create({
   add: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 50, paddingLeft: 5 },
   addText: { fontSize: 16, fontWeight: "600", color: C.tint },
   foot: { fontSize: 13, lineHeight: 18, color: C.secondary, textAlign: "center", paddingHorizontal: S.md },
-});
+}));

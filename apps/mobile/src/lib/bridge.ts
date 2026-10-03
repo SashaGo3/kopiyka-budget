@@ -4,6 +4,8 @@
  * this bridge only pokes them after JS writes and tells JS when native code wrote.
  */
 import { requireOptionalNativeModule } from "expo-modules-core";
+import { Platform } from "react-native";
+import { DEFAULT_THEME } from "@kopiyka/core";
 
 /** What the native receipt reader made of a photo (native/KPReceipt.swift). Amounts are major units. */
 export interface ReceiptParse {
@@ -24,6 +26,11 @@ type Bridge = {
   scanReceipt(uri: string): Promise<ReceiptParse>;
   claimDatabase(): void;
   setLanguage(code: string): void;
+  setAppIcon(id: string | null): Promise<void>;
+  getAppIcon(): Promise<string | null>;
+  beginThemeTransition(x: number | null, y: number | null): Promise<boolean>;
+  endThemeTransition(duration: number): Promise<void>;
+  setWindowBackground(light: string, dark: string): void;
   finishNativeWrite(request: string, ok: boolean, error: string | null, reply: Record<string, unknown>): void;
   addListener(event: "externalChange", cb: () => void): { remove(): void };
   addListener(event: "nativeWrite", cb: (w: NativeWrite) => void): { remove(): void };
@@ -37,6 +44,52 @@ const native = requireOptionalNativeModule<Bridge>("KPBridge");
  */
 export function setNativeLanguage(code: string): void {
   if (typeof native?.setLanguage === "function") { try { native.setLanguage(code); } catch { /* older build */ } }
+}
+
+/**
+ * Switch the home-screen icon to the one for a colour theme (assets/icons/<id>.png, compiled into the
+ * app as "AppIcon-<id>" by plugins/withAppIcons.js). The default theme is the primary icon, so it
+ * resets to that. iOS shows its own "You have changed the icon" alert each time; asking for the icon
+ * already showing does nothing and shows nothing. No-op off iOS and on a build made before this
+ * existed; rejects when iOS refuses (an id with no icon set, or a device without alternate icons).
+ */
+export async function setAppIcon(themeId: string): Promise<void> {
+  if (Platform.OS !== "ios" || typeof native?.setAppIcon !== "function") return;
+  await native.setAppIcon(themeId === DEFAULT_THEME ? null : themeId);
+}
+
+/** The theme id of the icon on the home screen; the default theme's when it is the primary icon, off iOS, or on an older build. */
+export async function getAppIcon(): Promise<string> {
+  if (Platform.OS !== "ios" || typeof native?.getAppIcon !== "function") return DEFAULT_THEME;
+  try { return (await native.getAppIcon()) ?? DEFAULT_THEME; } catch { return DEFAULT_THEME; }
+}
+
+/**
+ * Lay a snapshot of the screen over the app (native/KPBridgeModule.swift, `KPThemeTransition`), so a
+ * theme switch can re-mount the tree out of sight. `at` is the tap, in window points: the new theme
+ * is revealed from there, and a loader appears there if the switch takes a moment. Resolves true
+ * once the cover is up; false off iOS, on a build made before this existed, or with no window — the
+ * switch then just happens. Native removes the cover by itself after two seconds if `end` never comes.
+ */
+export async function beginThemeTransition(at?: { x: number; y: number }): Promise<boolean> {
+  if (Platform.OS !== "ios" || typeof native?.beginThemeTransition !== "function") return false;
+  try { return await native.beginThemeTransition(at?.x ?? null, at?.y ?? null); } catch { return false; }
+}
+
+/** Reveal the new theme over `seconds` (a circle growing from the tap); resolves when the cover is gone. No-op where `begin` would be. */
+export async function endThemeTransition(seconds = 0.35): Promise<void> {
+  if (Platform.OS !== "ios" || typeof native?.endThemeTransition !== "function") return;
+  try { await native.endThemeTransition(seconds); } catch { /* the native safety timer removes it */ }
+}
+
+/**
+ * The theme's background (hex, light and dark side) on the window and root view, so nothing of
+ * another palette shows behind a sheet as it slides, or before React has drawn. Follows the phone's
+ * appearance natively. No-op off iOS and on older builds.
+ */
+export function setWindowBackground(light: string, dark: string): void {
+  if (Platform.OS !== "ios" || typeof native?.setWindowBackground !== "function") return;
+  try { native.setWindowBackground(light, dark); } catch { /* older build */ }
 }
 
 export const KPBridge = {

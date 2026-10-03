@@ -6,7 +6,7 @@ import { DEFAULT_ACCOUNT_GROUP, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { Row } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { groupName } from "@/lib/names";
 
@@ -56,11 +56,11 @@ export default function PickGroup() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingVertical: S.md },
   search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
   input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 48 },
   rowText: { flex: 1, fontSize: 17, color: C.label },
   transparent: { backgroundColor: "transparent" },
-});
+}));

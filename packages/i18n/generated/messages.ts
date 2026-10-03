@@ -93,12 +93,18 @@ export interface Messages {
   "automation.settings.automateSubtitle": undefined;
   "automation.settings.denied": undefined;
   "automation.settings.granted": undefined;
-  "automation.settings.hintLog": undefined;
-  "automation.settings.hintNotify": undefined;
   "automation.settings.log": undefined;
+  /** Unfolds under logHintShort. */
+  "automation.settings.logHintMore": undefined;
+  /** Footnote under the Notification log row; the ⓘ unfolds logHintMore. */
+  "automation.settings.logHintShort": undefined;
   /** Subtitle of the Notification log row. */
   "automation.settings.logMissed": { count: number };
   "automation.settings.logNone": undefined;
+  /** Unfolds under notifyShort. */
+  "automation.settings.notifyMore": undefined;
+  /** Footnote under the notification setting; the ⓘ unfolds notifyMore. */
+  "automation.settings.notifyShort": undefined;
   "automation.settings.openSettings": undefined;
   "automation.settings.openSettingsSubtitle": undefined;
   "automation.settings.setup": undefined;
@@ -401,6 +407,8 @@ export interface Messages {
   /** Language row subtitle while following the phone; name is the language it resolves to, in its own language ("English"). */
   "common.language.systemNow": { name: string | number };
   "common.language.title": undefined;
+  /** VoiceOver label of the ⓘ next to a short note; tapping it unfolds the full explanation. */
+  "common.moreInfo": undefined;
   "common.next": undefined;
   "common.noCategory": undefined;
   "common.none": undefined;
@@ -410,9 +418,11 @@ export interface Messages {
   "common.today": undefined;
   "common.yesterday": undefined;
   "data.backups.empty": undefined;
-  "data.backups.hintICloud": undefined;
-  "data.backups.hintLocal": undefined;
+  /** Footnote under the backups list when iCloud is on; the ⓘ unfolds restoreMore. */
+  "data.backups.iCloudShort": undefined;
   "data.backups.listFailed": undefined;
+  /** Footnote under the backups list when iCloud is off; the ⓘ unfolds restoreMore. */
+  "data.backups.localShort": undefined;
   "data.backups.merge": undefined;
   "data.backups.notDownloaded": undefined;
   "data.backups.replace": undefined;
@@ -424,6 +434,8 @@ export interface Messages {
   "data.backups.restoreFailed": undefined;
   /** when is "22 Sep at 19:21". */
   "data.backups.restoreMessage": { when: string | number };
+  /** Unfolds under iCloudShort or localShort. */
+  "data.backups.restoreMore": undefined;
   "data.backups.restoreTitle": undefined;
   "data.backups.restored": undefined;
   /** File size; size is a whole number. */
@@ -478,9 +490,6 @@ export interface Messages {
   "data.icloud.checkNow": undefined;
   /** error is the system's message. */
   "data.icloud.failed": { error: string | number };
-  "data.icloud.hintMerge": undefined;
-  /** perDay is how many backups a day keeps. */
-  "data.icloud.hintPolicy": { perDay: string | number };
   "data.icloud.keep": undefined;
   /** An option in the Keep backups for list. */
   "data.icloud.keepDays": { count: number };
@@ -489,8 +498,12 @@ export interface Messages {
   /** How long backups are kept, and how many files there are. */
   "data.icloud.keepState": { days: number; files: number };
   "data.icloud.merge": undefined;
+  /** Unfolds under mergeShort. */
+  "data.icloud.mergeMore": undefined;
   "data.icloud.mergeNoICloud": undefined;
   "data.icloud.mergeOff": undefined;
+  /** Second footnote under the iCloud group; the ⓘ unfolds mergeMore. */
+  "data.icloud.mergeShort": undefined;
   "data.icloud.mergeWhen": undefined;
   /** when is "Today at 19:21". */
   "data.icloud.merged": { count: number; when: string | number };
@@ -510,6 +523,10 @@ export interface Messages {
   "data.icloud.photosNone": undefined;
   /** Receipt photos copied to iCloud so far. */
   "data.icloud.photosPending": { done: string | number; total: string | number; left: string | number };
+  /** Unfolds under policyShort. perDay is how many backups a day keeps. */
+  "data.icloud.policyMore": { perDay: string | number };
+  /** Footnote under the iCloud group; the ⓘ next to it unfolds policyMore. */
+  "data.icloud.policyShort": undefined;
   "data.icloud.restore": undefined;
   /** today is how many of them were made today. */
   "data.icloud.restoreCount": { count: number; today: string | number };
@@ -542,7 +559,10 @@ export interface Messages {
   "data.import.confirmTitle": undefined;
   "data.import.done": undefined;
   "data.import.failed": undefined;
-  "data.import.hint": undefined;
+  /** Unfolds under hintShort. */
+  "data.import.hintMore": undefined;
+  /** Footnote under the import rows; the ⓘ unfolds hintMore. */
+  "data.import.hintShort": undefined;
   "data.import.json": undefined;
   "data.import.jsonSubtitle": undefined;
   "data.import.noCopyMessage": undefined;
@@ -952,6 +972,8 @@ export interface Messages {
   "onboarding.restore.failed": undefined;
   /** VoiceOver label of the progress dots at the top of the welcome flow. */
   "onboarding.stepA11y": { step: string | number; count: string | number };
+  "onboarding.theme.subtitle": undefined;
+  "onboarding.theme.title": undefined;
   "onboarding.welcome.cloudRestored": undefined;
   /** date is when the backup was made ("22 Sep"); summary is what was imported, already translated. */
   "onboarding.welcome.cloudRestoredBody": { date: string | number; summary: string | number };
@@ -1368,6 +1390,8 @@ export interface Messages {
   "recurring.due.waitingIntro": { count: number };
   /** <sum> is replaced by the total amount; its text is ignored. */
   "recurring.due.waitingIntroSum": { count: number };
+  "recurring.duplicate.row": undefined;
+  "recurring.duplicate.subtitle": undefined;
   "recurring.expense": undefined;
   "recurring.fromTx.guessed": undefined;
   "recurring.fromTx.pickTitle": undefined;
@@ -1375,6 +1399,9 @@ export interface Messages {
   "recurring.fromTx.seen": { count: string | number; repeat: string | number };
   "recurring.fromTx.subtitle": undefined;
   "recurring.fromTx.title": undefined;
+  "recurring.fromTx.updateSubtitle": undefined;
+  /** Row on an existing recurring rule: refill its fields from a payment. */
+  "recurring.fromTx.updateTitle": undefined;
   "recurring.income": undefined;
   "recurring.match.amountHint": undefined;
   "recurring.match.amountOnly": undefined;
@@ -1443,6 +1470,17 @@ export interface Messages {
   "settings.about.diagnosticsSubtitle": undefined;
   "settings.about.privacy": undefined;
   "settings.about.privacySubtitle": undefined;
+  /** Development builds only. */
+  "settings.about.testData": undefined;
+  "settings.about.testDataAction": undefined;
+  "settings.about.testDataBody": undefined;
+  "settings.about.testDataDone": undefined;
+  "settings.about.testDataFailed": undefined;
+  "settings.about.testDataLoading": undefined;
+  /** name is a backup file name. */
+  "settings.about.testDataSafety": { name: string | number };
+  "settings.about.testDataSubtitle": undefined;
+  "settings.about.testDataTitle": undefined;
   "settings.about.whatsNew": undefined;
   /** version is "1.0.3". */
   "settings.about.whatsNewSubtitle": { version: string | number };
@@ -1501,6 +1539,7 @@ export interface Messages {
   "settings.recurring.title": undefined;
   "settings.section.about": undefined;
   "settings.section.backup": undefined;
+  "settings.section.location": undefined;
   "settings.section.preferences": undefined;
   "settings.section.shortcuts": undefined;
   "settings.section.tracking": undefined;
@@ -1550,7 +1589,10 @@ export interface Messages {
   "settingsLists.accounts.emptyTitle": undefined;
   /** Section header for accounts that are in no group. */
   "settingsLists.accounts.group": undefined;
-  "settingsLists.accounts.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.accounts.introMore": undefined;
+  /** Note above the accounts list; the ⓘ unfolds introMore. */
+  "settingsLists.accounts.introShort": undefined;
   "settingsLists.accounts.title": undefined;
   "settingsLists.accounts.type.bank": undefined;
   "settingsLists.accounts.type.card": undefined;
@@ -1569,7 +1611,10 @@ export interface Messages {
   /** Subtitle of a folder that holds income. */
   "settingsLists.categories.folderIncome": { count: number };
   "settingsLists.categories.inArchivedFolder": undefined;
-  "settingsLists.categories.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.categories.introMore": undefined;
+  /** Note above the categories list; the ⓘ unfolds introMore. */
+  "settingsLists.categories.introShort": undefined;
   "settingsLists.categories.matters": undefined;
   /** Every category has an importance. */
   "settingsLists.categories.mattersAll": { count: string | number };
@@ -1584,7 +1629,10 @@ export interface Messages {
   "settingsLists.debts.addA11y": undefined;
   "settingsLists.debts.emptyHint": undefined;
   "settingsLists.debts.emptyTitle": undefined;
-  "settingsLists.debts.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.debts.introMore": undefined;
+  /** Note above the debts list; the ⓘ unfolds introMore. */
+  "settingsLists.debts.introShort": undefined;
   "settingsLists.debts.noDue": undefined;
   /** date is "22 Sep". */
   "settingsLists.debts.overdue": { date: string | number };
@@ -1612,8 +1660,12 @@ export interface Messages {
   "settingsLists.recurring.expecting": undefined;
   /** Name of a rule with no payee and no category. */
   "settingsLists.recurring.fallbackTitle": undefined;
-  "settingsLists.recurring.footNoWait": undefined;
-  "settingsLists.recurring.footWait": undefined;
+  /** Unfolds under footShort while waiting is off. */
+  "settingsLists.recurring.footMoreNoWait": undefined;
+  /** Unfolds under footShort while waiting is on. */
+  "settingsLists.recurring.footMoreWait": undefined;
+  /** Footnote at the bottom of the recurring list; the ⓘ unfolds footMoreWait or footMoreNoWait. */
+  "settingsLists.recurring.footShort": undefined;
   /** How often a rule repeats; count is the interval. */
   "settingsLists.recurring.freq.daily": { count: number };
   "settingsLists.recurring.freq.monthly": { count: number };
@@ -1624,8 +1676,12 @@ export interface Messages {
   "settingsLists.recurring.name": undefined;
   /** currencies is "USD, PLN". */
   "settingsLists.recurring.noRate": { currencies: string | number };
-  "settingsLists.recurring.noteNoWait": undefined;
-  "settingsLists.recurring.noteWait": undefined;
+  /** Unfolds under noteShort while waiting for the bank is off. */
+  "settingsLists.recurring.noteMoreNoWait": undefined;
+  /** Unfolds under noteShort while waiting for the bank is on. */
+  "settingsLists.recurring.noteMoreWait": undefined;
+  /** Note under the recurring settings card; the ⓘ unfolds noteMoreWait or noteMoreNoWait. */
+  "settingsLists.recurring.noteShort": undefined;
   "settingsLists.recurring.paused": undefined;
   "settingsLists.recurring.perMonth": undefined;
   "settingsLists.recurring.perYear": undefined;
@@ -1654,7 +1710,10 @@ export interface Messages {
   "settingsLists.tags.archivedNote": undefined;
   "settingsLists.tags.emptyHint": undefined;
   "settingsLists.tags.emptyTitle": undefined;
-  "settingsLists.tags.intro": undefined;
+  /** Unfolds under introShort. */
+  "settingsLists.tags.introMore": undefined;
+  /** Note above the tags list; the ⓘ unfolds introMore. */
+  "settingsLists.tags.introShort": undefined;
   "settingsLists.tags.title": undefined;
   /** Section header: tags made by travel mode, one per trip. */
   "settingsLists.tags.travel": undefined;
@@ -1721,6 +1780,31 @@ export interface Messages {
   "tag.transactions.count": { count: number };
   "tag.transactions.header": undefined;
   "tag.transactions.subtitle": undefined;
+  /** Follow the iPhone's appearance. Segment label; keep short. */
+  "theme.appearance.auto": undefined;
+  /** Always the dark side. Segment label. */
+  "theme.appearance.dark": undefined;
+  /** Always the light side. Segment label. */
+  "theme.appearance.light": undefined;
+  /** VoiceOver label of the dark-mode preview tile of a theme. */
+  "theme.dark": undefined;
+  /** VoiceOver label of one icon in that row; name is a theme name. */
+  "theme.icon.a11y": { name: string | number };
+  /** Section header above the row of home-screen icons on Settings → Theme. */
+  "theme.icon.title": undefined;
+  /** VoiceOver label of the light-mode preview tile of a theme. */
+  "theme.light": undefined;
+  "theme.name.catppuccin": undefined;
+  "theme.name.github": undefined;
+  /** The default theme: graphite grey on off-white (and the reverse in dark mode). Translate the colour name. */
+  "theme.name.graphite": undefined;
+  "theme.name.gruvbox": undefined;
+  "theme.name.nord": undefined;
+  "theme.name.rosepine": undefined;
+  "theme.name.solarized": undefined;
+  "theme.name.tokyonight": undefined;
+  /** Settings row and screen title; the colour theme of the app. */
+  "theme.title": undefined;
   "transaction.bulk.apply": { count: number };
   "transaction.bulk.confirmed": undefined;
   "transaction.bulk.count": { count: number };
@@ -1753,8 +1837,6 @@ export interface Messages {
   /** Fills {name} in "Account: {name}" when there is no account. */
   "transaction.entry.accountNone": undefined;
   "transaction.entry.addLocation": undefined;
-  /** Placeholder line on the entry sheet when the entry has no note. */
-  "transaction.entry.addNote": undefined;
   /** VoiceOver label of the big amount on the entry sheet; amount is formatted, with its sign. */
   "transaction.entry.amountA11y": { amount: string | number; currency: string | number };
   /** Small pill next to the account that unfolds the balance before and after this entry. */
@@ -1798,6 +1880,8 @@ export interface Messages {
   /** VoiceOver label: the entry has map coordinates but no place name. */
   "transaction.entry.locationPinned": undefined;
   "transaction.entry.makeTransfer.action": undefined;
+  /** Turning a saved expense or income into a transfer. */
+  "transaction.entry.makeTransfer.convert": undefined;
   "transaction.entry.makeTransfer.empty": undefined;
   "transaction.entry.makeTransfer.moved": { amount: string | number; currency: string | number };
   "transaction.entry.makeTransfer.title": undefined;
@@ -1818,8 +1902,6 @@ export interface Messages {
   "transaction.entry.returnCannot": undefined;
   "transaction.entry.returnConfirmTitle": { amount: string | number; currency: string | number };
   "transaction.entry.returnFailed": undefined;
-  "transaction.entry.returnNeedsAmount.body": undefined;
-  "transaction.entry.returnNeedsAmount.title": undefined;
   "transaction.entry.returnPickDesc": { amount: string | number; currency: string | number };
   /** Title of the picker that chooses which earlier entry a return belongs to. */
   "transaction.entry.returnPickTitle": undefined;
@@ -2011,6 +2093,12 @@ export interface Messages {
   "transfer.balanceAfterA11y": { balance: string | number; after: string | number; currency: string | number };
   "transfer.category": undefined;
   "transfer.chooseAccount": undefined;
+  /** Label of the disabled confirm button until both accounts of a transfer are chosen. */
+  "transfer.chooseAccounts": undefined;
+  /** Hint under the cards of a new transfer while the From account is not chosen. */
+  "transfer.chooseFrom": undefined;
+  /** Hint under the cards of a new transfer while the To account is not chosen. */
+  "transfer.chooseTo": undefined;
   "transfer.delete": undefined;
   "transfer.deleteTitle": undefined;
   /** Chip that goes back to the fetched rate after the receiving amount was typed by hand. */
@@ -2128,7 +2216,10 @@ export interface Messages {
   "travel.settings.addPast": undefined;
   "travel.settings.addPastHint": undefined;
   "travel.settings.history": undefined;
-  "travel.settings.note": undefined;
+  /** Unfolds under noteShort. */
+  "travel.settings.noteMore": undefined;
+  /** Note on the travel mode settings screen; the ⓘ unfolds noteMore. */
+  "travel.settings.noteShort": undefined;
   /** Section header above the trip that is running. */
   "travel.settings.now": undefined;
   "travel.settings.start": undefined;
@@ -2205,6 +2296,7 @@ export interface Messages {
   "whatsNew.improved": undefined;
   "whatsNew.notes.v1_0_3.categories": undefined;
   "whatsNew.notes.v1_0_3.language": undefined;
+  "whatsNew.notes.v1_0_3.themes": undefined;
   "whatsNew.notes.v1_0_3.ukrainian": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;

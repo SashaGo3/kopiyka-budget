@@ -9,7 +9,7 @@ import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow, runBusy } from "@/components/ui";
 import { ALL_TIME } from "@/lib/filters";
 import { dismissTo } from "@/lib/nav";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { catDescription, catName, catNameById } from "@/lib/names";
 import { t } from "@/i18n";
@@ -225,7 +225,7 @@ export default function CategoryEdit() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.md, padding: S.lg },
@@ -236,4 +236,4 @@ const styles = StyleSheet.create({
   right: { flexDirection: "row", alignItems: "center", gap: S.sm },
   rowIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   swatch: { width: 24, height: 24, borderRadius: 12 },
-});
+}));

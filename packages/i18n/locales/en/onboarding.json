@@ -91,5 +91,9 @@
       "message": "Balance now in",
       "note": "Followed by the currency code and name: \"Balance now in UAH · Ukrainian hryvnia\"."
     }
+  },
+  "theme": {
+    "title": "Pick a look",
+    "subtitle": "Eight colour themes, each with a light and a dark side that follow the iPhone. You can change it, and pick a matching app icon, any time in Settings."
   }
 }

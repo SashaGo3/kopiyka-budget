@@ -69,7 +69,7 @@
     "plugins": [
       "expo-router",
       [
-        "./plugins/withFlatLaunchScreen",
+        "./plugins/withSilhouetteLaunchScreen",
         {
           "backgroundColor": "#F4F4F1"
         }
@@ -128,7 +128,8 @@
       "@bacons/apple-targets",
       "expo-maps",
       "./plugins/withQuickLog",
-      "./plugins/withReleasePlistCleanup"
+      "./plugins/withReleasePlistCleanup",
+      "./plugins/withAppIcons"
     ],
     "experiments": {
       "typedRoutes": true,

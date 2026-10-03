@@ -8,7 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { BigButton, Card, ModalHeader, Segmented } from "@/components/ui";
 import { humanDayTime } from "@/lib/dates";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { catName as shownName } from "@/lib/names";
 
@@ -119,7 +119,7 @@ export default function BulkPreview() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   what: { fontSize: 20, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.md },
   count: { fontSize: 14, color: C.secondary, paddingHorizontal: S.xl, paddingTop: 2, paddingBottom: S.md },
   row: { marginHorizontal: S.lg, marginBottom: S.sm, padding: S.md, borderRadius: R.card, gap: 6 },
@@ -131,4 +131,4 @@ const styles = StyleSheet.create({
   after: { flex: 1, fontSize: 14, color: C.label, fontWeight: "600" },
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingHorizontal: S.xl, paddingVertical: S.xxl },
   foot: { position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: S.xxl, paddingTop: S.sm, backgroundColor: C.bgGrouped },
-});
+}));

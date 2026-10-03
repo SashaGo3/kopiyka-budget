@@ -170,6 +170,7 @@ ios_shot() {
     insights)     cold "kopiyka://insights" ;;
     recurring)    cold "kopiyka://settings/recurring" ;;
     debts)        cold "kopiyka://settings/debts" ;;
+    themes)       cold "kopiyka://settings/theme" ;;
     accounts)     cold "kopiyka://settings/accounts" ;;
     categories)   cold "kopiyka://settings/categories" ;;
     tags)         cold "kopiyka://settings/tags" ;;

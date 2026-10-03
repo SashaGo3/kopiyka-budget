@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
+import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themeTone, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
 import { t } from "@/i18n";
 
@@ -79,13 +79,20 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   );
 }
 
-/** `titleNode` draws something else where the title text goes (a tag's pill); `title` is still what VoiceOver reads. */
-export function Row({ title, titleNode, subtitle, subtitleColor, left, right, onPress, icon, iconColor, destructive, style }: {
-  title: string; titleNode?: ReactNode; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; destructive?: boolean; style?: StyleProp<ViewStyle>;
+/**
+ * `titleNode` draws something else where the title text goes (a tag's pill); `title` is still what VoiceOver reads.
+ *
+ * The icon square: `iconColor` is a chrome colour named as an iOS system hex, redrawn in the current
+ * theme's colour for that role (`themeTone` — an iOS indigo square clashes on Gruvbox); `iconFill` is
+ * the user's own colour (an account's, a category's) and is drawn exactly as chosen. Neither: the accent.
+ */
+export function Row({ title, titleNode, subtitle, subtitleColor, left, right, onPress, icon, iconColor, iconFill, destructive, style }: {
+  title: string; titleNode?: ReactNode; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; iconFill?: string | null; destructive?: boolean; style?: StyleProp<ViewStyle>;
 }) {
+  const tone = iconFill ? { fill: iconFill, glyph: "white" } : iconColor ? themeTone(iconColor) : { fill: C.tint, glyph: C.onTint };
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title} style={({ pressed }) => [styles.row, pressed && { backgroundColor: C.fill }, style]}>
-      {left ?? (icon ? <View style={[styles.iconBox, { backgroundColor: iconColor ?? C.tint }]}><SymbolView name={icon} size={16} tintColor={iconColor ? "white" : C.onTint} /></View> : null)}
+      {left ?? (icon ? <View style={[styles.iconBox, { backgroundColor: tone.fill }]}><SymbolView name={icon} size={16} tintColor={tone.glyph} /></View> : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
         {titleNode ? <View style={{ flexDirection: "row" }}>{titleNode}</View> : <Text numberOfLines={2} style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
         {subtitle ? <Text numberOfLines={3} style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
@@ -286,8 +293,36 @@ export function StatPair({ stats }: { stats: { label: string; minor: number; cur
  * out what a tag is for, or how a manual recurring rule differs from an automatic one. So the note
  * stays, and the empty state is left to say only that the list is empty.
  */
-export function ScreenNote({ children }: { children: ReactNode }) {
-  return <Text style={styles.screenNote}>{children}</Text>;
+export function ScreenNote({ children, more }: { children: ReactNode; more?: ReactNode }) {
+  return <InfoNote more={more} style={styles.screenNote}>{children}</InfoNote>;
+}
+
+/**
+ * The grey text under a group of rows: one short line with the fact that matters, and — when there
+ * is more worth knowing — an ⓘ that unfolds the rest in place (tap again to fold it). The long
+ * explanation is for the second visit, not something every visit has to scroll past.
+ */
+export function Footnote({ children, more, style }: { children: ReactNode; more?: ReactNode; style?: StyleProp<ViewStyle> }) {
+  return <InfoNote more={more} style={[styles.footnote, style]}>{children}</InfoNote>;
+}
+
+function InfoNote({ children, more, style }: { children: ReactNode; more?: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const [open, setOpen] = useState(false);
+  const toggle = () => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v); };
+  return (
+    <View style={style}>
+      <View style={styles.noteRow}>
+        <Text style={styles.noteText}>{children}</Text>
+        {more ? (
+          <Pressable onPress={toggle} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("common.moreInfo")} accessibilityState={{ expanded: open }}
+            style={({ pressed }) => [styles.noteInfo, pressed && { opacity: 0.5 }]}>
+            <SymbolView name={open ? "info.circle.fill" : "info.circle"} size={16} tintColor={C.secondary} />
+          </Pressable>
+        ) : null}
+      </View>
+      {more && open ? <Text style={[styles.noteText, styles.noteMore]}>{more}</Text> : null}
+    </View>
+  );
 }
 
 /**
@@ -340,18 +375,23 @@ export function Empty({ title, hint, action }: { title: string; hint?: string; a
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   busy: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" },
   busyCard: { alignItems: "center", gap: S.md, paddingHorizontal: S.xl, paddingVertical: S.xl, borderRadius: R.card, backgroundColor: C.card, minWidth: 200 },
   busyText: { color: C.label, fontSize: 15, textAlign: "center" },
-  screenNote: { color: C.tertiary, fontSize: 13, lineHeight: 18, paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.xs },
+  screenNote: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.xs },
+  footnote: { paddingHorizontal: S.xl, marginTop: S.sm },
+  noteRow: { flexDirection: "row", alignItems: "flex-start", gap: S.sm },
+  noteText: { flex: 1, color: C.tertiary, fontSize: 13, lineHeight: 18 },
+  noteInfo: { paddingTop: 1 },
+  noteMore: { marginTop: S.xs },
   title: { fontSize: 22, fontWeight: "700", color: C.label },
   subtle: { fontSize: 14, color: C.secondary },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, paddingHorizontal: S.md },
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  pillNeg: { backgroundColor: "rgba(255,59,48,0.14)" },
-  pillWarn: { backgroundColor: "rgba(255,149,0,0.16)" },
-  pillPos: { backgroundColor: "rgba(52,199,89,0.14)" },
+  pillNeg: { backgroundColor: C.redSoft },
+  pillWarn: { backgroundColor: C.orangeSoft },
+  pillPos: { backgroundColor: C.greenSoft },
   pillNeutral: { backgroundColor: C.fill },
   pillText: { fontSize: 15, fontWeight: "600" },
   chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 12, minHeight: 38, paddingVertical: 6, borderRadius: 19, backgroundColor: C.fill, flexGrow: 1, flexBasis: "auto", minWidth: 0, maxWidth: "100%" },
@@ -386,4 +426,4 @@ const styles = StyleSheet.create({
   deleteText: { color: C.red, fontSize: 15, fontWeight: "500" },
   big: { marginHorizontal: S.md, minHeight: 50, paddingVertical: 10, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },
   bigText: { color: C.onTint, fontSize: 18, fontWeight: "600" },
-});
+}));

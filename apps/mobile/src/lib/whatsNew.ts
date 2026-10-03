@@ -18,6 +18,8 @@ import { needsOnboarding } from "@/lib/onboarding";
 import { launchHadTarget } from "@/lib/boot";
 
 const KEY = "whats_new_seen";
+/** Asked at most once per launch: a language change re-mounts the root layout and boots it again. */
+let asked = false;
 
 /** What this install has not been told about yet, newest first. */
 export function pendingReleases(): Release[] {
@@ -51,9 +53,10 @@ export function markWhatsNewSeen(): void {
  * never told you anything, so here is the current release".
  */
 export function maybeShowWhatsNew(): void {
-  if (needsOnboarding()) return;
+  if (asked || needsOnboarding()) return;
   const pending = pendingReleases();
   if (!pending.length) { markWhatsNewSeen(); return; }
   if (launchHadTarget()) return; // not now, but not stamped either — it is still news next time
+  asked = true;
   router.push("/whats-new");
 }

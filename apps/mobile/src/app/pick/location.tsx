@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
 import { ModalHeader } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
 import { PLACE_SEARCH_AVAILABLE, searchPlaces, type PlaceHit } from "@/lib/device";
 import { getHomeLocation } from "@/lib/settings";
@@ -149,7 +149,7 @@ export default function PickLocation() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.md, marginBottom: S.sm, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
   input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
   results: { position: "absolute", left: S.md, right: S.md, top: 0, maxHeight: 260, borderRadius: 14, backgroundColor: C.card, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
@@ -163,4 +163,4 @@ const styles = StyleSheet.create({
   btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 48, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.card },
   primary: { flex: 1, backgroundColor: C.tint },
   btnText: { color: C.tint, fontSize: 16, fontWeight: "600" },
-});
+}));

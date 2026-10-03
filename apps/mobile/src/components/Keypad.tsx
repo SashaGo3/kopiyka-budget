@@ -3,7 +3,7 @@ import { Alert, Animated, Pressable, StyleSheet, Text, View, type StyleProp, typ
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr, numberFormat } from "@kopiyka/core";
-import { C, R, S } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { getLanguage, t } from "@/i18n";
 export { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr };
 
@@ -188,7 +188,7 @@ export function ConfirmBar({ amount, label, onPress, disabled, color }: { amount
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   wrap: { gap: S.sm, paddingHorizontal: S.md },
   ops: { flexDirection: "row", gap: S.sm },
   op: { flex: 1, minHeight: 36, borderRadius: R.sm + 2, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
@@ -214,4 +214,4 @@ const styles = StyleSheet.create({
   confirm: { marginHorizontal: S.md, minHeight: 56, paddingVertical: 8, borderRadius: 16, backgroundColor: C.tint, alignItems: "center", justifyContent: "center", gap: 1 },
   confirmAmount: { color: "white", fontSize: 19, fontWeight: "700", fontVariant: ["tabular-nums"] },
   confirmLabel: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "600" },
-});
+}));

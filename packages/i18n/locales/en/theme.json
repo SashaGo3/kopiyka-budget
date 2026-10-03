@@ -1,0 +1,39 @@
+{
+  "$comment": "The colour theme picker: Settings → Theme (app/(tabs)/settings/theme.tsx) and the theme step of the welcome flow (components/ThemePicker.tsx).",
+  "title": {
+    "message": "Theme",
+    "note": "Settings row and screen title; the colour theme of the app."
+  },
+  "light": {
+    "message": "Light",
+    "note": "VoiceOver label of the light-mode preview tile of a theme."
+  },
+  "dark": {
+    "message": "Dark",
+    "note": "VoiceOver label of the dark-mode preview tile of a theme."
+  },
+  "appearance": {
+    "$comment": "Settings → Theme, a segmented control above the list: whether the theme follows the iPhone's light/dark setting or stays on one side.",
+    "auto": { "message": "Automatic", "note": "Follow the iPhone's appearance. Segment label; keep short.", "max": 14 },
+    "light": { "message": "Light", "note": "Always the light side. Segment label.", "max": 14 },
+    "dark": { "message": "Dark", "note": "Always the dark side. Segment label.", "max": 14 }
+  },
+  "icon": {
+    "title": { "message": "App icon", "note": "Section header above the row of home-screen icons on Settings → Theme." },
+    "a11y": { "message": "{name} icon", "note": "VoiceOver label of one icon in that row; name is a theme name." }
+  },
+  "name": {
+    "$comment": "Theme names: the editor themes they come from. In Ukrainian they are written in Cyrillic as they sound; the app's own is translated.",
+    "graphite": {
+      "message": "Graphite",
+      "note": "The default theme: graphite grey on off-white (and the reverse in dark mode). Translate the colour name."
+    },
+    "solarized": "Solarized",
+    "catppuccin": "Catppuccin",
+    "gruvbox": "Gruvbox",
+    "nord": "Nord",
+    "tokyonight": "Tokyo Night",
+    "rosepine": "Rosé Pine",
+    "github": "GitHub"
+  }
+}

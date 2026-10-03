@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Linking, ScrollView, StyleSheet, Text } from "react-native";
+import { Linking, ScrollView, StyleSheet } from "react-native";
 import { Stack, router, useFocusEffect } from "expo-router";
 import { useQuery } from "@/store";
-import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { Card, Footnote, Row, SectionHeader, ToggleRow } from "@/components/ui";
+import { C, themed } from "@/constants/theme";
 import { getShortcutNotify, setShortcutNotify } from "@/lib/settings";
 import { ensureNotificationPermission, notificationStatus, syncBadge } from "@/lib/notifications";
 import { parseLogCount } from "@/lib/parselog";
@@ -52,14 +52,14 @@ export default function AutomationSettings() {
             <Row icon="gear" iconColor="#8E8E93" title={t("automation.settings.openSettings")} subtitle={t("automation.settings.openSettingsSubtitle")} onPress={() => void Linking.openSettings()} style={styles.divider} />
           ) : null}
         </Card>
-        <Text style={styles.hint}>{t("automation.settings.hintNotify")}</Text>
+        <Footnote more={t("automation.settings.notifyMore")}>{t("automation.settings.notifyShort")}</Footnote>
         <SectionHeader>{t("automation.settings.whenWrong")}</SectionHeader>
         <Card>
           <Row icon="doc.text.magnifyingglass" iconColor="#0A84FF" title={t("automation.settings.log")}
             subtitle={missed ? t("automation.settings.logMissed", { count: missed }) : t("automation.settings.logNone")}
             onPress={() => router.push("/settings/parselog")} />
         </Card>
-        <Text style={styles.hint}>{t("automation.settings.hintLog")}</Text>
+        <Footnote more={t("automation.settings.logHintMore")}>{t("automation.settings.logHintShort")}</Footnote>
         <SectionHeader>{t("automation.settings.setup")}</SectionHeader>
         <Card>
           <Row icon="bell.badge" iconColor="#FF9F0A" title={t("automation.settings.automate")} subtitle={t("automation.settings.automateSubtitle")} onPress={() => router.push("/settings/shortcut")} />
@@ -69,7 +69,6 @@ export default function AutomationSettings() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-  hint: { color: C.tertiary, fontSize: 13, lineHeight: 18, paddingHorizontal: S.xl, paddingTop: S.sm },
-});
+}));

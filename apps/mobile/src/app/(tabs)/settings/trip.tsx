@@ -7,7 +7,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, DeleteRow, Row, SectionHeader } from "@/components/ui";
 import { TripCard } from "@/components/TripCard";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
 import { endTravel, tripLine, tripName } from "@/lib/travel";
 import { nextDay } from "@/lib/filters";
@@ -93,7 +93,7 @@ export default function TripSettings() {
 }
 
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
-});
+}));

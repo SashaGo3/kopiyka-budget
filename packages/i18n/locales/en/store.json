@@ -34,6 +34,7 @@
       "title": { "message": "Rent asks.\nNetflix doesn’t.", "note": "Slide 8, recurring payments: subscriptions post themselves, variable bills wait for a tap.", "max": 44 },
       "subtitle": { "message": "Subscriptions post themselves on the day;\nbills that change wait for your tap.", "max": 130 }
     },
+    "themes": {"title": {"message": "Your colours", "note": "Slide 9, the theme picker: eight colour themes (Graphite plus seven code-editor palettes), each light and dark.", "max": 44}, "subtitle": {"message": "Solarized, Nord, Catppuccin and more —\nlight or dark, with an icon to match.", "max": 130}},
     "debts": {
       "title": { "message": "Who owes whom", "note": "Slide 9, debts.", "max": 44 },
       "subtitle": { "message": "Lent 20 for lunch? It’s written down —\nwith a nudge on the due date.", "max": 130 }

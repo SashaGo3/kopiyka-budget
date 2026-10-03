@@ -12,7 +12,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
 import { Chip, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
-import { C, S } from "@/constants/theme";
+import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
 import { dismissTo } from "@/lib/nav";
 import { errorText } from "@/lib/errors";
@@ -219,7 +219,6 @@ export default function TransactionSheet() {
   // in this account's currency, since converting money back would need a rate and a conversation.
   const returnMinor = value !== null ? toMinor(value, currency) : 0;
   const askForReturn = () => {
-    if (!valid) { Alert.alert(t("transaction.entry.returnNeedsAmount.title"), t("transaction.entry.returnNeedsAmount.body")); return; }
     router.push({ pathname: "/pick/transaction", params: {
       key: keys.ret, title: t("transaction.entry.returnPickTitle"),
       desc: t("transaction.entry.returnPickDesc", { amount: formatMinor(returnMinor, currency), currency }),
@@ -257,11 +256,13 @@ export default function TransactionSheet() {
       { text: t("transaction.entry.forgetReturns.action"), style: "destructive", onPress: () => { mutate((d) => clearReturns(d, existing.id)); setDone(true); router.back(); } },
     ]);
 
-  // Tapping the amount copies it, plain and ungrouped so it pastes into anything.
+  // Tapping the amount copies it, plain, unsigned and ungrouped so it pastes into anything.
   const [copied, setCopied] = useState(false);
+  // The Return pill's width, so the amount keeps the same room on both sides of it and stays centred.
   const copyAmount = () => {
     if (value === null) return;
-    const text = formatMinor(toMinor(value, currency) * (kind === "expense" ? -1 : 1), currency, { grouping: "", decimal: "." });
+    // The magnitude only: the sign is the entry's kind, not part of the number being copied.
+    const text = formatMinor(toMinor(value, currency), currency, { grouping: "", decimal: "." });
     if (!copyToClipboard(text)) return;
     void Haptics.selectionAsync();
     setCopied(true);
@@ -413,8 +414,14 @@ export default function TransactionSheet() {
   };
   const changeKind = (k: Kind) => {
     if (k === "transfer") {
-      const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", from: accountId, amount: value !== null ? String(value) : "", stacked: "1" } }); };
-      Alert.alert(t("transaction.entry.makeTransfer.title"), value !== null ? t("transaction.entry.makeTransfer.moved", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("transaction.entry.makeTransfer.empty"), [
+      // A saved entry becomes one leg of the transfer — the side its sign says, on its own account —
+      // and keeps its id (createTransfer's `keep`); it brings along everything typed here so far.
+      // Nothing is written until the transfer sheet saves, and Back returns here unchanged.
+      const params = existing
+        ? { convert: existing.id, [kind === "income" ? "to" : "from"]: accountId, date, ...(note.trim() ? { note: note.trim() } : {}), ...(categoryId ? { category: categoryId } : {}), ...(tagIds.length ? { tags: tagIds.join(",") } : {}) }
+        : { from: accountId, date, ...(note.trim() ? { note: note.trim() } : {}) };
+      const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", ...params, amount: value !== null ? String(value) : "", stacked: "1" } }); };
+      Alert.alert(t("transaction.entry.makeTransfer.title"), existing ? t("transaction.entry.makeTransfer.convert") : value !== null ? t("transaction.entry.makeTransfer.moved", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("transaction.entry.makeTransfer.empty"), [
         { text: t("common.cancel"), style: "cancel" },
         { text: t("transaction.entry.makeTransfer.action"), onPress: go },
       ]);
@@ -447,6 +454,18 @@ export default function TransactionSheet() {
       top={
         <View style={styles.top}>
           {existing ? <Pressable onPress={duplicate} hitSlop={10} style={styles.corner} accessibilityRole="button" accessibilityLabel={t("transaction.entry.duplicateA11y")}><SymbolView name="plus.square.on.square" size={16} tintColor={C.tint} /></Pressable> : null}
+          {/* Return is not an attribute of this entry but an action on another one: the amount typed
+              goes back onto an earlier expense instead of being added here. It lives in the corner
+              Duplicate takes on a saved entry (it is only offered on a new one), as the same round icon
+              button, because as a ninth chip it wrapped onto a row of its own and pushed the keypad
+              down on a small phone. */}
+          {isNew ? (
+            <Pressable onPress={askForReturn} disabled={!valid} hitSlop={10}
+              style={({ pressed }) => [styles.corner, !valid && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button" accessibilityLabel={t("transaction.entry.chip.return")} accessibilityState={{ disabled: !valid }}>
+              <SymbolView name="arrow.uturn.backward" size={16} tintColor={C.tint} />
+            </Pressable>
+          ) : null}
           {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("transaction.entry.deleteA11y")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
           <Pressable onPress={copyAmount} disabled={value === null} style={styles.amountRow} accessibilityRole="button"
             accessibilityLabel={t("transaction.entry.amountA11y", { amount: `${expr ? signChar : ""}${shown}`, currency })}>
@@ -456,10 +475,14 @@ export default function TransactionSheet() {
           {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("transaction.entry.copied")}</Text> : <CalcLine expr={expr} style={styles.result} />}
           <View style={styles.details}>
             {/* The note is the entry's title, so the line shows it whole where it fits and ends in an
-                ellipsis where it does not — four lines is as much as the sheet can spare. */}
-            <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={note ? t("transaction.entry.noteA11y", { note }) : t("transaction.entry.addNote")}>
-              <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !note && styles.placeholder]} numberOfLines={4} ellipsizeMode="tail">{note || t("transaction.entry.addNote")}</Text>
-            </Pressable>
+                ellipsis where it does not — four lines is as much as the sheet can spare. With no note
+                there is no line: an "Add a note" placeholder did exactly what the Note chip does, at the
+                cost of a row a small phone takes out of the keypad. */}
+            {note ? (
+              <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
+                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4} ellipsizeMode="tail">{note}</Text>
+              </Pressable>
+            ) : null}
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
                 payment or a scanned receipt names the shop without ever pinning it on the map. */}
             {coords || place || locationOn ? (
@@ -500,11 +523,12 @@ export default function TransactionSheet() {
             ) : null}
           </View>
           <View style={styles.accountRow}>
-            <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
+            {/* With one account there is nothing to choose between, so the pill goes; the balance stays. */}
+            {accounts.length > 1 || !account ? <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
               <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
               <Text style={styles.accountText} numberOfLines={1}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</Text>
               <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
-            </Pressable>
+            </Pressable> : null}
             <Pressable onPress={unwrap} hitSlop={8} style={styles.unwrap} accessibilityRole="button" accessibilityLabel={expanded ? t("transaction.entry.hideBalance") : t("transaction.entry.showBalance")} accessibilityState={{ expanded }}>
               <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
               <Text style={styles.accountBal}>{t("transaction.entry.balance")}</Text>
@@ -533,8 +557,9 @@ export default function TransactionSheet() {
       ) : (
         <>
           <View style={{ paddingHorizontal: S.md }}>
-            {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered. */}
-            <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("transaction.entry.kind.expense") }, { value: "income", label: t("transaction.entry.kind.income"), color: C.green as unknown as string }, ...(isNew && accounts.length > 1 ? [{ value: "transfer" as Kind, label: t("transaction.entry.kind.transfer") }] : [])]} />
+            {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered; nor while
+                parts are carved off, since a split is several entries and a transfer is one movement. */}
+            <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("transaction.entry.kind.expense") }, { value: "income", label: t("transaction.entry.kind.income"), color: C.green as unknown as string }, ...(accounts.length > 1 && !existing?.transfer_id && !parts.length ? [{ value: "transfer" as Kind, label: t("transaction.entry.kind.transfer") }] : [])]} />
           </View>
           {/* Only while the entry is being written: "what was it this time?" is a question about a
               new expense. An entry already saved has its answer, and the row cost the confirm bar
@@ -556,9 +581,6 @@ export default function TransactionSheet() {
             <Chip icon="hourglass" label={t("transaction.entry.chip.pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
             <Chip icon="camera" label={t("transaction.entry.chip.photo")} active={!!photoSrc} compact onPress={openPhoto} />
             <Chip icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
-            {/* Not an attribute of this entry but an action on another one: the amount typed goes
-                back onto an earlier expense instead of being added here. */}
-            {isNew ? <Chip icon="arrow.uturn.backward" label={t("transaction.entry.chip.return")} disabled={!valid} onPress={askForReturn} /> : null}
             {isNew && RECEIPT_SCANNER_ENABLED ? <Chip icon="doc.text.viewfinder" label={t("transaction.entry.chip.receipt")} compact onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
           </ChipRow>
           <Keypad value={expr} onChange={onKeypadChange} onToggleSign={negate}
@@ -572,7 +594,7 @@ export default function TransactionSheet() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs, gap: 4 },
   amountRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 8, maxWidth: "100%" },
   amount: { fontSize: 54, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 },
@@ -596,7 +618,7 @@ const styles = StyleSheet.create({
   noteBox: { flexDirection: "row", alignItems: "flex-end", gap: S.md, marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, paddingVertical: 8, minHeight: 50 },
   noteInput: { flex: 1, fontSize: 17, color: C.label, minHeight: 34, maxHeight: 176, paddingTop: 7, paddingBottom: 7 },
   noteDone: { color: C.tint, fontSize: 17, fontWeight: "700", paddingVertical: 7 },
-});
+}));
 
 /**
  * Let go of a photo file, and delete it only if no other live entry still points at it. The parts
