@@ -1729,9 +1729,15 @@ export interface Messages {
   "theme.appearance.dark": undefined;
   /** Always the light side. Segment label. */
   "theme.appearance.light": undefined;
+  /** Small print under the theme list. Keep the project names in Latin script. */
+  "theme.credits": undefined;
   /** VoiceOver label of the dark-mode preview tile of a theme. */
   "theme.dark": undefined;
   "theme.footer": undefined;
+  /** VoiceOver label of one icon in that row; name is a theme name. */
+  "theme.icon.a11y": { name: string | number };
+  /** Section header above the row of home-screen icons on Settings → Theme. */
+  "theme.icon.title": undefined;
   /** VoiceOver label of the light-mode preview tile of a theme. */
   "theme.light": undefined;
   "theme.name.catppuccin": undefined;

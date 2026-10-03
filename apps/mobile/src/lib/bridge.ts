@@ -27,6 +27,7 @@ type Bridge = {
   claimDatabase(): void;
   setLanguage(code: string): void;
   setAppIcon(id: string | null): Promise<void>;
+  getAppIcon(): Promise<string | null>;
   beginThemeTransition(x: number | null, y: number | null): Promise<boolean>;
   endThemeTransition(duration: number): Promise<void>;
   setWindowBackground(light: string, dark: string): void;
@@ -55,6 +56,12 @@ export function setNativeLanguage(code: string): void {
 export async function setAppIcon(themeId: string): Promise<void> {
   if (Platform.OS !== "ios" || typeof native?.setAppIcon !== "function") return;
   await native.setAppIcon(themeId === DEFAULT_THEME ? null : themeId);
+}
+
+/** The theme id of the icon on the home screen; the default theme's when it is the primary icon, off iOS, or on an older build. */
+export async function getAppIcon(): Promise<string> {
+  if (Platform.OS !== "ios" || typeof native?.getAppIcon !== "function") return DEFAULT_THEME;
+  try { return (await native.getAppIcon()) ?? DEFAULT_THEME; } catch { return DEFAULT_THEME; }
 }
 
 /**

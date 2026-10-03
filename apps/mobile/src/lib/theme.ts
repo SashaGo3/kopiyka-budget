@@ -23,7 +23,7 @@ import { getMeta, setMeta, themeOf, type ThemeId } from "@kopiyka/core";
 import { db } from "@/db";
 import { applyThemePalette } from "@/constants/theme";
 import { onAfterWrite } from "@/store";
-import { beginThemeTransition, endThemeTransition, setAppIcon, setWindowBackground } from "@/lib/bridge";
+import { beginThemeTransition, endThemeTransition, setWindowBackground } from "@/lib/bridge";
 
 export const THEME_META_KEY = "theme";
 /**
@@ -120,10 +120,10 @@ let mounted: (() => void) | null = null;
 
 /**
  * Switch theme from a picker, animated: cover (with a loader at the tap if it is slow) → switch →
- * wait for the new tree to paint → reveal it in a circle growing from the tap. The
- * app icon follows only after the fade, because iOS answers it with an alert of its own and that
- * should not land on top of a screen still changing colour. Safe to call where the cover is not
- * available (off iOS, an older build): the switch then happens without it.
+ * wait for the new tree to paint → reveal it in a circle growing from the tap. The app icon is
+ * not part of it: it is chosen on its own (AppIconPicker), because iOS answers every icon change
+ * with an alert of its own. Safe to call where the cover is not available (off iOS, an older
+ * build): the switch then happens without it.
  */
 export async function switchTheme(id: ThemeId, from: ThemePickerRoute, at?: TapPoint): Promise<void> {
   if (themeOf(id).id === current) return;
@@ -138,7 +138,6 @@ export async function switchTheme(id: ThemeId, from: ThemePickerRoute, at?: TapP
     if (covered) { await painted; await endThemeTransition(FADE_SECONDS); }
     mounted = null;
   }
-  setAppIcon(id).catch(() => { /* an older build, or iOS refused: the colours still change */ });
 }
 
 /** The root layout, once the re-mounted tree is back where it belongs and has painted. */

@@ -1,4 +1,11 @@
 /**
+ * Palette sources, all under the MIT licence (the app and the site credit them on the theme screen
+ * and the themes section): Solarized — Ethan Schoonover (github.com/altercation/solarized);
+ * Catppuccin — github.com/catppuccin/catppuccin; Gruvbox — Pavel Pertsev (github.com/morhetz/gruvbox);
+ * Nord — Arctic Ice Studio (github.com/nordtheme/nord); Tokyo Night — enkia
+ * (github.com/enkia/tokyo-night-vscode-theme); Rosé Pine — github.com/rose-pine/rose-pine-theme;
+ * GitHub — Primer primitives (github.com/primer/primitives). Only colour values are taken.
+ *
  * The colour themes, as plain data: the app (apps/mobile/src/constants/theme.ts), the generated app
  * icons (apps/mobile/scripts/icons) and the website (site/) all read their colours from here, so a
  * theme looks the same in all three. Every theme has a light and a dark side and follows the phone's

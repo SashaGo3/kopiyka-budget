@@ -1,6 +1,6 @@
 {
   "title": "Тема",
-  "footer": "Кожна тема має світлий і темний варіант: «Автоматично» перемикається разом з iPhone, «Світла» й «Темна» тримаються одного. Іконка застосунку змінюється разом із темою.",
+  "footer": "Кожна тема має світлий і темний варіант: «Автоматично» перемикається разом з iPhone, «Світла» й «Темна» тримаються одного.",
   "light": "Світла",
   "dark": "Темна",
   "appearance": {
@@ -8,14 +8,19 @@
     "light": "Світла",
     "dark": "Темна"
   },
+  "credits": "Палітри за мотивами Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine і GitHub Primer — усі за ліцензією MIT. Дякуємо їхнім авторам.",
+  "icon": {
+    "title": "Іконка застосунку",
+    "a11y": "Іконка {name}"
+  },
   "name": {
     "graphite": "Графіт",
-    "solarized": "Solarized",
-    "catppuccin": "Catppuccin",
-    "gruvbox": "Gruvbox",
-    "nord": "Nord",
-    "tokyonight": "Tokyo Night",
-    "rosepine": "Rosé Pine",
-    "github": "GitHub"
+    "solarized": "Соларайзд",
+    "catppuccin": "Катпучин",
+    "gruvbox": "Ґрувбокс",
+    "nord": "Норд",
+    "tokyonight": "Токіо Найт",
+    "rosepine": "Розе Пайн",
+    "github": "ГітХаб"
   }
 }

@@ -30,7 +30,7 @@ private enum KPLaunch {
 ///  - "nativeWrite" event: a write the native side wants JS to make on its behalf (KPWrites)
 ///  - launchTimestamps(): boot-trace marks for Settings → Diagnostics (src/lib/boot.ts)
 ///  - setLanguage(code): the app's language, for every Swift surface (native/KPLocale.swift)
-///  - setAppIcon(id): the home-screen icon for a colour theme (plugins/withAppIcons.js)
+///  - setAppIcon(id) / getAppIcon(): the home-screen icon, one per colour theme (plugins/withAppIcons.js)
 ///  - beginThemeTransition(x, y) / endThemeTransition(s): the circular reveal over a theme switch (KPThemeTransition)
 ///  - setWindowBackground(light, dark): the theme's background behind everything React draws
 final class KPBridgeModule: Module {
@@ -106,6 +106,14 @@ final class KPBridgeModule: Module {
         app.setAlternateIconName(name) { error in
           if let error { promise.reject("ERR_APP_ICON", error.localizedDescription) } else { promise.resolve() }
         }
+      }
+    }
+
+    /// The theme id of the icon on the home screen, or nil for the primary one (Graphite).
+    AsyncFunction("getAppIcon") { (promise: Promise) in
+      DispatchQueue.main.async {
+        let name = UIApplication.shared.alternateIconName
+        promise.resolve(name.map { $0.hasPrefix("AppIcon-") ? String($0.dropFirst("AppIcon-".count)) : $0 })
       }
     }
 

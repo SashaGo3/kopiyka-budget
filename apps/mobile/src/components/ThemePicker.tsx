@@ -1,10 +1,12 @@
-import { useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { THEMES, THEME_IDS, type ThemeId, type ThemeSide } from "@kopiyka/core";
+import { Image } from "expo-image";
 import { Card, Segmented } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
+import { getAppIcon, setAppIcon } from "@/lib/bridge";
 import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type TapPoint, type ThemePickerRoute } from "@/lib/theme";
 import { t } from "@/i18n";
 
@@ -35,6 +37,51 @@ export function AppearancePicker() {
   );
 }
 
+// Static requires, one per theme (Metro cannot follow a computed path). Made by `bun run icons:themes`.
+const ICON_PREVIEW: Record<ThemeId, number> = {
+  graphite: require("@/../assets/icons/preview/graphite.png"),
+  solarized: require("@/../assets/icons/preview/solarized.png"),
+  catppuccin: require("@/../assets/icons/preview/catppuccin.png"),
+  gruvbox: require("@/../assets/icons/preview/gruvbox.png"),
+  nord: require("@/../assets/icons/preview/nord.png"),
+  tokyonight: require("@/../assets/icons/preview/tokyonight.png"),
+  rosepine: require("@/../assets/icons/preview/rosepine.png"),
+  github: require("@/../assets/icons/preview/github.png"),
+};
+
+/**
+ * The home-screen icon, one per theme, chosen on its own: iOS answers every change with an alert,
+ * which has no place in the middle of a theme switch. iOS itself remembers which one is set, so
+ * nothing is stored here.
+ */
+export function AppIconPicker() {
+  const [icon, setIcon] = useState<string | null>(null);
+  useEffect(() => { void getAppIcon().then(setIcon); }, []);
+  const pick = (id: ThemeId) => {
+    if (id === icon) return;
+    void Haptics.selectionAsync();
+    const before = icon;
+    setIcon(id);
+    setAppIcon(id).catch(() => setIcon(before));
+  };
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.icons}>
+      {THEME_IDS.map((id) => {
+        const on = id === icon;
+        return (
+          <Pressable key={id} onPress={() => pick(id)} accessibilityRole="button" accessibilityState={{ selected: on }}
+            accessibilityLabel={t("theme.icon.a11y", { name: themeName(id) })} style={styles.iconCell}>
+            <View style={[styles.iconRing, on && styles.iconRingOn]}>
+              <Image source={ICON_PREVIEW[id]} style={styles.icon} />
+            </View>
+            <Text style={[styles.iconName, on && styles.nameOn]} numberOfLines={1}>{themeName(id)}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 /**
  * A screen in miniature, drawn from one side of a palette as plain colours — not through `C`, which
  * only ever holds the current theme and follows the phone's appearance: here both sides of every
@@ -59,9 +106,9 @@ function Preview({ side, label }: { side: ThemeSide; label: string }) {
 }
 
 /**
- * Every theme with a light and a dark preview of it; a tap applies it at once. The old screen fades
- * off the app re-mounted in the new colours and already back on `from` (src/lib/theme.ts), and then
- * the app icon follows — iOS says so itself, with an alert of its own.
+ * Every theme with a light and a dark preview of it; a tap applies it at once. The new colours grow
+ * over the old screen from the tap, the app already re-mounted in them and back on `from`
+ * (src/lib/theme.ts). The app icon is chosen separately (AppIconPicker).
  */
 export function ThemePicker({ from }: { from: ThemePickerRoute }) {
   // Ticked at once, so the tap is answered before the tree re-mounts in the new colours.
@@ -107,6 +154,12 @@ const tile = StyleSheet.create({
 
 const styles = themed(() => StyleSheet.create({
   appearance: { paddingHorizontal: S.lg, marginBottom: S.md },
+  icons: { paddingHorizontal: S.lg, gap: S.md, paddingBottom: S.sm },
+  iconCell: { alignItems: "center", width: 68, gap: 6 },
+  iconRing: { padding: 3, borderRadius: 19, borderWidth: 2, borderColor: "transparent" },
+  iconRingOn: { borderColor: C.tint },
+  icon: { width: 56, height: 56, borderRadius: 13 },
+  iconName: { fontSize: 12, color: C.secondary },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   previews: { flexDirection: "row", gap: S.sm },
