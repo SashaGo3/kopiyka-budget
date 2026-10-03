@@ -4,7 +4,7 @@
     "message": "Theme",
     "note": "Settings row and screen title; the colour theme of the app."
   },
-  "footer": "Every theme has a light and a dark side and follows the iPhone’s appearance. The app icon changes with it.",
+  "footer": "Every theme has a light and a dark side: Automatic follows the iPhone, Light and Dark keep to one. The app icon changes with the theme.",
   "light": {
     "message": "Light",
     "note": "VoiceOver label of the light-mode preview tile of a theme."
@@ -12,6 +12,12 @@
   "dark": {
     "message": "Dark",
     "note": "VoiceOver label of the dark-mode preview tile of a theme."
+  },
+  "appearance": {
+    "$comment": "Settings → Theme, a segmented control above the list: whether the theme follows the iPhone's light/dark setting or stays on one side.",
+    "auto": { "message": "Automatic", "note": "Follow the iPhone's appearance. Segment label; keep short.", "max": 14 },
+    "light": { "message": "Light", "note": "Always the light side. Segment label.", "max": 14 },
+    "dark": { "message": "Dark", "note": "Always the dark side. Segment label.", "max": 14 }
   },
   "name": {
     "$comment": "Theme names. Brand names of the editor themes they come from: keep them as they are, except the app's own.",

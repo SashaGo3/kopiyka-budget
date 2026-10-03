@@ -3,14 +3,34 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { THEMES, THEME_IDS, type ThemeId, type ThemeSide } from "@kopiyka/core";
-import { Card } from "@/components/ui";
+import { Card, Segmented } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
-import { getTheme, switchTheme, type ThemePickerRoute } from "@/lib/theme";
+import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type ThemePickerRoute } from "@/lib/theme";
 import { t } from "@/i18n";
 
 /** A theme's name in the app's language: brand names stay as they are, the app's own is translated. */
 export function themeName(id: ThemeId): string {
   return t(`theme.name.${id}`);
+}
+
+/** What the appearance setting is called in a line of text: "" is the phone's. */
+export function appearanceName(a: AppearanceChoice): string {
+  return t(`theme.appearance.${a || "auto"}`);
+}
+
+/** Automatic / Light / Dark: whether the theme follows the phone or stays on one side. */
+export function AppearancePicker() {
+  const appearance = useAppearance();
+  const options: { value: AppearanceChoice; label: string }[] = [
+    { value: "", label: appearanceName("") },
+    { value: "light", label: appearanceName("light") },
+    { value: "dark", label: appearanceName("dark") },
+  ];
+  return (
+    <View style={styles.appearance}>
+      <Segmented value={appearance} options={options} onChange={(v) => { void Haptics.selectionAsync(); void switchAppearance(v); }} />
+    </View>
+  );
 }
 
 /**
@@ -51,6 +71,8 @@ export function ThemePicker({ from }: { from: ThemePickerRoute }) {
     void switchTheme(id, from).catch(() => setPicked(getTheme()));
   };
   return (
+    <>
+    <AppearancePicker />
     <Card>
       {THEME_IDS.map((id, i) => {
         const theme = THEMES[id];
@@ -68,6 +90,7 @@ export function ThemePicker({ from }: { from: ThemePickerRoute }) {
         );
       })}
     </Card>
+    </>
   );
 }
 
@@ -81,6 +104,7 @@ const tile = StyleSheet.create({
 });
 
 const styles = themed(() => StyleSheet.create({
+  appearance: { paddingHorizontal: S.lg, marginBottom: S.md },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   previews: { flexDirection: "row", gap: S.sm },

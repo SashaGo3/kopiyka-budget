@@ -1723,6 +1723,12 @@ export interface Messages {
   "tag.transactions.count": { count: number };
   "tag.transactions.header": undefined;
   "tag.transactions.subtitle": undefined;
+  /** Follow the iPhone's appearance. Segment label; keep short. */
+  "theme.appearance.auto": undefined;
+  /** Always the dark side. Segment label. */
+  "theme.appearance.dark": undefined;
+  /** Always the light side. Segment label. */
+  "theme.appearance.light": undefined;
   /** VoiceOver label of the dark-mode preview tile of a theme. */
   "theme.dark": undefined;
   "theme.footer": undefined;

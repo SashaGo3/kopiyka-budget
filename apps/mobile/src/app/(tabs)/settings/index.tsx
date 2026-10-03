@@ -17,14 +17,15 @@ import { ensureLocationPermission, locationStatus, placeName, preciseLocation } 
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { dayMonth, humanDayTime } from "@/lib/dates";
-import { themeName } from "@/components/ThemePicker";
-import { getTheme } from "@/lib/theme";
+import { appearanceName, themeName } from "@/components/ThemePicker";
+import { getTheme, useAppearance } from "@/lib/theme";
 import { LANGUAGES, deviceLanguage, getLanguage, isFollowingDevice, setLanguage, t, type LanguageCode } from "@/i18n";
 
 /** "22nd" / "22-го": a day of the month, as in "starts on the …". */
 const ordinal = (day: number) => t("settings.startDay.ordinal", { day });
 
 export default function SettingsScreen() {
+  const appearance = useAppearance();
   const backup = useBackupState();
   const prefs = useQuery(() => ({ startDay: getPeriodStartDay(), location: getLocationEnabled(), home: getHomeLocation(), hideIncome: getHideIncome(), showBalance: getShowBalance() }));
   const counts = useQuery((db) => {
@@ -145,7 +146,7 @@ export default function SettingsScreen() {
         <SectionHeader>{t("settings.section.preferences")}</SectionHeader>
         <Card>
           <Row icon="globe" iconColor="#0A84FF" title={t("common.language.title")} subtitle={languageLine} onPress={pickLanguage} />
-          <Row icon="paintpalette" iconColor="#AF52DE" title={t("theme.title")} subtitle={themeName(getTheme())} onPress={() => router.push("/settings/theme")} style={styles.divider} />
+          <Row icon="paintpalette" iconColor="#AF52DE" title={t("theme.title")} subtitle={appearance ? `${themeName(getTheme())} · ${appearanceName(appearance)}` : themeName(getTheme())} onPress={() => router.push("/settings/theme")} style={styles.divider} />
           <Row icon="calendar" iconColor="#FF9F0A" title={t("settings.startDay.title")} subtitle={startDaySubtitle} onPress={pickDay} style={styles.divider} />
           <ToggleRow icon="bell.badge" iconColor="#FF3B30" title={t("settings.notifications.title")} subtitle={perm.notif === "granted" ? t("settings.notifications.granted") : perm.notif === "denied" ? t("settings.notifications.denied") : t("settings.notifications.ask")} value={perm.notif === "granted"} onChange={(v) => void toggleNotifications(v)} style={styles.divider} />
           <ToggleRow icon="eye.slash" iconColor="#8E8E93" title={t("settings.hideIncome.title")} subtitle={prefs.hideIncome ? t("settings.hideIncome.on") : t("settings.hideIncome.off")} value={prefs.hideIncome} onChange={setHideIncome} style={styles.divider} />

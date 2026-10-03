@@ -18,6 +18,7 @@
  * navigator mounts — so no push animates), and once that has painted the snapshot fades away.
  */
 import { useSyncExternalStore } from "react";
+import { Appearance } from "react-native";
 import { getMeta, setMeta, themeOf, type ThemeId } from "@kopiyka/core";
 import { db } from "@/db";
 import { applyThemePalette } from "@/constants/theme";
@@ -25,10 +26,20 @@ import { onAfterWrite } from "@/store";
 import { beginThemeTransition, endThemeTransition, setAppIcon, setWindowBackground } from "@/lib/bridge";
 
 export const THEME_META_KEY = "theme";
+/**
+ * Light or dark regardless of the phone, or "" to follow it. Stored beside the theme and travelling
+ * with it (DATA.md rule 7). Applied natively (`Appearance.setColorScheme` sets the windows'
+ * `overrideUserInterfaceStyle`), so every DynamicColorIOS — and native headers, sheets, the keyboard —
+ * resolves to the chosen side without anything re-mounting.
+ */
+export const APPEARANCE_META_KEY = "appearance";
+export type AppearanceChoice = "" | "light" | "dark";
 
 let current: ThemeId = resolve();
 applyThemePalette(current);
 applyWindowBackground(current);
+let appearance: AppearanceChoice = resolveAppearance();
+Appearance.setColorScheme(appearance || "unspecified");
 /** The routes a theme is picked on, which the re-mounted app goes back to. */
 export type ThemePickerRoute = "/settings/theme" | "/onboarding/theme";
 /** A navigation state as the container reports it — only the shape `partialState` walks. */
@@ -45,8 +56,41 @@ function resolve(): ThemeId {
   return themeOf(stored).id;
 }
 
-// A restore can carry a `theme` setting (DATA.md rule 7); whichever path wrote it, take it up.
-onAfterWrite(() => reloadTheme());
+function resolveAppearance(): AppearanceChoice {
+  let stored: string | null = null;
+  try { stored = getMeta(db, APPEARANCE_META_KEY); } catch { /* a fresh database: follow the phone */ }
+  return stored === "light" || stored === "dark" ? stored : "";
+}
+
+// A restore can carry `theme` and `appearance` settings (DATA.md rule 7); whichever path wrote them, take them up.
+onAfterWrite(() => { reloadTheme(); reloadAppearance(); });
+
+export function getAppearance(): AppearanceChoice { return appearance; }
+
+function reloadAppearance(): void {
+  const next = resolveAppearance();
+  if (next === appearance) return;
+  appearance = next;
+  Appearance.setColorScheme(next || "unspecified");
+  for (const l of listeners) l();
+}
+
+/**
+ * Force light or dark, or follow the phone again (""). Cross-faded like a theme switch, but nothing
+ * re-mounts: the colours resolve to the other side natively, so two frames are enough to wait.
+ */
+export async function switchAppearance(next: AppearanceChoice): Promise<void> {
+  if (next === appearance) return;
+  await nextFrame();
+  const covered = await beginThemeTransition();
+  try {
+    setMeta(db, APPEARANCE_META_KEY, next);
+    reloadAppearance();
+    await nextFrame(); await nextFrame();
+  } finally {
+    if (covered) await endThemeTransition(FADE_SECONDS);
+  }
+}
 
 export function getTheme(): ThemeId { return current; }
 
@@ -142,6 +186,11 @@ export function takeThemeReturn(): ThemeReturn | null {
 }
 
 function subscribe(cb: () => void) { listeners.add(cb); return () => { listeners.delete(cb); }; }
+
+/** The forced appearance ("" = the phone's), re-rendering when it changes. */
+export function useAppearance(): AppearanceChoice {
+  return useSyncExternalStore(subscribe, getAppearance, getAppearance);
+}
 
 /** The current theme, re-rendering when it changes. Only the root layout and the picker need this. */
 export function useTheme(): ThemeId {
