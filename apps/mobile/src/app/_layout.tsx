@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
-import { Brand, C, R, S, currentTheme, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
+import { themeOf, type ThemeId } from "@kopiyka/core";
 import { registerThemeNavigation, takeThemeReturn, themeMounted, useTheme, type NavState, type ThemePickerRoute } from "@/lib/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
@@ -42,7 +43,10 @@ export const unstable_settings = { anchor: "(tabs)" };
  * content fits inside, and the content is pinned to its bottom edge so the room that is left over
  * appears above it, where the design already puts empty space.
  */
-function sheetOptions() {
+// Both take the theme as an argument although they read it through `C`: this component is the one
+// that does not remount on a switch, and the React Compiler memoises a call on its arguments — a
+// call with none (or only `dark`) kept handing back the colours of an earlier theme.
+function sheetOptions(_theme: ThemeId) {
   const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
   const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
   return {
@@ -66,10 +70,10 @@ const pushed = { contentStyle: screenContentStyle };
  * Navigation colours that match the theme's backgrounds, so native headers never differ from the
  * content. Built at render: the theme is whichever is current when the tree (re-)mounts.
  */
-function navigationTheme(dark: boolean) {
-  return dark
-    ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: Brand.bgDark, card: Brand.bgDark, primary: Brand.accentDark, border: Brand.borderDark, text: currentTheme().dark.text } }
-    : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: Brand.bg, card: Brand.bg, primary: Brand.accent, border: Brand.border, text: currentTheme().light.text } };
+function navigationTheme(dark: boolean, theme: ThemeId) {
+  const s = themeOf(theme)[dark ? "dark" : "light"];
+  const base = dark ? DarkTheme : DefaultTheme;
+  return { ...base, colors: { ...base.colors, background: s.bg, card: s.bg, primary: s.accent, border: s.border, text: s.text } };
 }
 
 export default function RootLayout() {
@@ -175,9 +179,9 @@ export default function RootLayout() {
     const offWatch = KPBridge.onExternalChange(() => notifyChange());
     return () => { offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
   }, []);
-  const { fit, medium, picker, modal } = sheetOptions();
+  const { fit, medium, picker, modal } = sheetOptions(theme);
   return (
-    <ThemeProvider value={navigationTheme(scheme === "dark")}>
+    <ThemeProvider value={navigationTheme(scheme === "dark", theme)}>
       {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={`${shown.lang}:${shown.theme}`} style={{ flex: 1 }}>
         <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
