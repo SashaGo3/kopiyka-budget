@@ -699,20 +699,39 @@ export interface Messages {
   "insights.buffer.explain": { count: number; amount: string | number; periods: string | number };
   "insights.buffer.noEssentials": undefined;
   "insights.buffer.noEssentialsHint": undefined;
+  "insights.checklist.allDone": { period: string | number };
   "insights.checklist.choose": undefined;
   /** VoiceOver; name is a category. */
   "insights.checklist.doneLabel": { name: string | number };
+  /** Recurring payment line not paid yet; day is "22 Sep". */
+  "insights.checklist.due": { amount: string | number; day: string | number };
+  /** Under the checklist when paid lines are set to be hidden. */
+  "insights.checklist.hiddenDone": { count: number };
   /** The last payment in this category; day is "22 Sep". */
   "insights.checklist.last": { amount: string | number; day: string | number };
   "insights.checklist.missing": { count: string | number; period: string | number };
   /** VoiceOver; name is a category. */
   "insights.checklist.notYetLabel": { name: string | number };
+  /** VoiceOver hint on the checklist's sum line. */
+  "insights.checklist.sumLabel": undefined;
+  /** Checklist summary part: roughly what the open lines will still cost. */
+  "insights.checklist.summaryLeft": { amount: string | number };
+  /** Checklist summary part; amount is "250.00 PLN". Parts are joined with " · ". */
+  "insights.checklist.summaryPaid": { amount: string | number };
+  /** Checklist summary part: paid plus still to go. */
+  "insights.checklist.summaryTotal": { amount: string | number };
+  /** A weekly payment paid once of the four times it falls this period: "1 of 4". */
+  "insights.checklist.times": { paid: string | number; total: string | number };
+  /** VoiceOver for the progress dots of a payment due several times this period. */
+  "insights.checklist.timesLabel": { paid: string | number; total: string | number };
   "insights.chooseAccount": undefined;
   /** Big number on the Until salary card. */
   "insights.days": { count: number };
   "insights.edit.account": undefined;
   "insights.edit.addFromTx": undefined;
   "insights.edit.addFromTxHint": undefined;
+  /** Right side of a card kind with nothing to set: tapping adds it at once. */
+  "insights.edit.addNow": undefined;
   "insights.edit.categories": undefined;
   "insights.edit.changeType": undefined;
   /** Row subtitle when nothing is picked yet. */
@@ -720,20 +739,50 @@ export interface Messages {
   /** Subtitle when no title is set; title is the kind's name. */
   "insights.edit.defaultTitle": { title: string | number };
   "insights.edit.editTitle": undefined;
+  /** Section in the Add insight list. */
+  "insights.edit.group.accounts": undefined;
+  /** Section in the Add insight list. */
+  "insights.edit.group.payments": undefined;
+  /** Section in the Add insight list. */
+  "insights.edit.group.spending": undefined;
   "insights.edit.includedRules": undefined;
   "insights.edit.monthsToCover": undefined;
   "insights.edit.newTitle": undefined;
   "insights.edit.noRules": undefined;
   "insights.edit.noRulesHint": undefined;
+  /** Categories row when the checklist only watches recurring payments. */
+  "insights.edit.none": undefined;
   "insights.edit.notSet": undefined;
   "insights.edit.offeredOnce": undefined;
   "insights.edit.payments": undefined;
   "insights.edit.perMonth": undefined;
+  "insights.edit.perTag.hint": undefined;
+  /** Subtitle of a chosen category with no tags picked. */
+  "insights.edit.perTag.once": undefined;
+  /** Section above the chosen categories of a payments checklist. */
+  "insights.edit.perTag.title": undefined;
   "insights.edit.perWeek": undefined;
+  /** Section header above a live preview of the card being set up. */
+  "insights.edit.preview": undefined;
   "insights.edit.question": undefined;
+  /** Toggle on the payments checklist editor. */
+  "insights.edit.recurring.hideDone": undefined;
+  "insights.edit.recurring.hideDoneSubtitle": undefined;
+  "insights.edit.recurring.subtitle": undefined;
+  /** Section above a two-way switch: still to pay / total. */
+  "insights.edit.recurring.sum": undefined;
+  "insights.edit.recurring.sumLeft": undefined;
+  "insights.edit.recurring.sumTotal": undefined;
+  /** Toggle on the payments checklist editor. */
+  "insights.edit.recurring.title": undefined;
+  /** Section listing the recurring expenses the checklist waits for, each with a tick. */
+  "insights.edit.recurring.which": undefined;
+  "insights.edit.recurring.whichHint": undefined;
   "insights.edit.remove": undefined;
   "insights.edit.removeInsight": undefined;
   "insights.edit.removeTitle": undefined;
+  /** Row subtitle (in orange) for a setting the card cannot be saved without. */
+  "insights.edit.required": undefined;
   /** per is insights.per.* ("per month"). */
   "insights.edit.ruleLine": { amount: string | number; per: string | number; yearly: string | number };
   "insights.edit.target": undefined;
@@ -837,7 +886,11 @@ export interface Messages {
   "insights.values.level.l2": undefined;
   /** Legend: categories of high importance. */
   "insights.values.level.l3": undefined;
+  /** After four tappable category names in one importance level; tapping shows the rest. */
+  "insights.values.more": { count: string | number };
   "insights.values.nothing": undefined;
+  /** VoiceOver; name is a category in the importance split. */
+  "insights.values.openCategory": { name: string | number };
   /** Under a big percentage. */
   "insights.values.share": { period: string | number };
   "insights.values.sixPeriods": undefined;
@@ -1543,6 +1596,8 @@ export interface Messages {
   "settings.section.preferences": undefined;
   "settings.section.shortcuts": undefined;
   "settings.section.tracking": undefined;
+  /** Small badge beside the Shortcut row in Settings: it works, but each bank still needs support added. */
+  "settings.shortcut.beta": undefined;
   "settings.shortcut.settings": undefined;
   "settings.shortcut.settingsSubtitle": undefined;
   "settings.shortcut.subtitle": undefined;
@@ -1843,6 +1898,8 @@ export interface Messages {
   "transaction.entry.balance": undefined;
   "transaction.entry.balanceA11y": { balance: string | number; currency: string | number };
   "transaction.entry.balanceAfterA11y": { balance: string | number; currency: string | number; after: string | number };
+  /** Chip on a saved entry: open a copy of it to add again. */
+  "transaction.entry.chip.duplicate": undefined;
   "transaction.entry.chip.note": undefined;
   /** Toggle chip: keep this entry in the Pending queue. */
   "transaction.entry.chip.pending": undefined;

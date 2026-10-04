@@ -31,6 +31,37 @@ export function mixHex(a: string, b: string, amount: number): string {
   const [x, y] = [rgb(a), rgb(b)];
   return `#${x.map((v, i) => Math.round(v + ((y[i] ?? v) - v) * amount).toString(16).padStart(2, "0")).join("")}`;
 }
+/**
+ * `fg`, taken towards black (on a light side) or white (on a dark one) just far enough to reach `min`
+ * against every background it is drawn on. Keeps the theme's hue — Tokyo Night's blue text stays
+ * blue, only deeper — and leaves a colour that already passes exactly as it was.
+ */
+export function legible(fg: string, backgrounds: string[], min: number, dark: boolean): string {
+  const worst = (c: string) => Math.min(...backgrounds.map((b) => contrast(c, b)));
+  if (worst(fg) >= min) return fg;
+  const towards = dark ? "#FFFFFF" : "#000000";
+  for (let step = 1; step <= 20; step++) {
+    const c = mixHex(fg, towards, step / 20);
+    if (worst(c) >= min) return c;
+  }
+  return towards;
+}
+/**
+ * The floors text is held to, against both `bg` and `card`. Several editor palettes were drawn for a
+ * code editor on a big monitor — Tokyo Night's light body text is 4.5:1, Catppuccin's and Rosé Pine's
+ * about 6.6:1 — and their coloured text lower still: Nord's red, Catppuccin's orange and iOS's own
+ * green on white are 2–2.5:1. On a phone, at 13–15 pt, that reads as soft, slightly blurred text.
+ *
+ * So every colour drawn as text has a floor: body text near black (or white), secondary text well
+ * above AA, the tertiary grey (placeholders, captions) at AA itself, and the accent and the status
+ * colours — links, amounts, the red of an overspent budget — at AA as well. Each is only darkened (or
+ * lightened) within its own hue, so a theme still looks like itself; one that already passes is left
+ * exactly as it was. Fills, separators and the soft washes behind text keep the palette's own colours.
+ */
+const TEXT_MIN = { label: 12, secondary: 7, tertiary: 4.5, coloured: 4.5 };
+/** What text on the accent (a filled button) must keep: the accent is not moved past this. */
+const ON_ACCENT_MIN = 4.5;
+
 /** `hex` at `alpha` (0–1), as #RRGGBBAA. */
 const alpha = (hex: string, a: number) => `${hex.slice(0, 7)}${Math.round(a * 255).toString(16).padStart(2, "0")}`;
 
@@ -40,26 +71,36 @@ function build(theme: Theme): Palette {
   const { light: l, dark: d } = theme;
   const both = (f: (s: ThemeSide) => string) => dyn(f(l), f(d));
   // The default theme is the graphite the app shipped with, which leans on iOS's own semantic colours
-  // for text, fills and status; keeping them means Graphite stays exactly the app people already
-  // know. Every other theme derives the same roles from its own palette, so its greys carry its hue.
+  // for fills and separators; keeping them means Graphite stays the app people already know. Its text
+  // colours, though, come from its palette like every other theme's, held to the same floors: iOS's
+  // secondary label and its green, orange and red on white fall short of them.
   const native = theme.id === DEFAULT_THEME;
+  const text = (side: ThemeSide, fg: string, min: number, dark: boolean) => legible(fg, [side.bg, side.card], min, dark);
+  const role = (min: number, pick: (s: ThemeSide) => string) => dyn(text(l, pick(l), min, false), text(d, pick(d), min, true));
+  // The accent is text (links, ticks, the header buttons) and a fill under `onAccent`. It is taken
+  // towards legible as far as the button text on it still allows — GitHub's dark side, white on
+  // green, would lose its button text if its green were lightened all the way.
+  const accent = (s: ThemeSide, dark: boolean) => {
+    const c = text(s, s.accent, TEXT_MIN.coloured, dark);
+    return contrast(s.onAccent, c) >= ON_ACCENT_MIN ? c : s.accent;
+  };
   const fill = native ? sys("tertiarySystemFill", "#eee") : dyn(alpha(l.text, 0.07), alpha(d.text, 0.13));
   return {
     C: {
-      label: native ? sys("label", "#000") : both((s) => s.text),
-      secondary: native ? sys("secondaryLabel", "#666") : both((s) => s.muted),
-      tertiary: native ? sys("tertiaryLabel", "#999") : both((s) => mixHex(s.muted, s.bg, 0.4)),
+      label: role(TEXT_MIN.label, (s) => s.text),
+      secondary: role(TEXT_MIN.secondary, (s) => s.muted),
+      tertiary: role(TEXT_MIN.tertiary, (s) => mixHex(s.muted, s.bg, 0.4)),
       bg: both((s) => s.bg),
       bgGrouped: both((s) => s.bg),
       card: both((s) => s.card),
       fill,
       fill2: native ? sys("secondarySystemFill", "#e5e5ea") : dyn(alpha(l.text, 0.11), alpha(d.text, 0.2)),
       separator: native ? sys("separator", "#ccc") : both((s) => s.border),
-      tint: both((s) => s.accent),
+      tint: dyn(accent(l, false), accent(d, true)),
       onTint: both((s) => s.onAccent),
-      red: native ? sys("systemRed", "#ff3b30") : both((s) => s.red),
-      green: native ? sys("systemGreen", "#34c759") : both((s) => s.green),
-      orange: native ? sys("systemOrange", "#ff9500") : both((s) => s.orange),
+      red: role(TEXT_MIN.coloured, (s) => s.red),
+      green: role(TEXT_MIN.coloured, (s) => s.green),
+      orange: role(TEXT_MIN.coloured, (s) => s.orange),
       redSoft: native ? "rgba(255,59,48,0.14)" : dyn(alpha(l.red, 0.14), alpha(d.red, 0.18)),
       greenSoft: native ? "rgba(52,199,89,0.14)" : dyn(alpha(l.green, 0.14), alpha(d.green, 0.18)),
       orangeSoft: native ? "rgba(255,149,0,0.16)" : dyn(alpha(l.orange, 0.16), alpha(d.orange, 0.2)),
@@ -159,11 +200,13 @@ function extraHue(hex: string): ExtraHue | null {
   return null;
 }
 
+/** WCAG relative luminance of an opaque hex colour. */
 function luminance(hex: string): number {
   const [r, g, b] = rgb(hex).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }) as [number, number, number];
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
-const contrast = (a: string, b: string) => { const [x, y] = [luminance(a), luminance(b)]; return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+/** WCAG contrast ratio between two opaque hex colours, 1–21. */
+function contrast(a: string, b: string): number { const [x, y] = [luminance(a), luminance(b)]; return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
 /** White or the page background on `fill`, whichever reads better: dark themes' greens and oranges are pale. */
 const glyphOn = (fill: string, side: ThemeSide) => (contrast("#FFFFFF", fill) >= contrast(side.bg, fill) ? "#FFFFFF" : side.bg);
 

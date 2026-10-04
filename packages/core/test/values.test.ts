@@ -225,3 +225,22 @@ describe("safe to spend", () => {
     expect(s.safe).toEqual(s.free);
   });
 });
+
+describe("what each level is made of", () => {
+  test("this period's categories per level, biggest first; no category counts as unmarked", () => {
+    const { db, acc, rent, food, bars, nobody } = fresh();
+    const cafe = createCategory(db, { name: "Cafe", importance: 2 });
+    spend(db, acc.id, rent.id, 200000);
+    spend(db, acc.id, food.id, 30000);
+    spend(db, acc.id, cafe.id, 45000);
+    spend(db, acc.id, bars.id, 5000);
+    spend(db, acc.id, nobody.id, 1000);
+    spend(db, acc.id, null, 2000);
+    spend(db, acc.id, bars.id, 99999, "2026-08-10"); // an earlier period: not part of the breakdown
+    const [v] = valueSplit(db, { today: TODAY, startDay: 1 });
+    expect(v!.categories[3]).toEqual([{ category_id: rent.id, minor: 200000 }]);
+    expect(v!.categories[2]).toEqual([{ category_id: cafe.id, minor: 45000 }, { category_id: food.id, minor: 30000 }]);
+    expect(v!.categories[1]).toEqual([{ category_id: bars.id, minor: 5000 }]);
+    expect(v!.categories[0]).toEqual([{ category_id: null, minor: 2000 }, { category_id: nobody.id, minor: 1000 }]);
+  });
+});

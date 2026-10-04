@@ -23,6 +23,25 @@ export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }
 };
 
 /**
+ * How the "Add insight" list is sectioned: by what a card is about. A kind core gains and nobody files
+ * here is not lost: `kindsIn` puts it in the last group rather than leaving a card nobody can add.
+ */
+export const INSIGHT_GROUPS: { id: "spending" | "accounts" | "payments"; kinds: InsightKind[] }[] = [
+  { id: "spending", kinds: ["free_money", "safe_to_spend", "days_to_salary", "regular", "values"] },
+  { id: "accounts", kinds: ["account_balance", "savings_goal", "safety_buffer"] },
+  { id: "payments", kinds: ["checklist", "upcoming", "subscriptions", "recurring_spend"] },
+];
+
+/** The kinds of `list` that belong in group `id`, in the group's order; the last group also takes any kind no group names. */
+export function kindsIn<K extends { kind: InsightKind }>(id: (typeof INSIGHT_GROUPS)[number]["id"], list: K[]): K[] {
+  const g = INSIGHT_GROUPS.find((x) => x.id === id);
+  if (!g) return [];
+  const mine = g.kinds.flatMap((k) => list.filter((x) => x.kind === k));
+  const last = INSIGHT_GROUPS[INSIGHT_GROUPS.length - 1]!.id === id;
+  return last ? [...mine, ...list.filter((x) => !INSIGHT_GROUPS.some((gr) => gr.kinds.includes(x.kind)))] : mine;
+}
+
+/**
  * The kinds the "Add insight" list still offers. A kind with nothing to set (`instant`) makes the
  * same card every time, so once there is one a second is only a duplicate and it is not offered;
  * a kind with settings — a savings goal, a checklist — can sensibly be added again for another

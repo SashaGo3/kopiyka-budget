@@ -59,6 +59,9 @@ function resolveAppearance(): AppearanceChoice {
 // A restore can carry `theme` and `appearance` settings (DATA.md rule 7); whichever path wrote them, take them up.
 onAfterWrite(() => { reloadTheme(); reloadAppearance(); });
 
+/** The cover-and-reveal switch in progress, if any; the next one waits for it. */
+let switching: Promise<void> = Promise.resolve();
+
 export function getAppearance(): AppearanceChoice { return appearance; }
 
 function reloadAppearance(): void {
@@ -73,7 +76,14 @@ function reloadAppearance(): void {
  * Force light or dark, or follow the phone again (""). Cross-faded like a theme switch, but nothing
  * re-mounts: the colours resolve to the other side natively, so two frames are enough to wait.
  */
-export async function switchAppearance(next: AppearanceChoice, at?: TapPoint): Promise<void> {
+export function switchAppearance(next: AppearanceChoice, at?: TapPoint): Promise<void> {
+  // Queued behind any theme switch still running: both lay the same cover (see `switchTheme`).
+  const run = switching.catch(() => {}).then(() => appearanceOnce(next, at));
+  switching = run;
+  return run;
+}
+
+async function appearanceOnce(next: AppearanceChoice, at?: TapPoint): Promise<void> {
   if (next === appearance) return;
   await nextFrame();
   const covered = await beginThemeTransition(at);
@@ -110,18 +120,28 @@ let mounted: (() => void) | null = null;
  * with an alert of its own. Safe to call where the cover is not available (off iOS, an older
  * build): the switch then happens without it.
  */
-export async function switchTheme(id: ThemeId, at?: TapPoint): Promise<void> {
+export function switchTheme(id: ThemeId, at?: TapPoint): Promise<void> {
+  // One switch at a time. Two quick taps used to overlap: the second laid its cover while the first
+  // was still waiting, the first's reveal took the second's cover away mid-mount, and the first then
+  // cleared the second's `mounted`. Queued, each one covers, switches and reveals before the next.
+  const run = switching.catch(() => {}).then(() => switchOnce(id, at));
+  switching = run;
+  return run;
+}
+async function switchOnce(id: ThemeId, at?: TapPoint): Promise<void> {
   if (themeOf(id).id === current) return;
   // A frame for the tick the picker just drew, so the snapshot already shows it.
   await nextFrame();
   const covered = await beginThemeTransition(at);
+  let mine: (() => void) | null = null;
   const painted = new Promise<void>((resolve) => {
     const timer = setTimeout(resolve, MOUNT_TIMEOUT_MS);
-    mounted = () => { clearTimeout(timer); resolve(); };
+    mine = () => { clearTimeout(timer); resolve(); };
+    mounted = mine;
   });
   try { setTheme(id); } finally {
     if (covered) { await painted; await endThemeTransition(FADE_SECONDS); }
-    mounted = null;
+    if (mounted === mine) mounted = null;
   }
 }
 

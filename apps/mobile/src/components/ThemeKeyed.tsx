@@ -1,4 +1,4 @@
-import { Fragment, useEffect, type ReactElement, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { themeMounted, useTheme } from "@/lib/theme";
 
 /**
@@ -11,10 +11,22 @@ import { themeMounted, useTheme } from "@/lib/theme";
  */
 export function ThemeKeyed({ children }: { children: ReactNode }) {
   const theme = useTheme();
+  // The theme the content on screen was mounted in. A switch parks it for one commit (nothing
+  // rendered) before mounting it again, because what is re-mounted is React Navigation's SceneView,
+  // and its unmount clears the options the screen set (`Stack.Screen` title, header buttons) in a
+  // passive effect — after the new content's own `Stack.Screen` had already set them in the same
+  // commit. Unparked a commit later, the new content sets them again once the old ones are cleared.
+  // It all happens under the picker's cover.
+  const [shown, setShown] = useState(theme);
+  const parked = shown !== theme;
+  useEffect(() => {
+    // Deliberately a second commit: the parked one had to land first.
+    if (parked) setShown(theme); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [parked, theme]);
   // Effects run once the re-keyed content has committed; the picker's cover waits for this
   // (`themeMounted` itself then waits for the new colours to reach the glass).
-  useEffect(() => { themeMounted(); }, [theme]);
-  return <Fragment key={theme}>{children}</Fragment>;
+  useEffect(() => { if (!parked) themeMounted(); }, [parked, shown]);
+  return parked ? null : <Fragment key={shown}>{children}</Fragment>;
 }
 
 /** `screenLayout` for a navigator whose screens are all plain screens (no navigator inside). */

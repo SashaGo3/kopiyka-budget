@@ -10,7 +10,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
-import { Chip, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
+import { Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
@@ -453,19 +453,9 @@ export default function TransactionSheet() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          {existing ? <Pressable onPress={duplicate} hitSlop={10} style={styles.corner} accessibilityRole="button" accessibilityLabel={t("transaction.entry.duplicateA11y")}><SymbolView name="plus.square.on.square" size={16} tintColor={C.tint} /></Pressable> : null}
-          {/* Return is not an attribute of this entry but an action on another one: the amount typed
-              goes back onto an earlier expense instead of being added here. It lives in the corner
-              Duplicate takes on a saved entry (it is only offered on a new one), as the same round icon
-              button, because as a ninth chip it wrapped onto a row of its own and pushed the keypad
-              down on a small phone. */}
-          {isNew ? (
-            <Pressable onPress={askForReturn} disabled={!valid} hitSlop={10}
-              style={({ pressed }) => [styles.corner, !valid && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}
-              accessibilityRole="button" accessibilityLabel={t("transaction.entry.chip.return")} accessibilityState={{ disabled: !valid }}>
-              <SymbolView name="arrow.uturn.backward" size={16} tintColor={C.tint} />
-            </Pressable>
-          ) : null}
+          {/* Return and Duplicate used to sit in this corner as a lone round arrow, where a back or an undo
+              button is expected — so they live in the chip grid below now (its last cell), and the corner
+              holds only Delete, on the right, on a saved entry. */}
           {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("transaction.entry.deleteA11y")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
           <Pressable onPress={copyAmount} disabled={value === null} style={styles.amountRow} accessibilityRole="button"
             accessibilityLabel={t("transaction.entry.amountA11y", { amount: `${expr ? signChar : ""}${shown}`, currency })}>
@@ -573,16 +563,24 @@ export default function TransactionSheet() {
               })}
             </ChipRow>
           ) : null}
-          <ChipRow>
-            <Chip icon="calendar" label={dayLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
-            <Chip icon="clock" label={timeLabel(date)} compact onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: timeLabel(date) } })} />
-            <Chip icon="text.alignleft" label={t("transaction.entry.chip.note")} active={!!note} onPress={openNote} />
-            <Chip icon="mappin.and.ellipse" label={t("transaction.entry.chip.place")} active={!!coords || !!place} onPress={openLocation} />
-            <Chip icon="hourglass" label={t("transaction.entry.chip.pending")} active={pending} compact onPress={() => setPending((v) => !v)} />
-            <Chip icon="camera" label={t("transaction.entry.chip.photo")} active={!!photoSrc} compact onPress={openPhoto} />
-            <Chip icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} compact disabled={!valid} onPress={openSplit} />
-            {isNew && RECEIPT_SCANNER_ENABLED ? <Chip icon="doc.text.viewfinder" label={t("transaction.entry.chip.receipt")} compact onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
-          </ChipRow>
+          {/* Two rows, always, and every chip in its own fixed place (ChipGrid): the third row a long
+              language or a big text size used to wrap onto pushed the keypad down, and a chip that moved
+              with every label could not be found by feel. The last cell is the one action on the amount
+              rather than an attribute of it: Return on a new entry (the amount came back on an earlier
+              expense, packages/core/returns.ts), Duplicate on a saved one. */}
+          <ChipGrid>
+            <Chip cell icon="calendar" label={dayLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
+            <Chip cell icon="clock" label={timeLabel(date)} onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: timeLabel(date) } })} />
+            <Chip cell icon="text.alignleft" label={t("transaction.entry.chip.note")} active={!!note} onPress={openNote} />
+            <Chip cell icon="mappin.and.ellipse" label={t("transaction.entry.chip.place")} active={!!coords || !!place} onPress={openLocation} />
+            <Chip cell icon="camera" label={t("transaction.entry.chip.photo")} active={!!photoSrc} onPress={openPhoto} />
+            <Chip cell icon="hourglass" label={t("transaction.entry.chip.pending")} active={pending} onPress={() => setPending((v) => !v)} />
+            <Chip cell icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} disabled={!valid} onPress={openSplit} />
+            {isNew
+              ? <Chip cell icon="arrow.uturn.backward" label={t("transaction.entry.chip.return")} disabled={!valid} onPress={askForReturn} />
+              : <Chip cell icon="plus.square.on.square" label={t("transaction.entry.chip.duplicate")} onPress={duplicate} />}
+            {isNew && RECEIPT_SCANNER_ENABLED ? <Chip cell icon="doc.text.viewfinder" label={t("transaction.entry.chip.receipt")} onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
+          </ChipGrid>
           <Keypad value={expr} onChange={onKeypadChange} onToggleSign={negate}
             extra={{ label: category ? catName(category) : t("keypad.category"), a11y: category ? t("keypad.categoryA11y", { name: catName(category) }) : t("keypad.categoryNone"), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) }}
             extra2={{ a11y: tags.length ? t("keypad.tagsA11y", { names: tags.map((tag) => tag.name).join(", ") }) : t("keypad.tags"), icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) }} />
@@ -613,7 +611,6 @@ const styles = themed(() => StyleSheet.create({
   accountBal: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"] },
   balanceLine: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: S.xs, marginTop: 2 },
   unwrap: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: C.fill, flexShrink: 1 },
-  corner: { position: "absolute", top: 8, left: S.md, width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
   trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
   noteBox: { flexDirection: "row", alignItems: "flex-end", gap: S.md, marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, paddingVertical: 8, minHeight: 50 },
   noteInput: { flex: 1, fontSize: 17, color: C.label, minHeight: 34, maxHeight: 176, paddingTop: 7, paddingBottom: 7 },

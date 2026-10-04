@@ -47,9 +47,15 @@ function askOption(key: string, title: string, options: { value: string; label: 
 export default function RecurringEdit() {
   const { id, auto, amount, repeat, remind, name, tx, copy } = useLocalSearchParams<{ id: string; auto?: string; amount?: string; repeat?: string; remind?: string; name?: string; tx?: string; copy?: string }>();
   const insets = useSafeAreaInsets();
-  const existing = id === "new" ? null : getRow(db, "recurring_rules", id) ?? null;
-  // Duplicate: a new rule that starts as a copy of `copy` — every setting but the bank's name for
-  // the charge, which would have two rules racing to claim the same payment (DATA.md rule 13).
+  // Duplicate turns this very sheet into the copy (`asCopy`) instead of navigating to a new one: a
+  // replace onto the same screen is not guaranteed to re-mount it, and a sheet that kept the original's
+  // id would have saved the "copy" over the original. From the moment it is a copy, `existing` is
+  // null — nothing here can write to the rule it was copied from.
+  const [asCopy, setAsCopy] = useState(false);
+  const stored = id === "new" ? null : getRow(db, "recurring_rules", id) ?? null;
+  const existing = asCopy ? null : stored;
+  // A copy opened by link (`copy`): every setting but the bank's name for the charge, which would
+  // have two rules racing to claim the same payment (DATA.md rule 13).
   const [copyOf] = useState(() => (id === "new" && copy ? getRow(db, "recurring_rules", copy) ?? null : null));
   /** What the fields start from: the rule being edited, or the one being copied. */
   const from = existing ?? copyOf;
@@ -86,7 +92,8 @@ export default function RecurringEdit() {
   const customUnit = useRef<Frequency>("monthly");
   const [fromTx, setFromTx] = useState<string | null>(seedTx ? seenLabel(seedTx) : null);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
-  const exit = useDiscardGuard(useDirty([accountId, kind, amountMinor, categoryId, payee, notes, freq, interval, start, daysBefore, autoPost, time, waitDays, matchPayee, tagIds]));
+  const dirty = useDirty([accountId, kind, amountMinor, categoryId, payee, notes, freq, interval, start, daysBefore, autoPost, time, waitDays, matchPayee, tagIds, asCopy]);
+  const exit = useDiscardGuard(dirty);
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const cat = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) : null), [categoryId]);
   const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((tg) => tagIds.includes(tg.id)), [tagIds.join(",")]);
@@ -158,9 +165,21 @@ export default function RecurringEdit() {
     { text: t("common.cancel"), style: "cancel" },
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "recurring_rules", existing.id)); leave(); } },
   ]);
-  // The copy opens in place of this sheet, as a new rule nothing is written for until it is added.
-  // From what is stored, so unsaved edits here are asked about (the discard guard) rather than copied.
-  const duplicate = () => existing && router.replace({ pathname: "/recurring/[id]", params: { id: "new", copy: existing.id } });
+  // The copy is this sheet, from what is stored, as a new rule nothing is written for until it is
+  // added. Unsaved edits are asked about first rather than silently carried into the copy.
+  const duplicate = () => {
+    if (!existing) return;
+    const become = () => {
+      const r = existing;
+      setAccountId(r.account_id); setKind(r.amount_minor > 0 ? "income" : "expense"); setAmountMinor(Math.abs(r.amount_minor));
+      setCategoryId(r.category_id); setPayee(r.payee ?? ""); setNotes(r.notes ?? ""); setFreq(r.frequency); setInterval_(r.interval);
+      setStart(r.next_date); setDaysBefore(r.notify ? r.notify_days_before : null); setAutoPost(r.auto_post === 1);
+      setTime(r.time_of_day); setWaitDays(r.wait_days ?? null); setTagIds(jsonIds(r.tag_ids)); setFromTx(null);
+      setMatchPayee(null);
+      setAsCopy(true);
+    };
+    if (dirty) confirmDiscard(become); else become();
+  };
   const option = (key: string, title: string, options: { value: string; label: string; subtitle?: string }[], selected?: string) => router.push({ pathname: "/pick/option", params: { key, title, options: JSON.stringify(options), ...(selected ? { selected } : {}) } });
   const repeats = repeatLabel(freq, interval);
   const remindLabel = daysBefore === null ? t("recurring.reminder.off") : reminderOptions().find((o) => o.value === String(daysBefore))?.label ?? t("recurring.reminder.daysBefore", { count: daysBefore });

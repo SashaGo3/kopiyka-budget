@@ -160,6 +160,19 @@ enum KPThemeTransition {
   /// If JS never says the new tree is up (an exception mid-switch), the cover still goes.
   private static let safety: TimeInterval = 2
   private static let safetyFade: TimeInterval = 0.35
+  /// Marks every snapshot this lays, so a stale one can be found and taken off whatever happened to it.
+  private static let coverTag = 0x4B505448 // "KPTH"
+
+  /// Every snapshot still in a window, revealing or not, except `keep`. A cover that outlived its
+  /// switch — a reveal whose completion never came, a second switch racing the first — would sit on
+  /// top of the app swallowing every tap: the screen would look frozen, or blank if the snapshot was.
+  private static func sweep(except keep: UIView? = nil) {
+    for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+      for window in scene.windows {
+        for v in window.subviews where v.tag == coverTag && v !== keep { v.removeFromSuperview() }
+      }
+    }
+  }
 
   static func keyWindow() -> UIWindow? {
     let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -177,7 +190,9 @@ enum KPThemeTransition {
   /// A second call replaces the first snapshot.
   static func begin(at point: CGPoint?) -> Bool {
     guard let window = keyWindow(), let snapshot = window.snapshotView(afterScreenUpdates: false) else { return false }
-    cover?.removeFromSuperview()
+    sweep()
+    cover = nil
+    snapshot.tag = coverTag
     snapshot.frame = window.bounds
     snapshot.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     // Taps land on the picture, not on the tree being rebuilt underneath it.
@@ -192,6 +207,11 @@ enum KPThemeTransition {
     let mine = generation
     DispatchQueue.main.asyncAfter(deadline: .now() + safety) {
       if mine == generation { end(duration: safetyFade) {} }
+    }
+    // The last word: however the reveal went, nothing of this switch is left on screen a moment after
+    // it should have finished — unless a newer switch has laid its own cover since.
+    DispatchQueue.main.asyncAfter(deadline: .now() + safety + 1) {
+      if mine == generation || cover == nil { sweep(except: cover) }
     }
     return true
   }
@@ -226,6 +246,8 @@ enum KPThemeTransition {
     guard let snapshot = cover else { done(); return }
     cover = nil
     generation += 1
+    // The app underneath is live again from the first frame of the reveal.
+    snapshot.isUserInteractionEnabled = false
     snapshot.subviews.forEach { $0.removeFromSuperview() }  // the loader goes first
     let bounds = snapshot.bounds
     let at = origin ?? CGPoint(x: bounds.midX, y: bounds.midY)
@@ -243,11 +265,18 @@ enum KPThemeTransition {
     mask.fillRule = .evenOdd
     mask.path = hole(radius)
     snapshot.layer.mask = mask
-    CATransaction.begin()
-    CATransaction.setCompletionBlock {
+    // Removed when the reveal completes — or a little after it should have, should Core Animation never
+    // report back (a layer leaving the render tree mid-animation): whichever comes first, once.
+    var finished = false
+    let finish = {
+      guard !finished else { return }
+      finished = true
       snapshot.removeFromSuperview()
       done()
     }
+    DispatchQueue.main.asyncAfter(deadline: .now() + max(0.01, duration) + 0.25) { finish() }
+    CATransaction.begin()
+    CATransaction.setCompletionBlock { finish() }
     let grow = CABasicAnimation(keyPath: "path")
     grow.fromValue = hole(0.01)
     grow.toValue = hole(radius)

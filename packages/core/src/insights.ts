@@ -6,7 +6,7 @@ import type { SqlDriver } from "./db";
 import type { Budget, Category, Frequency, Importance, InsightKind, RecurringRule, Transaction } from "./models";
 import { normTitle } from "./detect";
 import { accountBalanceMinor, budgetCategoryIds, categorySpend, getRow, inBudgetScope, jsonIds, listRows, recurringSpend, tagIdsOf, tagSpend } from "./repo";
-import { addPeriod, budgetPeriod, dueOccurrences } from "./recurring";
+import { addPeriod, budgetPeriod, dueOccurrences, occurrencesBetween } from "./recurring";
 import { categoryImportance } from "./importance";
 import { commitments } from "./commitments";
 import { tripTagIds } from "./trips";
@@ -24,6 +24,17 @@ export interface InsightParams {
   exclude_rule_ids?: string[];
   templates?: UpcomingTemplate[];
   frequency?: Extract<Frequency, "weekly" | "monthly">;
+  /**
+   * Checklist: a chosen category (or folder) that is waited for once per tag rather than once — one
+   * Insurance category paid for several people, each person a tag. Keyed by the chosen id.
+   */
+  category_tags?: Record<string, string[]>;
+  /** Checklist: also wait for every recurring expense that falls due in the period, but those in `exclude_rule_ids`. */
+  include_recurring?: boolean;
+  /** Checklist: leave the lines already paid off the card; only what is still missing is listed. */
+  hide_done?: boolean;
+  /** Checklist: what its sum is — roughly what is still to pay (the default), or that plus what was paid. */
+  sum?: "left" | "total";
 }
 
 /** `instant` kinds have nothing to configure but their title, so picking one is the whole setup. */
@@ -218,6 +229,12 @@ export interface ValueSplit {
   now: ValuePeriod;
   /** How much of this period's spend is in categories nobody has marked yet. */
   unmarked_minor: number;
+  /**
+   * What each level is made of this period: the categories, biggest first (positive minor units).
+   * `null` is spend with no category, which counts as unmarked. A split you cannot trace back to
+   * categories is a number to take on trust; this is what lets you check the marks behind it.
+   */
+  categories: Record<Importance, { category_id: string | null; minor: number }[]>;
 }
 
 /**
@@ -238,6 +255,8 @@ export function valueSplit(db: SqlDriver, o: { today: string; startDay: number; 
   const level = categoryImportance(cats);
   const windows = recentPeriods(o.today, o.startDay, o.periods ?? HISTORY_PERIODS);
   const byCurrency = new Map<string, ValuePeriod[]>();
+  const nowCats = new Map<string, Record<Importance, { category_id: string | null; minor: number }[]>>();
+  const last = windows[windows.length - 1];
   for (const w of windows) {
     const here = new Map<string, Record<Importance, number>>();
     for (const s of categorySpend(db, w.start, w.end, o.accountIds)) {
@@ -246,6 +265,11 @@ export function valueSplit(db: SqlDriver, o: { today: string; startDay: number; 
       const row = here.get(s.currency) ?? { 0: 0, 1: 0, 2: 0, 3: 0 };
       row[at] += -s.spent_minor;
       here.set(s.currency, row);
+      if (w === last) {
+        const lists = nowCats.get(s.currency) ?? { 0: [], 1: [], 2: [], 3: [] };
+        lists[at].push({ category_id: s.category_id, minor: -s.spent_minor });
+        nowCats.set(s.currency, lists);
+      }
     }
     for (const c of new Set([...here.keys(), ...byCurrency.keys()])) {
       const by_level = here.get(c) ?? { 0: 0, 1: 0, 2: 0, 3: 0 };
@@ -259,7 +283,11 @@ export function valueSplit(db: SqlDriver, o: { today: string; startDay: number; 
     }
   }
   return [...byCurrency]
-    .map(([currency, periods]) => ({ currency, periods, now: periods[periods.length - 1]!, unmarked_minor: periods[periods.length - 1]!.by_level[0] }))
+    .map(([currency, periods]) => {
+      const lists = nowCats.get(currency) ?? { 0: [], 1: [], 2: [], 3: [] };
+      for (const lv of [0, 1, 2, 3] as const) lists[lv].sort((a, b) => b.minor - a.minor);
+      return { currency, periods, now: periods[periods.length - 1]!, unmarked_minor: periods[periods.length - 1]!.by_level[0], categories: lists };
+    })
     .filter((v) => v.periods.some((p) => p.total_minor > 0))
     .sort((a, b) => b.now.total_minor - a.now.total_minor);
 }
@@ -373,28 +401,111 @@ export function safeToSpend(db: SqlDriver, o: { today: string; startDay: number;
 }
 
 export interface ChecklistItem {
+  /** Unique within the card: a category, a category and one of its tags, or a recurring rule. */
+  key: string;
   category_id: string; name: string; done: boolean; spent_minor: number; currency: string | null;
+  /** Set when this line waits for the category with this tag on it (`category_tags`). */
+  tag_id: string | null;
+  /** Set when this line is a recurring payment due in the period (`include_recurring`). */
+  rule_id: string | null;
+  /** A recurring line's next occurrence still to be paid; null once nothing more is due in the period. */
+  due: string | null;
+  /**
+   * A recurring line's occurrences this period: how many were paid, and how many there are in all —
+   * paid plus still owed. A skipped occurrence moved `next_date` past itself without a payment, so it
+   * is in neither and the line asks for what is really still coming. Null on a category line.
+   */
+  occurrences: { paid: number; total: number } | null;
+  /**
+   * What is still expected on this line, positive minor units in `expected_currency`: the rule's amount
+   * for a recurring line still owed, the last payment for a category line not done yet. Null when done,
+   * or when there is nothing to go by.
+   */
+  expected_minor: number | null;
+  expected_currency: string | null;
   /** Most recent non-transfer transaction in this category (or its subcategories) before the period started, so the row can be prefilled. */
   last: { id: string; amount_minor: number; currency: string; date: string; tag_ids: string[]; notes: string | null; account_id: string; payee: string | null } | null;
 }
 
-/** Which of the chosen categories already have an expense in the period. A chosen folder stands for each of its categories. */
+/**
+ * Which of the chosen categories already have an expense in the period. A chosen folder stands for
+ * each of its categories — unless it is waited for per tag, when it stands as a whole once per tag. A
+ * category with tags (`category_tags`) is one line per tag, done when an expense in it carries that
+ * tag. With `include_recurring`, every active recurring expense with an occurrence in the period is a
+ * line of its own as well, done once nothing more of it is due before the period ends.
+ */
 export function categoryChecklist(db: SqlDriver, p: InsightParams, o: { start: string; end: string; accountIds?: string[] }): ChecklistItem[] {
   const all = listRows(db, "categories", "deleted=0", [], "sort, name");
   const cats = new Map(all.map((c) => [c.id, c]));
   const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a]));
-  const spend = categorySpend(db, o.start, o.end, o.accountIds);
-  const ids = [...new Set((p.category_ids ?? []).flatMap((id) => { const kids = all.filter((c) => c.parent_id === id).map((c) => c.id); return kids.length ? kids : [id]; }))];
-  return ids.flatMap((id) => {
-    const c = cats.get(id); if (!c) return [];
-    const rows = spend.filter((s) => s.category_id === id || cats.get(s.category_id ?? "")?.parent_id === id);
-    const spent = -rows.reduce((a, s) => a + s.spent_minor, 0);
-    const scope = [id, ...all.filter((k) => k.parent_id === id).map((k) => k.id)];
-    const txs = listRows(db, "transactions", `deleted=0 AND transfer_id IS NULL AND category_id IN (${scope.map(() => "?").join(",")})`, scope, "date DESC") as Transaction[];
-    const lastTx = txs.find((t) => t.date < o.start) ?? txs[0];
-    const last = lastTx ? { id: lastTx.id, amount_minor: lastTx.amount_minor, currency: accounts.get(lastTx.account_id)?.currency ?? "", date: lastTx.date, tag_ids: tagIdsOf(lastTx), notes: lastTx.notes, account_id: lastTx.account_id, payee: lastTx.payee } : null;
-    return [{ category_id: id, name: c.name, done: rows.length > 0, spent_minor: spent, currency: rows[0]?.currency ?? null, last }];
-  });
+  const kidsOf = (id: string) => all.filter((c) => c.parent_id === id).map((c) => c.id);
+  const inAccounts = (accountId: string) => !o.accountIds?.length || o.accountIds.includes(accountId);
+  // Every expense of the period once, so each line below is a filter rather than a query.
+  const period = (listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND amount_minor<0 AND date>=? AND date<?", [o.start, o.end]) as Transaction[]).filter((t) => inAccounts(t.account_id));
+  const lastOf = (txs: Transaction[]) => {
+    const t = txs.find((x) => x.date < o.start) ?? txs[0];
+    return t ? { id: t.id, amount_minor: t.amount_minor, currency: accounts.get(t.account_id)?.currency ?? "", date: t.date, tag_ids: tagIdsOf(t), notes: t.notes, account_id: t.account_id, payee: t.payee } : null;
+  };
+  const line = (key: string, id: string, scope: string[], tagId: string | null): ChecklistItem | null => {
+    const c = cats.get(id); if (!c) return null;
+    const hit = (t: Transaction) => !!t.category_id && scope.includes(t.category_id) && (!tagId || tagIdsOf(t).includes(tagId));
+    const rows = period.filter(hit);
+    const history = (listRows(db, "transactions", `deleted=0 AND transfer_id IS NULL AND category_id IN (${scope.map(() => "?").join(",")})`, scope, "date DESC") as Transaction[]).filter((t) => !tagId || tagIdsOf(t).includes(tagId));
+    const last = lastOf(history);
+    return {
+      key, category_id: id, name: c.name, done: rows.length > 0, spent_minor: rows.reduce((a, t) => a - t.amount_minor, 0),
+      currency: rows[0] ? accounts.get(rows[0].account_id)?.currency ?? null : null, tag_id: tagId, rule_id: null, due: null, occurrences: null, last,
+      expected_minor: !rows.length && last ? Math.abs(last.amount_minor) : null, expected_currency: !rows.length && last ? last.currency : null,
+    };
+  };
+  const seen = new Set<string>();
+  const out: ChecklistItem[] = [];
+  const push = (item: ChecklistItem | null) => { if (item && !seen.has(item.key)) { seen.add(item.key); out.push(item); } };
+  for (const id of p.category_ids ?? []) {
+    const tags = p.category_tags?.[id] ?? [];
+    const kids = kidsOf(id);
+    if (tags.length) for (const tag of tags) push(line(`${id}#${tag}`, id, [id, ...kids], tag));
+    else if (kids.length) for (const k of kids) push(line(k, k, [k, ...kidsOf(k)], null));
+    else push(line(id, id, [id], null));
+  }
+  if (p.include_recurring) {
+    const excluded = new Set(p.exclude_rule_ids ?? []);
+    const rules = (listRows(db, "recurring_rules", "deleted=0 AND active=1 AND amount_minor<0", [], "next_date") as RecurringRule[]).filter((r) => inAccounts(r.account_id) && !excluded.has(r.id));
+    for (const r of rules) {
+      const posted = period.filter((t) => t.recurring_id === r.id);
+      // Every occurrence still owed before the period ends — an overdue one from an earlier period
+      // too: it has not been paid either. A weekly rule owes several.
+      const owed = occurrencesBetween(r, "", o.end);
+      if (!posted.length && !owed.length) continue; // nothing of this rule happens in the period
+      const c = r.category_id ? cats.get(r.category_id) : undefined;
+      const currency = accounts.get(r.account_id)?.currency ?? null;
+      push({
+        key: `rule:${r.id}`, category_id: r.category_id ?? "", name: r.payee || c?.name || "Recurring",
+        done: !owed.length, spent_minor: posted.reduce((a, t) => a - t.amount_minor, 0),
+        currency, tag_id: null, rule_id: r.id, due: owed[0] ?? null, last: null,
+        occurrences: { paid: posted.length, total: posted.length + owed.length },
+        expected_minor: owed.length ? owed.length * Math.abs(r.amount_minor) : null, expected_currency: owed.length ? currency : null,
+      });
+    }
+  }
+  return out;
+}
+
+export interface ChecklistTotal { currency: string; paid_minor: number; expected_minor: number }
+
+/**
+ * The checklist summed per currency: what has been paid on its lines this period, and what the lines
+ * still open are expected to cost — their last payment, or the rule's amount. Positive minor units. An
+ * open line with nothing to go by adds nothing rather than a guess.
+ */
+export function checklistTotals(items: ChecklistItem[]): ChecklistTotal[] {
+  const out = new Map<string, ChecklistTotal>();
+  const at = (c: string) => { let x = out.get(c); if (!x) { x = { currency: c, paid_minor: 0, expected_minor: 0 }; out.set(c, x); } return x; };
+  for (const i of items) {
+    if (i.currency && i.spent_minor) at(i.currency).paid_minor += i.spent_minor;
+    if (i.expected_currency && i.expected_minor) at(i.expected_currency).expected_minor += i.expected_minor;
+  }
+  return [...out.values()];
 }
 
 const PER_YEAR: Record<Frequency, number> = { daily: 365, weekly: 52, monthly: 12, yearly: 1 };

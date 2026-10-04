@@ -7,7 +7,7 @@ import { Brand, C, Elevation, R, themed } from "@/constants/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { PAD_BUTTON_WIDTH, columnOverhang, contentWidth, isPad } from "@/constants/layout";
+import { PAD_BUTTON_WIDTH, columnOverhang, isPad } from "@/constants/layout";
 import type { ReceiptParse } from "@/lib/bridge";
 import { t } from "@/i18n";
 
@@ -76,7 +76,6 @@ export function useScrollHide(): { visible: boolean; onScroll: (e: NativeSynthet
  * long press photographs a receipt first and opens the sheet prefilled from it.
  */
 export function LogButton({ account }: { account?: string } = {}) {
-  const { width } = useWindowDimensions();
   // Glass takes a plain colour, so the accent is resolved by hand here rather than through
   // C.tint, which is a DynamicColorIOS value. Tinted this strongly it keeps the pill reading as the
   // theme's accent, and only gains the glass edge and refraction.
@@ -90,9 +89,10 @@ export function LogButton({ account }: { account?: string } = {}) {
     <Pressable
       onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", ...(account ? { account } : {}) } }); }}
       onLongPress={scan}
-      // Half the screen on a phone, where it is the whole width of the thumb's reach. In the iPad
-      // column it is one button among several standing above it, so it takes their width instead.
-      style={({ pressed }) => [styles.fab, { width: isPad ? PAD_BUTTON_WIDTH : Math.round(contentWidth(width) / 2) }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ui.logA11y")} accessibilityHint={scan ? t("ui.logHint") : undefined}>
+      // On a phone it takes the rest of the row, so its right end lines up with the tab bar's search
+      // button below. In the iPad column it is one button among several standing above it, so it
+      // takes their width instead.
+      style={({ pressed }) => [styles.fab, isPad ? { width: PAD_BUTTON_WIDTH } : styles.fabPhone, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ui.logA11y")} accessibilityHint={scan ? t("ui.logHint") : undefined}>
       <Glass style={styles.fabFill} solid={styles.fabSolid} tint={tint} interactive />
       <SymbolView name="plus" size={22} tintColor={C.onTint} weight="bold" />
       <Text style={styles.text} maxFontSizeMultiplier={1.4}>{t("ui.log")}</Text>
@@ -129,22 +129,29 @@ export function BarButton({ icon, label, onPress, onLongPress, active, a11y, a11
   );
 }
 
-/** Distance from the edge the bar floats at. */
-const EDGE = 16;
+/**
+ * Distance from the edge the bar floats at. On a phone it is the iOS 26 tab bar's own inset, and
+ * the buttons take its height (`TAB_BUTTON`), so the row reads as a second line of that bar: the
+ * left button sits over the tab capsule's edge, the right end over the search button's.
+ */
+const EDGE = isPad ? 16 : 28;
+const TAB_BUTTON = 48;
 
 const styles = themed(() => StyleSheet.create({
   wrap: { position: "absolute", left: EDGE, right: EDGE, bottom: 96, gap: 10 },
   alignLeft: { alignItems: "flex-start" },
   alignRight: { alignItems: "flex-end" },
-  row: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  // Stretched across the bar so Log can grow to its right edge; buttons that do not grow stay left.
+  row: { alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
   // Log is the last child, so a plain column puts it at the bottom of the stack.
   column: { flexDirection: "column", alignItems: "flex-end", gap: 10 },
-  fab: { minHeight: 56, paddingHorizontal: 20, borderRadius: R.pill, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  fab: { minHeight: isPad ? 56 : TAB_BUTTON, paddingHorizontal: 20, borderRadius: R.pill, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  fabPhone: { flexGrow: 1 },
   fabFill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: R.pill },
   fabSolid: { backgroundColor: C.tint, ...Elevation },
   pressed: { transform: [{ scale: 0.96 }], opacity: 0.85 },
   text: { color: C.onTint, fontSize: 17, fontWeight: "700" },
-  btn: { minWidth: 52, minHeight: 52, paddingHorizontal: 14, borderRadius: R.pill, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, maxWidth: 190, position: "relative" },
+  btn: { minWidth: isPad ? 52 : TAB_BUTTON, minHeight: isPad ? 52 : TAB_BUTTON, paddingHorizontal: 14, borderRadius: R.pill, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, maxWidth: 190, position: "relative" },
   btnPad: { width: PAD_BUTTON_WIDTH, maxWidth: PAD_BUTTON_WIDTH },
   btnFill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: R.pill },
   btnSolid: { backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, ...Elevation },

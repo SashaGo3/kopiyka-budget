@@ -24,13 +24,38 @@ export function Subtle({ children, style }: { children: ReactNode; style?: Style
   return <Text style={[styles.subtle, style]}>{children}</Text>;
 }
 
-export function Chip({ label, icon, active, onPress, tint, compact, disabled }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean }) {
+export function Chip({ label, icon, active, onPress, tint, compact, disabled, cell }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean;
+  /** Fills one cell of a `ChipGrid`: the label shrinks a little to fit its cell, then ends in an ellipsis. */
+  cell?: boolean }) {
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active, disabled: !!disabled }}
-      style={({ pressed }) => [styles.chip, compact && styles.chipCompact, active && styles.chipActive, disabled && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
+      style={({ pressed }) => [styles.chip, compact && styles.chipCompact, cell && styles.chipCell, active && styles.chipActive, disabled && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
-      <Text numberOfLines={1} style={[styles.chipText, active && styles.chipTextActive]} ellipsizeMode="middle">{label}</Text>
+      {cell
+        ? <Text numberOfLines={1} style={[styles.chipText, styles.chipCellText, active && styles.chipTextActive]} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.3} ellipsizeMode="tail">{label}</Text>
+        : <Text numberOfLines={1} style={[styles.chipText, active && styles.chipTextActive]} ellipsizeMode="middle">{label}</Text>}
     </Pressable>
+  );
+}
+
+/**
+ * Chips in fixed cells, `rows` rows high whatever the language or the text size: each chip has its
+ * place and keeps it, so the thumb learns where Photo is rather than reading for it. A chip that
+ * cannot be used right now is drawn dimmed in its cell rather than taken out, for the same reason.
+ * Pass `Chip`s with `cell`. A child that is `null` or `false` is left out altogether (a feature that is
+ * switched off), so keep anything that comes and goes at the end, where it moves nothing else.
+ */
+export function ChipGrid({ children, rows = 2 }: { children: ReactNode[]; rows?: number }) {
+  const items = children.filter((c) => c != null && c !== false);
+  const columns = Math.max(1, Math.ceil(items.length / rows));
+  return (
+    <View style={styles.chipGrid}>
+      {Array.from({ length: rows }, (_, r) => (
+        <View key={r} style={styles.chipGridRow}>
+          {Array.from({ length: columns }, (_, c) => <View key={c} style={styles.chipGridCell}>{items[r * columns + c] ?? null}</View>)}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -86,15 +111,22 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
  * theme's colour for that role (`themeTone` — an iOS indigo square clashes on Gruvbox); `iconFill` is
  * the user's own colour (an account's, a category's) and is drawn exactly as chosen. Neither: the accent.
  */
-export function Row({ title, titleNode, subtitle, subtitleColor, left, right, onPress, icon, iconColor, iconFill, destructive, style }: {
-  title: string; titleNode?: ReactNode; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; iconFill?: string | null; destructive?: boolean; style?: StyleProp<ViewStyle>;
+export function Row({ title, titleNode, subtitle, subtitleColor, left, right, onPress, icon, iconColor, iconFill, destructive, badge, style }: {
+  title: string; titleNode?: ReactNode; subtitle?: string; subtitleColor?: ColorValue; left?: ReactNode; right?: ReactNode; onPress?: () => void; icon?: SFSymbol; iconColor?: string; iconFill?: string | null; destructive?: boolean;
+  /** A short label beside the title ("Beta"), read after it by VoiceOver. */
+  badge?: string; style?: StyleProp<ViewStyle>;
 }) {
   const tone = iconFill ? { fill: iconFill, glyph: "white" } : iconColor ? themeTone(iconColor) : { fill: C.tint, glyph: C.onTint };
   return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title} style={({ pressed }) => [styles.row, pressed && { backgroundColor: C.fill }, style]}>
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={[title, badge, subtitle].filter(Boolean).join(", ")} style={({ pressed }) => [styles.row, pressed && { backgroundColor: C.fill }, style]}>
       {left ?? (icon ? <View style={[styles.iconBox, { backgroundColor: tone.fill }]}><SymbolView name={icon} size={16} tintColor={tone.glyph} /></View> : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
-        {titleNode ? <View style={{ flexDirection: "row" }}>{titleNode}</View> : <Text numberOfLines={2} style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
+        {titleNode ? <View style={{ flexDirection: "row" }}>{titleNode}</View> : badge ? (
+          <View style={styles.rowTitleLine}>
+            <Text numberOfLines={2} style={[styles.rowTitle, { flexShrink: 1 }, destructive && { color: C.red }]}>{title}</Text>
+            <View style={styles.badge}><Text style={styles.badgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>{badge}</Text></View>
+          </View>
+        ) : <Text numberOfLines={2} style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
         {subtitle ? <Text numberOfLines={3} style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
       </View>
       {right}
@@ -178,9 +210,12 @@ export function HeaderBar({ title, left, right, style }: { title: string; left?:
   const balance = w.row > 0 && w.row - 2 * S.lg - 2 * side - 2 * S.sm >= 96;
   return (
     <View style={[styles.headerBar, style]} onLayout={measure("row")}>
-      <View style={[styles.headerSide, { alignItems: "flex-start" }, balance && { width: side }]}><View onLayout={measure("l")}>{left}</View></View>
+      {/* A row, with the action itself not allowed to shrink: inside a slot pinned to the width measured
+          last time, a column would clamp the action to that width, so a label that grew ("Done" →
+          "Done (2)") measured as the old width, never widened its slot and stayed cut off. */}
+      <View style={[styles.headerSide, { justifyContent: "flex-start" }, balance && { width: side }]}><View style={styles.headerAction} onLayout={measure("l")}>{left}</View></View>
       <Text style={styles.modalTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} maxFontSizeMultiplier={1.3}>{title}</Text>
-      <View style={[styles.headerSide, { alignItems: "flex-end" }, balance && { width: side }]}><View onLayout={measure("r")}>{right}</View></View>
+      <View style={[styles.headerSide, { justifyContent: "flex-end" }, balance && { width: side }]}><View style={styles.headerAction} onLayout={measure("r")}>{right}</View></View>
     </View>
   );
 }
@@ -399,12 +434,21 @@ const styles = themed(() => StyleSheet.create({
   chipActive: { backgroundColor: C.tint },
   chipText: { color: C.label, fontSize: 15, fontWeight: "500" },
   chipTextActive: { color: C.onTint },
+  chipCell: { flexGrow: 1, flexShrink: 1, alignSelf: "stretch", paddingHorizontal: 6, gap: 4 },
+  chipCellText: { flexShrink: 1, fontSize: 14 },
+  chipGrid: { gap: S.sm, paddingHorizontal: S.md },
+  chipGridRow: { flexDirection: "row", gap: S.sm },
+  chipGridCell: { flex: 1, minWidth: 0, flexDirection: "row" },
   seg: { flexDirection: "row", backgroundColor: C.fill, borderRadius: R.sm + 2, padding: 2, alignSelf: "stretch" },
   segItem: { flex: 1, minHeight: 32, paddingVertical: 4, alignItems: "center", justifyContent: "center", borderRadius: R.sm },
   segOn: { backgroundColor: C.card },
   segText: { color: C.secondary, fontSize: 15 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.lg, paddingVertical: 8, minHeight: 50, backgroundColor: C.card },
   rowTitle: { fontSize: 17, color: C.label },
+  rowTitleLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  // On the accent, whose text colour every theme keeps at 4.5:1 or better (packages/core/src/themes.ts).
+  badge: { flexShrink: 0, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: C.tint },
+  badgeText: { fontSize: 11, fontWeight: "700", color: C.onTint, textTransform: "uppercase", letterSpacing: 0.4 },
   rowSub: { fontSize: 13, color: C.secondary, marginTop: 1 },
   iconBox: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   card: { backgroundColor: C.card, borderRadius: R.md, overflow: "hidden", marginHorizontal: S.lg },
@@ -420,7 +464,8 @@ const styles = themed(() => StyleSheet.create({
   tagText: { fontSize: 13, fontWeight: "600" },
   headerBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg },
   modalHeader: { minHeight: 52 },
-  headerSide: { flexShrink: 0, flexGrow: 0 },
+  headerSide: { flexDirection: "row", flexShrink: 0, flexGrow: 0 },
+  headerAction: { flexShrink: 0 },
   modalTitle: { flex: 1, flexShrink: 1, minWidth: 0, marginHorizontal: S.sm, textAlign: "center", fontSize: 17, fontWeight: "600", color: C.label },
   modalLink: { color: C.tint, fontSize: 17 },
   deleteText: { color: C.red, fontSize: 15, fontWeight: "500" },

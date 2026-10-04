@@ -28,6 +28,15 @@
     "doneLabel": { "message": "{name}, done", "note": "VoiceOver; name is a category." },
     "notYetLabel": { "message": "{name}, not yet", "note": "VoiceOver; name is a category." },
     "last": { "message": "Last {amount} · {day}", "note": "The last payment in this category; day is \"22 Sep\"." },
+    "due": { "message": "{amount} due {day}", "note": "Recurring payment line not paid yet; day is \"22 Sep\"." },
+    "summaryPaid": { "message": "{amount} paid", "note": "Checklist summary part; amount is \"250.00 PLN\". Parts are joined with \" · \"." },
+    "summaryLeft": { "message": "≈ {amount} to go", "note": "Checklist summary part: roughly what the open lines will still cost." },
+    "summaryTotal": { "message": "≈ {amount} in all", "note": "Checklist summary part: paid plus still to go." },
+    "times": { "message": "{paid} of {total}", "note": "A weekly payment paid once of the four times it falls this period: \"1 of 4\"." },
+    "timesLabel": { "message": "paid {paid} of {total} times", "note": "VoiceOver for the progress dots of a payment due several times this period." },
+    "allDone": { "message": "All paid · {period}" },
+    "hiddenDone": { "message": "{count, plural, one {# paid line hidden} other {# paid lines hidden}}", "note": "Under the checklist when paid lines are set to be hidden." },
+    "sumLabel": { "message": "Switch between still to pay and the total", "note": "VoiceOver hint on the checklist's sum line." },
     "choose": "Choose categories to watch.",
     "missing": { "message": "{count} still missing · {period}" }
   },
@@ -74,6 +83,8 @@
     "trendLess": "Essentials were {pct}% six periods ago — less room than there was",
     "trendMore": "Essentials were {pct}% six periods ago — more room than there was",
     "sixPeriods": "Six periods, oldest first.",
+    "openCategory": { "message": "{name}, show payments", "note": "VoiceOver; name is a category in the importance split." },
+    "more": { "message": "and {count} more", "note": "After four tappable category names in one importance level; tapping shows the rest." },
     "unmarked": "Categories nobody has marked are counted separately, not guessed at."
   },
   "buffer": {
@@ -134,6 +145,31 @@
     "addFromTx": "Add from a transaction",
     "addFromTxHint": "Matched by category, tags and note",
     "whichPayment": "Which payment repeats?",
+    "group": {
+      "spending": { "message": "Spending and budgets", "note": "Section in the Add insight list." },
+      "accounts": { "message": "Accounts and goals", "note": "Section in the Add insight list." },
+      "payments": { "message": "Payments", "note": "Section in the Add insight list." }
+    },
+    "addNow": { "message": "Add", "note": "Right side of a card kind with nothing to set: tapping adds it at once.", "max": 10 },
+    "required": { "message": "Required", "note": "Row subtitle (in orange) for a setting the card cannot be saved without." },
+    "none": { "message": "None", "note": "Categories row when the checklist only watches recurring payments." },
+    "perTag": {
+      "title": { "message": "Wait for each", "note": "Section above the chosen categories of a payments checklist." },
+      "once": { "message": "Once · tap to wait once per tag", "note": "Subtitle of a chosen category with no tags picked." },
+      "hint": { "message": "One category paid for several people — insurance for each of you — is one line per tag: done when a payment in it carries that tag." }
+    },
+    "recurring": {
+      "title": { "message": "Recurring payments", "note": "Toggle on the payments checklist editor." },
+      "subtitle": { "message": "Also wait for every recurring expense due this period" },
+      "hideDone": { "message": "Hide paid lines", "note": "Toggle on the payments checklist editor." },
+      "hideDoneSubtitle": { "message": "Only what is still missing stays on the card" },
+      "sum": { "message": "Sum shows", "note": "Section above a two-way switch: still to pay / total." },
+      "sumLeft": { "message": "Still to pay", "max": 18 },
+      "sumTotal": { "message": "Total", "max": 18 },
+      "which": { "message": "Which recurring payments", "note": "Section listing the recurring expenses the checklist waits for, each with a tick." },
+      "whichHint": { "message": "Untick a payment you only make when it is needed: the checklist stops waiting for it." }
+    },
+    "preview": { "message": "Preview", "note": "Section header above a live preview of the card being set up." },
     "changeType": "Change type",
     "removeInsight": "Remove insight",
     "removeTitle": "Remove this insight?"

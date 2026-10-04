@@ -97,6 +97,7 @@
     "subtitle": "Log payments from your bank’s or Wallet’s notifications",
     "subtitleOld": { "message": "Log payments from your bank’s or Wallet’s notifications · needs iOS {version}", "note": "On an iOS too old for the automation; version is \"26\"." },
     "settings": "Shortcut settings",
+    "beta": { "message": "Beta", "note": "Small badge beside the Shortcut row in Settings: it works, but each bank still needs support added.", "max": 6 },
     "settingsSubtitle": "What it tells you, and what it could not read"
   },
   "about": {

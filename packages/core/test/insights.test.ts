@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { budgetCategoryIds, createAccount, createBudget, createCategory, createRecurring, createTag, createTransaction } from "../src/repo";
-import { accountLeftover, budgetRows, categoryChecklist, daysToSalary, freeMoney, regularSpending, savingsGoal, subscriptionsPerYear, templateFromTransaction, upcomingPayments } from "../src/insights";
+import { accountLeftover, budgetRows, categoryChecklist, checklistTotals, daysToSalary, freeMoney, regularSpending, savingsGoal, subscriptionsPerYear, templateFromTransaction, upcomingPayments } from "../src/insights";
 import { candidateFromTransaction } from "../src/detect";
 
 function seed() {
@@ -158,5 +158,62 @@ describe("a budget over several categories", () => {
     createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01", category_ids: JSON.stringify([food.id, fuel.id]) });
     createBudget(db, { currency: "PLN", amount_minor: 20000, starts: "2026-09-01", category_ids: JSON.stringify([fun.id]) });
     expect(budgetRows(db, period).length).toBe(2);
+  });
+});
+
+describe("payments checklist", () => {
+  test("a category waited for per tag is one line per tag, done by an expense carrying it", () => {
+    const { db, acc } = seed();
+    const insurance = createCategory(db, { name: "Insurance" });
+    const mum = createTag(db, { name: "mum" });
+    const dad = createTag(db, { name: "dad" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-05T10:00:00+02:00", amount_minor: -9000, category_id: insurance.id, tag_ids: JSON.stringify([mum.id]) });
+    createTransaction(db, { account_id: acc.id, date: "2026-08-05T10:00:00+02:00", amount_minor: -7000, category_id: insurance.id, tag_ids: JSON.stringify([dad.id]) });
+    const items = categoryChecklist(db, { category_ids: [insurance.id], category_tags: { [insurance.id]: [mum.id, dad.id] } }, period);
+    expect(items.map((i) => [i.key, i.tag_id, i.done, i.spent_minor])).toEqual([[`${insurance.id}#${mum.id}`, mum.id, true, 9000], [`${insurance.id}#${dad.id}`, dad.id, false, 0]]);
+    // the line is prefilled from the last payment *for that person*
+    expect(items[1]!.last?.amount_minor).toBe(-7000);
+  });
+  test("a folder waited for per tag stands as a whole once per tag", () => {
+    const { db, food, coffee, tag } = seed();
+    const items = categoryChecklist(db, { category_ids: [food.id], category_tags: { [food.id]: [tag.id] } }, period);
+    expect(items.map((i) => [i.category_id, i.done])).toEqual([[food.id, true]]);
+    expect(items[0]!.category_id).not.toBe(coffee.id);
+  });
+  test("recurring expenses that fall in the period join the list", () => {
+    const { db, acc } = seed();
+    // seed: Netflix monthly from 2026-09-10 (still owed), Paper weekly from 2026-09-10 (still owed)
+    const gym = createRecurring(db, { account_id: acc.id, amount_minor: -8000, frequency: "monthly", start_date: "2026-09-20", next_date: "2026-10-20", payee: "Gym" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-20T09:00:00+02:00", amount_minor: -8000, recurring_id: gym.id });
+    createRecurring(db, { account_id: acc.id, amount_minor: -2000, frequency: "yearly", start_date: "2027-01-05", payee: "Domain" });
+    createRecurring(db, { account_id: acc.id, amount_minor: 500000, frequency: "monthly", start_date: "2026-09-25", payee: "Salary" });
+    const items = categoryChecklist(db, { include_recurring: true }, period);
+    expect(items.map((i) => [i.name, i.done, i.due])).toEqual([["Netflix", false, "2026-09-10"], ["Paper", false, "2026-09-10"], ["Gym", true, null]]);
+    expect(items.find((i) => i.name === "Gym")!.spent_minor).toBe(8000);
+    expect(categoryChecklist(db, {}, period)).toEqual([]);
+  });
+  test("a weekly payment counts its occurrences; a skipped one is no longer asked for", () => {
+    const { db, acc } = seed();
+    const lessons = createRecurring(db, { account_id: acc.id, amount_minor: -10000, frequency: "weekly", start_date: "2026-09-03", next_date: "2026-09-17", payee: "Polish" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-03T18:00:00+02:00", amount_minor: -10000, recurring_id: lessons.id });
+    // 3 Sep paid, 10 Sep skipped (next_date moved past it), 17 and 24 Sep still owed
+    const line = categoryChecklist(db, { include_recurring: true }, period).find((i) => i.rule_id === lessons.id)!;
+    expect([line.occurrences, line.due, line.expected_minor, line.done]).toEqual([{ paid: 1, total: 3 }, "2026-09-17", 20000, false]);
+  });
+  test("a rule left out of the checklist is not waited for", () => {
+    const { db } = seed();
+    const all = categoryChecklist(db, { include_recurring: true }, period);
+    const netflix = all.find((i) => i.name === "Netflix")!.rule_id!;
+    expect(categoryChecklist(db, { include_recurring: true, exclude_rule_ids: [netflix] }, period).map((i) => i.name)).toEqual(["Paper"]);
+  });
+});
+
+describe("payments checklist totals", () => {
+  test("paid this period, and what the open lines are expected to cost", () => {
+    const { db, acc, food, rent } = seed();
+    createTransaction(db, { account_id: acc.id, date: "2026-08-01T10:00:00+02:00", amount_minor: -250000, category_id: rent.id });
+    const items = categoryChecklist(db, { category_ids: [food.id, rent.id], include_recurring: true }, period);
+    // Coffee paid 200.00; Rent open, expected at last month's 2500.00; Netflix 45.00 owed, and Paper 10.00 weekly three times (10, 17, 24 Sep)
+    expect(checklistTotals(items)).toEqual([{ currency: "PLN", paid_minor: 20000, expected_minor: 250000 + 4500 + 3 * 1000 }]);
   });
 });

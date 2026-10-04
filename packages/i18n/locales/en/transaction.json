@@ -37,6 +37,7 @@
       "photo": { "message": "Photo", "max": 12 },
       "split": { "message": "Split", "note": "Chip that splits the entry into parts with their own categories.", "max": 12 },
       "return": { "message": "Return", "note": "Chip: the amount typed is money that came back on an earlier expense.", "max": 14 },
+      "duplicate": { "message": "Duplicate", "note": "Chip on a saved entry: open a copy of it to add again.", "max": 12 },
       "receipt": { "message": "Receipt", "note": "Chip that opens the receipt scanner.", "max": 12 }
     },
     "tapToSave": "Tap to save",

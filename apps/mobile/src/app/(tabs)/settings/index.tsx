@@ -176,7 +176,7 @@ export default function SettingsScreen() {
         </Card>
         <SectionHeader>{t("settings.section.shortcuts")}</SectionHeader>
         <Card>
-          <Row icon="bell.badge" iconColor="#FF9F0A" title={t("settings.shortcut.title")}
+          <Row icon="bell.badge" iconColor="#FF9F0A" title={t("settings.shortcut.title")} badge={t("settings.shortcut.beta")}
             subtitle={AUTOMATION_SUPPORTED ? t("settings.shortcut.subtitle") : t("settings.shortcut.subtitleOld", { version: AUTOMATION_MIN_IOS })} onPress={() => router.push("/settings/shortcut")} />
           {/* No count of unread notifications here: the log is one tap away for whoever wants to look,
               and a warning on the settings screen for every odd bank message was nagging. */}
