@@ -15,11 +15,11 @@ trackers.
 ![TypeScript + Swift](https://img.shields.io/badge/TypeScript%20%2B%20Swift-2B2B2E.svg)
 
 <p align="center">
-  <img src="apps/mobile/screenshots/appstore/en-US/iphone-6.9/01-log.png" width="19%" alt="Log an expense in two taps" />
-  <img src="apps/mobile/screenshots/appstore/en-US/iphone-6.9/03-budgets.png" width="19%" alt="Budgets that start on payday" />
-  <img src="apps/mobile/screenshots/appstore/en-US/iphone-6.9/04-transactions.png" width="19%" alt="Transactions with place and tags" />
-  <img src="apps/mobile/screenshots/appstore/en-US/iphone-6.9/05-watch.png" width="19%" alt="Apple Watch app" />
-  <img src="apps/mobile/screenshots/appstore/en-US/iphone-6.9/07-trip.png" width="19%" alt="Trip mode" />
+  <img src="site/img/shots/log.webp" width="19%" alt="Log an expense in two taps" />
+  <img src="site/img/shots/shortcut.webp" width="19%" alt="A bank notification becomes an entry (iOS 27)" />
+  <img src="site/img/shots/recurring.webp" width="19%" alt="Subscriptions and recurring payments" />
+  <img src="site/img/shots/trip.webp" width="19%" alt="Trip mode" />
+  <img src="site/img/shots/insights.webp" width="19%" alt="Insights you choose" />
 </p>
 
 ## Why this exists
