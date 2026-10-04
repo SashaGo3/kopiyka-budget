@@ -29,6 +29,7 @@ docs/private/
 
 # regenerable screenshot captures (the framed App Store set is committed)
 apps/mobile/screenshots/raw/
+apps/mobile/screenshots/Finals/
 
 # OS noise
 .DS_Store

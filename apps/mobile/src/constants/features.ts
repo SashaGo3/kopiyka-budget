@@ -13,7 +13,14 @@ export const RECEIPT_SCANNER_ENABLED = false;
  */
 export const AUTOMATION_MIN_IOS = 27;
 const iosVersion = Platform.OS === "ios" ? parseFloat(String(Platform.Version)) : 0;
+/**
+ * The App Store screenshots are taken on a simulator older than iOS 27, and a slide selling the
+ * automation should not carry the "needs iOS 27" warning. scripts/screenshots/run.sh sets this when
+ * it builds; Expo inlines it into the bundle, so every other build reads it as unset.
+ */
+const SCREENSHOT_BUILD = process.env.EXPO_PUBLIC_SCREENSHOTS === "1";
 /** True on anything that could run the automation; an unreadable version is given the benefit of the doubt. */
-export const AUTOMATION_SUPPORTED = Platform.OS !== "ios" || !Number.isFinite(iosVersion) || iosVersion >= AUTOMATION_MIN_IOS;
+export const AUTOMATION_SUPPORTED =
+  SCREENSHOT_BUILD || Platform.OS !== "ios" || !Number.isFinite(iosVersion) || iosVersion >= AUTOMATION_MIN_IOS;
 /** What this device runs, for the note that says why the automation is unavailable ("" when unknown). */
 export const IOS_VERSION = Platform.OS === "ios" && Number.isFinite(iosVersion) ? String(Platform.Version) : "";

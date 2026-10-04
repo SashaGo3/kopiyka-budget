@@ -642,7 +642,10 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
   createInsight(db, { kind: "days_to_salary", sort: 1 });
   createInsight(db, { kind: "savings_goal", sort: 2, params: JSON.stringify({ title: m("goal"), account_id: savings.id, target_minor: toMinor(P.goal, CUR) }) });
   createInsight(db, { kind: "checklist", sort: 3, params: JSON.stringify({ category_ids: [catRent.id, catUtilities.id, catInternet.id] }) });
-  createInsight(db, { kind: "subscriptions", sort: 4 });
+  // Subscriptions per year counts every recurring expense unless told otherwise; rent, energy and
+  // the car insurance are bills, and with them in the card shows a year's rent as "subscriptions".
+  const ruleId = (key: RuleSpec["key"]) => rules[ruleSpecs.findIndex((r) => r.key === key)]!.id;
+  createInsight(db, { kind: "subscriptions", sort: 4, params: JSON.stringify({ exclude_rule_ids: [ruleId("rent"), ruleId("energy"), carInsurance.id] }) });
   createInsight(db, { kind: "regular", sort: 5, params: JSON.stringify({ category_ids: [catGroceries.id], frequency: "weekly" }) });
   const gymTpl = templatesByKey.get("gym"), vodafoneTpl = templatesByKey.get("phone");
   if (gymTpl && vodafoneTpl) {

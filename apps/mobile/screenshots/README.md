@@ -28,6 +28,10 @@ language has its own folder, named with App Store Connect's code for it (`en` �
 
 Raw captures are per language too: `screenshots/raw/<lang>/{iphone,ipad,watch}/…`.
 
+**What to upload** is gathered after every `--frame` into `screenshots/Finals/<App Store language>/`
+— `iphone/` (the 6.5" set), `ipad/` (13") and `watch/` — rebuilt from scratch each time, so it
+holds the current slides and nothing else. It is a copy of the folders above, so it is gitignored.
+
 `bare/` exists for the promo site in `site/`, which supplies its own words: a slide's baked-in
 headline next to the page's own heading is the same sentence printed twice. It is the only output
 that keeps an alpha channel — App Store Connect rejects a PNG that has one, so everything else is

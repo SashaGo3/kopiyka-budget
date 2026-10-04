@@ -17,7 +17,7 @@ site/
   styles.css        every style on the site; colours only as custom properties
   themes.css        generated from packages/core/src/themes.ts — the colour themes, light and dark
   build.mjs         the build script
-  img/              generated: shots/, ipad/, watch/, icon-180.png, icon-512.png, og.png;
+  img/              generated: shots/, ipad/, watch/ (WebP), icon-180.png, icon-512.png, og.png (PNG);
                     img/uk/ holds the Ukrainian copies once Ukrainian screenshots exist
   .nojekyll         tells GitHub Pages to serve the files as they are
 ```
@@ -30,6 +30,10 @@ carries `<html lang>`, `hreflang` alternates (with `x-default` = English), its o
 `og:url` and `og:locale`, and an EN / УКР switcher in the header that links to the same page in
 the other language.
 
+- **Slide headlines and watch captions** are not repeated in `site.json`: the page reads them from
+  the App Store text, `packages/i18n/locales/<lang>/store.json`, as `{{store.shots.<id>.title}}` /
+  `{{store.watch.<id>}}` (a slide's manual line breaks become spaces). Edit one line there and both
+  the slide and the page change.
 - **Page text** lives in `packages/i18n/locales/<lang>/site.json` — plain text only (the checker
   refuses plural and select; links and markup stay in the templates). Edit it there, run
   `bun run i18n`, then `bun run site`. A key missing in Ukrainian falls back to English with a

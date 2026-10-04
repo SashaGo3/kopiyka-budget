@@ -24,23 +24,6 @@
       "bg": "#F4F4F1"
     },
     {
-      "id": "data",
-      "title": "store.shots.data.title",
-      "subtitle": "store.shots.data.subtitle",
-      "note": "store.shots.data.note",
-      "theme": "light",
-      "layout": "phone",
-      "bg": "#ECEAE3"
-    },
-    {
-      "id": "budgets",
-      "title": "store.shots.budgets.title",
-      "subtitle": "store.shots.budgets.subtitle",
-      "theme": "light",
-      "layout": "phone",
-      "bg": "#F4F4F1"
-    },
-    {
       "id": "transactions",
       "title": "store.shots.transactions.title",
       "subtitle": "store.shots.transactions.subtitle",
@@ -49,21 +32,12 @@
       "bg": "#ECEAE3"
     },
     {
-      "id": "watch",
-      "title": "store.shots.watch.title",
-      "subtitle": "store.shots.watch.subtitle",
-      "theme": "dark",
-      "layout": "phone-watch",
-      "watch": "keypad",
-      "bg": "#141413"
-    },
-    {
-      "id": "insights",
-      "title": "store.shots.insights.title",
-      "subtitle": "store.shots.insights.subtitle",
+      "id": "recurring",
+      "title": "store.shots.recurring.title",
+      "subtitle": "store.shots.recurring.subtitle",
       "theme": "light",
       "layout": "phone",
-      "bg": "#2B2B2E"
+      "bg": "#F4F4F1"
     },
     {
       "id": "trip",
@@ -75,9 +49,26 @@
       "accent": "#C8A96A"
     },
     {
-      "id": "recurring",
-      "title": "store.shots.recurring.title",
-      "subtitle": "store.shots.recurring.subtitle",
+      "id": "insights",
+      "title": "store.shots.insights.title",
+      "subtitle": "store.shots.insights.subtitle",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#2B2B2E"
+    },
+    {
+      "id": "watch",
+      "title": "store.shots.watch.title",
+      "subtitle": "store.shots.watch.subtitle",
+      "theme": "dark",
+      "layout": "phone-watch",
+      "watch": "keypad",
+      "bg": "#141413"
+    },
+    {
+      "id": "budgets",
+      "title": "store.shots.budgets.title",
+      "subtitle": "store.shots.budgets.subtitle",
       "theme": "light",
       "layout": "phone",
       "bg": "#F4F4F1"
@@ -100,6 +91,15 @@
       "layout": "phone",
       "bg": "#ECEAE3",
       "accent": "#C8A96A"
+    },
+    {
+      "id": "data",
+      "title": "store.shots.data.title",
+      "subtitle": "store.shots.data.subtitle",
+      "note": "store.shots.data.note",
+      "theme": "light",
+      "layout": "phone",
+      "bg": "#ECEAE3"
     }
   ],
   "extras": [

@@ -54,7 +54,9 @@ if has build; then
   # No -sdk here: it would force the watch targets onto the iOS SDK. The destination is enough.
   # Signing stays on (ad-hoc for the simulator): CODE_SIGNING_ALLOWED=NO drops the entitlements,
   # and without the App Group entitlement the database lands outside the group container.
-  xcodebuild -workspace ios/Kopiyka.xcworkspace -scheme Kopiyka -configuration Release \
+  # EXPO_PUBLIC_SCREENSHOTS=1: the simulator runs an iOS older than the automation needs, and the
+  # shortcut slide should not show the "needs iOS 27" warning (src/constants/features.ts).
+  EXPO_PUBLIC_SCREENSHOTS=1 xcodebuild -workspace ios/Kopiyka.xcworkspace -scheme Kopiyka -configuration Release \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED" build -quiet \
     || die "xcodebuild failed"
 fi
@@ -91,5 +93,24 @@ for code in "${LANGS[@]}"; do
 done
 
 if has frame; then
+  # The captions come from packages/i18n/locales/<lang>/store.json by way of screenshots/i18n/, which
+  # only `bun run i18n` writes: compile first, or an edited store.json frames as the old text.
+  (cd ../../packages/i18n && bun run i18n >/dev/null) || die "bun run i18n failed — fix the messages it names"
   node scripts/screenshots/frame.mjs --lang "$(IFS=,; echo "${LANGS[*]}")" "${FRAME_ARGS[@]+"${FRAME_ARGS[@]}"}"
+fi
+
+# Finals/<store lang>/{iphone,ipad,watch}: exactly what gets uploaded, nothing else — the 6.5"
+# iPhone set (App Store Connect scales it for every other iPhone), the 13" iPad set and the watch.
+# Rebuilt from scratch each time so a slide dropped from shots.json cannot linger here.
+if has frame; then
+  for code in "${LANGS[@]}"; do
+    store="$(node scripts/screenshots/langs.mjs "$code" | awk '{print $2}')"
+    src="screenshots/appstore/$store"; dst="screenshots/Finals/$store"
+    [[ -d "$src" ]] || continue
+    rm -rf "$dst"; mkdir -p "$dst/iphone" "$dst/ipad" "$dst/watch"
+    cp "$src"/iphone-6.5/*.png "$dst/iphone/" 2>/dev/null || true
+    cp "$src"/ipad-13/*.png "$dst/ipad/" 2>/dev/null || true
+    cp "$src"/watch/*.png "$dst/watch/" 2>/dev/null || true
+    log "Finals: $dst ($(ls "$dst/iphone" | wc -l | tr -d ' ') iPhone, $(ls "$dst/ipad" | wc -l | tr -d ' ') iPad, $(ls "$dst/watch" | wc -l | tr -d ' ') watch)"
+  done
 fi

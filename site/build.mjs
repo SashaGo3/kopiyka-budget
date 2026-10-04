@@ -30,7 +30,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { marked } from 'marked';
@@ -300,9 +300,22 @@ function loadMessages() {
     if (lang !== SOURCE && missing.length) {
       warn(`${lang.code}: ${missing.length} site message(s) fall back to English (${missing.slice(0, 3).join(', ')}…)`);
     }
-    out[lang.code] = { ...source, ...own };
+    out[lang.code] = { ...source, ...own, ...readStore(SOURCE), ...readStore(lang) };
   }
   return out;
+}
+
+/**
+ * The App Store text (packages/i18n/locales/<lang>/store.json, compiled by `bun run i18n` to
+ * apps/mobile/screenshots/i18n/<lang>.json). The page uses the slide headlines and the watch
+ * captions as they are, {{store.…}}, so a line is written once and reads the same on the store
+ * and on the site. A slide's manual line breaks mean nothing on a web page and become spaces.
+ */
+function readStore(lang) {
+  const file = join(SHOTS, 'i18n', `${lang.code}.json`);
+  if (!existsSync(file)) return {};
+  const all = JSON.parse(readFileSync(file, 'utf8'));
+  return Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('store.')).map(([k, v]) => [k, v.replace(/\s*\n\s*/g, ' ')]));
 }
 
 /**
@@ -311,8 +324,9 @@ function loadMessages() {
  */
 function fill(template, msgs, vars) {
   return template.replace(/\{\{([A-Za-z][A-Za-z0-9_.]*)\}\}/g, (_, key) => {
-    if (key.startsWith('site.')) {
-      if (!(key in msgs)) throw new Error(`no message "${key}" — add it to packages/i18n/locales/en/site.json and run bun run i18n`);
+    if (key.startsWith('site.') || key.startsWith('store.')) {
+      const file = key.startsWith('site.') ? 'site.json' : 'store.json';
+      if (!(key in msgs)) throw new Error(`no message "${key}" — add it to packages/i18n/locales/en/${file} and run bun run i18n`);
       return esc(msgs[key]);
     }
     if (key in vars) return vars[key];
@@ -548,11 +562,13 @@ function buildImages() {
   // 250 KB PNG nothing links to is 250 KB every visitor pays for.
   const shots = JSON.parse(readFileSync(join(SHOTS, 'shots.json'), 'utf8'));
   const page = readFileSync(join(SITE, '_index.html'), 'utf8');
-  const wanted = (list, dir) => (list || []).map((s) => `${s.id}.png`).filter((n) => page.includes(`img/${dir}/${n}`));
+  // The page asks for <id>.webp; frame.mjs writes <id>.png. WebP with alpha is a fraction of the PNG's
+  // size at no visible cost, and every browser the site cares about shows it.
+  const wanted = (list, dir) => (list || []).map((s) => s.id).filter((id) => page.includes(`img/${dir}/${id}.webp`));
   const sets = [
     // Bare phones at 560 px wide. The alpha channel is the point: the page's own background
     // shows through, so -background/-flatten must stay well away.
-    { device: 'iphone', dir: 'shots', width: 560, names: wanted(shots.iphone, 'shots') },
+    { device: 'iphone', dir: 'shots', width: 560, names: wanted([...(shots.iphone || []), ...(shots.extras || [])], 'shots') },
     // Bare iPads at 720 px — the page shows them at up to 360 — from the iPhone ids, since an
     // iPad slide is an iPhone slide captured on the iPad. Optional.
     { device: 'ipad', dir: 'ipad', width: 720, names: wanted([...(shots.iphone || []), ...(shots.extras || [])], 'ipad'), optional: true },
@@ -571,12 +587,16 @@ function buildImages() {
         continue;
       }
       mkdirSync(join(out, set.dir), { recursive: true });
-      for (const name of set.names) {
-        if (!existsSync(join(from, name))) {
-          if (lang === SOURCE) warn(`${relative(ROOT, join(from, name))} is missing — rerun frame.mjs`);
+      // Whatever the page no longer shows goes: an old PNG, or a shot dropped from the page.
+      const keep = new Set(set.names.map((id) => `${id}.webp`));
+      for (const f of readdirSync(join(out, set.dir))) if (!keep.has(f)) rmSync(join(out, set.dir, f));
+      for (const id of set.names) {
+        const src = join(from, `${id}.png`);
+        if (!existsSync(src)) {
+          if (lang === SOURCE) warn(`${relative(ROOT, src)} is missing — rerun frame.mjs`);
           continue;
         }
-        magick([join(from, name), '-strip', '-resize', `${set.width}x`, '-define', 'png:compression-level=9', join(out, set.dir, name)]);
+        magick([src, '-strip', '-resize', `${set.width}x`, '-quality', '82', '-define', 'webp:method=6', '-define', 'webp:alpha-quality=95', join(out, set.dir, `${id}.webp`)]);
         made += 1;
       }
     }

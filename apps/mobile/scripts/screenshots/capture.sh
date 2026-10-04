@@ -183,7 +183,7 @@ ios_shot() {
   shoot "$1"
 }
 
-IOS_SHOTS=(welcome log watch transactions budgets trip insights recurring debts accounts categories tags settings shortcut data pending)
+IOS_SHOTS=(welcome log watch transactions budgets trip insights recurring themes debts accounts categories tags settings shortcut data pending)
 # The iPad set has no Apple Watch slide — the watch pairs with an iPhone — so it skips that shot,
 # which is the `log` screen a second time anyway.
 IPAD_SHOTS=(); for id in "${IOS_SHOTS[@]}"; do [[ "$id" == watch ]] || IPAD_SHOTS+=("$id"); done

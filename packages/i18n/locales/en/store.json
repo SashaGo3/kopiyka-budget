@@ -2,47 +2,47 @@
   "$comment": "The App Store: screenshot captions (apps/mobile/screenshots/shots.json names these keys; scripts/screenshots/frame.mjs sets them) and the listing (`listing.*`, written to apps/mobile/screenshots/metadata/<App Store language>/<field>.txt to paste into App Store Connect). Plain text. In captions a line break is a manual break — the framer keeps it and only wraps further if a line does not fit — so re-break a translation where it reads well rather than where the English broke.",
   "shots": {
     "log": {
-      "title": { "message": "Money in.\nMoney out.\nTwo taps.", "note": "Slide 1, the entry sheet. Headline: at most three short lines.", "max": 44 },
-      "subtitle": { "message": "Amount, category, done —\nbefore the receipt has finished printing.", "max": 130 }
+      "title": { "message": "Type the number.\nTap the category.\nDone.", "note": "the entry sheet. Headline: at most three short lines.", "max": 44 },
+      "subtitle": { "message": "The keypad opens first.\nMost entries take two taps.", "max": 130 }
     },
     "data": {
-      "title": { "message": "Your money.\nYour data.\nYour phone.", "note": "Slide 2, data management: nothing leaves the phone.", "max": 44 },
-      "subtitle": { "message": "No account, no server, no ads, no trackers.\nA copy in your own iCloud, CSV or JSON\nexport whenever you like.", "max": 130 },
-      "note": { "message": "Free. Forever. Not a trial.", "note": "Small closing line at the bottom of the slide; one line.", "max": 48 }
+      "title": { "message": "No account.\nNo server.", "note": "data management: nothing leaves the phone.", "max": 44 },
+      "subtitle": { "message": "Everything stays on your phone,\nwith a daily copy in your own iCloud.", "max": 130 },
+      "note": { "message": "Free and open source.", "note": "Small closing line at the bottom of the slide; one line.", "max": 48 }
     },
     "budgets": {
-      "title": { "message": "Months that\nstart on payday", "note": "Slide 3, budgets on a month that starts on the 25th.", "max": 44 },
-      "subtitle": { "message": "Paid on the 25th? Your budget month\nruns 25 Aug – 24 Sep.\nThe calendar can mind its own business.", "max": 130 }
+      "title": { "message": "A month that\nstarts on payday", "note": "budgets on a month that starts on the 25th.", "max": 44 },
+      "subtitle": { "message": "Paid on the 25th?\nSo is your budget.", "max": 130 }
     },
     "transactions": {
-      "title": { "message": "It learns\nwhere you shop", "note": "Slide 4, the transaction list; the category is suggested from the place.", "max": 44 },
-      "subtitle": { "message": "Coffee at the same corner twice —\nthe third time it files itself.\nPlace, tags and account on every row.", "max": 130 }
+      "title": { "message": "It remembers\nyour coffee place", "note": "the transaction list; the category is suggested from the place.", "max": 44 },
+      "subtitle": { "message": "Same place twice, and the third time\nthe category fills itself in.", "max": 130 }
     },
     "watch": {
-      "title": { "message": "Log it from\nyour wrist", "note": "Slide 5, the iPhone with the Apple Watch keypad beside it.", "max": 44 },
-      "subtitle": { "message": "Amount, category, tags — the whole flow\non Apple Watch, phone still in your pocket.", "max": 130 }
+      "title": { "message": "Or from\nyour wrist", "note": "the iPhone with the Apple Watch keypad beside it.", "max": 44 },
+      "subtitle": { "message": "The same keypad on Apple Watch,\nphone still in your pocket.", "max": 130 }
     },
     "insights": {
-      "title": { "message": "Insights you\nactually asked for", "note": "Slide 6, the Insights tab.", "max": 44 },
-      "subtitle": { "message": "Free to spend, days until salary,\na savings goal, what your subscriptions cost\na year. You pick the cards.", "max": 130 }
+      "title": { "message": "See where\nit went", "note": "the Insights tab.", "max": 44 },
+      "subtitle": { "message": "Free to spend, what’s still unpaid,\nsubscriptions per year.\nPick the cards you want.", "max": 130 }
     },
     "trip": {
-      "title": { "message": "Trip mode", "note": "Slide 7, travel mode: one trip's spending.", "max": 44 },
-      "subtitle": { "message": "One budget for the trip, a daily allowance,\nevery espresso tagged on its own.\nEnds when you come home.", "max": 130 }
+      "title": { "message": "Going away?\nTurn on trip mode.", "note": "travel mode: one trip's spending.", "max": 44 },
+      "subtitle": { "message": "A budget for the trip, an allowance per day,\nevery purchase tagged until you’re home.\nThe monthly budgets stay as they were.", "max": 130 }
     },
     "recurring": {
-      "title": { "message": "Rent asks.\nNetflix doesn’t.", "note": "Slide 8, recurring payments: subscriptions post themselves, variable bills wait for a tap.", "max": 44 },
-      "subtitle": { "message": "Subscriptions post themselves on the day;\nbills that change wait for your tap.", "max": 130 }
+      "title": { "message": "Rent asks.\nNetflix doesn’t.", "note": "recurring payments: subscriptions post themselves, variable bills wait for a tap.", "max": 44 },
+      "subtitle": { "message": "Subscriptions post themselves.\nBills that change wait for a tap,\nor for the bank’s real charge.", "max": 130 }
     },
-    "themes": {"title": {"message": "Your colours", "note": "Slide 9, the theme picker: eight colour themes (Graphite plus seven code-editor palettes), each light and dark.", "max": 44}, "subtitle": {"message": "Solarized, Nord, Catppuccin and more —\nlight or dark, with an icon to match.", "max": 130}},
+    "themes": {"title": {"message": "Simple\non purpose", "note": "the theme picker: eight colour themes (Graphite plus seven code-editor palettes), each light and dark.", "max": 44}, "subtitle": {"message": "Big numbers, few buttons, no ads.\nEight colour themes, light and dark.", "max": 130}},
     "debts": {
-      "title": { "message": "Who owes whom", "note": "Slide 9, debts.", "max": 44 },
+      "title": { "message": "Who owes whom", "note": "debts.", "max": 44 },
       "subtitle": { "message": "Lent 20 for lunch? It’s written down —\nwith a nudge on the due date.", "max": 130 }
     },
     "shortcut": {
-      "title": { "message": "Your bank pings.\nKopiyka listens.", "note": "Slide 10, the bank-notification automation (beta).", "max": 44 },
-      "subtitle": { "message": "A Shortcuts automation reads the amount and\nthe shop out of the notification, on your phone.\nYou just approve.", "max": 130 },
-      "note": { "message": "Beta — needs a bank app that sends payment notifications.", "note": "Small closing line; must keep saying beta and that a bank app is needed.", "max": 80 }
+      "title": { "message": "Pay by card.\nIt’s already\nwritten down.", "note": "the bank-notification automation (beta).", "max": 44 },
+      "subtitle": { "message": "On iOS 27, a Shortcuts automation reads\nyour bank’s notification: amount and shop,\nright on the phone. You just glance.", "max": 130 },
+      "note": { "message": "Beta · iOS 27 · needs a bank app that sends payment notifications.", "note": "Small closing line; must keep saying beta and that a bank app is needed.", "max": 80 }
     },
     "accounts": {
       "title": { "message": "Every account,\nany currency", "note": "Spare slide: accounts and net worth.", "max": 44 },

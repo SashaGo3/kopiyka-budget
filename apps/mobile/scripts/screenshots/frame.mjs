@@ -1007,6 +1007,17 @@ function frameLanguage(shotList, lang) {
     if (!entries.length) return;
     const tops = new Map(sizes.map((s) => [s.dir, deviceTopFor(entries.map((e) => e.shot), s.w, s.h, device.type)]));
     for (const size of sizes) fs.mkdirSync(path.join(OUT_DIR, subdir, size.dir), { recursive: true });
+    // The numbered folders are the upload set, so they hold exactly this list: a slide left over
+    // from an earlier order or a removed shot would be uploaded as an eleventh.
+    if (numbered) {
+      const keep = new Set(entries.map(({ shot, i }) => `${String(i + 1).padStart(2, "0")}-${shot.id}.png`));
+      for (const size of sizes) {
+        const dir = path.join(OUT_DIR, subdir, size.dir);
+        for (const f of fs.readdirSync(dir)) {
+          if (f.endsWith(".png") && !keep.has(f)) fs.rmSync(path.join(dir, f));
+        }
+      }
+    }
 
     for (const { shot, i } of entries) {
       if (ONLY_SET && !ONLY_SET.has(shot.id)) continue;

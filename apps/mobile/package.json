@@ -64,6 +64,7 @@
     "release:ios": "bash scripts/release-ios.sh upload",
     "release:ios:ipa": "bash scripts/release-ios.sh ipa",
     "screenshots": "bash scripts/screenshots/run.sh",
+    "screenshots:upload": "bash scripts/screenshots/upload.sh",
     "screenshots:demo": "bun scripts/screenshots/demo-data.ts",
     "screenshots:frame": "node scripts/screenshots/frame.mjs",
     "icons": "node scripts/make-icons.mjs",
