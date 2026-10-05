@@ -419,6 +419,21 @@ enum KPStore {
     }
   }
 
+  /// Tags an earlier entry may not hand on to a new one (core `uncarriedTagIds`): every tag a trip was
+  /// ever run on, a deleted trip's too, and every archived tag. A trip tag says when the money was
+  /// spent, not what the shop is; only travel mode puts one on a new entry (`activeTripTagId`).
+  static func uncarriedTagIds(_ db: OpaquePointer) -> Set<String> {
+    var out = Set<String>()
+    for sql in ["SELECT DISTINCT tag_id FROM budgets WHERE period='once' AND tag_id IS NOT NULL",
+                "SELECT id FROM tags WHERE deleted=0 AND archived=1"] {
+      var stmt: OpaquePointer?
+      guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
+      while sqlite3_step(stmt) == SQLITE_ROW { out.insert(str(stmt, 0)) }
+      sqlite3_finalize(stmt)
+    }
+    return out
+  }
+
   /// Travel mode (core `activeTripTagId`): the tag every new expense gets while a trip runs.
   static func activeTripTagId(_ db: OpaquePointer) -> String? {
     var stmt: OpaquePointer?
@@ -797,24 +812,33 @@ enum KPStore {
       }
       return nil
     }
-    // Category and tags come from whichever single row matches, so they always describe one past
-    // decision; a row with tags but no category still counts.
-    if let hit = newest("category_id, tag_ids", "(category_id IS NOT NULL OR tag_ids <> '[]')") {
-      out.categoryId = opt(hit.stmt, 0)
-      out.tagIds = jsonIds(str(hit.stmt, 1))
-      out.match = hit.exact ? "exact" : "similar"
-      sqlite3_finalize(hit.stmt)
-    }
-    // How many ways this name was filed, so a caller can tell a decision from a coin toss. Counted
-    // over the same name that answered above, since `newest` takes the first one that matches at all.
+    // Tags an earlier entry cannot hand on — a trip's, and archived ones (core `uncarriedTagIds`).
+    let skip = uncarriedTagIds(db)
+    /// The filed rows (category, tags it may hand on) for the first name that has any, newest first.
+    /// A row whose only tags are ones it cannot hand on was never filed as far as the shop goes.
+    var filed: (rows: [(categoryId: String?, tagIds: [String])], exact: Bool)?
     for t in tries {
       var stmt: OpaquePointer?
-      let sql = "SELECT COUNT(*) FROM (SELECT DISTINCT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) LIMIT 200)"
+      let sql = "SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) ORDER BY date DESC LIMIT 200"
       guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
       for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
-      let n = sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : 0
+      var rows: [(categoryId: String?, tagIds: [String])] = []
+      while sqlite3_step(stmt) == SQLITE_ROW {
+        let row = (categoryId: opt(stmt, 0), tagIds: jsonIds(str(stmt, 1)).filter { !skip.contains($0) })
+        if row.categoryId != nil || !row.tagIds.isEmpty { rows.append(row) }
+      }
       sqlite3_finalize(stmt)
-      if n > 0 { out.variants = n; break }
+      if !rows.isEmpty { filed = (rows, t.exact); break }
+    }
+    // Category and tags come from whichever single row matches, so they always describe one past
+    // decision; a row with tags but no category still counts.
+    if let filed, let first = filed.rows.first {
+      out.categoryId = first.categoryId
+      out.tagIds = first.tagIds
+      out.match = filed.exact ? "exact" : "similar"
+      // How many ways this name was filed, so a caller can tell a decision from a coin toss — over
+      // the same name that answered above, and with a trip's tag not making a way of its own.
+      out.variants = Set(filed.rows.map { "\($0.categoryId ?? "")|\($0.tagIds.sorted().joined(separator: ","))" }).count
     }
     // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
     // whether or not that is the entry the category came from.

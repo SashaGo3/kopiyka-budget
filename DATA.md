@@ -107,6 +107,13 @@ never counts is a **recurring payment** (`recurring_id` set): rent and subscript
 cannot be added to a trip from among them, and a charge that claims a rule's occurrence
 (`claimRecurring`) drops the trip tag travel mode put on it.
 
+A trip tag is never **inherited**. It says when the money was spent, not what the shop is, so history —
+`payeeHistory`, `payeeOptions`, the Shortcut's Swift copy, the watch's tag ranking — hands on
+nothing that `uncarriedTagIds` (`packages/core/src/trips.ts`) names: every tag a trip was ever run on,
+a deleted trip's included, and every archived tag. Otherwise the café visited on a trip last spring
+files every coffee bought there since under that trip, and so out of the month's budgets. The one
+way a trip tag reaches a new entry is travel mode, while that trip runs (`withTripTag`).
+
 Everything carrying a trip's tag counts against its budget unless it was chosen to stay **outside**
 it: `budgets.outside_ids` (v17, trips only) is a JSON list of transaction ids — the flights booked
 months ago, say — picked one by one, because whether something paid ahead belongs in the money for the
