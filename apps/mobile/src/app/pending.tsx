@@ -7,7 +7,7 @@ import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { groupByDay, rowCategory, useTransactions, type TxRow } from "@/components/TransactionList";
 import { BarButton, BottomBar } from "@/components/BottomBar";
-import { AmountPill, CategoryIcon, Empty, Money } from "@/components/ui";
+import { AmountPill, ButtonText, CategoryIcon, Empty, Money } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { timeLabel } from "@/lib/dates";
 import { Trans, t } from "@/i18n";
@@ -154,7 +154,7 @@ function Action({ icon, label, a11y, color, onPress, grow }: { icon: SFSymbol; l
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={a11y ?? label}
       style={({ pressed }) => [styles.action, grow && { flex: 1 }, pressed && { backgroundColor: C.fill }]}>
       <SymbolView name={icon} size={16} tintColor={color} />
-      {grow ? <Text style={[styles.actionText, { color }]} numberOfLines={1}>{label}</Text> : null}
+      {grow ? <ButtonText style={[styles.actionText, { color }]}>{label}</ButtonText> : null}
     </Pressable>
   );
 }

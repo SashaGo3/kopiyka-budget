@@ -166,7 +166,7 @@ function Body({ insight, p, preview }: { insight: Insight; p: InsightParams; pre
       );
       return <View>{totals.map((x) => <Money key={x.currency} minor={x.minor} currency={x.currency} style={styles.big} />)}
         {sub(due ? t("insights.recurringSpend.fromDue", { count: lines.length, period: pn, due }) : t("insights.recurringSpend.from", { count: lines.length, period: pn }))}
-        <View style={{ flexDirection: "row", gap: S.lg }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: S.lg }}>
           <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((o) => !o); }} accessibilityRole="button" accessibilityState={{ expanded: open }}><Text style={styles.link}>{open ? t("insights.hideList") : t("insights.showList")}</Text></Pressable>
           <Pressable onPress={() => router.push("/settings/recurring")} accessibilityRole="button" accessibilityLabel={t("insights.recurringSpend.allRulesLabel")}><Text style={styles.link}>{t("insights.recurringSpend.allRules")}</Text></Pressable>
         </View>

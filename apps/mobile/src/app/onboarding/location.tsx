@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { HOME_RADIUS_M } from "@kopiyka/core";
 import { OnboardingFrame } from "@/components/Onboarding";
-import { FadeIn } from "@/components/ui";
+import { ButtonText, FadeIn } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { ensureLocationPermission, placeName, preciseLocation } from "@/lib/location";
 import { getHomeLocation, setHomeLocation, setLocationEnabled } from "@/lib/settings";
@@ -81,7 +81,7 @@ export default function OnboardingLocation() {
             accessibilityLabel={home ? t("onboarding.location.useInsteadA11y") : t("onboarding.location.useA11y")}
             style={({ pressed }) => [styles.action, (pressed || settingHome) && { opacity: 0.5 }]}>
             <SymbolView name="location.fill" size={15} tintColor={C.tint} />
-            <Text style={styles.actionText}>{settingHome ? t("onboarding.location.reading") : home ? t("onboarding.location.useInstead") : t("onboarding.location.use")}</Text>
+            <ButtonText style={styles.actionText}>{settingHome ? t("onboarding.location.reading") : home ? t("onboarding.location.useInstead") : t("onboarding.location.use")}</ButtonText>
           </Pressable>
         </View>
       ) : (

@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { HeaderBar, TagPill } from "@/components/ui";
+import { ButtonText, HeaderBar, TagPill } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
@@ -69,7 +69,7 @@ export default function PickTags() {
       ListHeaderComponent={
         <View style={{ backgroundColor: C.bgGrouped }}>
           <HeaderBar style={styles.head} title={t("pick.tags.title")}
-            right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><Text style={styles.done} numberOfLines={1} maxFontSizeMultiplier={1.3}>{chosen.length + (canCreate ? 1 : 0) ? t("pick.doneCount", { count: chosen.length + (canCreate ? 1 : 0) }) : t("common.done")}</Text></Pressable>} />
+            right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{chosen.length + (canCreate ? 1 : 0) ? t("pick.doneCount", { count: chosen.length + (canCreate ? 1 : 0) }) : t("common.done")}</ButtonText></Pressable>} />
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.tags.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel={t("pick.tags.searchA11y")} />
