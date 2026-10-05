@@ -1,0 +1,31 @@
+appId: dev.kopiyka.app
+name: "Two bank notifications of one transfer become one pending transfer, checked and approved"
+# Needs the seeded legs: bun apps/mobile/.maestro/seed/transfers.ts <udid>  (and --clean afterwards).
+# The seed leaves a debit (E2E USD, −500.00) and a credit (E2E PLN, +1 882.75) unpaired, as the
+# automation does while the app is closed; the launch sweep pairs them.
+---
+- runFlow: _launch.yaml
+- tapOn: "Transactions"
+- tapOn: ".*pending entr.*"
+- assertVisible: "Pending"
+# One item for the transfer, not an expense and an income.
+- assertVisible: "Check the transfer E2E USD → E2E PLN"
+- assertNotVisible: "Edit E2E OWNER"
+# Open it on the transfer sheet: both amounts as the bank printed them, the rate they imply.
+- tapOn: "Check the transfer E2E USD → E2E PLN"
+- assertVisible: "Transfer to check"
+- assertVisible: "From E2E USD: 500.00 USD"
+- assertVisible: "To E2E PLN: 1.?882.75 PLN"
+- assertVisible: "1 USD = 3.7655 PLN \\(manual\\)"
+# Correct the received side, then save: saving a pending transfer approves it.
+- tapOn: "To E2E PLN: .*"
+- tapOn: "1"
+- tapOn: "8"
+- tapOn: "8"
+- tapOn: "0"
+- assertVisible: "To E2E PLN: 1.?880.00 PLN"
+- tapOn: "Tap to approve.*"
+- waitForAnimationToEnd
+# The queue had only this transfer in it, so it closes once it is empty.
+- assertVisible: "Log a transaction"
+- assertNotVisible: ".*pending entr.*"

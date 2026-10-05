@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Alert, Pressable, SectionList, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { Stack, router, useIsFocused } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { getRow, remove, save } from "@kopiyka/core";
+import { approvePending, getRow, listRows, remove, save } from "@kopiyka/core";
 import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { groupByDay, rowCategory, useTransactions, type TxRow } from "@/components/TransactionList";
@@ -31,7 +31,20 @@ import { acctName } from "@/lib/names";
  * not this screen out from under it.
  */
 export default function PendingScreen() {
-  const rows = useTransactions("t.pending=1", [], 500);
+  const legs = useTransactions("t.pending=1", [], 500);
+  // A transfer is one thing to look at, not two: its first leg stands for it, the other rides along.
+  const { rows, partners } = useMemo(() => {
+    const partners = new Map<string, TxRow>();
+    const shown = new Set<string>();
+    const rows: TxRow[] = [];
+    for (const tx of legs) {
+      if (!tx.transfer_id) { rows.push(tx); continue; }
+      if (shown.has(tx.transfer_id)) { partners.set(tx.transfer_id, tx); continue; }
+      shown.add(tx.transfer_id);
+      rows.push(tx);
+    }
+    return { rows, partners };
+  }, [legs]);
   const sections = useMemo(() => groupByDay(rows), [rows]);
   const base = rows[0]?.currency ?? "";
   const focused = useIsFocused();
@@ -50,17 +63,21 @@ export default function PendingScreen() {
     if (rowId) mutate((d) => { const tx = getRow(d, "transactions", rowId); if (tx) save(d, "transactions", { ...tx, category_id: id }); });
   }, []));
 
-  const approve = (ids: string[]) => mutate((d) => {
-    for (const id of ids) { const tx = getRow(d, "transactions", id); if (tx) save(d, "transactions", { ...tx, pending: 0 }); }
-  });
+  // Both legs of a transfer at once, and each approval teaches the accounts the digits their bank
+  // prints for them (core `approvePending`).
+  const approve = (ids: string[]) => mutate((d) => { approvePending(d, ids); });
   const approveAll = () => approve(rows.map((tx) => tx.id));
   const pickCategory = (tx: TxRow) => {
     editing.current = tx.id;
     router.push({ pathname: "/pick/category", params: { key: catKey, kind: tx.amount_minor > 0 ? "income" : "expense", selected: tx.category_id ?? "" } });
   };
-  const del = (tx: TxRow) => Alert.alert(t("pending.deleteTitle"), tx.payee ?? undefined, [
+  const del = (tx: TxRow) => Alert.alert(tx.transfer_id ? t("transfer.deleteTitle") : t("pending.deleteTitle"), tx.transfer_id ? undefined : tx.payee ?? undefined, [
     { text: t("common.cancel"), style: "cancel" },
-    { text: t("common.delete"), style: "destructive", onPress: () => mutate((d) => remove(d, "transactions", tx.id)) },
+    { text: t("common.delete"), style: "destructive", onPress: () => mutate((d) => {
+      // Half a transfer left behind would move one balance and not the other.
+      const ids = tx.transfer_id ? listRows(d, "transactions", "deleted=0 AND transfer_id=?", [tx.transfer_id]).map((l) => l.id) : [tx.id];
+      for (const id of ids) remove(d, "transactions", id);
+    }) },
   ]);
 
   // Same-currency accounts only: mixing currencies into one number would be a lie.
@@ -85,7 +102,7 @@ export default function PendingScreen() {
         ListEmptyComponent={<Empty title={t("pending.emptyTitle")} hint={t("pending.emptyHint")} />}
         renderSectionHeader={({ section }) => <Text style={styles.sh}>{section.title}</Text>}
         renderItem={({ item, index, section }) => (
-          <PendingItem tx={item} first={index === 0} last={index === section.data.length - 1}
+          <PendingItem tx={item} partner={item.transfer_id ? partners.get(item.transfer_id) ?? null : null} first={index === 0} last={index === section.data.length - 1}
             onApprove={() => approve([item.id])} onCategory={() => pickCategory(item)} onDelete={() => del(item)} />
         )}
       />
@@ -100,7 +117,7 @@ export default function PendingScreen() {
 
 const sourceLabel = (source: string | null): string | undefined => {
   switch (source) {
-    case "shortcut": case "shortcut-guess": return t("pending.source.shortcut");
+    case "shortcut": case "shortcut-guess": case "shortcut-transfer": return t("pending.source.shortcut");
     case "receipt": return t("pending.source.receipt");
     case "watch": return t("pending.source.watch");
     case "siri": return t("pending.source.siri");
@@ -111,9 +128,10 @@ const sourceLabel = (source: string | null): string | undefined => {
 /** A category nobody has agreed to: the automation guessed it from the shop's name (see KopiykaIntents). */
 const GUESSED = "shortcut-guess";
 
-function PendingItem({ tx, first, last, onApprove, onCategory, onDelete }: {
-  tx: TxRow; first: boolean; last: boolean; onApprove: () => void; onCategory: () => void; onDelete: () => void;
+function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete }: {
+  tx: TxRow; partner: TxRow | null; first: boolean; last: boolean; onApprove: () => void; onCategory: () => void; onDelete: () => void;
 }) {
+  if (tx.transfer_id) return <PendingTransfer tx={tx} partner={partner} first={first} last={last} onApprove={onApprove} onDelete={onDelete} />;
   const names = rowCategory(tx);
   const catLabel = names.name ?? names.parent;
   const title = tx.payee || (tx.notes ? tx.notes.split("\n")[0]! : "") || catLabel || t("common.noCategory");
@@ -149,6 +167,45 @@ function PendingItem({ tx, first, last, onApprove, onCategory, onDelete }: {
   );
 }
 
+/**
+ * A transfer the automation read out of two bank notifications (or one, with the other account known
+ * by its number): from where to where, both amounts, and a tap to correct it on the transfer sheet.
+ * Approving it approves both legs.
+ */
+function PendingTransfer({ tx, partner, first, last, onApprove, onDelete }: {
+  tx: TxRow; partner: TxRow | null; first: boolean; last: boolean; onApprove: () => void; onDelete: () => void;
+}) {
+  const out = tx.amount_minor < 0 ? tx : partner ?? tx;
+  const inn = out === tx ? partner : tx;
+  const route = [acctName({ name: out.account_name }), inn ? acctName({ name: inn.account_name }) : "?"].join(" → ");
+  // An amount the app could not know (no rate for the other side) is 0 and has to be typed.
+  const unknown = !inn || inn.amount_minor === 0 || out.amount_minor === 0;
+  const edit = () => router.push({ pathname: "/transfer/[id]", params: { id: tx.transfer_id! } });
+  return (
+    <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
+      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.transfer.editA11y", { route })} onPress={edit}>
+        <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
+        <View style={styles.text}>
+          <Text style={styles.title} numberOfLines={1}>{t("pending.transfer.title")}</Text>
+          <Text style={styles.sub} numberOfLines={2}>{route} · {timeLabel(tx.date)}</Text>
+        </View>
+        <View style={styles.amounts}>
+          <AmountPill minor={out.amount_minor} currency={out.currency} neutral />
+          {inn && inn.currency !== out.currency ? <AmountPill minor={inn.amount_minor} currency={inn.currency} neutral /> : null}
+        </View>
+        <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
+      </Pressable>
+      <View style={styles.actions}>
+        {unknown
+          ? <Action icon="pencil" label={t("pending.transfer.fill")} color={C.tint} onPress={edit} grow />
+          : <Action icon="checkmark.circle.fill" label={t("pending.approve")} color={C.green} onPress={onApprove} grow />}
+        <Action icon="pencil" label={t("pending.transfer.edit")} color={C.secondary} onPress={edit} />
+        <Action icon="trash" label={t("common.delete")} color={C.red} onPress={onDelete} />
+      </View>
+    </View>
+  );
+}
+
 function Action({ icon, label, a11y, color, onPress, grow }: { icon: SFSymbol; label: string; a11y?: string; color: ColorValue; onPress: () => void; grow?: boolean }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={a11y ?? label}
@@ -173,5 +230,7 @@ const styles = themed(() => StyleSheet.create({
   sub: { fontSize: 13, color: C.secondary },
   actions: { flexDirection: "row", alignItems: "stretch", gap: 1, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: S.md },
-  actionText: { fontSize: 14, fontWeight: "600" },
+  actionText: { fontSize: 14, fontWeight: "600", flexShrink: 1 },
+  transferIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  amounts: { alignItems: "flex-end", gap: 4 },
 }));

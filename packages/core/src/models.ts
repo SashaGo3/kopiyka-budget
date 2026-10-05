@@ -34,6 +34,12 @@ export interface Account extends Synced {
   include_in_net_worth: 0 | 1;
   /** Balance before the first recorded transaction, in minor units. */
   opening_balance_minor: number;
+  /**
+   * JSON array of the last four digits a bank prints for this account or its card ("Na koncie:
+   * 27..5837" → "5837"), learned when a notification-logged row is approved or typed in the account
+   * sheet. What lets a bank notification name the account, and a transfer's other side be one of yours.
+   */
+  numbers: string;
 }
 
 export interface Category extends Synced {
@@ -119,6 +125,13 @@ export interface Transaction extends Synced {
    * remember it. 0 on everything that never had a return (see `packages/core/src/returns.ts`).
    */
   refunded_minor: number;
+  /**
+   * What a bank notification said about the accounts this row moved between, as JSON
+   * `{"own":"5837","other":"3203"}` (last four digits each, either may be missing). Only rows a
+   * notification wrote carry it; it is how the two notifications of one transfer find each other
+   * (packages/core/src/transferPair.ts). NULL for everything else.
+   */
+  bank_ref: string | null;
 }
 
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";

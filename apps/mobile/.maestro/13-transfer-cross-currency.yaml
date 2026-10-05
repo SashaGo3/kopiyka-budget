@@ -1,0 +1,45 @@
+appId: dev.kopiyka.app
+name: "Transfer across currencies: type what was sent, then what arrived; both stand as typed"
+# Needs the test accounts: bun apps/mobile/.maestro/seed/transfers.ts <udid>  (and --clean afterwards)
+---
+- runFlow: _launch.yaml
+- tapOn: "Log a transaction"
+- tapOn: "Transfer"
+- tapOn: "Make transfer"
+- waitForAnimationToEnd
+- tapOn: "E2E USD"
+- waitForAnimationToEnd
+- tapOn: "E2E PLN"
+- waitForAnimationToEnd
+- tapOn: "5"
+- tapOn: "0"
+- tapOn: "0"
+- assertVisible: "From E2E USD: 500.00 USD"
+# The received side follows at the fetched (or cached) rate, or waits when there is none.
+- assertVisible: "To E2E PLN: .*"
+# Type what the bank actually credited: it replaces the worked-out figure and is never recalculated.
+- tapOn: "To E2E PLN: .*"
+- tapOn: "1"
+- tapOn: "8"
+- tapOn: "8"
+- tapOn: "2"
+- tapOn: "Decimal point.*"
+- tapOn: "7"
+- tapOn: "5"
+- assertVisible: "To E2E PLN: 1.?882.75 PLN"
+# Editing the sent side again leaves the received one alone.
+- tapOn: "From E2E USD: .*"
+- tapOn: "5"
+- tapOn: "0"
+- tapOn: "0"
+- assertVisible: "From E2E USD: 500.00 USD"
+- assertVisible: "To E2E PLN: 1.?882.75 PLN"
+- assertVisible: "1 USD = 3.7655 PLN \\(manual\\)"
+# Swapping turns the transfer round, amounts and all.
+- tapOn: "Swap the accounts"
+- assertVisible: "From E2E PLN: 1.?882.75 PLN"
+- assertVisible: "To E2E USD: 500.00 USD"
+- tapOn: "Swap the accounts"
+- tapOn: "Tap to transfer.*"
+- waitForAnimationToEnd
+- assertVisible: "Log a transaction"

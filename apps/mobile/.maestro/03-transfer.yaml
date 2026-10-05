@@ -8,8 +8,15 @@ name: "Switch an entry to a transfer and back"
 - assertVisible: "Make this a transfer?"
 - tapOn: "Make transfer"
 - waitForAnimationToEnd
+# A new entry names no side of the transfer: the From picker opens by itself. Closed unanswered,
+# the sheet says no account is chosen yet and keeps the amount.
+- assertVisible: "Account"
+- swipe:
+    start: "50%, 45%"
+    end: "50%, 95%"
+- waitForAnimationToEnd
 - assertVisible: "Back to expense"
-- assertVisible: "From Account.*: 5.*"
+- assertVisible: "From no account: 5.*"
 - tapOn: "Back to expense"
 - assertVisible: "Tap to add, −5.00 PLN"
 - swipe:

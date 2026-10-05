@@ -84,7 +84,12 @@ struct KPSnapshot: Codable {
 /// SQLite (`KPStore.buildState`), sent through WatchConnectivity as the application
 /// context (last value wins) and cached in the watch's App Group.
 struct KPWatchState: Codable {
-  struct Account: Codable, Identifiable, Hashable { let id: String; let name: String; let currency: String; let balance: Double }
+  struct Account: Codable, Identifiable, Hashable {
+    let id: String; let name: String; let currency: String; let balance: Double
+    /// The last four digits a bank prints for this account (`accounts.numbers`, DATA.md rule 18).
+    /// Absent from a state file written before 1.0.4.
+    var numbers: [String]? = nil
+  }
   struct Category: Codable, Identifiable, Hashable {
     let id: String; let name: String; let parent_id: String?; let parent_name: String?; let kind: String; let icon: String?; let color: String?
     /// Transactions in the last 180 days, the app's picker ordering key.
@@ -332,12 +337,31 @@ enum KPWrites {
   }
 }
 
+/// What a bank notification said about the accounts a payment moved between — `transactions.bank_ref`
+/// (core transferPair.ts, DATA.md rule 18): the last four digits of this account and of the other
+/// end, and the balance the bank printed afterwards, in the account's minor units.
+struct KPBankRef {
+  var own: String?
+  var other: String?
+  var balanceMinor: Int?
+  var isEmpty: Bool { own == nil && other == nil }
+  /// The column's JSON, or nil when there is no account number to carry.
+  var json: String? {
+    guard !isEmpty else { return nil }
+    var o: [String: Any] = [:]
+    if let own { o["own"] = own }
+    if let other { o["other"] = other }
+    if let balanceMinor { o["balance"] = balanceMinor }
+    return (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys])).flatMap { String(data: $0, encoding: .utf8) }
+  }
+}
+
 // MARK: - Direct SQLite access (intents and the watch bridge; the app may be closed)
 
 /// Mirrors `createTransaction` + `sync_outbox` from the core package.
 /// Keep column lists in sync with packages/core/src/schema.ts and repo.ts.
 enum KPStore {
-  struct AccountRef { let id: String; let name: String; let currency: String }
+  struct AccountRef { let id: String; let name: String; let currency: String; var numbers: [String] = [] }
   struct CategoryRef { let id: String; let name: String; let parentName: String? }
 
   /// The single door to SQLite from Swift. Opens a connection, runs `body`, closes it — all with the
@@ -450,11 +474,26 @@ enum KPStore {
 
   private static func accounts(_ db: OpaquePointer) -> [AccountRef] {
     var stmt: OpaquePointer?
-    guard sqlite3_prepare_v2(db, "SELECT id, name, currency FROM accounts WHERE deleted=0 AND archived=0 ORDER BY sort, name", -1, &stmt, nil) == SQLITE_OK else { return [] }
+    // `numbers` arrived in schema v19; an automation can run before the app has migrated the file.
+    let numbers = hasColumn(db, "accounts", "numbers")
+    let sql = "SELECT id, name, currency\(numbers ? ", numbers" : "") FROM accounts WHERE deleted=0 AND archived=0 ORDER BY sort, name"
+    guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
     defer { sqlite3_finalize(stmt) }
     var out: [AccountRef] = []
-    while sqlite3_step(stmt) == SQLITE_ROW { out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: "account"), currency: str(stmt, 2))) }
+    while sqlite3_step(stmt) == SQLITE_ROW {
+      out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: "account"), currency: str(stmt, 2),
+                       numbers: numbers ? jsonIds(str(stmt, 3)) : []))
+    }
     return out
+  }
+
+  /// Whether a column exists — the direct path runs on whatever schema the file is at.
+  static func hasColumn(_ db: OpaquePointer, _ table: String, _ column: String) -> Bool {
+    var stmt: OpaquePointer?
+    guard sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM pragma_table_info(?) WHERE name=?", -1, &stmt, nil) == SQLITE_OK else { return false }
+    defer { sqlite3_finalize(stmt) }
+    sqlite3_bind_text(stmt, 1, table, -1, T); sqlite3_bind_text(stmt, 2, column, -1, T)
+    return sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) > 0
   }
 
   /// Just the accounts and which one is current — what an intent needs before it can write. `buildState()`
@@ -463,7 +502,7 @@ enum KPStore {
   static func accountList() -> (accounts: [KPWatchState.Account], current: String) {
     if let r = withDatabase({ db -> (accounts: [KPWatchState.Account], current: String) in
       // Balance is not needed here — an intent never shows one — so 0 avoids joining the snapshot in.
-      let list = accounts(db).map { KPWatchState.Account(id: $0.id, name: $0.name, currency: $0.currency, balance: 0) }
+      let list = accounts(db).map { KPWatchState.Account(id: $0.id, name: $0.name, currency: $0.currency, balance: 0, numbers: $0.numbers) }
       return (list, meta(db, "current_account") ?? "")
     }) { return r }
     if let s = fileState() { return (s.accounts, s.current_account) }
@@ -939,12 +978,12 @@ enum KPStore {
   @discardableResult
   static func addTransaction(id: String? = nil, accountId: String, amountMinor: Int, categoryId: String?, tagIds: [String] = [], note: String?, payee: String? = nil,
                              lat: Double? = nil, lon: Double? = nil, place: String? = nil, pending: Bool = false, date: String? = nil, source: String? = nil,
-                             enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil) -> Bool {
+                             enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil) -> Bool {
     lastError = nil
     guard let ok = withDatabase({ db -> Bool in
       addTransaction(db, id: id, accountId: accountId, amountMinor: amountMinor, categoryId: categoryId, tagIds: tagIds, note: note, payee: payee,
                      lat: lat, lon: lon, place: place, pending: pending, date: date, source: source,
-                     enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: rate)
+                     enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: rate, bank: bank)
     }) else { lastError = L10n.Common.noDatabase; return false }
     return ok
   }
@@ -954,7 +993,7 @@ enum KPStore {
   /// what lets a converted row be checked — and corrected — instead of being taken on trust.
   private static func addTransaction(_ db: OpaquePointer, id: String?, accountId: String, amountMinor: Int, categoryId: String?, tagIds: [String], note: String?, payee: String?,
                                      lat: Double?, lon: Double?, place: String?, pending: Bool, date: String?, source: String? = nil,
-                                     enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil) -> Bool {
+                                     enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil) -> Bool {
     let id = (id?.isEmpty == false ? id! : UUID().uuidString.lowercased())
     let now = Int(Date().timeIntervalSince1970 * 1000)
     let iso = date ?? isoNow()
@@ -964,10 +1003,13 @@ enum KPStore {
     let tags = "[" + allTags.map { "\"\($0)\"" }.joined(separator: ",") + "]"
     sqlite3_exec(db, "BEGIN", nil, nil, nil)
     var stmt: OpaquePointer?
+    // `bank_ref` arrived in schema v19, and the automation can run before the app has migrated the file:
+    // then the row is written without it and pairs by hand rather than not at all.
+    let bankRef = hasColumn(db, "transactions", "bank_ref") ? bank?.json : nil
     let sql = """
       INSERT INTO transactions (id, updated_at, deleted, account_id, date, amount_minor, category_id, payee, notes, tag_ids, pending, transfer_id,
-        entered_amount_minor, entered_currency, exchange_rate, recurring_id, lat, lon, place, source)
-      VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?)
+        entered_amount_minor, entered_currency, exchange_rate, recurring_id, lat, lon, place, source\(bankRef != nil ? ", bank_ref" : ""))
+      VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?\(bankRef != nil ? ", ?" : ""))
       """
     guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { lastError = String(cString: sqlite3_errmsg(db)); sqlite3_exec(db, "ROLLBACK", nil, nil, nil); return false }
     sqlite3_bind_text(stmt, 1, id, -1, T)
@@ -988,6 +1030,7 @@ enum KPStore {
     if let la = lat, let lo = lon { sqlite3_bind_double(stmt, 14, la); sqlite3_bind_double(stmt, 15, lo) } else { sqlite3_bind_null(stmt, 14); sqlite3_bind_null(stmt, 15) }
     if let p = place, !p.isEmpty { sqlite3_bind_text(stmt, 16, p, -1, T) } else { sqlite3_bind_null(stmt, 16) }
     if let s = source, !s.isEmpty { sqlite3_bind_text(stmt, 17, s, -1, T) } else { sqlite3_bind_null(stmt, 17) }
+    if let b = bankRef { sqlite3_bind_text(stmt, 18, b, -1, T) }
     let ok = sqlite3_step(stmt) == SQLITE_DONE
     if !ok { lastError = String(cString: sqlite3_errmsg(db)) }
     sqlite3_finalize(stmt)

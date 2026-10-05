@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -334,7 +334,12 @@ export default function TransactionSheet() {
     mutate((d) => {
       const base = { account_id: account.id, date, amount_minor: minor, category_id: cat, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagList), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
       if (!partList.length || !minors) {
-        if (existing) { save(d, "transactions", { ...existing, ...base } as Transaction); return; }
+        if (existing) {
+          const saved = save(d, "transactions", { ...existing, ...base } as Transaction);
+          // Approving a notification-logged row teaches its account the digits the bank printed for it.
+          if (existing.pending && !saved.pending) learnFromRow(d, saved);
+          return;
+        }
         // A payment typed in by hand can be the charge a recurring rule is waiting for just as much
         // as one the automation logged — the rule takes it and stops expecting a second.
         claimRecurring(d, createTransaction(d, base), { today: todayLocal(), waitDefault: waitDefaultDays() });
@@ -423,7 +428,9 @@ export default function TransactionSheet() {
       // Nothing is written until the transfer sheet saves, and Back returns here unchanged.
       const params = existing
         ? { convert: existing.id, [kind === "income" ? "to" : "from"]: accountId, date, ...(note.trim() ? { note: note.trim() } : {}), ...(categoryId ? { category: categoryId } : {}), ...(tagIds.length ? { tags: tagIds.join(",") } : {}) }
-        : { from: accountId, date, ...(note.trim() ? { note: note.trim() } : {}) };
+        // A new entry names no side: the account it was being typed on is a default, not a choice
+        // about where the money left, so the transfer sheet asks for both accounts.
+        : { date, ...(note.trim() ? { note: note.trim() } : {}) };
       const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", ...params, amount: value !== null ? String(value) : "", stacked: "1" } }); };
       Alert.alert(t("transaction.entry.makeTransfer.title"), existing ? t("transaction.entry.makeTransfer.convert") : value !== null ? t("transaction.entry.makeTransfer.moved", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("transaction.entry.makeTransfer.empty"), [
         { text: t("common.cancel"), style: "cancel" },
