@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Keyboard, Pressable, StyleSheet, Text, Tex
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
-import { ModalHeader } from "@/components/ui";
+import { ButtonText, ModalHeader } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
 import { PLACE_SEARCH_AVAILABLE, searchPlaces, type PlaceHit } from "@/lib/device";
@@ -140,9 +140,9 @@ export default function PickLocation() {
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, S.md) }]}>
         <Text style={styles.place} numberOfLines={1}>{coords ? `📍 ${place ?? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`}` : t("pick.location.tapMap")}</Text>
         <View style={styles.row}>
-          <Pressable onPress={() => void here()} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.currentA11y")}><SymbolView name="location.fill" size={16} tintColor={C.tint} /><Text style={styles.btnText}>{t("pick.location.current")}</Text></Pressable>
-          {coords ? <Pressable onPress={() => { setChosen(null); setCoords(null); }} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.removeA11y")}><SymbolView name="xmark" size={14} tintColor={C.red} /><Text style={[styles.btnText, { color: C.red }]}>{t("pick.location.remove")}</Text></Pressable> : null}
-          <Pressable onPress={done} style={[styles.btn, styles.primary]} accessibilityRole="button" accessibilityLabel={t("pick.location.use")}><Text style={[styles.btnText, { color: C.onTint }]}>{t("pick.location.use")}</Text></Pressable>
+          <Pressable onPress={() => void here()} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.currentA11y")}><SymbolView name="location.fill" size={16} tintColor={C.tint} /><ButtonText style={styles.btnText}>{t("pick.location.current")}</ButtonText></Pressable>
+          {coords ? <Pressable onPress={() => { setChosen(null); setCoords(null); }} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.removeA11y")}><SymbolView name="xmark" size={14} tintColor={C.red} /><ButtonText style={[styles.btnText, { color: C.red }]}>{t("pick.location.remove")}</ButtonText></Pressable> : null}
+          <Pressable onPress={done} style={[styles.btn, styles.primary]} accessibilityRole="button" accessibilityLabel={t("pick.location.use")}><ButtonText style={[styles.btnText, { color: C.onTint }]}>{t("pick.location.use")}</ButtonText></Pressable>
         </View>
       </View>
     </View>
@@ -160,7 +160,7 @@ const styles = themed(() => StyleSheet.create({
   bottom: { paddingHorizontal: S.md, paddingTop: S.md, gap: S.sm, backgroundColor: C.bgGrouped },
   place: { color: C.secondary, fontSize: 14, paddingHorizontal: S.xs },
   row: { flexDirection: "row", gap: S.sm },
-  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 48, paddingHorizontal: 14, borderRadius: 14, backgroundColor: C.card },
+  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 48, paddingVertical: 6, paddingHorizontal: 14, flexShrink: 1, borderRadius: 14, backgroundColor: C.card },
   primary: { flex: 1, backgroundColor: C.tint },
   btnText: { color: C.tint, fontSize: 16, fontWeight: "600" },
 }));

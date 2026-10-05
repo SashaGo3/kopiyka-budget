@@ -5,12 +5,12 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
-import { Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
+import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
@@ -145,8 +145,12 @@ export default function TransactionSheet() {
       return [{ ...o, tag_ids, key }];
     });
   }, [filed, catNames, tagNames]);
+  // The trip's tag travel mode put on this entry is not part of any option (`uncarriedTagIds`): picking
+  // one keeps it, and it does not stop the option reading as the one that is chosen.
+  const tripTags = useQuery((d) => uncarriedTagIds(d), []);
+  const ownTags = tagIds.filter((x) => !tripTags.has(x));
   const sameAsNow = (o: { category_id: string | null; tag_ids: string[] }) =>
-    o.category_id === categoryId && o.tag_ids.length === tagIds.length && o.tag_ids.every((x) => tagIds.includes(x));
+    o.category_id === categoryId && o.tag_ids.length === ownTags.length && o.tag_ids.every((x) => ownTags.includes(x));
 
   // The expression is the signed amount; `kind` follows its sign, falling back to the stored default
   // while it is empty. `evalPartial` rather than `evalExpr`, because with no "=" key the field has to
@@ -330,7 +334,12 @@ export default function TransactionSheet() {
     mutate((d) => {
       const base = { account_id: account.id, date, amount_minor: minor, category_id: cat, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagList), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
       if (!partList.length || !minors) {
-        if (existing) { save(d, "transactions", { ...existing, ...base } as Transaction); return; }
+        if (existing) {
+          const saved = save(d, "transactions", { ...existing, ...base } as Transaction);
+          // Approving a notification-logged row teaches its account the digits the bank printed for it.
+          if (existing.pending && !saved.pending) learnFromRow(d, saved);
+          return;
+        }
         // A payment typed in by hand can be the charge a recurring rule is waiting for just as much
         // as one the automation logged — the rule takes it and stops expecting a second.
         claimRecurring(d, createTransaction(d, base), { today: todayLocal(), waitDefault: waitDefaultDays() });
@@ -419,7 +428,9 @@ export default function TransactionSheet() {
       // Nothing is written until the transfer sheet saves, and Back returns here unchanged.
       const params = existing
         ? { convert: existing.id, [kind === "income" ? "to" : "from"]: accountId, date, ...(note.trim() ? { note: note.trim() } : {}), ...(categoryId ? { category: categoryId } : {}), ...(tagIds.length ? { tags: tagIds.join(",") } : {}) }
-        : { from: accountId, date, ...(note.trim() ? { note: note.trim() } : {}) };
+        // A new entry names no side: the account it was being typed on is a default, not a choice
+        // about where the money left, so the transfer sheet asks for both accounts.
+        : { date, ...(note.trim() ? { note: note.trim() } : {}) };
       const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", ...params, amount: value !== null ? String(value) : "", stacked: "1" } }); };
       Alert.alert(t("transaction.entry.makeTransfer.title"), existing ? t("transaction.entry.makeTransfer.convert") : value !== null ? t("transaction.entry.makeTransfer.moved", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("transaction.entry.makeTransfer.empty"), [
         { text: t("common.cancel"), style: "cancel" },
@@ -470,7 +481,7 @@ export default function TransactionSheet() {
                 cost of a row a small phone takes out of the keypad. */}
             {note ? (
               <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
-                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4} ellipsizeMode="tail">{note}</Text>
+                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4}>{note}</Text>
               </Pressable>
             ) : null}
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
@@ -516,12 +527,12 @@ export default function TransactionSheet() {
             {/* With one account there is nothing to choose between, so the pill goes; the balance stays. */}
             {accounts.length > 1 || !account ? <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
               <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
-              <Text style={styles.accountText} numberOfLines={1}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</Text>
+              <ButtonText style={styles.accountText}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</ButtonText>
               <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
             </Pressable> : null}
             <Pressable onPress={unwrap} hitSlop={8} style={styles.unwrap} accessibilityRole="button" accessibilityLabel={expanded ? t("transaction.entry.hideBalance") : t("transaction.entry.showBalance")} accessibilityState={{ expanded }}>
               <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
-              <Text style={styles.accountBal}>{t("transaction.entry.balance")}</Text>
+              <ButtonText style={styles.accountBal}>{t("transaction.entry.balance")}</ButtonText>
             </Pressable>
           </View>
           {/* Numbers on their own line so a long account name and both balances all fit; the currency is printed once. */}
@@ -542,7 +553,7 @@ export default function TransactionSheet() {
           <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder={t("transaction.entry.notePlaceholder")} placeholderTextColor={C.tertiary} style={styles.noteInput}
             onFocus={noteFocused}
             onBlur={() => setNoteOpen(false)} accessibilityLabel={t("transaction.entry.notePlaceholder")} />
-          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><Text style={styles.noteDone} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("common.done")}</Text></Pressable>
+          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><ButtonText style={styles.noteDone} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Pressable>
         </View>
       ) : (
         <>
@@ -559,7 +570,7 @@ export default function TransactionSheet() {
               {options.map((o) => {
                 const label = [o.category_id ? catNames.get(o.category_id)! : t("common.noCategory"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
                 return <Chip key={o.key} icon="clock.arrow.circlepath" label={label} active={sameAsNow(o)}
-                  onPress={() => { setCategoryId(o.category_id); setTagIds(o.tag_ids); setSuggested(false); }} />;
+                  onPress={() => { setCategoryId(o.category_id); setTagIds((ids) => [...o.tag_ids, ...ids.filter((x) => tripTags.has(x) && !o.tag_ids.includes(x))]); setSuggested(false); }} />;
               })}
             </ChipRow>
           ) : null}

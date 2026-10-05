@@ -52,16 +52,11 @@
       "message": "1 {from} = {rate} {to} (ECB)",
       "note": "ECB is the European Central Bank, where the rate comes from."
     },
-    "fetching": "Fetching rate…"
-  },
-  "ecbRate": {
-    "message": "ECB rate",
-    "note": "Chip that goes back to the fetched rate after the receiving amount was typed by hand.",
-    "max": 16
-  },
-  "autoRate": {
-    "message": "Auto rate",
-    "max": 16
+    "fetching": "Fetching rate…",
+    "none": {
+      "message": "No exchange rate. Type the amount that arrived.",
+      "note": "Under a cross-currency transfer when no rate could be fetched or found cached."
+    }
   },
   "category": {
     "message": "Category",
@@ -78,7 +73,7 @@
   },
   "sameAmount": {
     "message": "Same amount",
-    "note": "Keypad key while both accounts share a currency: the amount arriving is the same.",
+    "note": "Chip (one currency, both amounts typed): make the arriving amount equal the sent one again.",
     "max": 16
   },
   "editSending": {
@@ -90,5 +85,34 @@
   "tapToTransfer": "Tap to transfer",
   "enterAmount": "Enter an amount",
   "delete": "Delete transfer",
-  "deleteTitle": "Delete transfer?"
+  "deleteTitle": "Delete transfer?",
+  "useRate": {
+    "message": "Use the rate",
+    "note": "Chip after both amounts were typed: let the side not being typed follow the exchange rate again.",
+    "max": 16
+  },
+  "sameAccount": {
+    "message": "Pick two different accounts.",
+    "note": "Hint when both sides of a transfer are the same account."
+  },
+  "difference": {
+    "message": "{amount} {currency} less arrived than was sent.",
+    "note": "One-currency transfer whose two typed amounts differ, e.g. by a fee."
+  },
+  "differenceMore": {
+    "message": "{amount} {currency} more arrived than was sent.",
+    "note": "One-currency transfer whose received amount was typed higher than the sent one."
+  },
+  "swapA11y": {
+    "message": "Swap the accounts",
+    "note": "VoiceOver label of the small button between the two sides of a transfer."
+  },
+  "reviewTitle": {
+    "message": "Transfer to check",
+    "note": "Heading of the transfer sheet for a transfer the notification automation found, still pending."
+  },
+  "approve": {
+    "message": "Tap to approve",
+    "note": "Confirm button of a pending transfer: saving approves it."
+  }
 }

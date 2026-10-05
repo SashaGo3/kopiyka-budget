@@ -4,7 +4,7 @@ import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { THEMES, THEME_IDS, type ThemeId, type ThemeSide } from "@kopiyka/core";
 import { Image } from "expo-image";
-import { Card, Segmented } from "@/components/ui";
+import { ButtonText, Card, Segmented } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { getAppIcon, setAppIcon } from "@/lib/bridge";
 import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type TapPoint } from "@/lib/theme";
@@ -74,7 +74,7 @@ export function AppIconPicker() {
             <View style={[styles.iconRing, on && styles.iconRingOn]}>
               <Image source={ICON_PREVIEW[id]} style={styles.icon} />
             </View>
-            <Text style={[styles.iconName, on && styles.nameOn]} numberOfLines={1}>{themeName(id)}</Text>
+            <ButtonText fit={1} style={[styles.iconName, on && styles.nameOn]}>{themeName(id)}</ButtonText>
           </Pressable>
         );
       })}
@@ -107,11 +107,11 @@ function Preview({ side, label }: { side: ThemeSide; label: string }) {
 
 /**
  * Every theme with a light and a dark preview of it; a tap applies it at once. The new colours grow
- * over the old screen from the tap, every screen's content already re-mounted in them where it was
- * (src/lib/theme.ts). The app icon is chosen separately (AppIconPicker).
+ * over the old screen from the tap, every screen already recoloured where it was (src/lib/theme.ts).
+ * The app icon is chosen separately (AppIconPicker).
  */
 export function ThemePicker() {
-  // Ticked at once, so the tap is answered before the screens re-mount in the new colours.
+  // Ticked at once, so the tap is answered before the cover goes up.
   const [picked, setPicked] = useState(getTheme);
   const pick = (id: ThemeId, at: TapPoint) => {
     if (id === picked) return;
@@ -133,7 +133,7 @@ export function ThemePicker() {
               <Preview side={theme.light} label={t("theme.light")} />
               <Preview side={theme.dark} label={t("theme.dark")} />
             </View>
-            <Text style={[styles.name, on && styles.nameOn]} numberOfLines={1}>{themeName(id)}</Text>
+            <Text style={[styles.name, on && styles.nameOn]}>{themeName(id)}</Text>
             {on ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.tint} /> : null}
           </Pressable>
         );
@@ -159,7 +159,7 @@ const styles = themed(() => StyleSheet.create({
   iconRing: { padding: 3, borderRadius: 19, borderWidth: 2, borderColor: "transparent" },
   iconRingOn: { borderColor: C.tint },
   icon: { width: 56, height: 56, borderRadius: 13 },
-  iconName: { fontSize: 12, color: C.secondary },
+  iconName: { alignSelf: "stretch", textAlign: "center", fontSize: 12, color: C.secondary },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   previews: { flexDirection: "row", gap: S.sm },

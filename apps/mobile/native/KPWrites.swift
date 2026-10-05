@@ -95,7 +95,7 @@ extension KPWrites {
 
   static func addTransaction(id: String? = nil, accountId: String, amountMinor: Int, categoryId: String?, tagIds: [String] = [], note: String?, payee: String? = nil,
                              lat: Double? = nil, lon: Double? = nil, place: String? = nil, pending: Bool = false, date: String? = nil, source: String? = nil,
-                             enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil,
+                             enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil,
                              timeout: TimeInterval = 8) async -> Result {
     let id = id?.isEmpty == false ? id! : UUID().uuidString.lowercased()
     var op: [String: Any] = ["op": "addTransaction", "id": id, "account_id": accountId, "amount_minor": amountMinor, "tag_ids": tagIds, "pending": pending]
@@ -108,10 +108,15 @@ extension KPWrites {
     if let s = source, !s.isEmpty { op["source"] = s }
     if let e = enteredMinor, let c = enteredCurrency, !c.isEmpty { op["entered_amount_minor"] = e; op["entered_currency"] = c }
     if let r = rate, r > 0 { op["exchange_rate"] = r }
+    if let b = bank, !b.isEmpty {
+      if let own = b.own { op["bank_own"] = own }
+      if let other = b.other { op["bank_other"] = other }
+      if let bal = b.balanceMinor { op["bank_balance"] = bal }
+    }
     return await perform(op, timeout: timeout) {
       KPStore.addTransaction(id: id, accountId: accountId, amountMinor: amountMinor, categoryId: categoryId, tagIds: tagIds, note: note, payee: payee,
                              lat: lat, lon: lon, place: place, pending: pending, date: date, source: source,
-                             enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: rate) ? .ok : .fail(KPStore.lastError)
+                             enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: rate, bank: bank) ? .ok : .fail(KPStore.lastError)
     }
   }
 

@@ -1,16 +1,16 @@
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useQuery } from "@/store";
-import { C } from "@/constants/theme";
+import { layoutColor } from "@/constants/theme";
 import { useTheme } from "@/lib/theme";
 import type { ThemeId } from "@kopiyka/core";
 import { t } from "@/i18n";
 
 /**
- * The tab bar's tint. Takes the theme although it reads it through `C`: this layout stays mounted
- * across a theme switch (only screens' content re-mounts, src/lib/theme.ts), and the React Compiler
- * memoises a call on its arguments — without one it would keep the tint of the theme it started in.
+ * The tab bar's tint, a plain colour of exactly this theme: the layout re-renders on a switch rather
+ * than relying on native re-resolution (src/lib/theme.ts), and the React Compiler memoises a call on
+ * its arguments.
  */
-function tabTint(_theme: ThemeId) { return C.tint; }
+function tabTint(theme: ThemeId) { return layoutColor(theme, "tint"); }
 
 export default function TabsLayout() {
   const theme = useTheme();

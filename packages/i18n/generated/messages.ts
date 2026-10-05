@@ -28,6 +28,10 @@ export interface Messages {
   /** Title of the text field that names an account. */
   "account.nameTitle": undefined;
   "account.newTitle": undefined;
+  /** Chip on the account sheet: the last four digits the bank prints for this account. */
+  "account.numbers.chip": undefined;
+  /** Placeholder of the text field for the account's numbers; several may be separated by commas. */
+  "account.numbers.title": undefined;
   /** VoiceOver label; amount is formatted with its currency code. */
   "account.openingA11y": { amount: string | number };
   "account.openingBalance": undefined;
@@ -1069,6 +1073,12 @@ export interface Messages {
   "pending.source.watch": undefined;
   /** Screen title: entries waiting to be checked and approved. */
   "pending.title": undefined;
+  "pending.transfer.edit": undefined;
+  "pending.transfer.editA11y": { route: string | number };
+  /** Action on a pending transfer whose other amount is not known yet (no exchange rate). */
+  "pending.transfer.fill": undefined;
+  /** Title of a pending transfer between two of your accounts, found in bank notifications. */
+  "pending.transfer.title": undefined;
   "period.calendar.next": undefined;
   "period.calendar.previous": undefined;
   /** currencies is a list of codes, "USD, PLN". */
@@ -2143,7 +2153,8 @@ export interface Messages {
   "transactions.travel": undefined;
   /** Title when the list shows future-dated entries. */
   "transactions.upcoming": undefined;
-  "transfer.autoRate": undefined;
+  /** Confirm button of a pending transfer: saving approves it. */
+  "transfer.approve": undefined;
   /** Button on a transfer opened from the entry sheet: go back to it. */
   "transfer.backA11y": undefined;
   "transfer.balanceA11y": { balance: string | number; currency: string | number };
@@ -2158,8 +2169,10 @@ export interface Messages {
   "transfer.chooseTo": undefined;
   "transfer.delete": undefined;
   "transfer.deleteTitle": undefined;
-  /** Chip that goes back to the fetched rate after the receiving amount was typed by hand. */
-  "transfer.ecbRate": undefined;
+  /** One-currency transfer whose two typed amounts differ, e.g. by a fee. */
+  "transfer.difference": { amount: string | number; currency: string | number };
+  /** One-currency transfer whose received amount was typed higher than the sent one. */
+  "transfer.differenceMore": { amount: string | number; currency: string | number };
   /** Keypad key: type the amount that arrives instead. */
   "transfer.editReceiving": undefined;
   /** Keypad key: type the amount that leaves instead. */
@@ -2177,10 +2190,18 @@ export interface Messages {
   "transfer.rate.fetching": undefined;
   /** The receiving amount was typed by hand, so this is the rate it implies. */
   "transfer.rate.manual": { from: string | number; rate: string | number; to: string | number };
+  /** Under a cross-currency transfer when no rate could be fetched or found cached. */
+  "transfer.rate.none": undefined;
   /** Exchange rate line; from/to are currency codes. */
   "transfer.rate.plain": { from: string | number; rate: string | number; to: string | number };
-  /** Keypad key while both accounts share a currency: the amount arriving is the same. */
+  /** Heading of the transfer sheet for a transfer the notification automation found, still pending. */
+  "transfer.reviewTitle": undefined;
+  /** Hint when both sides of a transfer are the same account. */
+  "transfer.sameAccount": undefined;
+  /** Chip (one currency, both amounts typed): make the arriving amount equal the sent one again. */
   "transfer.sameAmount": undefined;
+  /** VoiceOver label of the small button between the two sides of a transfer. */
+  "transfer.swapA11y": undefined;
   "transfer.tags": undefined;
   "transfer.tapToSave": undefined;
   "transfer.tapToTransfer": undefined;
@@ -2188,6 +2209,8 @@ export interface Messages {
   "transfer.title": undefined;
   /** Label of the card for the account the money arrives in. */
   "transfer.to": undefined;
+  /** Chip after both amounts were typed: let the side not being typed follow the exchange rate again. */
+  "transfer.useRate": undefined;
   "travel.backfill.addTo": undefined;
   "travel.backfill.addToName": { name: string | number };
   "travel.backfill.filters": undefined;

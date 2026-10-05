@@ -128,7 +128,7 @@ export default function DebtEdit() {
           <ChipRow>
             <Chip icon="creditcard" label={acctName(account) ?? t("debt.account")} active={!!account} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.account, selected: accountId ?? "" } })} />
             {account ? <Chip icon="xmark.circle" compact label={t("debt.noAccount")} onPress={() => setAccountId(null)} /> : null}
-            <Chip icon="note.text" label={notes || t("debt.notes")} active={!!notes} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.notes, title: t("debt.notes"), value: notes, multiline: "1" } })} />
+            <Chip icon="note.text" label={notes.split("\n")[0] || t("debt.notes")} active={!!notes} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.notes, title: t("debt.notes"), value: notes, multiline: "1" } })} />
             {dueDate ? <Chip icon={notify ? "bell.fill" : "bell.slash"} label={notify ? t("debt.reminderOn") : t("debt.reminderOff")} active={notify} onPress={() => setNotify((v) => !v)} /> : null}
             {dueDate && notify ? <Chip icon="clock" label={notifyTime} active onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: notifyTime } })} /> : null}
           </ChipRow>

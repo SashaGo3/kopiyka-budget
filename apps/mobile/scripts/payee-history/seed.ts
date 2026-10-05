@@ -9,7 +9,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { openBunDb } from "../../../../packages/core/src/drivers/bun";
 import { migrate } from "../../../../packages/core/src/schema";
-import { createAccount, createCategory, createTransaction } from "../../../../packages/core/src/repo";
+import { createAccount, createBudget, createCategory, createTag, createTransaction } from "../../../../packages/core/src/repo";
 import { fillPending, payeeHistory, samePaymentSince } from "../../../../packages/core/src/payee";
 import type { SqlDriver } from "../../../../packages/core/src/db";
 
@@ -53,6 +53,19 @@ function build(db: SqlDriver) {
   // A transfer leg is never a match.
   tx({ id: "t-transfer", account_id: acc.id, date: "2026-09-04T11:00:00+02:00", amount_minor: -700, payee: "Revolut", category_id: food.id, transfer_id: "tr-1" });
 
+  // A trip long over: what was bought on it carries its tag, which no later entry may inherit
+  // (`uncarriedTagIds`). The café's newest row has the trip tag beside one of its own; the bakery's
+  // newest row has only the trip tag, so the older row underneath is what history repeats.
+  createTag(db, { id: "tag-rome", name: "Rome" });
+  createBudget(db, { id: "b-rome", tag_id: "tag-rome", period: "once", currency: "PLN", amount_minor: 100000, starts: "2026-03-01", ends: "2026-03-07", ended: "2026-03-07" });
+  createTag(db, { id: "tag-old", name: "Old", archived: 1 });
+  tx({ id: "t-cafe-trip", account_id: acc.id, date: "2026-03-03T10:00:00+02:00", amount_minor: -900, payee: "Cafe Roma",
+       category_id: food.id, tag_ids: JSON.stringify(["tag-rome", "coffee", "tag-old"]) });
+  tx({ id: "t-cafe-home", account_id: acc.id, date: "2026-02-03T10:00:00+02:00", amount_minor: -900, payee: "Cafe Roma",
+       category_id: food.id, tag_ids: JSON.stringify(["coffee"]) });
+  tx({ id: "t-bakery-old", account_id: acc.id, date: "2026-02-01T10:00:00+02:00", amount_minor: -400, payee: "Bakery", tag_ids: JSON.stringify(["bread"]) });
+  tx({ id: "t-bakery-trip", account_id: acc.id, date: "2026-03-04T10:00:00+02:00", amount_minor: -400, payee: "Bakery", tag_ids: JSON.stringify(["tag-rome"]) });
+
   // Twins for the one-minute duplicate window, dated relative to now: two inside it, one well outside.
   tx({ id: "t-twin-pending", account_id: acc.id, date: iso(15), amount_minor: -3300, payee: "ZABKA NANO 3087", pending: 1 });
   tx({ id: "t-twin-settled", account_id: acc.id, date: iso(25), amount_minor: -4400, payee: "Costa", pending: 0, category_id: food.id });
@@ -84,6 +97,8 @@ const questions: Questions = {
     { payee: "Revolut", note: null },           // transfer leg
     { payee: "BLIK INTERNET: FLYSTORE.PL", note: null },  // another shop, same payment method: no match
     { payee: "BLIK INTERNET: ALLEGRO.PL", note: null },   // the same shop again: exact, and trusted
+    { payee: "Cafe Roma", note: null },         // a past trip's tag and an archived tag are not handed on
+    { payee: "Bakery", note: null },            // a row with only a trip's tag does not hide the one below
     { payee: "", note: "" },                    // nothing asked
   ],
   payment: [

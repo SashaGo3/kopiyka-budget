@@ -17,7 +17,7 @@ import { ensureLocationPermission, locationStatus, placeName, preciseLocation } 
 import { tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
 import { dayMonth, humanDayTime } from "@/lib/dates";
 import { appearanceName, themeName } from "@/components/ThemePicker";
-import { getTheme, useAppearance } from "@/lib/theme";
+import { useAppearance, useTheme } from "@/lib/theme";
 import { LANGUAGES, deviceLanguage, getLanguage, isFollowingDevice, setLanguage, t, type LanguageCode } from "@/i18n";
 
 /** "22nd" / "22-го": a day of the month, as in "starts on the …". */
@@ -25,6 +25,8 @@ const ordinal = (day: number) => t("settings.startDay.ordinal", { day });
 
 export default function SettingsScreen() {
   const appearance = useAppearance();
+  // Only the name: the screen's colours follow a switch natively (src/lib/theme.ts), its words do not.
+  const theme = useTheme();
   const backup = useBackupState();
   const prefs = useQuery(() => ({ startDay: getPeriodStartDay(), location: getLocationEnabled(), home: getHomeLocation(), hideIncome: getHideIncome(), showBalance: getShowBalance() }));
   const counts = useQuery((db) => {
@@ -156,7 +158,7 @@ export default function SettingsScreen() {
         <SectionHeader>{t("settings.section.preferences")}</SectionHeader>
         <Card>
           <Row icon="globe" iconColor="#0A84FF" title={t("common.language.title")} subtitle={languageLine} onPress={pickLanguage} />
-          <Row icon="paintpalette" iconColor="#AF52DE" title={t("theme.title")} subtitle={appearance ? `${themeName(getTheme())} · ${appearanceName(appearance)}` : themeName(getTheme())} onPress={() => router.push("/settings/theme")} style={styles.divider} />
+          <Row icon="paintpalette" iconColor="#AF52DE" title={t("theme.title")} subtitle={appearance ? `${themeName(theme)} · ${appearanceName(appearance)}` : themeName(theme)} onPress={() => router.push("/settings/theme")} style={styles.divider} />
           <Row icon="calendar" iconColor="#FF9F0A" title={t("settings.startDay.title")} subtitle={startDaySubtitle} onPress={pickDay} style={styles.divider} />
           <ToggleRow icon="eye.slash" iconColor="#8E8E93" title={t("settings.hideIncome.title")} subtitle={prefs.hideIncome ? t("settings.hideIncome.on") : t("settings.hideIncome.off")} value={prefs.hideIncome} onChange={setHideIncome} style={styles.divider} />
           <ToggleRow icon="eye" iconColor="#0A84FF" title={t("settings.showBalance.title")} subtitle={prefs.showBalance ? t("settings.showBalance.on") : t("settings.showBalance.off")} value={prefs.showBalance} onChange={setShowBalance} style={styles.divider} />

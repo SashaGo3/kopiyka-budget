@@ -521,7 +521,11 @@ struct LogPaymentIntent: AppIntent {
     if let fix, let hlat = history.lat, let hlon = history.lon {
       movedTown = KPStore.distanceMeters(fix.latitude, fix.longitude, hlat, hlon) > KPStore.samePlaceRadiusM
     }
-    let known = history.trusted && !converted && !history.ambiguous && !movedTown
+    // A notification that names the account on the other end is a transfer, or half of one: it waits
+    // in the queue whatever history knows about the name, so its other half can still pair with it
+    // (core transferPair.ts only pairs what is pending) and a person sees it before it counts.
+    let transferLike = parsed?.otherAccount != nil
+    let known = history.trusted && !converted && !history.ambiguous && !movedTown && !transferLike
 
     // The same amount on the same account, minutes ago, from a shop whose name is compatible: one tap,
     // two notifications (Wallet's and the bank app's), or iOS re-delivering one. Never a second entry.
@@ -557,11 +561,15 @@ struct LogPaymentIntent: AppIntent {
     // The id is minted here rather than inside `addTransaction`, because the notification below has
     // to link to this exact row and there is no second way to find it afterwards.
     let rowId = UUID().uuidString.lowercased()
+    // The account numbers the bank printed, and the balance after: how the debit and the credit of one
+    // transfer between your own accounts find each other once the app reads them.
+    let bank = KPBankRef(own: parsed?.ownAccount, other: parsed?.otherAccount,
+                         balanceMinor: parsed?.balance.map { KPFormat.minor($0, parsed?.currency ?? acc.currency) })
     let saved = await KPWrites.addTransaction(id: rowId, accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
                                               note: note.isEmpty ? nil : note, payee: shop, lat: lat, lon: lon,
                                               place: place, pending: pending && !known, date: date,
                                               source: guessed ? "shortcut-guess" : "shortcut",
-                                              enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, timeout: 4)
+                                              enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, bank: bank, timeout: 4)
     guard saved.ok else {
       KPParseLog.record(.failed, text: raw, parse: parsed, account: acc.name, note: saved.error ?? "the app refused the write")
       throw KPIntentError(saved.error.map { L10n.Intents.Payment.saveFailedWhy(reason: $0) } ?? L10n.Intents.Payment.saveFailed)
@@ -603,6 +611,8 @@ struct LogPaymentIntent: AppIntent {
   /// belongs on the EUR account if there is one, and then no exchange rate has to be guessed at.
   private func resolveAccount(_ accounts: [KPWatchState.Account], current: String, parsed: KPPaymentText.Parse?) -> KPWatchState.Account? {
     if let a = account.flatMap({ a in accounts.first { $0.id == a.id } }) { return a }
+    // The digits the bank prints for the account, once an approval has taught them (DATA.md rule 18).
+    if let own = parsed?.ownAccount, let hit = LogPaymentIntent.matchNumber(own, accounts) { return hit }
     if let hit = LogPaymentIntent.matchCard(trimmed(card) ?? parsed?.card, accounts) { return hit }
     // Every currency the text named, not only the winning amount's: "36,00 EUR (154,80 PLN)" names
     // both, and the one the money really moved in is whichever the user actually holds. Two matches
@@ -635,6 +645,12 @@ struct LogPaymentIntent: AppIntent {
       if best == nil || hit.count > best!.length || (hit.count == best!.length && ref.uses > best!.ref.uses) { best = (ref, hit.count) }
     }
     return best?.ref
+  }
+
+  /// The one account known by these four digits; nil when none is, or more than one claims them.
+  static func matchNumber(_ digits: String, _ accounts: [KPWatchState.Account]) -> KPWatchState.Account? {
+    let hits = accounts.filter { ($0.numbers ?? []).contains(digits) }
+    return hits.count == 1 ? hits[0] : nil
   }
 
   /// An account named after the card the notification names: either name containing the other, or

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { FadeIn } from "@/components/ui";
+import { ButtonText, FadeIn } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { useKeptScroll } from "@/lib/keptScroll";
@@ -26,7 +26,7 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   const navigation = useNavigation();
   // A step reached by `replace` (the welcome screen skipping ahead) has nothing to go back to.
   const canBack = step > 1 && navigation.canGoBack();
-  // Picking a theme on step 2 re-mounts the step; the list stays where it was (lib/keptScroll.ts).
+  // If picking a theme ever re-mounts the step, the list stays where it was (lib/keptScroll.ts).
   const kept = useKeptScroll(`onboarding.${step}`);
   const body = (
     <>
@@ -34,7 +34,7 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
         {canBack ? (
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back")} style={styles.back}>
             <SymbolView name="chevron.left" size={13} tintColor={C.tint} />
-            <Text style={styles.backText} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("common.back")}</Text>
+            <ButtonText style={styles.backText} maxFontSizeMultiplier={1.3}>{t("common.back")}</ButtonText>
           </Pressable>
         ) : null}
         <View style={styles.dots} accessibilityLabel={t("onboarding.stepA11y", { step, count: STEPS.length })}>

@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Animated, Pressable, StyleSheet, Text, useColorScheme, useWindowDimensions, type ColorValue, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, Pressable, StyleSheet, useColorScheme, useWindowDimensions, type ColorValue, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
 import { router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import { Brand, C, Elevation, R, themed } from "@/constants/theme";
+import { C, Elevation, R, themed } from "@/constants/theme";
+import { THEMES, type ThemeId } from "@kopiyka/core";
+import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
+import { ButtonText } from "@/components/ui";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { PAD_BUTTON_WIDTH, columnOverhang, isPad } from "@/constants/layout";
@@ -75,11 +78,15 @@ export function useScrollHide(): { visible: boolean; onScroll: (e: NativeSynthet
  * entry sheet (Expense / Income / Transfer is chosen there). With the receipt scanner enabled a
  * long press photographs a receipt first and opens the sheet prefilled from it.
  */
+/** The theme's accent as a plain string; takes the theme so the React Compiler re-computes it on a switch. */
+function glassTint(theme: ThemeId, dark: boolean): string { return THEMES[theme][dark ? "dark" : "light"].accent; }
+
 export function LogButton({ account }: { account?: string } = {}) {
-  // Glass takes a plain colour, so the accent is resolved by hand here rather than through
-  // C.tint, which is a DynamicColorIOS value. Tinted this strongly it keeps the pill reading as the
-  // theme's accent, and only gains the glass edge and refraction.
-  const tint = useColorScheme() === "dark" ? Brand.accentDark : Brand.accent;
+  // Glass takes a plain colour, so the accent is resolved by hand here rather than through C.tint
+  // (a named colour). Tinted this strongly it keeps the pill reading as the theme's accent, and only
+  // gains the glass edge and refraction. A plain colour does not follow a theme switch natively, so
+  // this one re-renders with it.
+  const tint = glassTint(useTheme(), useColorScheme() === "dark");
   const [key] = useState(() => newPickKey("logreceipt"));
   usePickResult<ReceiptParse>(key, useCallback((r: ReceiptParse) => {
     setTimeout(() => router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", receipt: JSON.stringify(r), ...(account ? { account } : {}) } }), 350);
@@ -95,7 +102,7 @@ export function LogButton({ account }: { account?: string } = {}) {
       style={({ pressed }) => [styles.fab, isPad ? { width: PAD_BUTTON_WIDTH } : styles.fabPhone, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ui.logA11y")} accessibilityHint={scan ? t("ui.logHint") : undefined}>
       <Glass style={styles.fabFill} solid={styles.fabSolid} tint={tint} interactive />
       <SymbolView name="plus" size={22} tintColor={C.onTint} weight="bold" />
-      <Text style={styles.text} maxFontSizeMultiplier={1.4}>{t("ui.log")}</Text>
+      <ButtonText fit={1} style={styles.text} maxFontSizeMultiplier={1.4}>{t("ui.log")}</ButtonText>
     </Pressable>
   );
 }
@@ -124,7 +131,7 @@ export function BarButton({ icon, label, onPress, onLongPress, active, a11y, a11
       style={({ pressed }) => [styles.btn, isPad && styles.btnPad, pressed && styles.pressed]}>
       <Glass style={styles.btnFill} solid={styles.btnSolid} interactive />
       <SymbolView name={icon} size={20} tintColor={tint} weight="semibold" />
-      {label ? <Text numberOfLines={1} style={[styles.btnText, { color: tint }, active && styles.btnTextActive]} maxFontSizeMultiplier={1.4}>{label}</Text> : null}
+      {label ? <ButtonText fit={2} style={[styles.btnText, { color: tint }, active && styles.btnTextActive]} maxFontSizeMultiplier={1.4}>{label}</ButtonText> : null}
     </Pressable>
   );
 }

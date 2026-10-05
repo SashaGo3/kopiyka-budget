@@ -33,6 +33,29 @@ export function tripTagIds(db: SqlDriver): string[] {
   return db.all<{ tag_id: string }>(`SELECT DISTINCT tag_id FROM budgets WHERE ${TRIP_WHERE}`).map((r) => r.tag_id);
 }
 
+/**
+ * Tags an earlier entry may not hand on to a new one: every tag a trip was ever run on — a deleted
+ * trip's too, because the tag still names that trip — and every archived tag (DATA.md rule 14).
+ *
+ * History repeats a past decision about a *shop* (`payeeHistory`, `payeeOptions`, the Shortcut's
+ * Swift copy `KPStore.historyTagSkips`). A trip tag was never that: it says when the money was spent,
+ * and it was put there by travel mode, not chosen for the shop. Copied along, the café visited on
+ * last spring's trip files every coffee there since as "Rome", and so out of the month's budgets.
+ * While a trip runs, travel mode adds its own tag to what is logged (`withTripTag`), which is the one
+ * way a trip tag reaches a new entry. Read once and passed to `carriedTagIds`, the way
+ * `archivedCategoryIds` is.
+ */
+export function uncarriedTagIds(db: SqlDriver): Set<string> {
+  const trips = db.all<{ tag_id: string }>(`SELECT DISTINCT tag_id FROM budgets WHERE period='once' AND tag_id IS NOT NULL`).map((r) => r.tag_id);
+  const archived = db.all<{ id: string }>(`SELECT id FROM tags WHERE deleted=0 AND archived=1`).map((r) => r.id);
+  return new Set([...trips, ...archived]);
+}
+
+/** The tags of a past entry that a new one may take over (see `uncarriedTagIds`). */
+export function carriedTagIds(tagIds: readonly string[], skip: ReadonlySet<string>): string[] {
+  return tagIds.filter((id) => !skip.has(id));
+}
+
 /** Id of the tag new expenses should carry while travel mode is on, else null. Cheap: one indexed-size query. */
 export function activeTripTagId(db: SqlDriver): string | null {
   return activeTrip(db)?.tag_id ?? null;

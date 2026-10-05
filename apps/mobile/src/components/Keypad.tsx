@@ -5,6 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr, numberFormat } from "@kopiyka/core";
 import { C, R, S, themed } from "@/constants/theme";
 import { getLanguage, t } from "@/i18n";
+import { ButtonText } from "@/components/ui";
 export { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr };
 
 /**
@@ -123,7 +124,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
                 <Pressable key="extra" onPress={extra.onPress} accessibilityRole="button" accessibilityLabel={extra.a11y ?? extra.label}
                   style={({ pressed }) => [styles.key, styles.extra, extra2 && { flex: 1 }, extra.active && [styles.extraActive, extra.color ? { backgroundColor: extra.color + "33", borderColor: extra.color } : null], pressed && styles.pressed]}>
                   <SymbolView name={extra.icon} size={20} tintColor={extra.active ? extra.color ?? C.onTint : C.tint} />
-                  <Text numberOfLines={1} style={[styles.extraText, extra.active && { color: extra.color ?? C.onTint }]} maxFontSizeMultiplier={1.3}>{extra.label}</Text>
+                  <ButtonText fit={2} style={[styles.extraText, extra.active && { color: extra.color ?? C.onTint }]} maxFontSizeMultiplier={1.3}>{extra.label}</ButtonText>
                 </Pressable>
               );
               if (!extra2) return main;
@@ -182,8 +183,8 @@ export function ConfirmBar({ amount, label, onPress, disabled, color }: { amount
   return (
     <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onPress(); }} disabled={disabled} accessibilityRole="button" accessibilityLabel={`${label}, ${amount}`} accessibilityState={{ disabled }}
       style={({ pressed }) => [styles.confirm, color ? { backgroundColor: color } : null, (pressed || disabled) && { opacity: 0.55 }]}>
-      <Text style={[styles.confirmAmount, !color && { color: C.onTint }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>{amount}</Text>
-      <Text style={[styles.confirmLabel, !color && { color: C.onTint, opacity: 0.8 }]} maxFontSizeMultiplier={1.4}>{label}</Text>
+      <ButtonText fit={1} style={[styles.confirmAmount, !color && { color: C.onTint }]} maxFontSizeMultiplier={1.4}>{amount}</ButtonText>
+      <ButtonText style={[styles.confirmLabel, !color && { color: C.onTint, opacity: 0.8 }]} maxFontSizeMultiplier={1.4}>{label}</ButtonText>
     </Pressable>
   );
 }
@@ -212,6 +213,6 @@ const styles = themed(() => StyleSheet.create({
   smallActive: { backgroundColor: C.tint, borderStyle: "solid" },
   smallBadge: { fontSize: 13, fontWeight: "700", color: C.tint },
   confirm: { marginHorizontal: S.md, minHeight: 56, paddingVertical: 8, borderRadius: 16, backgroundColor: C.tint, alignItems: "center", justifyContent: "center", gap: 1 },
-  confirmAmount: { color: "white", fontSize: 19, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  confirmAmount: { alignSelf: "stretch", textAlign: "center", paddingHorizontal: S.md, color: "white", fontSize: 19, fontWeight: "700", fontVariant: ["tabular-nums"] },
   confirmLabel: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "600" },
 }));

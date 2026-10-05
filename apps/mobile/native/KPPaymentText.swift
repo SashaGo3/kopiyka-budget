@@ -45,6 +45,13 @@ enum KPPaymentText {
     /// and the caller, which knows what currency the account is in, can choose better than the text
     /// can: taking the figure the bank already converted beats converting it again from a cached rate.
     var amounts: [Money] = []
+    /// Last four digits of the account the money moved on, as the bank printed it ("Na koncie:
+    /// 84..3203" → "3203"). With `otherAccount`, what pairs the two notifications of one transfer
+    /// between your own accounts (core transferPair.ts); also how an account can be recognised.
+    var ownAccount: String? = nil
+    /// Last four digits of the account on the other end ("Konto odbiorcy: 27..5837", "Sender
+    /// Account: 52..0007", "Cuenta destino ****1234") — the recipient of a debit, the sender of a credit.
+    var otherAccount: String? = nil
   }
 
   /// What a notification turned out to be. Most are not payments and the automation has to pass over
@@ -110,9 +117,9 @@ enum KPPaymentText {
     let lines = text.components(separatedBy: .newlines)
     // Wallet has no labels at all — Title is the issuer ("PKO Bank Polski"), Subtitle the shop
     // ("Glovo"), Message the amount ("99,26 PLN") — so each falls back to its position.
-    let labelled = merchant(in: lines)
+    let labelled = merchant(in: lines) ?? spanishParty(in: text, received: false)
     let fallback = clean(subtitle).flatMap { s in labelled == nil && amount(in: s) == nil && s.rangeOfCharacter(from: .letters) != nil ? s : nil }
-    let who = sender(in: lines)
+    let who = sender(in: lines) ?? spanishParty(in: text, received: true)
     // A printed "+" is the bank saying the money came in, and nothing else writes one. A "-" is not
     // as safe: the amount labels this reader accepts allow a dash as their separator ("Kwota - 100,00
     // PLN"), so a minus only ever agrees with the default — an expense — and never overrules a word
@@ -126,7 +133,8 @@ enum KPPaymentText {
     return .payment(Parse(amount: money.value, currency: money.currency, merchant: shop, place: city, card: card(in: lines) ?? issuer(clean(title)),
                  date: stamp?.day, time: stamp?.time, income: income, hold: isHold(text),
                  text: String(text.replacingOccurrences(of: "\n", with: " · ").prefix(300)),
-                 sender: who, reference: reference(in: lines), balance: balanceValue, amounts: candidates))
+                 sender: who, reference: reference(in: lines), balance: balanceValue, amounts: candidates,
+                 ownAccount: ownAccount(in: lines), otherAccount: otherAccount(in: lines)))
   }
 
   // MARK: - Amount
@@ -151,7 +159,7 @@ enum KPPaymentText {
   private static let digits = #"\d[\d  \u00A0\u202F’',.]*\d|\d"#
   private static let symbolAlternation = #"[€$£₴¥₺₹฿₩]|zł|zl|грн|kč|kc|лв|₸|\b(?i:rs)\.?|\b(?i:lei)\b|\b(?i:euros?)\b|\b(?i:dollars)\b|\b(?i:z[łl]otych)\b|\bгривен[ьі]\b"#
   /// Words a bank puts in front of the number. "Amount: 36,00 PLN", "Kwota 36,00", "Сума: 36,00".
-  private static let amountLabels = #"amount|kwota|kwoty|suma|sumy|total|value|warto[śs][ćc]|betrag|importe|montant|prezzo|сум[аи]|сумм[аы]|вартість"#
+  private static let amountLabels = #"amount|kwota|kwoty|suma|sumy|total|value|warto[śs][ćc]|betrag|importe|cantidad|monto|montant|prezzo|сум[аи]|сумм[аы]|вартість"#
 
   /// A three-letter code, however tightly the bank packs it against the number ("-27.00UAH"). `\b`
   /// cannot do this: a digit and a letter are both word characters, so there is no boundary between
@@ -285,31 +293,76 @@ enum KPPaymentText {
 
   // MARK: - Shop, card, time
 
-  private static let merchantLabels = #"place|miejsce|sprzedawca|merchant|shop|sklep|punkt|location|lokalizacja|terminal|odbiorca|м[іи]сце|магазин|продавець|получатель"#
-  private static let cardLabels = #"card|karta|kart[ay]|карт[аи]|konto|account|rachunek"#
+  private static let merchantLabels = #"place|miejsce|sprzedawca|merchant|shop|sklep|punkt|location|lokalizacja|terminal|odbiorca|comercio|establecimiento|beneficiario|destinatario|м[іи]сце|магазин|продавець|получатель"#
+  private static let cardLabels = #"card|karta|kart[ay]|карт[аи]|konto|account|rachunek|tarjeta|cuenta"#
   /// Banks put one label per line, but some crowd several onto one ("Amount: … . Place: … ."), so the
   /// label is looked for anywhere and its value runs to the end of the line — trimmed back by `cutAtLabel`
   /// when the next label follows on the same line. Stopping at the first full stop would not do: shop
   /// names contain them ("ZABKA ZE212 K.5").
   private static let merchantLine = re(#"(?:\#(merchantLabels))\s*[:=–-]\s*(.+?)\s*$"#, [.caseInsensitive])
-  private static let merchantInline = re(#"(?:\bat\b|\bw\b|\bu\b|\bin\b|\bod\b)\s+([\p{L}][\p{L}\p{N} .,&'’\-]{2,60}?)[.;]?\s*$"#, [.caseInsensitive])
+  private static let merchantInline = re(#"(?:\bat\b|\bw\b|\bu\b|\bin\b|\bod\b|\ben\b)\s+([\p{L}][\p{L}\p{N} .,&'’\-]{2,60}?)[.;]?\s*$"#, [.caseInsensitive])
+  /// Spanish puts the shop in the middle: "Compra con tarjeta ****1234 en MERCADONA por 23,45 €".
+  private static let merchantBeforeAmount = re(#"\ben\s+([\p{L}][\p{L}\p{N} .,&'’*\-]{1,60}?)\s+(?:por|de)\s+(?:un\s+importe\s+de\s+)?[+\-]?\s*[\d€$]"#, [.caseInsensitive])
   private static let cardLine = re(#"(?:\#(cardLabels))\s*[:=–-]\s*(.+?)\s*$"#, [.caseInsensitive])
-  private static let cardMasked = re(#"(?:[•*·x×]{2,6}|\.{3,6})\s?(\d{4})\b"#, [.caseInsensitive])
-  private static let senderLabels = #"sender|nadawca|nadawcy|p[łl]atnik|payer|from account holder|відправник|платник|отправитель"#
-  private static let senderWords = ["sender", "nadawca", "nadawcy", "platnik", "payer", "vidpravnik", "vidpravnyk", "platnyk", "otpravitel"]
-  private static let referenceLabels = #"title|tytu[łl]|tytu[łl]em|nazwa|reference|opis|description|призначення|назва|коментар|наименование"#
-  private static let balanceLabels = #"available balance|avail\.? bal|av[lb]l?\.? bal|balance|bal\.|saldo|stan konta|stan rachunku|dost[ęe]pne [śs]rodki|available funds|available limit|dost[ęe]pny limit|outstanding|dostupno|залишок|доступно|баланс|остаток"#
+  private static let cardMasked = re(#"(?:[•*·x×]{2,6}|\.{3,6})\s?(\d{4})\b|terminada en (\d{4})\b"#, [.caseInsensitive])
+  private static let senderLabels = #"sender|nadawca|nadawcy|p[łl]atnik|payer|from account holder|ordenante|remitente|emisor|відправник|платник|отправитель"#
+  private static let senderWords = ["sender", "nadawca", "nadawcy", "platnik", "payer", "ordenante", "remitente", "vidpravnik", "vidpravnyk", "platnyk", "otpravitel"]
+  private static let referenceLabels = #"title|tytu[łl]|tytu[łl]em|nazwa|reference|opis|description|concepto|призначення|назва|коментар|наименование"#
+  private static let balanceLabels = #"available balance|avail\.? bal|av[lb]l?\.? bal|balance|bal\.|saldo(?:\s+(?:disponible|actual|contable))?(?:\s+es(?:\s+de)?)?|stan konta(?:\s+po\s+transakcji)?|stan rachunku(?:\s+po\s+transakcji)?|dost[ęe]pne [śs]rodki|available funds|available limit|dost[ęe]pny limit|outstanding|dostupno|залишок|доступно|баланс|остаток"#
+  /// The account on the other end of a transfer, labelled: "Konto odbiorcy: 27..5837", "Sender Account:
+  /// 52..0007", "Cuenta destino: ES12 ****1234". The recipient's for a debit, the sender's for a credit.
+  private static let otherAccountLine = re(#"(?:(?:konto|rachunek|rachunku|account|acct|cuenta|iban)\s+(?:odbiorcy|nadawcy|recipient|beneficiary|sender|payee|destino|origen|ordenante|beneficiari[oa]|del?\s+(?:ordenante|beneficiari[oa]|destinatari[oa]|remitente))|(?:recipient|beneficiary|sender|payee|payer)(?:'s)?\s+(?:account|acct|iban)|(?:to|from)\s+account|рахунок\s+(?:отримувача|відправника))\s*(?:no\.?|nr\.?|number|n[.º°]?)?\s*[:=]?\s*([A-Z]{0,2}[\d•*·.x ]{2,40}\d{4})"#, [.caseInsensitive])
   private static let senderLine = re(#"(?:\#(senderLabels))\s*[:=–-]\s*(.+?)\s*$"#, [.caseInsensitive])
   private static let referenceLine = re(#"(?:\#(referenceLabels))\s*[:=–-]\s*(.+?)\s*$"#, [.caseInsensitive])
   private static let balanceLine = re(#"(?:\#(balanceLabels))\s*[:=]?\s*[+-]?\s*(\#(digits))\s*(?:\#(symbolAlternation)|\b[A-Z]{3}\b)?\s*[.]?\s*$"#, [.caseInsensitive])
   /// "On account no. 27..1946", "Na rachunek nr 12..3456" — an account named without a colon after it.
-  private static let accountNumber = re(#"(?:account|rachunek|rachunku|konto|konta|рахунок|рахунку|счет)\s*(?:no\.?|nr\.?|number|№)?\s*[:=]?\s*((?:\d|[•*·]|\.){4,34}\d{2,4})"#, [.caseInsensitive])
+  private static let accountNumber = re(#"(?:account|rachunek|rachunku|konto|konta|koncie|cuenta|рахунок|рахунку|счет)\s*(?:no\.?|nr\.?|number|n[.º°]|№)?\s*[:=]?\s*((?:\d|[•*·]|\.){4,34}\d{2,4})"#, [.caseInsensitive])
   private static let nextLabel = re(#"\s(?:\#(merchantLabels)|\#(cardLabels)|\#(amountLabels)|\#(senderLabels)|\#(referenceLabels)|\#(balanceLabels)|date|data|дата|time|godzina|час)\s*[:=]"#, [.caseInsensitive])
 
   static func merchant(in lines: [String]) -> String? {
     for l in lines { if let m = first(merchantLine, l) { return tidy(cutAtLabel(m)).flatMap(unwrapMethod) } }
     for l in lines { if let m = first(merchantInline, l), amount(in: m) == nil { return tidy(m).flatMap(unwrapMethod) } }
+    for l in lines { if let m = first(merchantBeforeAmount, l), amount(in: m) == nil { return tidy(m).flatMap(unwrapMethod) } }
     return nil
+  }
+
+  /// "Bizum enviado a MARIA LOPEZ por 20,00 €", "Has recibido una transferencia de JUAN PEREZ por …":
+  /// Spanish banks name the other person inline, after "a" for money sent and "de" for money received.
+  /// `received` picks which of the two is asked for. Only after a word that says money moved, so an
+  /// "a" or "de" anywhere else in a sentence is never taken for a name.
+  private static let spanishSentTo = re(#"(?:enviad[oa]|emitid[oa]|realizad[oa]|has\s+enviado|has\s+hecho\s+un\s+bizum|transferencia|bizum)(?:\s+(?:de|por)\s+[+\-]?[\d.,]+\s*(?:€|eur(?:os)?))?\s+a\s+(?:favor\s+de\s+)?([\p{L}][\p{L} .'’\-]{2,60}?)(?=\s+(?:por|con|de|el|concepto)\b|\s*[.;,:(]|\s*$)"#, [.caseInsensitive])
+  private static let spanishFrom = re(#"(?:recibid[oa]|has\s+recibido|te\s+ha\s+enviado|te\s+han\s+enviado|devoluci[oó]n|reembolso)(?:\s+(?:un|una)\s+(?:bizum|transferencia|ingreso))?(?:\s+(?:de|por)\s+[+\-]?[\d.,]+\s*(?:€|eur(?:os)?))?\s+de\s+([\p{L}][\p{L} .'’\-]{2,60}?)(?=\s+(?:por|con|de|el|concepto)\b|\s*[.;,:(]|\s*$)"#, [.caseInsensitive])
+  static func spanishParty(in text: String, received: Bool) -> String? {
+    for l in text.components(separatedBy: .newlines) {
+      guard let m = first(received ? spanishFrom : spanishSentTo, l), amount(in: m) == nil else { continue }
+      // "de 20,00 € de MARIA" is caught above; a leftover that is only a filler word is not a name.
+      if let t = tidy(m), !["un", "una", "tu", "su", "la", "el"].contains(fold(t)) { return t }
+    }
+    return nil
+  }
+
+  /// The last four digits of the account this notification is about — the line that names an account
+  /// without saying it is the other party's ("Na koncie: 84..3203", "On account no. 27..1946",
+  /// "Cuenta ...1234", a card's "****1234").
+  static func ownAccount(in lines: [String]) -> String? {
+    last4(card(in: lines))
+  }
+
+  /// The last four digits of the account on the other end, when the bank labels it.
+  static func otherAccount(in lines: [String]) -> String? {
+    for l in lines { if let m = first(otherAccountLine, l), let d = last4(m) { return d } }
+    return nil
+  }
+
+  private static func last4(_ s: String?) -> String? {
+    let digits = (s ?? "").filter(\.isNumber)
+    return digits.count >= 4 ? String(digits.suffix(4)) : nil
+  }
+
+  /// The four digits a `cardMasked` match captured, whichever of its two shapes matched.
+  private static func maskedDigits(_ l: String) -> String? {
+    guard let m = cardMasked.firstMatch(in: l, range: NSRange(l.startIndex..., in: l)) else { return nil }
+    return substring(l, m.range(at: 1)) ?? substring(l, m.range(at: 2))
   }
 
   /// Words that say how the money moved, not who received it. Also in core (`METHOD_WORDS`) and in
@@ -344,17 +397,18 @@ enum KPPaymentText {
   /// introduces the sender is skipped first: "Sender Account: 52..0007" is not the card to file this
   /// under, "On account no. 27..1946" is.
   static func card(in lines: [String]) -> String? {
-    let mine = lines.filter { !mentionsSender($0) }
+    let mine = lines.filter { !mentionsSender($0) && !mentionsOtherParty($0) }
     for l in mine { if let m = first(cardLine, l) { return tidy(cutAtLabel(m)) } }
     for l in mine { if let m = first(accountNumber, l) { return masked(m) } }
-    for l in mine { if let m = first(cardMasked, l) { return "••\(m)" } }
+    for l in mine { if let m = maskedDigits(l) { return "••\(m)" } }
     return nil
   }
 
   /// Who sent the money. Only the labelled form counts: a bare name in a notification is as likely
   /// to be the bank's own.
   static func sender(in lines: [String]) -> String? {
-    for l in lines { if let m = first(senderLine, l) { return tidy(cutAtLabel(m)) } }
+    // "Konto nadawcy: 84..3203" carries the label too, with a number where the name would be: keep looking.
+    for l in lines { if let m = first(senderLine, l), let name = tidy(cutAtLabel(m)) { return name } }
     return nil
   }
 
@@ -383,6 +437,13 @@ enum KPPaymentText {
   private static func mentionsSender(_ line: String) -> Bool {
     let f = fold(line)
     return senderWords.contains { f.contains($0) }
+  }
+
+  /// A line about the other party's *account* ("Konto odbiorcy: 27..5837"), which is never the card to
+  /// file the payment under. Only lines that also name an account or a number count, so "Odbiorca:
+  /// WSPOLNOTA" — a name, and the shop of a standing order — stays a merchant line.
+  private static func mentionsOtherParty(_ line: String) -> Bool {
+    otherAccountLine.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) != nil
   }
 
   /// "AUTO KOMIS, POZNAN. Date: 2026-09-09" → "AUTO KOMIS, POZNAN." — the next label on a crowded line.
@@ -465,6 +526,8 @@ enum KPPaymentText {
 
   private static let incomeWords = ["refund", "refunded", "zwrot", "wpływ", "wplyw", "wpłat", "wplat", "uznanie", "przelew przychodz", "credited", "credit to", "received", "deposit",
                                     "salary", "wynagrodzenie", "odsetki", "interest paid",
+                                    // Spanish: "Abono", "Ingreso", "Has recibido un Bizum", "Transferencia recibida", "Devolución".
+                                    "abono", "ingreso", "recibido", "recibida", "te ha enviado", "te han enviado", "devolucion", "reembolso", "nomina",
                                     "повернення", "зарахування", "поповнення", "надходження", "зарплат", "возврат"]
   /// Notifications that carry an amount but are not a payment: a rejected card, a balance, a reminder.
   ///
@@ -475,6 +538,10 @@ enum KPPaymentText {
                                     "vidmova", "відмова", "недостатньо", "nedostatno", "brak środk", "brak srodk", "anulowan", "cancelled", "canceled", "reversal", "відхилен", "скасован",
                                     "kod blik", "blik code", "one-time code", "one-time password", "verification code", "security code", "kod weryfikacyjny", "jednorazowy kod", "haslo jednorazowe", "kod autoryzacyjn", "kod sms",
                                     "одноразов", "код підтвердж", "код подтвержд",
+                                    // Spanish refusals and codes: "Operación denegada", "saldo insuficiente", "código de verificación".
+                                    "denegad", "rechazad", "no se ha podido", "saldo insuficiente", "fondos insuficientes", "codigo de verificacion", "codigo de seguridad", "clave de un solo uso", "anulad",
+                                    // …and money that has not moved yet: "se cargará", "próximo recibo", a reminder.
+                                    "se cargara", "se cobrara", "proximo recibo", "proximo cargo", "recordatorio",
                                     // Rates and offers quote money they are not charging you.
                                     "kurs walut", "kursy walut", "exchange rate", "fx rate", "currency rate", "notowania",
                                     // The card itself, not a payment made with it.
@@ -503,6 +570,7 @@ enum KPPaymentText {
   private static let holdWords = ["blocked balance", "blocked amount", "amount blocked", "blokada srodkow", "blokada środków",
                                   "kwota blokady", "zablokowano", "zablokowana kwota", "blokada na karcie", "blokada kwoty",
                                   "authorisation hold", "authorization hold", "card authorisation", "card authorization",
+                                  "retencion", "preautorizacion", "autorizacion pendiente",
                                   "заблокован", "блокування", "блокировка"]
 
   /// Words for money going out. They exist only to argue with `incomeWords`: a bank can name both
@@ -510,6 +578,8 @@ enum KPPaymentText {
   /// without a debit list the stray "credited" would turn a payment into income.
   private static let debitWords = ["debited", "withdrawn", "withdrawal", "spent", "deducted", "charged", "purchase", "paid",
                                    "obciążen", "obciazen", "wypłat", "wyplat", "płatność", "platnosc", "zapłat", "zaplat",
+                                   // Spanish: "Compra con tarjeta", "Pago", "Cargo", "Bizum enviado", "Transferencia emitida", "Reintegro".
+                                   "compra", "pago", "has pagado", "cargo", "enviado", "enviada", "has enviado", "emitida", "reintegro", "retirada", "recibo domiciliado", "domiciliacion",
                                    "списання", "оплата", "сплата", "покупка"]
 
   /// Which way the money went, by wording alone: whichever kind of word the bank reached for *first*.

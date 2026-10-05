@@ -8,6 +8,7 @@
 import type { SqlDriver, Row } from "./db";
 import type { Transaction } from "./models";
 import { archivedCategoryIds, getRow, jsonIds, listRows, save } from "./repo";
+import { carriedTagIds, uncarriedTagIds } from "./trips";
 
 /**
  * How sure the match is.
@@ -111,18 +112,29 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
   const tries = nameTries(payee, note);
   if (!tries.length) return noPayeeHistory();
 
-  /** The newest past entry matching any of the names above, in that order, that also satisfies `has`. */
-  const newest = (cols: string, has: string) => {
+  // Tags an earlier entry cannot hand on: a trip's (it says when, not what the shop is) and archived
+  // ones (`uncarriedTagIds`). Archived *tags*, unlike an archived category, are not what decides
+  // whether the entry needs looking at, so dropping them silently costs nothing.
+  const skip = uncarriedTagIds(db);
+  /**
+   * The newest past entry matching any of the names above, in that order, that also satisfies `has`
+   * and `keep`. `keep` is asked here because tags are JSON: a few rows are read per name, so a row
+   * that only ever carried a trip's tag does not hide the older one that was really filed.
+   */
+  const newest = (cols: string, has: string, keep: (row: Row) => boolean = () => true) => {
     for (const t of tries) {
-      const row = db.get<Row>(
-        `SELECT ${cols} FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${has} AND ${t.where} ORDER BY date DESC LIMIT 1`, t.binds);
+      const rows = db.all<Row>(
+        `SELECT ${cols} FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${has} AND ${t.where} ORDER BY date DESC LIMIT 20`, t.binds);
+      const row = rows.find(keep);
       if (row) return { row, match: t.match };
     }
     return undefined;
   };
+  const ownTags = (row: Row) => carriedTagIds(jsonIds((row.tag_ids as string | null) ?? null), skip);
   // Category and tags come from whichever single row matches, so they always describe one past
-  // decision; a row with tags but no category still counts.
-  const filed = newest("category_id, tag_ids", FILED);
+  // decision; a row with tags but no category still counts — unless all it carries is tags it
+  // cannot hand on, which leaves nothing that was ever decided about the shop.
+  const filed = newest("category_id, tag_ids", FILED, (row) => row.category_id != null || ownTags(row).length > 0);
   // A category that has since been archived is not an answer. Returning it would have the automation
   // file a new payment somewhere the app no longer offers, and quietly — so the category is dropped
   // and the match with it, which leaves the entry uncategorised and therefore in the Pending queue,
@@ -130,16 +142,12 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
   const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
   const filedCategory = (filed?.row.category_id as string | null) ?? null;
   const archived = !!filedCategory && gone.has(filedCategory);
-  // Archived *tags* are simply left off; unlike the category they are not what decides whether the
-  // entry needs looking at, so dropping them silently costs nothing. Only tags that exist and are
-  // archived are dropped: an id with no row behind it is left alone, the way it always was.
-  const retiredTags = new Set(listRows(db, "tags", "deleted=0 AND archived=1").map((t) => t.id));
   // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
   // whether or not that is the entry the category came from.
   const seen = newest("place, lat, lon", "((place IS NOT NULL AND place <> '') OR lat IS NOT NULL)");
   return {
     category_id: archived ? null : filedCategory,
-    tag_ids: jsonIds((filed?.row.tag_ids as string | null) ?? null).filter((id) => !retiredTags.has(id)),
+    tag_ids: filed ? ownTags(filed.row) : [],
     place: (seen?.row.place as string | null) || null,
     lat: (seen?.row.lat as number | null) ?? null,
     lon: (seen?.row.lon as number | null) ?? null,
@@ -175,9 +183,13 @@ export function payeeOptions(db: SqlDriver, payee: string | null | undefined, no
     if (!rows.length) continue;
     const out = new Map<string, PayeeOption>();
     const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
+    // A trip's tag is not a way the shop was filed (`uncarriedTagIds`): the same coffee bought at home
+    // and on a trip is one option, not two, and no option comes with a trip on it.
+    const skip = uncarriedTagIds(db);
     for (const r of rows) {
-      const tag_ids = jsonIds((r.tag_ids as string | null) ?? null);
+      const tag_ids = carriedTagIds(jsonIds((r.tag_ids as string | null) ?? null), skip);
       const category_id = (r.category_id as string | null) ?? null;
+      if (!category_id && !tag_ids.length) continue;
       // The sheet offers these as answers, so a retired category is not among them. The count of
       // *ways* this shop was filed is what tells the automation whether it may pick for you
       // (`variants` in nativeWrites), and a way you can no longer choose is not a way.

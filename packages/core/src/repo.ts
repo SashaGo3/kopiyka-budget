@@ -8,11 +8,11 @@ import { SYNCED_TABLES } from "./models";
 
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
-  accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor"],
+  accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor", "numbers"],
   categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset"],
   tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
-    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor"],
+    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
     "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee"],
   budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned"],
@@ -90,7 +90,7 @@ export function eraseAll(db: SqlDriver, opts: { everywhere: boolean }): void {
 
 export function createAccount(db: SqlDriver, a: Partial<Account> & Pick<Account, "name" | "currency">): Account {
   return save(db, "accounts", {
-    type: "bank", icon: null, color: null, sort: 0, archived: 0, include_in_net_worth: 1, opening_balance_minor: 0, ...a,
+    type: "bank", icon: null, color: null, sort: 0, archived: 0, include_in_net_worth: 1, opening_balance_minor: 0, numbers: "[]", ...a,
     // An account with no group is a stray everywhere it is listed, so an empty one (a CSV import
     // without a Budget Book column, a sheet the user never opened the group picker in) lands here.
     group_name: a.group_name?.trim() || DEFAULT_ACCOUNT_GROUP,
@@ -109,7 +109,7 @@ export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<
   return save(db, "transactions", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", pending: 0, transfer_id: null,
     entered_amount_minor: null, entered_currency: null, exchange_rate: null, recurring_id: null, lat: null, lon: null, place: null, photo: null,
-    source: null, refunded_minor: 0, ...t,
+    source: null, refunded_minor: 0, bank_ref: null, ...t,
   } as Transaction);
 }
 

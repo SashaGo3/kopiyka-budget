@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { archivedCategoryIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { CategoryIcon, HeaderBar } from "@/components/ui";
+import { ButtonText, CategoryIcon, HeaderBar } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
@@ -76,8 +76,8 @@ export default function PickCategories() {
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={items} keyExtractor={(i) => (i.kind === "none" ? "none" : i.c.id)} stickyHeaderIndices={[0]} contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
         <HeaderBar style={styles.head} title={title ?? t("pick.categories.title")}
-          left={<Pressable onPress={() => setChosen(new Set())} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.categories.anyA11y")}><Text style={[styles.link, !chosen.size && { fontWeight: "700" }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("pick.any")}</Text></Pressable>}
-          right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><Text style={styles.done} numberOfLines={1} maxFontSizeMultiplier={1.3}>{catCount ? t("pick.doneCount", { count: catCount }) : t("common.done")}</Text></Pressable>} />
+          left={<Pressable onPress={() => setChosen(new Set())} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.categories.anyA11y")}><ButtonText style={[styles.link, !chosen.size && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{t("pick.any")}</ButtonText></Pressable>}
+          right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{catCount ? t("pick.doneCount", { count: catCount }) : t("common.done")}</ButtonText></Pressable>} />
       }
       renderItem={({ item }) => {
         if (item.kind === "none") return (

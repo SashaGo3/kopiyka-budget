@@ -5,7 +5,7 @@
  * and native/KPShared.swift `KPStore`/`KPWatchState`, which this mirrors field-for-field).
  * Rebuilt after every write, so this stays a handful of grouped queries — no per-row round-trips.
  */
-import { accountName, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
+import { accountName, accountNumbers, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds, uncarriedTagIds } from "@kopiyka/core";
 import { db } from "@/db";
 import { getLanguage, t, type LanguageCode } from "@/i18n";
 import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
@@ -28,7 +28,8 @@ export interface WatchState {
   /** The app's language ("uk"): what the names below are in. Swift keeps it beside the state (KPWatchState.language). */
   language: LanguageCode;
   current_account: string;
-  accounts: WidgetSnapshot["accounts"];
+  /** `numbers`: the last four digits a bank prints for each (DATA.md rule 18), so a notification can name its account. */
+  accounts: (WidgetSnapshot["accounts"][number] & { numbers: string[] })[];
   categories: WatchCategory[];
   tags: WatchTag[];
   /** category_id -> tag_id -> count, over all non-deleted transactions with tags (no date limit). */
@@ -84,13 +85,16 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   // One pass over every tagged transaction: last-180-day usage per tag, all-time category<->tag co-occurrence.
   const tagUses = new Map<string, number>();
   const together: WatchState["together"] = {};
+  // A trip's tag went with everything bought on it, so it is not a tag that goes with a category
+  // (`uncarriedTagIds`): counted here, last spring's trip would head the watch's tag list for coffee.
+  const notTogether = uncarriedTagIds(db);
   for (const r of db.all<{ category_id: string | null; tag_ids: string; date: string }>(
     `SELECT category_id, tag_ids, date FROM transactions WHERE deleted=0 AND tag_ids<>'[]'`,
   )) {
     const recent = r.date >= since;
     for (const id of jsonIds(r.tag_ids)) {
       if (recent) tagUses.set(id, (tagUses.get(id) ?? 0) + 1);
-      if (r.category_id) { const byTag = (together[r.category_id] ??= {}); byTag[id] = (byTag[id] ?? 0) + 1; }
+      if (r.category_id && !notTogether.has(id)) { const byTag = (together[r.category_id] ??= {}); byTag[id] = (byTag[id] ?? 0) + 1; }
     }
   }
   const tags: WatchTag[] = db.all<{ id: string; name: string; color: string | null; category_ids: string; archived: number }>(
@@ -133,7 +137,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     generated_at: new Date().toISOString(),
     language: lang,
     current_account: getCurrentAccount(),
-    accounts: snapshot.accounts,
+    accounts: withNumbers(snapshot.accounts),
     categories, tags, together, history, snapshot,
     location_enabled: getLocationEnabled(),
     shortcut_notify: getShortcutNotify(),
@@ -142,4 +146,10 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   };
   if (__DEV__) console.log(`[watchState] built in ${Date.now() - t0}ms (${categories.length} categories, ${tags.length} tags, ${history.length} history rows)`);
   return state;
+}
+
+/** The widget's account list plus the digits each is known by (KPWatchState.Account.numbers). */
+function withNumbers(accounts: WidgetSnapshot["accounts"]): WatchState["accounts"] {
+  const known = new Map(db.all<{ id: string; numbers: string }>(`SELECT id, numbers FROM accounts`).map((a) => [a.id, accountNumbers(a)]));
+  return accounts.map((a) => ({ ...a, numbers: known.get(a.id) ?? [] }));
 }

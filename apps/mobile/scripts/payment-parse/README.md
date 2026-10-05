@@ -14,7 +14,8 @@ swiftc -O main.swift ../../native/KPPaymentText.swift -o /tmp/payment-parse
 
 One argument is the **Notification** variable the Shortcuts automation hands to "Log payment from an app
 notification"; three arguments are the older Title / Subtitle / Message fields. Prints the amount,
-currency, shop, city, card, sender, transfer title, closing balance and timestamp, or one of:
+currency, shop, city, card, the account numbers on both ends (`own=` / `other=`, which pair the two
+notifications of one transfer — DATA.md rule 18), sender, transfer title, closing balance and timestamp, or one of:
 
 - `IGNORED` — no money in the text, or money the bank is explicitly not charging (a declined card, a
   balance, a one-time code). The automation does nothing and says nothing; this is most notifications.
