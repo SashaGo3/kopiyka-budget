@@ -166,6 +166,13 @@ export const MIGRATIONS: string[][] = [
     // made in 1.0.3 is written to a database already at v18, which never runs this again.
     `DELETE FROM meta WHERE key='language'`,
   ],
+  [
+    // v19: the digits a bank prints for an account ("Na koncie: 27..5837"), and what a notification
+    // said about the two accounts a payment moved between — so the debit and the credit of one
+    // transfer between your own accounts can be paired (transferPair.ts, DATA.md rule 18).
+    `ALTER TABLE accounts ADD COLUMN numbers TEXT NOT NULL DEFAULT '[]'`,
+    `ALTER TABLE transactions ADD COLUMN bank_ref TEXT`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

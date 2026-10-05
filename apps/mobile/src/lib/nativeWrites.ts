@@ -3,9 +3,10 @@
  * Native code must not touch the database while JS has it open (two SQLite copies in one process
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
-import { claimRecurring, createTransaction, fillPending, getRow, payeeHistory, payeeOptions, remove, samePaymentSince, save, suggestCategoryAt, withTripTag } from "@kopiyka/core";
+import { AppState } from "react-native";
+import { claimRecurring, createTransaction, fillPending, getRow, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef } from "@kopiyka/core";
 import { db } from "@/db";
-import { mutate } from "@/store";
+import { mutate, notifyChange } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
 import { localIso, todayLocal } from "./dates";
 import { waitDefaultDays } from "./settings";
@@ -33,10 +34,16 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
           // A payment the bank printed in another currency: what it charged, and the rate it was
           // expressed at, so the row can be checked rather than taken on trust.
           entered_amount_minor: num(w.entered_amount_minor), entered_currency: str(w.entered_currency), exchange_rate: num(w.exchange_rate),
+          // The account numbers a bank notification printed: how the two notifications of one
+          // transfer between your own accounts find each other (core transferPair.ts).
+          bank_ref: writeBankRef({ own: str(w.bank_own), other: str(w.bank_other), balance: num(w.bank_balance) }),
         });
         // The charge a recurring rule has been waiting for: it takes the rule's id, category and
         // tags and moves the rule on, so the rule never writes the same payment a second time.
         claimRecurring(d, row, { today: todayLocal(), waitDefault: waitDefaultDays() });
+        // The other half of a transfer: a debit and a credit between your own accounts become one
+        // pending transfer instead of an expense and an income. A claimed recurring charge is not one.
+        if (!getRow(d, "transactions", id)?.recurring_id) pairTransferLeg(d, id);
       });
       // What the badge on the app icon should read now. Native code cannot count it for itself
       // while JS has the database open, and the notification it is about to post carries the number.
@@ -102,12 +109,26 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
   }
 }
 
+/**
+ * Pair the transfer legs the automation wrote straight into the database while the app was closed
+ * (core `pairTransferLegs`). Only a sweep that changed something counts as a write, or every return to
+ * the app would mark the database dirty for nothing (DATA.md rule 12).
+ */
+function sweepTransfers(): void {
+  try {
+    if (db.transaction(() => pairTransferLegs(db)) > 0) notifyChange();
+  } catch { /* a sweep is a nicety; the rows are still there, unpaired, for the next one */ }
+}
+
 /** Start answering native write requests. Call once, as early as possible (before any watch message can arrive). */
 export function installNativeWrites(): () => void {
-  return KPBridge.onNativeWrite((w) => {
+  sweepTransfers();
+  const appState = AppState.addEventListener("change", (s) => { if (s === "active") sweepTransfers(); });
+  const off = KPBridge.onNativeWrite((w) => {
     void apply(w).then(
       (reply) => KPBridge.finishNativeWrite(w.request, true, null, reply),
       (e: unknown) => KPBridge.finishNativeWrite(w.request, false, e instanceof Error ? e.message : String(e)),
     );
   });
+  return () => { off(); appState.remove(); };
 }

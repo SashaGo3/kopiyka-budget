@@ -164,8 +164,9 @@ that a merge will read — the deletion would be forgotten and the row would com
 
 `"shortcut"` (a notification automation), `"shortcut-guess"` (the same, but its category was guessed
 from the shop's name rather than filed before — the Pending queue shows it in the tint colour with
-"· guess"), `"receipt"`, `"watch"`, `"siri"`, or `null` for hand-entered. A guess never skips the
-Pending queue; only history does.
+"· guess"), `"shortcut-transfer"` (the other leg of a transfer the app wrote itself, because the
+bank only ever notified one side — rule 18), `"receipt"`, `"watch"`, `"siri"`, or `null` for
+hand-entered. A guess never skips the Pending queue; only history does.
 
 ## 10. Never write the database file from outside the running app
 
@@ -375,6 +376,45 @@ app `acctName` / `groupName` (`apps/mobile/src/lib/names.ts`), and in Swift `KPP
   (`account/edit.tsx`, as `category/edit.tsx` does for presets), or opening and saving an account
   would quietly make "Основний" the user's own and stop it following the language.
 
+## 18. One transfer, two notifications: paired by account numbers, never by name
+
+A transfer between two of your own accounts reaches the notification automation as two messages —
+the debit ("Obciążenie konta −500,00 USD … Konto odbiorcy: 27..5837 … Na koncie: 84..3203") and the
+credit ("Uznanie konta +1882,75 PLN … Konto nadawcy: 84..3203 … Na koncie: 27..5837") — minutes
+apart, in either order. Each is logged as it arrives, pending; `pairTransferLeg`
+(`packages/core/src/transferPair.ts`) then makes the two one **pending transfer**, both rows keeping
+their ids, payees and notes (rule 1), so it can be checked and corrected before it counts.
+
+Two columns carry it (v19):
+
+- `transactions.bank_ref` — JSON `{"own":"3203","other":"5837","balance":300000}`: the last four
+  digits of the account the notification was about, of the one on the other end, and the balance
+  the bank printed afterwards (minor units). Written only by the automation; NULL everywhere else.
+- `accounts.numbers` — JSON list of the last four digits a bank prints for the account. Learned when
+  a notification-logged row is approved (`approvePending`, `learnFromRow`), or typed on the account
+  sheet; the automation uses it to pick the account, and pairing uses it when only one side arrives.
+
+What is load-bearing:
+
+- **Numbers are the evidence, nothing else.** Two legs pair only when every number both print agrees
+  (one's `other` is the other's `own`) and at least one does; opposite directions, different
+  accounts, within `PAIR_WINDOW_MINUTES`. A name proves nothing — a third party paying you can share
+  it — and a third party's account number is not yours, so their payment stays income.
+- **Only pending rows start a pairing.** A leg already approved is still *found* by its other half,
+  and the pair goes back to pending: an expense and an income that are really one transfer would
+  otherwise count the money twice. A row a recurring rule claimed is that rule's (rule 13) and is
+  never paired. The automation keeps any notification naming the other account in the queue.
+- **One leg only** becomes a transfer when its `other` is an account's number (and only one account
+  claims it); the app writes the missing leg (`source = "shortcut-transfer"`), at the cached rate
+  or at **0** when there is none (rule 6), and the real leg replaces it if it arrives after all.
+- **A repeat is dropped only on the balance.** The same notification delivered twice has the same
+  closing balance; a second identical transfer does not. Without a balance on both, both are kept.
+- **Pairing happens in JS.** A forwarded write pairs at once; legs the automation wrote straight into
+  the file while the app was closed (rule 10) are paired by a sweep when the app comes up, which
+  counts as a write only if it changed something (rule 12).
+- **Learning writes only what changes** (rule 15's lesson), and never gives a number to a second
+  account. Neither column is in `ROW_DEFAULTS`: a backup from before v19 keeps what the phone knows.
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import
@@ -385,6 +425,8 @@ back. What to tell it:
    category with children (rule 5).
 3. Do not touch `rates`, `settings`, or any `photo` field (rules 3, 4, 7). Leave `preset` as it is: a
    renamed category stops being translated on its own (rule 16), so there is never a reason to edit it.
+   Leave `bank_ref` and an account's `numbers` alone too: they are how bank notifications find
+   accounts and pair transfers (rule 18).
 4. Leave `amount_minor` and every transaction alone unless the point of the pass is the transactions.
    Leave `importance` alone too, or say nothing about it: a column the file omits keeps whatever the
    phone already had, but an `importance: 0` written over a marked category erases an answer only a

@@ -41,5 +41,22 @@
   "category": {
     "message": "Category",
     "max": 16
+  },
+  "transfer": {
+    "title": {
+      "message": "Transfer",
+      "note": "Title of a pending transfer between two of your accounts, found in bank notifications.",
+      "max": 20
+    },
+    "editA11y": "Check the transfer {route}",
+    "fill": {
+      "message": "Add amount",
+      "note": "Action on a pending transfer whose other amount is not known yet (no exchange rate).",
+      "max": 14
+    },
+    "edit": {
+      "message": "Edit",
+      "max": 14
+    }
   }
 }

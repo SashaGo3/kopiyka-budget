@@ -5,7 +5,7 @@
  * and native/KPShared.swift `KPStore`/`KPWatchState`, which this mirrors field-for-field).
  * Rebuilt after every write, so this stays a handful of grouped queries — no per-row round-trips.
  */
-import { accountName, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
+import { accountName, accountNumbers, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
 import { db } from "@/db";
 import { getLanguage, t, type LanguageCode } from "@/i18n";
 import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
@@ -28,7 +28,8 @@ export interface WatchState {
   /** The app's language ("uk"): what the names below are in. Swift keeps it beside the state (KPWatchState.language). */
   language: LanguageCode;
   current_account: string;
-  accounts: WidgetSnapshot["accounts"];
+  /** `numbers`: the last four digits a bank prints for each (DATA.md rule 18), so a notification can name its account. */
+  accounts: (WidgetSnapshot["accounts"][number] & { numbers: string[] })[];
   categories: WatchCategory[];
   tags: WatchTag[];
   /** category_id -> tag_id -> count, over all non-deleted transactions with tags (no date limit). */
@@ -133,7 +134,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     generated_at: new Date().toISOString(),
     language: lang,
     current_account: getCurrentAccount(),
-    accounts: snapshot.accounts,
+    accounts: withNumbers(snapshot.accounts),
     categories, tags, together, history, snapshot,
     location_enabled: getLocationEnabled(),
     shortcut_notify: getShortcutNotify(),
@@ -142,4 +143,10 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   };
   if (__DEV__) console.log(`[watchState] built in ${Date.now() - t0}ms (${categories.length} categories, ${tags.length} tags, ${history.length} history rows)`);
   return state;
+}
+
+/** The widget's account list plus the digits each is known by (KPWatchState.Account.numbers). */
+function withNumbers(accounts: WidgetSnapshot["accounts"]): WatchState["accounts"] {
+  const known = new Map(db.all<{ id: string; numbers: string }>(`SELECT id, numbers FROM accounts`).map((a) => [a.id, accountNumbers(a)]));
+  return accounts.map((a) => ({ ...a, numbers: known.get(a.id) ?? [] }));
 }
