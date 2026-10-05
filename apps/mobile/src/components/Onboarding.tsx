@@ -26,7 +26,7 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   const navigation = useNavigation();
   // A step reached by `replace` (the welcome screen skipping ahead) has nothing to go back to.
   const canBack = step > 1 && navigation.canGoBack();
-  // Picking a theme on step 2 re-mounts the step; the list stays where it was (lib/keptScroll.ts).
+  // If picking a theme ever re-mounts the step, the list stays where it was (lib/keptScroll.ts).
   const kept = useKeptScroll(`onboarding.${step}`);
   const body = (
     <>

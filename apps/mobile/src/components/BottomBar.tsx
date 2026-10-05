@@ -3,7 +3,9 @@ import { Animated, Pressable, StyleSheet, Text, useColorScheme, useWindowDimensi
 import { router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import { Brand, C, Elevation, R, themed } from "@/constants/theme";
+import { C, Elevation, R, themed } from "@/constants/theme";
+import { THEMES, type ThemeId } from "@kopiyka/core";
+import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -75,11 +77,15 @@ export function useScrollHide(): { visible: boolean; onScroll: (e: NativeSynthet
  * entry sheet (Expense / Income / Transfer is chosen there). With the receipt scanner enabled a
  * long press photographs a receipt first and opens the sheet prefilled from it.
  */
+/** The theme's accent as a plain string; takes the theme so the React Compiler re-computes it on a switch. */
+function glassTint(theme: ThemeId, dark: boolean): string { return THEMES[theme][dark ? "dark" : "light"].accent; }
+
 export function LogButton({ account }: { account?: string } = {}) {
-  // Glass takes a plain colour, so the accent is resolved by hand here rather than through
-  // C.tint, which is a DynamicColorIOS value. Tinted this strongly it keeps the pill reading as the
-  // theme's accent, and only gains the glass edge and refraction.
-  const tint = useColorScheme() === "dark" ? Brand.accentDark : Brand.accent;
+  // Glass takes a plain colour, so the accent is resolved by hand here rather than through C.tint
+  // (a named colour). Tinted this strongly it keeps the pill reading as the theme's accent, and only
+  // gains the glass edge and refraction. A plain colour does not follow a theme switch natively, so
+  // this one re-renders with it.
+  const tint = glassTint(useTheme(), useColorScheme() === "dark");
   const [key] = useState(() => newPickKey("logreceipt"));
   usePickResult<ReceiptParse>(key, useCallback((r: ReceiptParse) => {
     setTimeout(() => router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", receipt: JSON.stringify(r), ...(account ? { account } : {}) } }), 350);

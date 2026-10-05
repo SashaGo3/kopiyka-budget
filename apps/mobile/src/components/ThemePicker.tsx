@@ -107,11 +107,11 @@ function Preview({ side, label }: { side: ThemeSide; label: string }) {
 
 /**
  * Every theme with a light and a dark preview of it; a tap applies it at once. The new colours grow
- * over the old screen from the tap, every screen's content already re-mounted in them where it was
- * (src/lib/theme.ts). The app icon is chosen separately (AppIconPicker).
+ * over the old screen from the tap, every screen already recoloured where it was (src/lib/theme.ts).
+ * The app icon is chosen separately (AppIconPicker).
  */
 export function ThemePicker() {
-  // Ticked at once, so the tap is answered before the screens re-mount in the new colours.
+  // Ticked at once, so the tap is answered before the cover goes up.
   const [picked, setPicked] = useState(getTheme);
   const pick = (id: ThemeId, at: TapPoint) => {
     if (id === picked) return;

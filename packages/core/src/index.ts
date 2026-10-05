@@ -32,3 +32,4 @@ export * from "./importance";
 export * from "./commitments";
 export * from "./release";
 export * from "./themes";
+export * from "./themeColors";

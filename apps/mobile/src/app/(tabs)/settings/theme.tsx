@@ -8,7 +8,7 @@ import { useKeptScroll } from "@/lib/keptScroll";
 
 /** Settings → Theme: the app icon on its own row, then Automatic/Light/Dark and the eight palettes, each previewed light and dark. */
 export default function ThemeScreen() {
-  // A theme switch re-mounts this content; the list comes back where it was (lib/keptScroll.ts).
+  // The list comes back where it was if the tree ever has to re-mount (lib/keptScroll.ts).
   const kept = useKeptScroll("settings.theme");
   return (
     <>

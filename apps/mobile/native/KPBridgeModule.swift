@@ -33,6 +33,7 @@ private enum KPLaunch {
 ///  - setAppIcon(id) / getAppIcon(): the home-screen icon, one per colour theme (plugins/withAppIcons.js)
 ///  - beginThemeTransition(x, y) / endThemeTransition(s): the circular reveal over a theme switch (KPThemeTransition)
 ///  - setWindowBackground(light, dark): the theme's background behind everything React draws
+///  - defineThemeColors(table) / setThemeColors(id) / signalThemeColors(): the named theme colours (KPThemeColors)
 final class KPBridgeModule: Module {
   private var observer: NSObjectProtocol?
   /// The moment this module instance was created — Expo builds it while setting up the bridge,
@@ -132,6 +133,21 @@ final class KPBridgeModule: Module {
     /// what shows behind a sheet as it slides, and wherever React has not drawn yet.
     Function("setWindowBackground") { (light: String, dark: String) in
       DispatchQueue.main.async { KPThemeTransition.setBackground(light: light, dark: dark) }
+    }
+
+    /// Every theme's colours by name, `[name: [themeId: [light, dark]]]`, answered from then on to
+    /// `PlatformColor("kp.…")` (native/KPThemeColors.swift). Sync: styles name them on first render.
+    Function("defineThemeColors") { (table: [String: [String: [String]]]) -> Bool in
+      KPThemeColors.define(table)
+    }
+    /// The theme the named colours resolve to. Sync and silent: at launch nothing is on screen yet.
+    Function("setThemeColors") { (id: String) in
+      KPThemeColors.apply(id)
+    }
+    /// After `setThemeColors` during a switch: make everything on screen resolve its colours again.
+    /// Resolves once that is done on the main thread.
+    AsyncFunction("signalThemeColors") { (promise: Promise) in
+      DispatchQueue.main.async { KPThemeColors.signal(); promise.resolve() }
     }
 
     // Device odds and ends (native/KPDevice.swift; JS side: src/lib/device.ts).

@@ -6,26 +6,27 @@
  * id from `THEME_IDS` (anything else, or nothing, is the default), and travels in a backup (DATA.md
  * rule 7).
  *
- * A switch re-mounts every screen's *content* and nothing else. Each navigator wraps its screens in
- * `ThemeKeyed` (src/components/ThemeKeyed.tsx, passed as `screenLayout` in every `_layout`), which is
- * keyed on the theme: the content mounts again with every style sheet rebuilt (`themed`) and every
- * memoised colour read afresh, while the navigators stay mounted — the tab that is selected, every
- * stack and every open sheet are untouched, and nothing navigates. What the layouts draw outside a
- * screen (the navigation theme, sheet and tab bar colours) takes the theme as an argument and simply
- * re-renders. A language change is different: it still re-mounts the whole tree (src/app/_layout.tsx).
+ * On iOS a switch re-mounts nothing and re-renders nothing: every colour on screen is a named native
+ * colour (src/constants/theme.ts, native/KPThemeColors.swift) and native simply resolves them in the
+ * new theme, exactly as it does for the phone's light/dark switch. The tab, every stack, every open
+ * sheet, every half-typed field and every scroll position stay as they were. What the layouts draw
+ * themselves (the navigation theme, sheet and tab bar colours) takes the theme as an argument and
+ * re-renders in place. Earlier builds re-mounted each screen's content instead, and now and then a
+ * screen came back empty; that path is gone.
  *
- * The colours are DynamicColorIOS values baked into those style sheets, so there is nothing to
- * animate in JS. A switch from the picker (`switchTheme`) is a reveal instead: native lays a
- * snapshot of the old screen over the window, the screens re-mount underneath it, and once that has
- * painted the new colours grow over the snapshot from the tap.
+ * Where named colours are unavailable (off iOS, `NAMED_COLORS` false) the root layout re-mounts the
+ * whole tree on a switch, as it does for a language change (src/app/_layout.tsx).
+ *
+ * A switch from the picker (`switchTheme`) is a reveal: native lays a snapshot of the old screen over
+ * the window, the colours change underneath it, and the new ones grow over the snapshot from the tap.
  */
 import { useSyncExternalStore } from "react";
 import { Appearance } from "react-native";
 import { getMeta, setMeta, themeOf, type ThemeId } from "@kopiyka/core";
 import { db } from "@/db";
-import { applyThemePalette } from "@/constants/theme";
+import { NAMED_COLORS, applyThemePalette } from "@/constants/theme";
 import { onAfterWrite } from "@/store";
-import { beginThemeTransition, endThemeTransition, setWindowBackground } from "@/lib/bridge";
+import { beginThemeTransition, endThemeTransition, setThemeColors, setWindowBackground } from "@/lib/bridge";
 
 export const THEME_META_KEY = "theme";
 /**
@@ -39,6 +40,7 @@ export type AppearanceChoice = "" | "light" | "dark";
 
 let current: ThemeId = resolve();
 applyThemePalette(current);
+void setThemeColors(current, false);
 applyWindowBackground(current);
 let appearance: AppearanceChoice = resolveAppearance();
 Appearance.setColorScheme(appearance || "unspecified");
@@ -57,7 +59,7 @@ function resolveAppearance(): AppearanceChoice {
 }
 
 // A restore can carry `theme` and `appearance` settings (DATA.md rule 7); whichever path wrote them, take them up.
-onAfterWrite(() => { reloadTheme(); reloadAppearance(); });
+onAfterWrite(() => { void reloadTheme(); reloadAppearance(); });
 
 /** The cover-and-reveal switch in progress, if any; the next one waits for it. */
 let switching: Promise<void> = Promise.resolve();
@@ -98,32 +100,30 @@ async function appearanceOnce(next: AppearanceChoice, at?: TapPoint): Promise<vo
 
 export function getTheme(): ThemeId { return current; }
 
-/** Switch theme. Every screen's content re-mounts in it where it is; nothing navigates. */
-export function setTheme(id: ThemeId): void {
-  if (themeOf(id).id === current) return;
+/** Switch theme, in place; nothing navigates. Resolves once the new colours are on screen (or applied). */
+export function setTheme(id: ThemeId): Promise<void> {
+  if (themeOf(id).id === current) return Promise.resolve();
   setMeta(db, THEME_META_KEY, id);
-  reloadTheme();
+  return reloadTheme();
 }
 
 /** How long the new theme takes to grow over the screen from the tap. */
 const FADE_SECONDS = 0.5;
 /** A tap on the screen, in window points: where the new theme is revealed from. */
 export type TapPoint = { x: number; y: number };
-/** The longest the cover waits for the re-mounted screens before revealing anyway (native has its own 2 s). */
+/** The longest the cover waits for the tree to re-mount (fallback path only; native has its own 2 s). */
 const MOUNT_TIMEOUT_MS = 1500;
 let mounted: (() => void) | null = null;
 
 /**
  * Switch theme from a picker, animated: cover (with a loader at the tap if it is slow) → switch →
- * wait for the re-mounted screens to paint → reveal them in a circle growing from the tap. The app icon is
- * not part of it: it is chosen on its own (AppIconPicker), because iOS answers every icon change
- * with an alert of its own. Safe to call where the cover is not available (off iOS, an older
- * build): the switch then happens without it.
+ * wait for the new colours to be on the glass → reveal them in a circle growing from the tap. The
+ * app icon is not part of it: it is chosen on its own (AppIconPicker), because iOS answers every icon
+ * change with an alert of its own. Safe to call where the cover is not available: the switch then
+ * happens without it.
  */
 export function switchTheme(id: ThemeId, at?: TapPoint): Promise<void> {
-  // One switch at a time. Two quick taps used to overlap: the second laid its cover while the first
-  // was still waiting, the first's reveal took the second's cover away mid-mount, and the first then
-  // cleared the second's `mounted`. Queued, each one covers, switches and reveals before the next.
+  // One switch at a time: each one covers, switches and reveals before the next begins.
   const run = switching.catch(() => {}).then(() => switchOnce(id, at));
   switching = run;
   return run;
@@ -133,23 +133,29 @@ async function switchOnce(id: ThemeId, at?: TapPoint): Promise<void> {
   // A frame for the tick the picker just drew, so the snapshot already shows it.
   await nextFrame();
   const covered = await beginThemeTransition(at);
-  let mine: (() => void) | null = null;
-  const painted = new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, MOUNT_TIMEOUT_MS);
-    mine = () => { clearTimeout(timer); resolve(); };
-    mounted = mine;
-  });
-  try { setTheme(id); } finally {
-    if (covered) { await painted; await endThemeTransition(FADE_SECONDS); }
-    if (mounted === mine) mounted = null;
+  try {
+    if (NAMED_COLORS) {
+      await setTheme(id);
+      // One frame for the re-resolved layers to commit, one for them to reach the glass.
+      await nextFrame(); await nextFrame();
+    } else {
+      let mine: (() => void) | null = null;
+      const painted = new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, MOUNT_TIMEOUT_MS);
+        mine = () => { clearTimeout(timer); resolve(); };
+        mounted = mine;
+      });
+      try { await setTheme(id); await painted; } finally { if (mounted === mine) mounted = null; }
+    }
+  } finally {
+    if (covered) await endThemeTransition(FADE_SECONDS);
   }
 }
 
 /**
- * `ThemeKeyed`, once the screens it wraps have committed in the new theme. Two frames more — one for
- * the commit to reach native, one for it to be on the glass — and the cover can reveal it. Called by
- * every `ThemeKeyed` on the screen (and by any that merely mounts), so only the first call during a
- * switch counts.
+ * Fallback path only: the root layout, once the tree it re-mounted for a new theme has committed. Two
+ * frames more — one for the commit to reach native, one for it to be on the glass — and the cover
+ * can reveal it.
  */
 export function themeMounted(): void {
   const done = mounted;
@@ -168,14 +174,20 @@ function applyWindowBackground(id: ThemeId): void {
   setWindowBackground(t.light.bg, t.dark.bg);
 }
 
-/** Re-read the stored choice — after `setTheme`, or a restore that wrote `theme` into meta. */
-export function reloadTheme(): void {
+/**
+ * Re-read the stored choice — after `setTheme`, or a restore that wrote `theme` into meta. Native
+ * re-resolves the named colours; listeners (the layouts, and the root's re-mount on the fallback
+ * path) hear of it. Resolves once native has done its part.
+ */
+export function reloadTheme(): Promise<void> {
   const next = resolve();
-  if (next === current) return;
+  if (next === current) return Promise.resolve();
   current = next;
   applyThemePalette(next);
   applyWindowBackground(next);
+  const done = setThemeColors(next, true);
   for (const l of listeners) l();
+  return done;
 }
 
 function subscribe(cb: () => void) { listeners.add(cb); return () => { listeners.delete(cb); }; }
@@ -186,8 +198,8 @@ export function useAppearance(): AppearanceChoice {
 }
 
 /**
- * The current theme, re-rendering when it changes. `ThemeKeyed` and the layouts that draw colours
- * outside a screen need this; a screen's content does not — it is re-mounted instead.
+ * The current theme, re-rendering when it changes. Only what draws plain colours needs it — the
+ * layouts, the glass tint, a label naming the theme; anything coloured through `C` follows natively.
  */
 export function useTheme(): ThemeId {
   return useSyncExternalStore(subscribe, getTheme, getTheme);

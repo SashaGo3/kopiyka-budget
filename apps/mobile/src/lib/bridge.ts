@@ -31,11 +31,37 @@ type Bridge = {
   beginThemeTransition(x: number | null, y: number | null): Promise<boolean>;
   endThemeTransition(duration: number): Promise<void>;
   setWindowBackground(light: string, dark: string): void;
+  defineThemeColors(table: ThemeColorTable): boolean;
+  setThemeColors(id: string): void;
+  signalThemeColors(): Promise<void>;
   finishNativeWrite(request: string, ok: boolean, error: string | null, reply: Record<string, unknown>): void;
   addListener(event: "externalChange", cb: () => void): { remove(): void };
   addListener(event: "nativeWrite", cb: (w: NativeWrite) => void): { remove(): void };
 };
 const native = requireOptionalNativeModule<Bridge>("KPBridge");
+
+/** Colours by name, then theme id: `[light, dark]`, each "#RRGGBB(AA)" or "@systemColorName". */
+export type ThemeColorTable = Record<string, Record<string, [string, string]>>;
+
+/**
+ * Hand every theme's colours to native under their names (native/KPThemeColors.swift), so a style can
+ * name one — `PlatformColor("kp.label")` — and native resolves it in whatever theme is current. False
+ * off iOS, on a build without it, or if native could not read a value: the caller then keeps plain
+ * colours.
+ */
+export function defineThemeColors(table: ThemeColorTable): boolean {
+  if (Platform.OS !== "ios" || typeof native?.defineThemeColors !== "function") return false;
+  try { return native.defineThemeColors(table) === true; } catch { return false; }
+}
+
+/** The theme named colours resolve in. `signal` (a switch, with things on screen) makes everything re-resolve. */
+export async function setThemeColors(id: string, signal: boolean): Promise<void> {
+  if (Platform.OS !== "ios" || typeof native?.setThemeColors !== "function") return;
+  try {
+    native.setThemeColors(id);
+    if (signal) await native.signalThemeColors();
+  } catch { /* the colours keep the theme they had */ }
+}
 
 /**
  * Tell Swift which language the app is in (native/KPLocale.swift), so the watch, the widgets, the App
