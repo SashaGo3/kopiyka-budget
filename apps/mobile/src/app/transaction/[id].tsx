@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -145,8 +145,12 @@ export default function TransactionSheet() {
       return [{ ...o, tag_ids, key }];
     });
   }, [filed, catNames, tagNames]);
+  // The trip's tag travel mode put on this entry is not part of any option (`uncarriedTagIds`): picking
+  // one keeps it, and it does not stop the option reading as the one that is chosen.
+  const tripTags = useQuery((d) => uncarriedTagIds(d), []);
+  const ownTags = tagIds.filter((x) => !tripTags.has(x));
   const sameAsNow = (o: { category_id: string | null; tag_ids: string[] }) =>
-    o.category_id === categoryId && o.tag_ids.length === tagIds.length && o.tag_ids.every((x) => tagIds.includes(x));
+    o.category_id === categoryId && o.tag_ids.length === ownTags.length && o.tag_ids.every((x) => ownTags.includes(x));
 
   // The expression is the signed amount; `kind` follows its sign, falling back to the stored default
   // while it is empty. `evalPartial` rather than `evalExpr`, because with no "=" key the field has to
@@ -559,7 +563,7 @@ export default function TransactionSheet() {
               {options.map((o) => {
                 const label = [o.category_id ? catNames.get(o.category_id)! : t("common.noCategory"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
                 return <Chip key={o.key} icon="clock.arrow.circlepath" label={label} active={sameAsNow(o)}
-                  onPress={() => { setCategoryId(o.category_id); setTagIds(o.tag_ids); setSuggested(false); }} />;
+                  onPress={() => { setCategoryId(o.category_id); setTagIds((ids) => [...o.tag_ids, ...ids.filter((x) => tripTags.has(x) && !o.tag_ids.includes(x))]); setSuggested(false); }} />;
               })}
             </ChipRow>
           ) : null}
