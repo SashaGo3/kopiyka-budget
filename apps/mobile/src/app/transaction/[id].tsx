@@ -10,7 +10,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
-import { Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
+import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
@@ -470,7 +470,7 @@ export default function TransactionSheet() {
                 cost of a row a small phone takes out of the keypad. */}
             {note ? (
               <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
-                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4} ellipsizeMode="tail">{note}</Text>
+                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4}>{note}</Text>
               </Pressable>
             ) : null}
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
@@ -516,12 +516,12 @@ export default function TransactionSheet() {
             {/* With one account there is nothing to choose between, so the pill goes; the balance stays. */}
             {accounts.length > 1 || !account ? <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
               <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
-              <Text style={styles.accountText} numberOfLines={1}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</Text>
+              <ButtonText style={styles.accountText}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</ButtonText>
               <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
             </Pressable> : null}
             <Pressable onPress={unwrap} hitSlop={8} style={styles.unwrap} accessibilityRole="button" accessibilityLabel={expanded ? t("transaction.entry.hideBalance") : t("transaction.entry.showBalance")} accessibilityState={{ expanded }}>
               <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
-              <Text style={styles.accountBal}>{t("transaction.entry.balance")}</Text>
+              <ButtonText style={styles.accountBal}>{t("transaction.entry.balance")}</ButtonText>
             </Pressable>
           </View>
           {/* Numbers on their own line so a long account name and both balances all fit; the currency is printed once. */}
@@ -542,7 +542,7 @@ export default function TransactionSheet() {
           <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder={t("transaction.entry.notePlaceholder")} placeholderTextColor={C.tertiary} style={styles.noteInput}
             onFocus={noteFocused}
             onBlur={() => setNoteOpen(false)} accessibilityLabel={t("transaction.entry.notePlaceholder")} />
-          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><Text style={styles.noteDone} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("common.done")}</Text></Pressable>
+          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><ButtonText style={styles.noteDone} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Pressable>
         </View>
       ) : (
         <>

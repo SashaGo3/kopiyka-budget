@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
+import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle, type TextProps } from "react-native";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, R, S, themeTone, themed } from "@/constants/theme";
@@ -24,16 +24,38 @@ export function Subtle({ children, style }: { children: ReactNode; style?: Style
   return <Text style={[styles.subtle, style]}>{children}</Text>;
 }
 
+/**
+ * The words on anything you tap — a button, a chip, a pill, a header action, a key. They are never
+ * cut short with "…": a button that does not say what it does is a guess, and a label ending in an
+ * ellipsis is what makes a screen look unfinished, in every language. So this takes neither
+ * `numberOfLines` nor `ellipsizeMode`.
+ *
+ * By default the label wraps onto as many lines as it needs and the button grows to hold them, which
+ * is right wherever the button's height is free. `fit` is for a slot whose size is fixed — a keypad
+ * key, a cell of a chip grid, a one-line amount — and allows that many lines, shrinking the text (to
+ * half size at most) until it fits; past even that it is clipped (`ellipsizeMode="clip"`) rather
+ * than printed with "…". test/buttons.test.ts holds every button label in the app to this.
+ */
+export function ButtonText({ fit, style, ...rest }: Omit<TextProps, "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"> & { fit?: 1 | 2 }) {
+  return fit
+    ? <Text {...rest} style={[styles.buttonFit, style]} numberOfLines={fit} adjustsFontSizeToFit minimumFontScale={0.5} ellipsizeMode="clip" />
+    : <Text {...rest} style={[styles.buttonText, style]} />;
+}
+
 export function Chip({ label, icon, active, onPress, tint, compact, disabled, cell }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean;
-  /** Fills one cell of a `ChipGrid`: the label shrinks a little to fit its cell, then ends in an ellipsis. */
+  /**
+   * Fills one cell of a `ChipGrid`: the icon sits above the label, so the label has the cell's whole
+   * width (beside the icon, "Повернення" had a third of the room it needs), and shrinks to fit it on
+   * one line — never an ellipsis.
+   */
   cell?: boolean }) {
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active, disabled: !!disabled }}
       style={({ pressed }) => [styles.chip, compact && styles.chipCompact, cell && styles.chipCell, active && styles.chipActive, disabled && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
       {cell
-        ? <Text numberOfLines={1} style={[styles.chipText, styles.chipCellText, active && styles.chipTextActive]} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.3} ellipsizeMode="tail">{label}</Text>
-        : <Text numberOfLines={1} style={[styles.chipText, active && styles.chipTextActive]} ellipsizeMode="middle">{label}</Text>}
+        ? <ButtonText fit={1} style={[styles.chipText, styles.chipCellText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
+        : <ButtonText style={[styles.chipText, active && styles.chipTextActive]}>{label}</ButtonText>}
     </Pressable>
   );
 }
@@ -96,7 +118,7 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
         const on = o.value === value;
         return (
           <Pressable key={o.value} onPress={() => onChange(o.value)} accessibilityRole="button" accessibilityLabel={o.label} accessibilityState={{ selected: on }} style={[styles.segItem, on && styles.segOn]}>
-            <Text style={[styles.segText, on && { color: o.color ?? C.label, fontWeight: "600" }]}>{o.label}</Text>
+            <ButtonText style={[styles.segText, on && { color: o.color ?? C.label, fontWeight: "600" }]}>{o.label}</ButtonText>
           </Pressable>
         );
       })}
@@ -123,10 +145,10 @@ export function Row({ title, titleNode, subtitle, subtitleColor, left, right, on
       <View style={{ flex: 1, minWidth: 0 }}>
         {titleNode ? <View style={{ flexDirection: "row" }}>{titleNode}</View> : badge ? (
           <View style={styles.rowTitleLine}>
-            <Text numberOfLines={2} style={[styles.rowTitle, { flexShrink: 1 }, destructive && { color: C.red }]}>{title}</Text>
-            <View style={styles.badge}><Text style={styles.badgeText} numberOfLines={1} maxFontSizeMultiplier={1.3}>{badge}</Text></View>
+            <Text style={[styles.rowTitle, { flexShrink: 1 }, destructive && { color: C.red }]}>{title}</Text>
+            <View style={styles.badge}><Text style={styles.badgeText} maxFontSizeMultiplier={1.3}>{badge}</Text></View>
           </View>
-        ) : <Text numberOfLines={2} style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
+        ) : <Text style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
         {subtitle ? <Text numberOfLines={3} style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
       </View>
       {right}
@@ -188,7 +210,7 @@ export function TagPill({ name, color, onPress }: { name: string; color?: string
   const tint = tagColor(name, color);
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={t("ui.tagA11y", { name })} style={[styles.tag, { backgroundColor: tint + "22", borderColor: tint + "55" }]}>
-      <Text style={[styles.tagText, { color: tint }]} numberOfLines={1}>#{name}</Text>
+      <ButtonText style={[styles.tagText, { color: tint }]}>#{name}</ButtonText>
     </Pressable>
   );
 }
@@ -224,8 +246,8 @@ export function HeaderBar({ title, left, right, style }: { title: string; left?:
 export function ModalHeader({ title, left, right }: { title: string; left?: { label: string; onPress: () => void }; right?: { label: string; onPress: () => void; disabled?: boolean; bold?: boolean } }) {
   return (
     <HeaderBar title={title} style={styles.modalHeader}
-      left={left ? <Pressable onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><Text style={styles.modalLink} numberOfLines={1} maxFontSizeMultiplier={1.3}>{left.label}</Text></Pressable> : null}
-      right={right ? <Pressable onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><Text style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>{right.label}</Text></Pressable> : null} />
+      left={left ? <Pressable onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><ButtonText style={styles.modalLink} maxFontSizeMultiplier={1.3}>{left.label}</ButtonText></Pressable> : null}
+      right={right ? <Pressable onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><ButtonText style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]} maxFontSizeMultiplier={1.3}>{right.label}</ButtonText></Pressable> : null} />
   );
 }
 
@@ -242,7 +264,7 @@ export function DeleteRow({ label, onPress, icon = "trash" }: { label: string; o
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.deleteRow, pressed && { opacity: 0.5 }]}>
       <SymbolView name={icon} size={15} tintColor={C.red} />
-      <Text style={styles.deleteText}>{label}</Text>
+      <ButtonText style={styles.deleteText}>{label}</ButtonText>
     </Pressable>
   );
 }
@@ -296,7 +318,7 @@ export function CategoryIconStack({ items, size = 30, max = 3, cutout = C.card }
 export function BigButton({ label, onPress, destructive, disabled }: { label: string; onPress: () => void; destructive?: boolean; disabled?: boolean }) {
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.big, destructive && { backgroundColor: C.red }, (pressed || disabled) && { opacity: 0.5 }]}>
-      <Text style={styles.bigText}>{label}</Text>
+      <ButtonText style={styles.bigText}>{label}</ButtonText>
     </Pressable>
   );
 }
@@ -434,13 +456,16 @@ const styles = themed(() => StyleSheet.create({
   chipActive: { backgroundColor: C.tint },
   chipText: { color: C.label, fontSize: 15, fontWeight: "500" },
   chipTextActive: { color: C.onTint },
-  chipCell: { flexGrow: 1, flexShrink: 1, alignSelf: "stretch", paddingHorizontal: 6, gap: 4 },
-  chipCellText: { flexShrink: 1, fontSize: 14 },
+  chipCell: { flexDirection: "column", flexGrow: 1, flexShrink: 1, alignSelf: "stretch", minHeight: 50, paddingHorizontal: 4, paddingVertical: 6, gap: 3, borderRadius: R.md },
+  chipCellText: { alignSelf: "stretch", textAlign: "center", fontSize: 13 },
+  // A label that wraps stays inside its button rather than pushing past it.
+  buttonText: { flexShrink: 1, textAlign: "center" },
+  buttonFit: { flexShrink: 1 },
   chipGrid: { gap: S.sm, paddingHorizontal: S.md },
   chipGridRow: { flexDirection: "row", gap: S.sm },
   chipGridCell: { flex: 1, minWidth: 0, flexDirection: "row" },
   seg: { flexDirection: "row", backgroundColor: C.fill, borderRadius: R.sm + 2, padding: 2, alignSelf: "stretch" },
-  segItem: { flex: 1, minHeight: 32, paddingVertical: 4, alignItems: "center", justifyContent: "center", borderRadius: R.sm },
+  segItem: { flex: 1, minHeight: 32, paddingVertical: 4, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", borderRadius: R.sm },
   segOn: { backgroundColor: C.card },
   segText: { color: C.secondary, fontSize: 15 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.lg, paddingVertical: 8, minHeight: 50, backgroundColor: C.card },
