@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { Chip, SheetFrame, Subtle, ChipRow, DeleteRow } from "@/components/ui";
+import { ButtonText, Chip, SheetFrame, Subtle, ChipRow, DeleteRow } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -262,7 +262,7 @@ function Leg({ role, account, amount, currency, active, derived, onPress, onPick
         <Text style={[styles.legLabel, !account && { color: C.tint, fontWeight: "600" }]}>{role} · {account ?? t("transfer.chooseAccount")}</Text>
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
       </Pressable>
-      <Text style={[styles.legAmount, negative ? null : { color: C.green }, derived && styles.legDerived]} numberOfLines={1} adjustsFontSizeToFit>{negative ? "−" : "+"}{amount} <Text style={styles.legCur}>{currency}</Text></Text>
+      <ButtonText fit={1} style={[styles.legAmount, negative ? null : { color: C.green }, derived && styles.legDerived]}>{negative ? "−" : "+"}{amount} <Text style={styles.legCur}>{currency}</Text></ButtonText>
       {currency ? (
         <View style={styles.legBalance} accessibilityLabel={moved ? t("transfer.balanceAfterA11y", { balance: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("transfer.balanceA11y", { balance: formatMinor(balance, currency), currency })}>
           <Text style={styles.balanceText}>{formatMinor(balance, currency)}</Text>

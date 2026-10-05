@@ -24,7 +24,7 @@ const ROW_CONTENT = new Set([
  * Files being rewritten on another branch for 1.0.4 (the transfer sheet). Take each one off this list
  * when that branch lands: its labels are held to the same rule as everything else's.
  */
-const PENDING = new Set(["app/transfer/[id].tsx"]);
+const PENDING = new Set<string>([]);
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
