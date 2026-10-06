@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Animated, Pressable, StyleSheet, useColorScheme, useWindowDimensions, type ColorValue, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
 import { router } from "expo-router";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import MaskedView from "@react-native-masked-view/masked-view";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { C, Elevation, R, themed } from "@/constants/theme";
@@ -40,8 +43,14 @@ export function BottomBar({ children, above, style, visible = true }: { children
   // switches the material off natively and it does not come back. The bar is translated clear
   // of the screen anyway, so the floor is never visible.
   const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [glass ? 0.02 : 0, 1] });
+  // How far up the fade reaches: the bar's own height (it wraps onto a second line in selection
+  // mode) on a phone; on an iPad the column is tall, so only as high as Log at its foot.
+  const [barHeight, setBarHeight] = useState<number>(TAB_BUTTON);
+  const bottom = (StyleSheet.flatten([styles.wrap, style]).bottom as number | undefined) ?? 0;
   return (
-    <Animated.View pointerEvents={visible ? "box-none" : "none"} style={[styles.wrap, isPad ? styles.alignRight : styles.alignLeft,
+    <>
+    <BottomFade height={bottom + (isPad ? 56 : barHeight) + FADE_ABOVE} visible={visible} anim={anim} />
+    <Animated.View onLayout={(e) => setBarHeight(Math.round(e.nativeEvent.layout.height))} pointerEvents={visible ? "box-none" : "none"} style={[styles.wrap, isPad ? styles.alignRight : styles.alignLeft,
       isPad ? { right: EDGE - columnOverhang(width) } : null, style,
       // Far enough to clear a column of five buttons, so scrolling down slides it away rather than
       // leaving the top of it hanging on screen.
@@ -49,6 +58,27 @@ export function BottomBar({ children, above, style, visible = true }: { children
       {above}
       {/* Grouped so buttons that come within `spacing` of each other bleed into one capsule, the way an iOS 26 toolbar does. */}
       <GlassGroup spacing={14} style={isPad ? styles.column : styles.row}>{children}</GlassGroup>
+    </Animated.View>
+    </>
+  );
+}
+
+/** How far above the top of the bar the fade still reaches. */
+const FADE_ABOVE = 16;
+
+/**
+ * The band behind the bar: a blur that is full at the foot of the screen and gone by the top of the
+ * bar, so rows slide under the buttons and the tab bar instead of sitting beside them in plain view.
+ * It also catches taps. A row half-visible between the buttons, or just above the tab bar, opened on
+ * a tap meant for the bar. It hides with the bar, and the rows underneath can be tapped again.
+ */
+function BottomFade({ height, visible, anim }: { height: number; visible: boolean; anim: Animated.Value }) {
+  return (
+    <Animated.View pointerEvents={visible ? "auto" : "none"} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+      style={[styles.fade, { height, opacity: anim }]}>
+      <MaskedView style={StyleSheet.absoluteFill} maskElement={<LinearGradient colors={["transparent", "black"]} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />}>
+        <BlurView tint="systemUltraThinMaterial" intensity={60} style={StyleSheet.absoluteFill} />
+      </MaskedView>
     </Animated.View>
   );
 }
@@ -146,6 +176,7 @@ const TAB_BUTTON = 48;
 
 const styles = themed(() => StyleSheet.create({
   wrap: { position: "absolute", left: EDGE, right: EDGE, bottom: 96, gap: 10 },
+  fade: { position: "absolute", left: 0, right: 0, bottom: 0 },
   alignLeft: { alignItems: "flex-start" },
   alignRight: { alignItems: "flex-end" },
   // Stretched across the bar so Log can grow to its right edge; buttons that do not grow stay left.
