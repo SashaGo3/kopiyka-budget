@@ -2145,8 +2145,6 @@ export interface Messages {
   /** Header button that starts choosing several transactions to edit at once. */
   "transactions.select": undefined;
   "transactions.selectAll": undefined;
-  "transactions.selectHint": undefined;
-  "transactions.selectHintAll": undefined;
   /** Screen title in selection mode. */
   "transactions.selected": { count: string | number };
   "transactions.title": undefined;

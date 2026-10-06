@@ -361,15 +361,16 @@ export default function TransactionsScreen() {
           onCancelButtonPress: () => setFilter((f) => (f.q ? { ...f, q: "" } : f)) } : undefined }} />
       <TransactionList rows={sorted} flat={sort === "amount"} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} empty={emptyList} header={
         <>
-          {/* Same place as on Budgets: under the large title, so they scroll away with it instead of crowding the compact bar. */}
-          {!custom && !selecting ? (
-            <View style={styles.pills}>
+          {/* Same place as on Budgets: under the large title, so they scroll away with it instead of crowding the compact bar.
+              Kept while selecting, only inert: taking them out moved every row under the finger up by their height. */}
+          {!custom ? (
+            <View style={[styles.pills, selecting && styles.inert]} pointerEvents={selecting ? "none" : "auto"} importantForAccessibility={selecting ? "no-hide-descendants" : "auto"}>
               <PeriodPill period={period} onPrev={() => setPeriod(shiftPeriod(period, -1))} onNext={() => setPeriod(shiftPeriod(period, 1))} onReset={() => setPeriod(currentPeriod())}
                 onPick={() => router.push({ pathname: "/pick/month", params: { key: keys.month, selected: period.start } })} />
               <ScopePill label={scopeLabel(scope, accounts)} active={!!scope} onPress={pickScope} />
             </View>
           ) : null}
-          {shownTrip && !selecting ? <View style={styles.trip}><TripCard budget={shownTrip} /></View> : null}
+          {shownTrip ? <View style={[styles.trip, selecting && styles.inert]} pointerEvents={selecting ? "none" : "auto"}><TripCard budget={shownTrip} /></View> : null}
           {/* Totals next — the month at a glance. Then what still needs a decision: recurring you owe, then entries to check. */}
           {tripTag ? null : <StatPair stats={[
             ...(hideIncome ? [] : [{ label: t("transactions.income"), ...statOf(totals.totals[0]!, "income"), color: C.green }]),
@@ -406,18 +407,11 @@ export default function TransactionsScreen() {
           ) : null}
         </>
       } />
-      <BottomBar visible={visible || selecting}>
-        {/* Nothing chosen yet: the actions are not offered at all. A `BarButton` that is merely
-            inactive looks exactly like a working one — `active` only bolds its label — so a row of
-            them above an empty selection reads as five buttons that do nothing when tapped, which
-            is how "the category picker does not open" was reported. One line of instruction
-            instead, and the buttons appear with the first tick. */}
-        {selecting && chosen.length === 0 ? (
-          <View style={styles.selectHint} accessibilityRole="text">
-            <SymbolView name="hand.tap" size={16} tintColor={C.secondary} />
-            <Text style={styles.selectHintText}>{rows.length > 1 ? t("transactions.selectHintAll") : t("transactions.selectHint")}</Text>
-          </View>
-        ) : selecting ? (
+      {/* Nothing chosen yet: no bar at all. A `BarButton` that is merely inactive looks exactly like
+          a working one — `active` only bolds its label — so a row of them above an empty selection
+          reads as buttons that do nothing when tapped. The bar slides in with the first tick. */}
+      <BottomBar visible={selecting ? chosen.length > 0 : visible}>
+        {selecting ? (
           <>
             <BarButton icon="folder" label={t("transactions.bar.category")} active onPress={pickCategory} a11y={t("transactions.bar.categoryA11y", { count: chosen.length })} />
             <BarButton icon="number" active onPress={pickTags} a11y={t("transactions.bar.tagsA11y", { count: chosen.length })} />
@@ -444,8 +438,7 @@ export default function TransactionsScreen() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  selectHint: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.pill, backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, maxWidth: 320 },
-  selectHintText: { color: C.secondary, fontSize: 14, flexShrink: 1 },
+  inert: { opacity: 0.4 },
   pills: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs },
   trip: { paddingTop: S.sm },
   pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.orangeSoft },

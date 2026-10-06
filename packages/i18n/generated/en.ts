@@ -1705,8 +1705,6 @@ const catalog: Catalog = {
   "transactions.searchTitle": "Search",
   "transactions.select": "Select",
   "transactions.selectAll": "Select all",
-  "transactions.selectHint": "Tap the transactions to change",
-  "transactions.selectHintAll": "Tap the transactions to change, or Select all",
   "transactions.selected": [[0,"count"]," selected"],
   "transactions.title": "Transactions",
   "transactions.travel": "Travel",

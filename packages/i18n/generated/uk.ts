@@ -1705,8 +1705,6 @@ const catalog: Catalog = {
   "transactions.searchTitle": "Пошук",
   "transactions.select": "Вибрати",
   "transactions.selectAll": "Вибрати всі",
-  "transactions.selectHint": "Торкніться операцій, які треба змінити",
-  "transactions.selectHintAll": "Торкніться операцій, які треба змінити, або «Вибрати всі»",
   "transactions.selected": ["Вибрано: ",[0,"count"]],
   "transactions.title": "Операції",
   "transactions.travel": "Подорож",

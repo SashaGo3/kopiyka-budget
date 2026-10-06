@@ -91,8 +91,6 @@
     "title": "{count, plural, one {# pending entry} other {# pending entries}}",
     "sub": "Tap to check and approve"
   },
-  "selectHint": "Tap the transactions to change",
-  "selectHintAll": "Tap the transactions to change, or Select all",
   "bar": {
     "category": {
       "message": "Category",
