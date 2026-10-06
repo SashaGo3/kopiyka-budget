@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
@@ -65,6 +65,7 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
 }) {
   const sections = flat ? [{ title: "", day: "", data: rows, total: 0, currency: "" }] : groupByDay(rows);
   const selecting = !!selected;
+  const { listRef, onListScroll, holdHandlers } = useHeldScroll(selecting, onScroll);
   // Pull to refresh: re-read the database (a Shortcut automation or the watch writes into it while
   // the app is in the background, and nothing tells JS about that) and look in iCloud for what
   // another device has backed up. Budgets pulls on the same hook, so the gesture means one thing.
@@ -81,11 +82,13 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
   return (
     <SectionList
       key={resetKey}
+      ref={listRef}
       sections={sections}
       keyExtractor={(tx) => tx.id}
       contentInsetAdjustmentBehavior="automatic"
-      onScroll={onScroll}
+      onScroll={onListScroll}
       scrollEventThrottle={16}
+      {...holdHandlers}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       contentContainerStyle={{ paddingBottom: 220 }}
       ListHeaderComponent={header}
@@ -107,6 +110,50 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
 }
 
 const EMPTY_TAGS: TagRef[] = [];
+
+type Section = ReturnType<typeof groupByDay>[number];
+
+/** How long after entering or leaving selection mode the list puts itself back if something moves it. */
+const HOLD_MS = 600;
+
+/**
+ * Keeps the list where it was when selection mode switches. Tapping Select changes the header (its
+ * title, a Select all button) and the rows (a check circle each), and iOS answered that by moving
+ * the list to the top: the rows under the finger were gone. Whatever moves it, the offset from
+ * just before the switch is put back on every scroll or size change for a moment after, unless
+ * the finger is on the list by then.
+ */
+function useHeldScroll(key: boolean, onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void) {
+  const listRef = useRef<SectionList<TxRow, Section>>(null);
+  const y = useRef(0);
+  const hold = useRef<{ y: number; until: number } | null>(null);
+  const first = useRef(true);
+  const restore = useCallback(() => {
+    const h = hold.current;
+    if (!h) return;
+    if (Date.now() > h.until) { hold.current = null; return; }
+    listRef.current?.getScrollResponder()?.scrollTo({ y: h.y, animated: false });
+  }, []);
+  useLayoutEffect(() => {
+    if (first.current) { first.current = false; return; }
+    hold.current = { y: y.current, until: Date.now() + HOLD_MS };
+    const frame = requestAnimationFrame(restore);
+    const late = setTimeout(restore, 120);
+    return () => { cancelAnimationFrame(frame); clearTimeout(late); };
+  }, [key, restore]);
+  const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const now = e.nativeEvent.contentOffset.y;
+    const h = hold.current;
+    if (h && Date.now() <= h.until && Math.abs(now - h.y) > 1) { restore(); return; }
+    y.current = now;
+    onScroll?.(e);
+  }, [onScroll, restore]);
+  return {
+    listRef,
+    onListScroll,
+    holdHandlers: { onScrollBeginDrag: () => { hold.current = null; }, onContentSizeChange: restore },
+  };
+}
 
 /** One row. Memoized: toggling one row in selection mode re-renders only that row. */
 const TxItem = memo(function TxItem({ tx, tags, flat, showAccount, first, last, selecting, on, onToggle }: {
