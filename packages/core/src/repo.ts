@@ -15,7 +15,7 @@ export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
     "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
     "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee"],
-  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids"],
+  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids", "kind"],
   insights: ["kind", "params", "sort"],
   debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
 };
@@ -132,7 +132,7 @@ export function createRecurring(db: SqlDriver, r: Partial<RecurringRule> & Pick<
 }
 
 export function createBudget(db: SqlDriver, b: Partial<Budget> & Pick<Budget, "currency" | "amount_minor" | "starts">): Budget {
-  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, name: null, sort: 0, in_planned: 1, outside_ids: "[]", ...b } as Budget));
+  return save(db, "budgets", scopedBudget({ category_id: null, category_ids: "[]", tag_id: null, period: "monthly", start_day: 1, account_id: null, ends: null, ended: null, name: null, sort: 0, in_planned: 1, outside_ids: "[]", kind: null, ...b } as Budget));
 }
 
 /**

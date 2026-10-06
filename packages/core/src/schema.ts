@@ -173,6 +173,12 @@ export const MIGRATIONS: string[][] = [
     `ALTER TABLE accounts ADD COLUMN numbers TEXT NOT NULL DEFAULT '[]'`,
     `ALTER TABLE transactions ADD COLUMN bank_ref TEXT`,
   ],
+  [
+    // v20: what a one-off budget on a tag is — a trip, or an event (a birthday party, a wedding): the
+    // same money kept out of the month either way (trips.ts, DATA.md rule 5), told apart only in
+    // words, icon and defaults. NULL is a trip, which is what every row written before this was.
+    `ALTER TABLE budgets ADD COLUMN kind TEXT`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

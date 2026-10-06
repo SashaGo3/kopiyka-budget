@@ -7,12 +7,21 @@
  */
 import type { SqlDriver } from "./db";
 import { KopiykaError } from "./errors";
-import type { Budget, Tag } from "./models";
+import type { Budget, Tag, TripKind } from "./models";
 import { convertMinor } from "./money";
 import { latestCachedRate } from "./rates";
 import { createBudget, createTag, getRow, jsonIds, listRows, save, tagIdsOf, tagSpend } from "./repo";
 
 export const TRIP_WHERE = "deleted=0 AND period='once' AND tag_id IS NOT NULL";
+
+/**
+ * A trip or an event. Both are the same thing to every number — a one-off budget on a tag, kept out
+ * of the month's budgets — and differ only in what the app calls them. Anything but "event" is a
+ * trip, so a row from before v20 (NULL) or from a newer build that knows more kinds is still shown.
+ */
+export function tripKind(b: { kind?: string | null } | null | undefined): TripKind {
+  return b?.kind === "event" ? "event" : "trip";
+}
 
 /** The trip travel mode is currently on for, if any (never more than one). */
 export function activeTrip(db: SqlDriver): Budget | null {
@@ -69,6 +78,8 @@ export function withTripTag(db: SqlDriver, tagIds: string[]): string[] {
 
 export interface StartTrip {
   name: string;
+  /** Defaults to "trip". */
+  kind?: TripKind;
   currency: string;
   amount_minor: number;
   /** YYYY-MM-DD; defaults to today. */
@@ -89,12 +100,12 @@ export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: T
   return db.transaction(() => {
     const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: "#0A84FF" });
     const starts = p.starts ?? todayLocalDay(p.today);
-    const budget = createBudget(db, { tag_id: tag.id, period: "once", currency: p.currency, amount_minor: p.amount_minor, starts, ends: p.ends < starts ? starts : p.ends, account_id: null, category_id: null });
+    const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts, ends: p.ends < starts ? starts : p.ends, account_id: null, category_id: null });
     return { budget, tag };
   });
 }
 
-export interface PastTrip { name: string; currency: string; amount_minor: number; starts: string; ends: string }
+export interface PastTrip { name: string; kind?: TripKind; currency: string; amount_minor: number; starts: string; ends: string }
 
 /**
  * Record a trip that has already happened: the same tag and one-off budget `startTrip` makes, born
@@ -107,7 +118,7 @@ export function addPastTrip(db: SqlDriver, p: PastTrip): { budget: Budget; tag: 
   const ends = p.ends < p.starts ? p.starts : p.ends;
   return db.transaction(() => {
     const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: "#0A84FF" });
-    const budget = createBudget(db, { tag_id: tag.id, period: "once", currency: p.currency, amount_minor: p.amount_minor, starts: p.starts, ends, ended: ends, account_id: null, category_id: null });
+    const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts: p.starts, ends, ended: ends, account_id: null, category_id: null });
     return { budget, tag };
   });
 }

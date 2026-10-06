@@ -178,6 +178,9 @@ export interface RecurringRule extends Synced {
   match_payee: string | null;
 }
 
+/** What a one-off budget on a tag is about (`Budget.kind`). */
+export type TripKind = "trip" | "event";
+
 export interface Budget extends Synced {
   /**
    * The categories (or folders) this budget counts, as a JSON array; `"[]"` is an overall budget.
@@ -213,6 +216,12 @@ export interface Budget extends Synced {
    * one by one; everything carrying the tag counts unless it is here.
    */
   outside_ids: string;
+  /**
+   * One-off budgets on a tag only: "event" for a party, a wedding, a day out; NULL (or "trip") for a
+   * trip. Nothing is counted differently — it changes the words, the icon and the default length.
+   * Read it through `tripKind`.
+   */
+  kind: TripKind | null;
   /** "monthly" renews every period; "once" is a one-off pot (a trip) that runs from `starts` until it is ended. */
   period: "monthly" | "once";
   /** YYYY-MM-DD, budget applies from this month on until superseded (monthly), or the first day of the trip (once). */
