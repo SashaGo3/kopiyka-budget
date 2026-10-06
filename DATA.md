@@ -98,6 +98,13 @@ a row read by an older build is a narrower budget than intended rather than an "
 which would have silently suppressed every other budget of that currency in `freeMoney`. Keep the two
 in step with `scopedBudget` before every save.
 
+An **event** — a birthday party, a wedding, a day out — is the same row as a trip with `budgets.kind
+= 'event'` (v20; NULL or `'trip'` is a trip, and anything else is read as a trip too). Everything
+below holds for both, word for word: the kind changes the app's words, icon and colour (pink, a
+party popper) and the calendar's default of one day, never a number. Read it through `tripKind`;
+Settings → Trips & Events starts either, and only one of the two runs at a time. A backup from before
+v20 has no `kind` and is not in `ROW_DEFAULTS`, so it leaves the phone's answer alone.
+
 A trip's money is the trip's. Travel mode is a one-off budget on a tag (`packages/core/src/trips.ts`),
 and whatever carries a trip tag (`tripTagIds`) is left out of every monthly budget — `budgetRows`,
 so `freeMoney` and the budget suggestion too — except a budget on that very tag; the Budgets screen's
