@@ -207,6 +207,7 @@ export default function RootLayout() {
           <Stack.Screen name="pick/icon" options={picker} />
           <Stack.Screen name="pick/color" options={picker} />
           <Stack.Screen name="pick/account" options={picker} />
+          <Stack.Screen name="pick/transfer" options={picker} />
           <Stack.Screen name="pick/currency" options={picker} />
           <Stack.Screen name="pick/tags" options={picker} />
           <Stack.Screen name="pick/group" options={picker} />

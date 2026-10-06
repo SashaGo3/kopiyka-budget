@@ -35,6 +35,10 @@
     "message": "Choose both accounts",
     "note": "Label of the disabled confirm button until both accounts of a transfer are chosen."
   },
+  "pickTitle": {
+    "message": "Transfer accounts",
+    "note": "Title of the picker where both accounts of a transfer (From and To) are chosen together."
+  },
   "pickA11y": "{role}: {account}",
   "balanceA11y": "Balance {balance} {currency}",
   "balanceAfterA11y": "Balance {balance}, after {after} {currency}",

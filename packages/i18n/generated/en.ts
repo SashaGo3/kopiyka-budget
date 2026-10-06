@@ -1731,6 +1731,7 @@ const catalog: Catalog = {
   "transfer.legA11y": [[0,"role"]," ",[0,"account"],": ",[0,"amount"]," ",[0,"currency"]],
   "transfer.noAccount": "no account",
   "transfer.pickA11y": [[0,"role"],": ",[0,"account"]],
+  "transfer.pickTitle": "Transfer accounts",
   "transfer.rate.cached": ["1 ",[0,"from"]," = ",[0,"rate"]," ",[0,"to"]," (cached rate)"],
   "transfer.rate.ecb": ["1 ",[0,"from"]," = ",[0,"rate"]," ",[0,"to"]," (ECB)"],
   "transfer.rate.fetching": "Fetching rate…",

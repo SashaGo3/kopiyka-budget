@@ -1731,6 +1731,7 @@ const catalog: Catalog = {
   "transfer.legA11y": [[0,"role"]," ",[0,"account"],": ",[0,"amount"]," ",[0,"currency"]],
   "transfer.noAccount": "без рахунку",
   "transfer.pickA11y": [[0,"role"],": ",[0,"account"]],
+  "transfer.pickTitle": "Рахунки переказу",
   "transfer.rate.cached": ["1 ",[0,"from"]," = ",[0,"rate"]," ",[0,"to"]," (збережений курс)"],
   "transfer.rate.ecb": ["1 ",[0,"from"]," = ",[0,"rate"]," ",[0,"to"]," (ЄЦБ)"],
   "transfer.rate.fetching": "Отримуємо курс…",

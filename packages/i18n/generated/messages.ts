@@ -2184,6 +2184,8 @@ export interface Messages {
   "transfer.legA11y": { role: string | number; account: string | number; amount: string | number; currency: string | number };
   "transfer.noAccount": undefined;
   "transfer.pickA11y": { role: string | number; account: string | number };
+  /** Title of the picker where both accounts of a transfer (From and To) are chosen together. */
+  "transfer.pickTitle": undefined;
   "transfer.rate.cached": { from: string | number; rate: string | number; to: string | number };
   /** ECB is the European Central Bank, where the rate comes from. */
   "transfer.rate.ecb": { from: string | number; rate: string | number; to: string | number };

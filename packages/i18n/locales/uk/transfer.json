@@ -9,6 +9,7 @@
   "chooseFrom": "Виберіть рахунок, з якого йдуть гроші.",
   "chooseTo": "Виберіть рахунок, на який надходять гроші.",
   "chooseAccounts": "Виберіть обидва рахунки",
+  "pickTitle": "Рахунки переказу",
   "pickA11y": "{role}: {account}",
   "balanceA11y": "Баланс {balance} {currency}",
   "balanceAfterA11y": "Баланс {balance}, після — {after} {currency}",

@@ -15,6 +15,7 @@ import { t } from "@/i18n";
 import { catName, acctName } from "@/lib/names";
 
 
+type TransferPair = { from: string; to: string };
 type Params = { id: string; from?: string; to?: string; amount?: string; stacked?: string;
   // Carried over from the entry sheet: `convert` is the saved entry that becomes one leg of this transfer.
   convert?: string; note?: string; date?: string; category?: string; tags?: string };
@@ -87,11 +88,9 @@ export default function TransferSheet() {
   const category = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) ?? null : null), [categoryId]);
   const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((x) => tagIds.includes(x.id)), [tagIds.join(",")]);
 
-  const keys = useMemo(() => ({ from: newPickKey("from"), to: newPickKey("to"), date: newPickKey("date"), cat: newPickKey("tcat"), tags: newPickKey("ttags") }), []);
+  const keys = useMemo(() => ({ pair: newPickKey("pair"), date: newPickKey("date"), cat: newPickKey("tcat"), tags: newPickKey("ttags") }), []);
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => setCategoryId(v), []));
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
-  usePickResult<string>(keys.from, useCallback((v: string) => setFromId(v), []));
-  usePickResult<string>(keys.to, useCallback((v: string) => setToId(v), []));
   usePickResult<string>(keys.date, useCallback((day: string) => setDate((d) => (day === d.slice(0, 10) ? d : day === todayLocal() ? localIso() : dayWithNow(day))), []));
 
   // Fetch a rate only when the transfer actually crosses currencies. The answer is kept with the pair
@@ -135,20 +134,19 @@ export default function TransferSheet() {
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => { for (const l of legs) remove(d, "transactions", l.id); }); exit(() => router.back()); } },
   ]);
 
-  // Each picker leaves out the other side's account: a transfer to the same account is not one.
-  const pickFrom = () => router.push({ pathname: "/pick/account", params: { key: keys.from, selected: fromId, exclude: toId } });
-  const pickTo = () => router.push({ pathname: "/pick/account", params: { key: keys.to, selected: toId, exclude: fromId } });
-  // The side still missing opens its picker by itself, From before To, each once: closing a picker
-  // without choosing leaves the card saying so rather than reopening it. Marked inside the timer,
-  // not before it, so an effect run twice (StrictMode) still opens it.
-  const asked = useRef({ from: false, to: false });
+  // One picker for both sides, labelled From and To, opened on the side that was tapped: either
+  // account can be changed there, or the two swapped, before anything here moves.
+  const pickPair = (focus: Side) => router.push({ pathname: "/pick/transfer", params: { key: keys.pair, from: fromId, to: toId, focus } });
+  const pickFrom = () => pickPair("from"), pickTo = () => pickPair("to");
+  // A new transfer missing an account opens the picker by itself, once: closing it without choosing
+  // leaves the cards saying so rather than reopening it. Marked inside the timer, not before it, so
+  // an effect run twice (StrictMode) still opens it.
+  const asked = useRef(false);
   useEffect(() => {
-    if (!isNew) return;
-    const missing = !fromId ? "from" : !toId ? "to" : null;
-    if (!missing || asked.current[missing]) return;
-    const timer = setTimeout(() => { asked.current[missing] = true; if (missing === "from") pickFrom(); else pickTo(); }, 350);
+    if (!isNew || asked.current || (fromId && toId)) return;
+    const timer = setTimeout(() => { asked.current = true; pickPair(!fromId ? "from" : "to"); }, 350);
     return () => clearTimeout(timer);
-  }, [isNew, fromId, toId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isNew]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Typing into a side the app filled in starts it over (the first key replaces the derived figure);
   // clearing a side hands it back to the rate.
@@ -170,6 +168,12 @@ export default function TransferSheet() {
     setTyped((cur) => ({ from: cur.to, to: cur.from }));
     setSide((s) => (s === "from" ? "to" : "from"));
   };
+  // Both accounts come back together from one picker (pick/transfer.tsx). Accounts that changed
+  // places bring their typed amounts with them, as the swap button does.
+  usePickResult<TransferPair>(keys.pair, useCallback((v: TransferPair) => {
+    if (v.from === toId && v.to === fromId) { swap(); return; }
+    setFromId(v.from); setToId(v.to);
+  }, [fromId, toId])); // eslint-disable-line react-hooks/exhaustive-deps
   const show = (v: number | null, cur: string | undefined) => (v !== null && cur ? formatMinor(toMinor(v, cur), cur) : null);
   const fromShown = show(fromValue, from?.currency), toShown = show(toValue, to?.currency);
   // Whichever side is not typed and has no figure: it waits on the rate (or, without one, on the person).
