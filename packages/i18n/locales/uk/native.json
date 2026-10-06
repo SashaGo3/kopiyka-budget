@@ -150,6 +150,7 @@
       "title": "Теги",
       "none": "Без тегів",
       "tripOnly": "Лише тег подорожі",
+      "eventOnly": "Лише тег події",
       "usedWith": "З категорією {category}",
       "other": "Інші теги",
       "save": "Зберегти {amount}",
@@ -182,6 +183,8 @@
     "budgets": {
       "travel": "Режим подорожі",
       "travelA11y": "Подорож {name}, залишилось {amount}, {day}",
+      "event": "Подія",
+      "eventA11y": "Подія {name}, залишилось {amount}, {day}",
       "budgetA11y": "{name}, залишилось {amount}",
       "empty": "Бюджетів ще немає. Додайте на iPhone."
     },

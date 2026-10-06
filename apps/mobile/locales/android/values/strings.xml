@@ -101,6 +101,8 @@
   <string name="native_watch_amount">Amount %1$s</string>
   <string name="native_watch_budgets_budgetA11y">%1$s, %2$s left</string>
   <string name="native_watch_budgets_empty">No budgets yet. Add one on your iPhone.</string>
+  <string name="native_watch_budgets_event">Event</string>
+  <string name="native_watch_budgets_eventA11y">Event %1$s, %2$s left, %3$s</string>
   <string name="native_watch_budgets_travel">Travel mode</string>
   <string name="native_watch_budgets_travelA11y">Travel %1$s, %2$s left, %3$s</string>
   <string name="native_watch_category_empty">Categories sync from your iPhone.</string>
@@ -146,6 +148,7 @@
     <item quantity="one">%1$d tag</item>
     <item quantity="other">%1$d tags</item>
   </plurals>
+  <string name="native_watch_tags_eventOnly">Just the event tag</string>
   <string name="native_watch_tags_hintAdd">Double tap to add this tag</string>
   <string name="native_watch_tags_hintRemove">Double tap to remove this tag</string>
   <string name="native_watch_tags_none">No tags</string>

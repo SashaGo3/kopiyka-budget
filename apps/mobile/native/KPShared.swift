@@ -39,9 +39,14 @@ struct KPSnapshot: Codable {
     var ratio: Double { limit > 0 ? min(1, spent / limit) : 0 }
   }
   struct Icon: Codable { let icon: String; let color: String }
-  /// Travel mode: the running trip (a one-off budget for a tag). Absent in older snapshots or when off.
+  /// Travel mode: the running trip or event (a one-off budget for a tag). Absent in older snapshots or when off.
   struct Trip: Codable {
     let budget_id: String; let tag_id: String; let name: String; let currency: String; let limit: Double; let spent: Double
+    /// "trip" or "event" (core `tripKind`); absent in snapshots written before events, which were all trips.
+    var kind: String?
+    var isEvent: Bool { kind == "event" }
+    /// The same icons the app draws (lib/travel.ts `tripLook`).
+    var symbol: String { isEvent ? "party.popper.fill" : "airplane" }
     let day: Int; let days: Int; let days_left: Int; let allowance: Double?
     var remaining: Double { limit - spent }
     var ratio: Double { limit > 0 ? min(1, spent / limit) : 0 }

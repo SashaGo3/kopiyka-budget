@@ -306,6 +306,12 @@ enum L10n {
       static func budgetA11y(name: String, amount: String) -> String { KPL.string("native.watch.budgets.budgetA11y", name, amount) }
       /// "No budgets yet. Add one on your iPhone."
       static var empty: String { KPL.string("native.watch.budgets.empty") }
+      /// Section heading while an event (a birthday, a wedding) is on.
+      /// "Event"
+      static var event: String { KPL.string("native.watch.budgets.event") }
+      /// VoiceOver; name is the event, day is "Day 1 of 1".
+      /// "Event {name}, {amount} left, {day}"
+      static func eventA11y(name: String, amount: String, day: String) -> String { KPL.string("native.watch.budgets.eventA11y", name, amount, day) }
       /// Section heading.
       /// "Travel mode"
       static var travel: String { KPL.string("native.watch.budgets.travel") }
@@ -401,6 +407,9 @@ enum L10n {
       /// VoiceOver, after the save hint.
       /// "{count, plural, one {# tag} other {# tags}}"
       static func count(count: Int) -> String { KPL.string("native.watch.tags.count", count) }
+      /// First row while an event is on: save with only the event's tag.
+      /// "Just the event tag"
+      static var eventOnly: String { KPL.string("native.watch.tags.eventOnly") }
       /// "Double tap to add this tag"
       static var hintAdd: String { KPL.string("native.watch.tags.hintAdd") }
       /// "Double tap to remove this tag"

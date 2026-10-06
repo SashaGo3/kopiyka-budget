@@ -295,6 +295,7 @@ struct TagsPickView: View {
   @State private var ranked: [KPRank.RankedTag] = []
   /// Travel mode: the trip tag starts ticked (the phone adds it anyway; this shows it).
   private let tripTag: String? = WatchSession.shared.state.snapshot?.trip?.tag_id
+  private let tripIsEvent = WatchSession.shared.state.snapshot?.trip?.isEvent ?? false
 
   var saveLabel: String { category.map { L10n.Watch.Tags.saveFor(amount: amountLabel, category: $0.name) } ?? L10n.Watch.Tags.save(amount: amountLabel) }
 
@@ -305,7 +306,7 @@ struct TagsPickView: View {
         HStack(spacing: 8) {
           Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(.green)
           VStack(alignment: .leading, spacing: 1) {
-            Text(tripTag == nil ? L10n.Watch.Tags.none : L10n.Watch.Tags.tripOnly).font(.body.weight(.semibold))
+            Text(tripTag == nil ? L10n.Watch.Tags.none : tripIsEvent ? L10n.Watch.Tags.eventOnly : L10n.Watch.Tags.tripOnly).font(.body.weight(.semibold))
             Text(amountLabel).font(.caption2).foregroundStyle(.secondary)
           }
         }
@@ -457,18 +458,20 @@ struct BudgetsPage: View {
   var body: some View {
     List {
       if let t = snapshot?.trip {
-        Section(L10n.Watch.Budgets.travel) {
+        Section(t.isEvent ? L10n.Watch.Budgets.event : L10n.Watch.Budgets.travel) {
           VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-              Image(systemName: "airplane").font(.caption2).foregroundStyle(.blue)
+              Image(systemName: t.symbol).font(.caption2).foregroundStyle(t.isEvent ? .pink : .blue)
               Text(t.name).font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.5)
             }
             Text(L10n.Budget.left(amount: KPFormat.money(t.remaining, t.currency, decimals: 0))).font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(t.remaining < 0 ? Color.red : Color.primary)
-            ProgressView(value: t.ratio).tint(t.remaining < 0 ? .red : t.ratio > 0.85 ? .orange : .blue)
+            ProgressView(value: t.ratio).tint(t.remaining < 0 ? .red : t.ratio > 0.85 ? .orange : t.isEvent ? .pink : .blue)
             Text(t.allowance.map { "\(t.dayLabel) · " + L10n.Budget.perDay(amount: KPFormat.money(max(0, $0), t.currency, decimals: 0)) } ?? t.dayLabel).font(.caption2).foregroundStyle(.secondary)
           }
           .accessibilityElement(children: .ignore)
-          .accessibilityLabel(L10n.Watch.Budgets.travelA11y(name: t.name, amount: KPFormat.money(t.remaining, t.currency, decimals: 0), day: t.dayLabel))
+          .accessibilityLabel(t.isEvent
+            ? L10n.Watch.Budgets.eventA11y(name: t.name, amount: KPFormat.money(t.remaining, t.currency, decimals: 0), day: t.dayLabel)
+            : L10n.Watch.Budgets.travelA11y(name: t.name, amount: KPFormat.money(t.remaining, t.currency, decimals: 0), day: t.dayLabel))
         }
       }
       if let s = snapshot, !s.budgets.isEmpty {

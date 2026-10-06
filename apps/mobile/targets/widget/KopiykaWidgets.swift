@@ -116,7 +116,7 @@ struct BudgetsView: View {
         Link(destination: KP.url("budgets")) {
           VStack(alignment: .leading, spacing: 3) {
             HStack {
-              Image(systemName: "airplane").font(.caption).foregroundStyle(.blue)
+              Image(systemName: t.symbol).font(.caption).foregroundStyle(t.isEvent ? .pink : .blue)
               Text(t.name).font(.subheadline).fontWeight(.semibold).lineLimit(1)
               Text("· " + (t.allowance.map { L10n.Budget.perDay(amount: KPFormat.money(max(0, $0), t.currency, decimals: 0)) } ?? t.dayLabel)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
               Spacer()
@@ -174,7 +174,7 @@ struct LockView: View {
     switch family {
     case .accessoryCircular:
       Gauge(value: 1 - (budget?.ratio ?? 0)) {
-        Image(systemName: entry.snapshot.trip == nil ? "chart.pie" : "airplane")
+        Image(systemName: entry.snapshot.trip?.symbol ?? "chart.pie")
       } currentValueLabel: {
         Text(KPFormat.compact(budget?.remaining ?? 0)).font(.caption2).minimumScaleFactor(0.5)
       }

@@ -103,6 +103,8 @@
   <string name="native_watch_amount">Сума %1$s</string>
   <string name="native_watch_budgets_budgetA11y">%1$s, залишилось %2$s</string>
   <string name="native_watch_budgets_empty">Бюджетів ще немає. Додайте на iPhone.</string>
+  <string name="native_watch_budgets_event">Подія</string>
+  <string name="native_watch_budgets_eventA11y">Подія %1$s, залишилось %2$s, %3$s</string>
   <string name="native_watch_budgets_travel">Режим подорожі</string>
   <string name="native_watch_budgets_travelA11y">Подорож %1$s, залишилось %2$s, %3$s</string>
   <string name="native_watch_category_empty">Категорії надходять з iPhone.</string>
@@ -152,6 +154,7 @@
     <item quantity="many">%1$d тегів</item>
     <item quantity="other">%1$d тега</item>
   </plurals>
+  <string name="native_watch_tags_eventOnly">Лише тег події</string>
   <string name="native_watch_tags_hintAdd">Торкніться двічі, щоб додати тег</string>
   <string name="native_watch_tags_hintRemove">Торкніться двічі, щоб прибрати тег</string>
   <string name="native_watch_tags_none">Без тегів</string>

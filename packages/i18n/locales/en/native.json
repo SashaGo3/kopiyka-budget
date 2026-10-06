@@ -156,6 +156,7 @@
       "title": { "message": "Tags", "max": 14 },
       "none": { "message": "No tags", "note": "First row: save with no tags.", "max": 20 },
       "tripOnly": { "message": "Just the travel tag", "note": "First row in travel mode: save with only the trip's tag.", "max": 24 },
+      "eventOnly": { "message": "Just the event tag", "note": "First row while an event is on: save with only the event's tag.", "max": 24 },
       "usedWith": { "message": "Used with {category}", "note": "Section of tags often used with the chosen category.", "max": 32 },
       "other": { "message": "Other tags", "max": 20 },
       "save": { "message": "Save {amount}", "note": "VoiceOver hint; amount is formatted money." },
@@ -188,6 +189,8 @@
     "budgets": {
       "travel": { "message": "Travel mode", "note": "Section heading.", "max": 20 },
       "travelA11y": { "message": "Travel {name}, {amount} left, {day}", "note": "VoiceOver; name is the trip, day is \"Day 3 of 7\"." },
+      "event": { "message": "Event", "note": "Section heading while an event (a birthday, a wedding) is on.", "max": 20 },
+      "eventA11y": { "message": "Event {name}, {amount} left, {day}", "note": "VoiceOver; name is the event, day is \"Day 1 of 1\"." },
       "budgetA11y": { "message": "{name}, {amount} left", "note": "VoiceOver." },
       "empty": { "message": "No budgets yet. Add one on your iPhone.", "max": 48 }
     },

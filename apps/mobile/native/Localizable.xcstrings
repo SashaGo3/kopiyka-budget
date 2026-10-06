@@ -1745,6 +1745,42 @@
         }
       }
     },
+    "native.watch.budgets.event" : {
+      "comment" : "Section heading while an event (a birthday, a wedding) is on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Event"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подія"
+          }
+        }
+      }
+    },
+    "native.watch.budgets.eventA11y" : {
+      "comment" : "VoiceOver; name is the event, day is \"Day 1 of 1\".",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Event %1$@, %2$@ left, %3$@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подія %1$@, залишилось %2$@, %3$@"
+          }
+        }
+      }
+    },
     "native.watch.budgets.travel" : {
       "comment" : "Section heading.",
       "extractionState" : "manual",
@@ -2497,6 +2533,24 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "native.watch.tags.eventOnly" : {
+      "comment" : "First row while an event is on: save with only the event's tag.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just the event tag"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лише тег події"
           }
         }
       }
