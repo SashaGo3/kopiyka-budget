@@ -27,6 +27,24 @@ const note = (key: MessageKey & `whatsNew.notes.${string}`, icon?: string) => ({
 // dropped on 2026-09-28.
 export const RELEASES: Release[] = [
   {
+    version: "1.0.4",
+    date: "2026-10-06",
+    added: [
+      note("whatsNew.notes.v1_0_4.events", "party.popper"),
+      note("whatsNew.notes.v1_0_4.transferPairs", "arrow.left.arrow.right"),
+      note("whatsNew.notes.v1_0_4.checklist", "checklist"),
+    ],
+    improved: [
+      note("whatsNew.notes.v1_0_4.transferAccounts", "arrow.up.arrow.down"),
+      note("whatsNew.notes.v1_0_4.transferAmounts", "keyboard"),
+      note("whatsNew.notes.v1_0_4.themes", "paintpalette"),
+    ],
+    fixed: [
+      note("whatsNew.notes.v1_0_4.outside", "rectangle.portrait.and.arrow.right"),
+      note("whatsNew.notes.v1_0_4.tripTag", "tag"),
+    ],
+  },
+  {
     version: "1.0.3",
     date: "2026-10-01",
     added: [

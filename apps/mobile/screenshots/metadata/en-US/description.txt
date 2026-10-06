@@ -11,7 +11,7 @@ WHAT IS IN IT
 - Recurring payments: a subscription posts itself on the day and tells you it did, while the ones whose amount moves around wait for your tap. Kopiyka also spots repeats in your history and offers to make rules from them.
 - Categories inside folders, each with its own icon and colour, and tags that can be limited to the categories they make sense for.
 - Insights you pick yourself: free to spend, days until salary, savings goals, a payments checklist, subscriptions per year, upcoming payments.
-- Travel mode: name a trip, give it a budget and a last day, and every new expense is tagged and counted against it, in whatever currency you spend.
+- Trips & Events: name a trip or an event (a birthday, a wedding), give it a budget and its days, and every new expense is tagged and counted against it, in whatever currency you spend, and kept out of your monthly budgets.
 - Debts, so you know who owes whom, with a reminder before the due date.
 - A category suggested from where you are: buy coffee at the same place twice and the third time it is filled in. Your location never leaves the phone.
 - Receipt photos on any entry, backed up beside your data.

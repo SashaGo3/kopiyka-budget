@@ -2388,6 +2388,14 @@ export interface Messages {
   "whatsNew.notes.v1_0_3.language": undefined;
   "whatsNew.notes.v1_0_3.themes": undefined;
   "whatsNew.notes.v1_0_3.ukrainian": undefined;
+  "whatsNew.notes.v1_0_4.checklist": undefined;
+  "whatsNew.notes.v1_0_4.events": undefined;
+  "whatsNew.notes.v1_0_4.outside": undefined;
+  "whatsNew.notes.v1_0_4.themes": undefined;
+  "whatsNew.notes.v1_0_4.transferAccounts": undefined;
+  "whatsNew.notes.v1_0_4.transferAmounts": undefined;
+  "whatsNew.notes.v1_0_4.transferPairs": undefined;
+  "whatsNew.notes.v1_0_4.tripTag": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;
   "whatsNew.title": undefined;

@@ -1,1 +1,1 @@
-Kopiyka now speaks Ukrainian. The app, the Apple Watch and the notifications follow your phone's language, or pick one in Settings.
+Events: a birthday, a wedding or a night out gets its own budget, like a trip, and stays out of your monthly budgets (Settings → Trips & Events). Transfers between your own accounts are put together from your bank's two notifications, and a new transfer asks for both accounts on one screen. Plus fixes.
