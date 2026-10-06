@@ -68,7 +68,9 @@ describe("travel mode", () => {
     createTransaction(db, { account_id: pln.id, date: "2026-09-09T12:00:00+02:00", amount_minor: -10000, category_id: food.id, tag_ids: JSON.stringify([tag.id]) });
     // Everything with the tag counts until it is chosen otherwise, whenever it was paid.
     expect(tripStats(db, budget, { today: "2026-09-09" })).toMatchObject({ spent_minor: 70000, outside_minor: 0, remaining_minor: 30000 });
-    const chosen = save(db, "budgets", { ...getRow(db, "budgets", budget.id)!, outside_ids: JSON.stringify([flight.id]) });
+    save(db, "budgets", { ...getRow(db, "budgets", budget.id)!, outside_ids: JSON.stringify([flight.id]) });
+    // Read back from the database: the choice has to survive the write, not just the returned object.
+    const chosen = getRow(db, "budgets", budget.id)!;
     const s = tripStats(db, chosen, { today: "2026-09-09" });
     expect(s).toMatchObject({ spent_minor: 10000, outside_minor: 60000, remaining_minor: 90000 });
     expect(s.by_category).toEqual([{ category_id: food.id, spent_minor: 10000 }]);

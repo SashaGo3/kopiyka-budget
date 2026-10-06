@@ -15,7 +15,7 @@ export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
     "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
     "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee"],
-  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned"],
+  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids"],
   insights: ["kind", "params", "sort"],
   debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
 };
