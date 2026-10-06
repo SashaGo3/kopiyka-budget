@@ -2213,12 +2213,12 @@ export interface Messages {
   "transfer.to": undefined;
   /** Chip after both amounts were typed: let the side not being typed follow the exchange rate again. */
   "transfer.useRate": undefined;
-  "travel.backfill.addTo": undefined;
+  "travel.backfill.addTo": { kind: "event" | (string & {}) };
   "travel.backfill.addToName": { name: string | number };
   "travel.backfill.filters": undefined;
   "travel.backfill.filtersOn": { count: string | number };
-  "travel.backfill.hint": undefined;
-  "travel.backfill.hintPast": undefined;
+  "travel.backfill.hint": { kind: "event" | (string & {}) };
+  "travel.backfill.hintPast": { kind: "event" | (string & {}) };
   "travel.backfill.noneSelected": undefined;
   "travel.backfill.paid": undefined;
   "travel.backfill.paidName": { name: string | number };
@@ -2231,10 +2231,10 @@ export interface Messages {
   "travel.backfill.skip": undefined;
   "travel.backfill.tick": undefined;
   "travel.backfill.whatWas": undefined;
-  /** A past trip: which of those days' expenses were the trip. */
+  /** A past one: which of those days' expenses were part of it. */
   "travel.backfill.whatWasName": { name: string | number };
   "travel.card.byCategory": undefined;
-  /** VoiceOver; name is a category, trip the trip's name. */
+  /** VoiceOver; name is a category, trip the trip's or event's name. */
   "travel.card.categoryLabel": { name: string | number; trip: string | number };
   "travel.card.dayOf": { day: string | number; days: string | number };
   /** A trip that has outrun its planned last day; date is "22 Sep". */
@@ -2242,7 +2242,7 @@ export interface Messages {
   "travel.card.exact": undefined;
   "travel.card.hideSpent": undefined;
   /** VoiceOver label of the card's head. */
-  "travel.card.label": { name: string | number; amount: string | number };
+  "travel.card.label": { kind: "event" | (string & {}); name: string | number; amount: string | number };
   /** Verdict of a finished trip. */
   "travel.card.leftOfPlan": { amount: string | number };
   /** Next to a big amount on the last day. */
@@ -2265,15 +2265,17 @@ export interface Messages {
   "travel.card.unconverted": { amounts: string | number };
   "travel.dates.add": undefined;
   "travel.dates.hint": undefined;
+  /** Calendar hint for an event: one tap is a one-day event. */
+  "travel.dates.hintEvent": undefined;
   "travel.dates.hintPast": undefined;
   "travel.dates.pickLast": undefined;
   "travel.dates.save": undefined;
   /** from/to are "22 Sep". */
   "travel.dates.span": { from: string | number; to: string | number; count: number };
-  "travel.dates.start": undefined;
+  "travel.dates.start": { kind: "event" | (string & {}) };
   "travel.dates.tapLast": undefined;
   "travel.dates.tapLastCalendar": undefined;
-  "travel.dates.title": undefined;
+  "travel.dates.title": { kind: "event" | (string & {}) };
   "travel.dates.whenIs": undefined;
   "travel.dates.whenIsName": { name: string | number };
   "travel.dates.whenWas": undefined;
@@ -2283,6 +2285,10 @@ export interface Messages {
   "travel.error.nameRequired": undefined;
   "travel.error.notFound": undefined;
   "travel.error.running": undefined;
+  /** Segment on the start sheet: a party, a wedding, a day out. Short. */
+  "travel.kind.event": undefined;
+  /** Segment on the start sheet: what is being started. Short. */
+  "travel.kind.trip": undefined;
   /** Part of the one-line trip summary. */
   "travel.line.day": { day: string | number };
   /** Part of the one-line trip summary. */
@@ -2292,7 +2298,7 @@ export interface Messages {
   /** Number of payments kept outside the budget. */
   "travel.outside.count": { count: string | number };
   "travel.outside.everything": undefined;
-  "travel.outside.hint": undefined;
+  "travel.outside.hint": { kind: "event" | (string & {}) };
   "travel.outside.save": undefined;
   "travel.outside.title": undefined;
   "travel.settings.addPast": undefined;
@@ -2300,11 +2306,13 @@ export interface Messages {
   "travel.settings.history": undefined;
   /** Unfolds under noteShort. */
   "travel.settings.noteMore": undefined;
-  /** Note on the travel mode settings screen; the ⓘ unfolds noteMore. */
+  /** Note on the Trips & Events screen; the ⓘ unfolds noteMore. */
   "travel.settings.noteShort": undefined;
   /** Section header above the trip that is running. */
   "travel.settings.now": undefined;
   "travel.settings.start": undefined;
+  "travel.settings.startEvent": undefined;
+  "travel.settings.startEventHint": undefined;
   "travel.settings.startHint": undefined;
   "travel.settings.title": undefined;
   "travel.start.addFailed": undefined;
@@ -2313,24 +2321,24 @@ export interface Messages {
   "travel.start.enterBudget": undefined;
   "travel.start.keep": { currency: string | number };
   "travel.start.nameFirst": undefined;
-  "travel.start.nameLabel": undefined;
-  "travel.start.nameLabelPast": undefined;
+  "travel.start.nameLabel": { kind: "event" | (string & {}) };
+  "travel.start.nameLabelPast": { kind: "event" | (string & {}) };
   "travel.start.noRateBody": { home: string | number; currency: string | number };
   "travel.start.noRateTitle": { currency: string | number };
   "travel.start.pastSubtitle": undefined;
-  /** Title when recording a trip that already happened. */
-  "travel.start.pastTitle": undefined;
-  "travel.start.startFailed": undefined;
-  "travel.start.subtitle": undefined;
-  "travel.start.title": undefined;
+  /** Title when recording one that already happened. */
+  "travel.start.pastTitle": { kind: "event" | (string & {}) };
+  "travel.start.startFailed": { kind: "event" | (string & {}) };
+  "travel.start.subtitle": { kind: "event" | (string & {}) };
+  "travel.start.title": { kind: "event" | (string & {}) };
   "travel.start.toDates": undefined;
   "travel.start.use": { currency: string | number };
-  /** Placeholder of the trip name when no city is known. */
-  "travel.start.where": undefined;
-  /** Same, for a past trip. */
-  "travel.start.wherePast": undefined;
+  /** Placeholder of the name (for a trip, when no city is known). */
+  "travel.start.where": { kind: "event" | (string & {}) };
+  /** Same, for a past one. */
+  "travel.start.wherePast": { kind: "event" | (string & {}) };
   "travel.trip.addPurchases": undefined;
-  "travel.trip.addPurchasesHint": undefined;
+  "travel.trip.addPurchasesHint": { kind: "event" | (string & {}) };
   "travel.trip.addPurchasesPast": undefined;
   "travel.trip.amount": undefined;
   "travel.trip.amountTitle": { name: string | number };
@@ -2338,23 +2346,23 @@ export interface Messages {
   "travel.trip.currency": undefined;
   "travel.trip.currencyHint": { currency: string | number };
   "travel.trip.dates": undefined;
-  "travel.trip.end": undefined;
+  "travel.trip.end": { kind: "event" | (string & {}) };
   /** line is the one-line summary (travel.line.*). */
   "travel.trip.endBody": { line: string | number; name: string | number };
   "travel.trip.endHint": undefined;
   "travel.trip.endIt": undefined;
-  "travel.trip.endTitle": { name: string | number };
-  "travel.trip.keep": undefined;
+  "travel.trip.endTitle": { kind: "event" | (string & {}); name: string | number };
+  "travel.trip.keep": { kind: "event" | (string & {}) };
   "travel.trip.noRateBody": undefined;
   "travel.trip.outsideCount": { count: number; amount: string | number };
-  "travel.trip.outsideHint": undefined;
+  "travel.trip.outsideHint": { kind: "event" | (string & {}) };
   "travel.trip.remove": undefined;
-  "travel.trip.removeBody": undefined;
-  "travel.trip.removeThis": undefined;
+  "travel.trip.removeBody": { kind: "event" | (string & {}) };
+  "travel.trip.removeThis": { kind: "event" | (string & {}) };
   "travel.trip.removeTitle": { name: string | number };
   "travel.trip.transactions": undefined;
-  /** Shown as a trip's name when its tag no longer exists. */
-  "travel.untitled": undefined;
+  /** Shown as a trip's or event's name when its tag no longer exists. */
+  "travel.untitled": { kind: "event" | (string & {}) };
   /** VoiceOver label of a total that includes converted currencies; label is the total's caption ("Planned"). */
   "ui.approxA11y": { label: string | number };
   /** The big button that opens the new-entry sheet. */

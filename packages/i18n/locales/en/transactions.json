@@ -236,7 +236,7 @@
       "message": "tag",
       "note": "Stands in for a tag that has been deleted."
     },
-    "travel": "Travel",
+    "travel": "Trip or event",
     "anyTravel": "Any",
     "tripRange": "{from} → {to}",
     "tripRangeNow": {

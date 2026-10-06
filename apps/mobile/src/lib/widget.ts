@@ -6,7 +6,7 @@
 import { File, Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { KPBridge } from "@/lib/bridge";
-import { accountBalanceMinor, activeTrip, budgetCategoryIds, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
+import { accountBalanceMinor, activeTrip, tripKind, budgetCategoryIds, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
 import { db, APP_GROUP } from "@/db";
 import { currentPeriod } from "./period";
 import { getBudgetScope } from "./settings";
@@ -22,7 +22,7 @@ export interface WidgetSnapshot {
   net_worth: { currency: string; amount: number }[];
   budgets: { category_id: string | null; name: string; currency: string; limit: number; spent: number }[];
   /** Travel mode, when on: the trip budget and its daily allowance. The watch pre-ticks `tag_id` on new expenses. */
-  trip: { budget_id: string; tag_id: string; name: string; currency: string; limit: number; spent: number; day: number; days: number; days_left: number; allowance: number | null } | null;
+  trip: { budget_id: string; tag_id: string; kind: "trip" | "event"; name: string; currency: string; limit: number; spent: number; day: number; days: number; days_left: number; allowance: number | null } | null;
   month: string;
   /** Icon + colour per category exactly as the app draws them (watch and intents reuse this). */
   category_icons: Record<string, { icon: string; color: string }>;
@@ -48,7 +48,7 @@ export function buildSnapshot(): WidgetSnapshot {
   const active = activeTrip(db);
   const ts = active ? tripStats(db, active) : null;
   const trip: WidgetSnapshot["trip"] = active && ts && active.tag_id ? {
-    budget_id: active.id, tag_id: active.tag_id, name: ts.name ?? t("travel.untitled"), currency: ts.currency, limit: fromMinor(ts.limit_minor, ts.currency), spent: fromMinor(ts.spent_minor, ts.currency),
+    budget_id: active.id, tag_id: active.tag_id, kind: tripKind(active), name: ts.name ?? t("travel.untitled", { kind: tripKind(active) }), currency: ts.currency, limit: fromMinor(ts.limit_minor, ts.currency), spent: fromMinor(ts.spent_minor, ts.currency),
     day: ts.day, days: ts.days, days_left: ts.days_left, allowance: ts.allowance_minor === null ? null : fromMinor(ts.allowance_minor, ts.currency),
   } : null;
   const category_icons: WidgetSnapshot["category_icons"] = {};

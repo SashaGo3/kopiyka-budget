@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { daysBetween, defaultTripEnd, formatMinor, getRow, save, type Budget } from "@kopiyka/core";
+import { daysBetween, defaultTripEnd, formatMinor, getRow, save, tripKind, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { ConfirmBar } from "@/components/Keypad";
@@ -26,9 +26,10 @@ import { t } from "@/i18n";
  * logged at home in the meantime.
  */
 export default function TravelDates() {
-  const p = useLocalSearchParams<{ key?: string; name?: string; currency?: string; amount?: string; budget?: string; past?: string }>();
+  const p = useLocalSearchParams<{ key?: string; name?: string; currency?: string; amount?: string; budget?: string; past?: string; kind?: string }>();
   const today = todayLocal();
   const editing = p.budget ? getRow(db, "budgets", p.budget) ?? null : null;
+  const kind = tripKind(editing ?? { kind: p.kind });
   // A trip that is over — recorded after the fact, or ended — lies wholly in the past: its last day
   // can be today at the latest, like its first.
   const past = p.past === "1" || !!editing?.ended;
@@ -38,6 +39,15 @@ export default function TravelDates() {
   const exit = useDiscardGuard(useDirty([start, end]) && !!editing);   // remounts the calendar on the month Today lands in
   const days = end ? daysBetween(start, end) + 1 : null;
   const amount = Number(p.amount) || 0;
+  // An event is usually one day: a tap is the whole of it, and a later tap stretches it. A trip
+  // keeps the calendar's own first-day-then-last-day.
+  const pick = (s: string, e: string | null) => {
+    if (kind === "event" && e === null) {
+      if (end === start && s > start && (!past || s <= today)) { setEnd(s); return; }
+      setStart(s); setEnd(s); return;
+    }
+    setStart(s); setEnd(e);
+  };
   const currency = p.currency ?? "EUR";
 
   const confirm = () => {
@@ -54,7 +64,7 @@ export default function TravelDates() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>{editing ? t("travel.dates.title") : p.name ? (past ? t("travel.dates.whenWasName", { name: p.name }) : t("travel.dates.whenIsName", { name: p.name })) : past ? t("travel.dates.whenWas") : t("travel.dates.whenIs")}</Title>
+          <Title>{editing ? t("travel.dates.title", { kind }) : p.name ? (past ? t("travel.dates.whenWasName", { name: p.name }) : t("travel.dates.whenIsName", { name: p.name })) : past ? t("travel.dates.whenWas") : t("travel.dates.whenIs")}</Title>
           <Subtle>{end ? t("travel.dates.span", { from: humanDayTime(start), to: humanDayTime(end), count: days ?? 0 }) : t("travel.dates.tapLast")}</Subtle>
         </View>
       }
@@ -64,10 +74,10 @@ export default function TravelDates() {
             <Chip icon="calendar" label={t("common.today")} active={start === today}
               onPress={() => { setStart(today); setEnd((e) => (e && e >= today ? e : null)); setJump((j) => j + 1); }} />
           </ChipRow>
-          <RangeCalendar key={jump} start={start} end={end} maxStart={today} maxEnd={past ? today : undefined} onChange={(s, e) => { setStart(s); setEnd(e); }} />
-          <Text style={styles.hint}>{past ? t("travel.dates.hintPast") : t("travel.dates.hint")}</Text>
+          <RangeCalendar key={jump} start={start} end={end} maxStart={today} maxEnd={past ? today : undefined} onChange={pick} />
+          <Text style={styles.hint}>{kind === "event" ? t("travel.dates.hintEvent") : past ? t("travel.dates.hintPast") : t("travel.dates.hint")}</Text>
           <ConfirmBar amount={editing ? (end ? t("travel.days", { count: days ?? 0 }) : t("travel.dates.pickLast")) : `${formatMinor(amount, currency)} ${currency}${days ? ` · ${t("travel.days", { count: days })}` : ""}`}
-            label={!end ? t("travel.dates.tapLastCalendar") : editing ? t("travel.dates.save") : past ? t("travel.dates.add") : t("travel.dates.start")} onPress={confirm} disabled={!end} />
+            label={!end ? t("travel.dates.tapLastCalendar") : editing ? t("travel.dates.save") : past ? t("travel.dates.add") : t("travel.dates.start", { kind })} onPress={confirm} disabled={!end} />
         </>
       }
     />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { formatMinor, getRow, jsonIds, save } from "@kopiyka/core";
+import { formatMinor, getRow, jsonIds, save, tripKind } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { TransactionList, useTransactions } from "@/components/TransactionList";
@@ -39,7 +39,7 @@ export default function TripOutside() {
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={t("travel.outside.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }} />
       <TransactionList rows={rows} selected={selected} onToggle={toggle}
-        header={<Text style={styles.hint}>{t("travel.outside.hint")}</Text>} />
+        header={<Text style={styles.hint}>{t("travel.outside.hint", { kind: tripKind(trip) })}</Text>} />
       <View style={{ paddingTop: S.sm, paddingBottom: Math.max(insets.bottom, S.md) }}>
         <ConfirmBar amount={n ? `${t("travel.outside.count", { count: n })}${sum && trip ? ` · ${formatMinor(sum, trip.currency)} ${trip.currency}` : ""}` : t("travel.outside.everything")} label={t("travel.outside.save")} onPress={done} />
       </View>

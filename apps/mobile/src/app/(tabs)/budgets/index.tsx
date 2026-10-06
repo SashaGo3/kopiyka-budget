@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from "react";
 import { LayoutAnimation, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
+import { SymbolView, type SFSymbol } from "expo-symbols";
 import { budgetCategoryIds, budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, sumInBase, tagColor, tagSpend, tripTagIds } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -17,6 +17,7 @@ import { useCloudRefresh } from "@/lib/backup";
 import { getBudgetScope, getBudgetsSections, setBudgetScope, type BudgetsSection } from "@/lib/settings";
 import { scopeAccount, scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
 import { catName } from "@/lib/names";
+import { tripLook } from "@/lib/travel";
 import { t } from "@/i18n";
 
 type Line = { id: string | null; name: string; spent: number; icon: string | null; color: string | null };
@@ -96,6 +97,8 @@ export default function BudgetsScreen() {
     // A trip's spending is one line of its own rather than scattered over Food and Taxis: the
     // budgets above leave it out too (`budgetRows`), and the two have to tell the same story.
     const trips = tripTagIds(db);
+    // The newest trip or event on each tag decides how its line is drawn (a tag can be reused by name).
+    const lookByTag = new Map(listTrips(db).reverse().map((b) => [b.tag_id, tripLook(b)]));
     for (const s of categorySpend(db, start, end, scopeIds, { exceptTags: trips })) {
       const c = s.category_id ? cats.get(s.category_id) : undefined;
       const top = c?.parent_id ? cats.get(c.parent_id) : c;
@@ -110,7 +113,7 @@ export default function BudgetsScreen() {
       for (const s of tagSpend(db, tagId, { fromIso: start, toIso: end, accountIds: scopeIds, oneOff: true })) {
         const c = s.category_id ? cats.get(s.category_id) : undefined;
         const key = `trip:${tagId}|${s.currency}`;
-        const g = groups.get(key) ?? { id: null, trip: tagId, name: tag?.name ?? t("budgets.travel"), currency: s.currency, spent: 0, icon: "airplane", color: "#0A84FF", children: [] };
+        const g = groups.get(key) ?? { id: null, trip: tagId, name: tag?.name ?? t("budgets.travel"), currency: s.currency, spent: 0, icon: lookByTag.get(tagId)?.icon ?? "airplane", color: lookByTag.get(tagId)?.color ?? "#0A84FF", children: [] };
         g.spent += -s.spent_minor;
         g.children.push({ id: c?.id ?? null, name: nm(c) ?? t("budgets.title.uncategorized"), spent: -s.spent_minor, icon: c?.icon ?? null, color: c?.color ?? null });
         groups.set(key, g);
@@ -243,7 +246,7 @@ export default function BudgetsScreen() {
                     {open ? (
                       <View style={styles.children}>
                         <Pressable onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.spending.allLabel", { name: g.name })}>
-                          <SymbolView name={g.trip ? "airplane" : "folder"} size={14} tintColor={C.tint} />
+                          <SymbolView name={g.trip ? (g.icon as SFSymbol | null) ?? "airplane" : "folder"} size={14} tintColor={C.tint} />
                           <Text style={[styles.childText, { color: C.tint, fontWeight: "600" }]}>{t("budgets.spending.allIn", { name: g.name })}</Text>
                           <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
                         </Pressable>

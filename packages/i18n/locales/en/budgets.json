@@ -41,11 +41,11 @@
     "noRate": { "message": "No rate yet for {currencies}, so it is left out of the total.", "note": "currencies is a list of codes." }
   },
   "travelHistory": {
-    "title": "Travel history",
+    "title": "Past trips & events",
     "show": { "message": "Show {count}", "note": "Button on the Travel history header; count is the number of past trips.", "max": 16 },
     "hide": { "message": "Hide", "max": 16 },
-    "showLabel": "Show travel history",
-    "hideLabel": "Hide travel history"
+    "showLabel": "Show past trips and events",
+    "hideLabel": "Hide past trips and events"
   },
   "title": {
     "everything": { "message": "Everything", "note": "Name of a budget that covers all spending." },
@@ -94,11 +94,11 @@
   "reorder": {
     "title": "Reorder budgets",
     "button": { "message": "Reorder", "max": 16 },
-    "hint": "Drag by the grip on the right. Spending and Travel history move as whole sections.",
+    "hint": "Drag by the grip on the right. Spending and Past trips & events move as whole sections.",
     "emptyTitle": "No budgets",
     "emptyHint": "Add one on the Budgets screen first.",
     "amountOff": { "message": "{amount} · not in Planned", "note": "amount is \"300.00 EUR\"." },
     "spendingSection": "Section · what each category cost",
-    "travelSection": "Section · past travel budgets"
+    "travelSection": "Section · past trip and event budgets"
   }
 }

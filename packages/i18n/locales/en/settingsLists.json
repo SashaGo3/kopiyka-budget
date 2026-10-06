@@ -44,14 +44,14 @@
   "tags": {
     "title": "Tags",
     "introShort": { "message": "A tag cuts across categories: #work lunch, #vacation fuel.", "note": "Note above the tags list; the ⓘ unfolds introMore." },
-    "introMore": { "message": "A tag can be limited to the categories it makes sense in and carry a budget of its own. Travel mode tags a whole trip for you.", "note": "Unfolds under introShort." },
+    "introMore": { "message": "A tag can be limited to the categories it makes sense in and carry a budget of its own. A trip or an event tags everything bought on it for you.", "note": "Unfolds under introShort." },
     "emptyTitle": "No tags",
     "emptyHint": "Nothing tagged yet.",
     "uses": { "message": "{count, plural, one {# use} other {# uses}}", "note": "How many transactions carry the tag." },
     "usesOnly": { "message": "{count, plural, one {# use} other {# uses}} · only for {categories}", "note": "categories is a comma-separated list of category names." },
     "usesAny": "{count, plural, one {# use} other {# uses}} · any category",
     "usesArchived": "{count, plural, one {# use} other {# uses}} · archived",
-    "travel": { "message": "Travel", "note": "Section header: tags made by travel mode, one per trip." },
+    "travel": { "message": "Trips & Events", "note": "Section header: tags made by travel mode, one per trip." },
     "archived": "Archived",
     "archivedNote": "Not offered for new entries; past ones and budgets on them still count. Open one to restore it.",
     "add": "Add tag"

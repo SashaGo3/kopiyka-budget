@@ -2,7 +2,8 @@
  * Travel mode on the phone: thin wrappers over core `trips.ts` plus the hooks the screens use.
  * The trip itself is a synced budget row, so nothing here is stored locally.
  */
-import { activeTrip, addPastTrip, endTrip, getRow, startTrip, tripStats, type Budget, type PastTrip, type StartTrip, type TripStats } from "@kopiyka/core";
+import { activeTrip, addPastTrip, endTrip, getRow, startTrip, tripKind, tripStats, type Budget, type PastTrip, type StartTrip, type TripKind, type TripStats } from "@kopiyka/core";
+import type { SFSymbol } from "expo-symbols";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { getBaseCurrency } from "./rates";
@@ -33,5 +34,13 @@ export function tripLine(s: TripStats): string {
   return `${tripName(s)} · ${spent} · ${day}`;
 }
 
-/** A trip's name: its tag's, or a word in the app's language when the tag has gone. */
-export function tripName(s: Pick<TripStats, "name">): string { return s.name ?? t("travel.untitled"); }
+/** A trip's or event's name: its tag's, or a word in the app's language when the tag has gone. */
+export function tripName(s: Pick<TripStats, "name" | "budget">): string { return s.name ?? t("travel.untitled", { kind: tripKind(s.budget) }); }
+
+/**
+ * How a trip or an event is drawn wherever it is chrome: the icon, and the colour (iOS blue for a
+ * trip, pink for an event, passed through `themeTone`/`themeHue` like any other).
+ */
+export function tripLook(kind: TripKind | Pick<Budget, "kind"> | null | undefined): { icon: SFSymbol; color: string } {
+  return tripKind(typeof kind === "string" ? { kind } : kind) === "event" ? { icon: "party.popper.fill", color: "#FF2D55" } : { icon: "airplane", color: "#0A84FF" };
+}

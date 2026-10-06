@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { formatMinor, fromMinor, getRow, jsonIds, rateOrFallback, remove, save, toMinor, tripStats, type Budget } from "@kopiyka/core";
+import { formatMinor, fromMinor, getRow, jsonIds, rateOrFallback, remove, save, toMinor, tripKind, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -42,6 +42,7 @@ export default function TripSettings() {
 
   if (!trip || trip.deleted || !s) return <Stack.Screen options={{ title: t("travel.settings.title") }} />;
   const active = !trip.ended;
+  const kind = tripKind(trip);
   const tripTitle = tripName(s);
   const outsideCount = jsonIds(trip.outside_ids).length;
   const fmt = (m: number) => `${formatMinor(m, trip.currency)} ${trip.currency}`;
@@ -49,11 +50,11 @@ export default function TripSettings() {
   // A past trip's purchases are looked for in its own days; a running one's in the months before it.
   const addPurchases = () => router.push({ pathname: "/travel/backfill", params: { tag: trip.tag_id ?? "", name: tripTitle,
     ...(active ? {} : { from: trip.starts, to: nextDay(last) }) } });
-  const end = () => Alert.alert(t("travel.trip.endTitle", { name: tripTitle }), t("travel.trip.endBody", { line: tripLine(s), name: tripTitle }), [
-    { text: t("travel.trip.keep"), style: "cancel" },
+  const end = () => Alert.alert(t("travel.trip.endTitle", { kind, name: tripTitle }), t("travel.trip.endBody", { line: tripLine(s), name: tripTitle }), [
+    { text: t("travel.trip.keep", { kind }), style: "cancel" },
     { text: t("travel.trip.endIt"), style: "destructive", onPress: () => endTravel(trip.id) },
   ]);
-  const del = () => Alert.alert(t("travel.trip.removeTitle", { name: tripTitle }), t("travel.trip.removeBody"), [
+  const del = () => Alert.alert(t("travel.trip.removeTitle", { name: tripTitle }), t("travel.trip.removeBody", { kind }), [
     { text: t("common.cancel"), style: "cancel" },
     { text: t("travel.trip.remove"), style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", trip.id)); router.back(); } },
   ]);
@@ -74,18 +75,18 @@ export default function TripSettings() {
         </Card>
         <SectionHeader>{t("travel.trip.transactions")}</SectionHeader>
         <Card>
-          <Row icon="plus.circle" iconColor="#0A84FF" title={t("travel.trip.addPurchases")} subtitle={active ? t("travel.trip.addPurchasesHint") : t("travel.trip.addPurchasesPast")} onPress={addPurchases} />
+          <Row icon="plus.circle" iconColor="#0A84FF" title={t("travel.trip.addPurchases")} subtitle={active ? t("travel.trip.addPurchasesHint", { kind }) : t("travel.trip.addPurchasesPast")} onPress={addPurchases} />
           <Row icon="rectangle.portrait.and.arrow.right" iconColor="#5E5CE6" title={t("travel.outside.title")} style={styles.divider}
             subtitle={outsideCount ? t("travel.trip.outsideCount", { count: outsideCount, amount: fmt(s.outside_minor) }) : t("travel.outside.everything")}
             onPress={() => router.push({ pathname: "/travel/outside", params: { id: trip.id } })} />
         </Card>
-        <Text style={styles.hint}>{t("travel.trip.outsideHint")}</Text>
+        <Text style={styles.hint}>{t("travel.trip.outsideHint", { kind })}</Text>
         {active ? (
           <Card style={{ marginTop: S.xl }}>
-            <Row icon="stop.circle" iconColor="#FF3B30" title={t("travel.trip.end")} subtitle={t("travel.trip.endHint")} destructive onPress={end} />
+            <Row icon="stop.circle" iconColor="#FF3B30" title={t("travel.trip.end", { kind })} subtitle={t("travel.trip.endHint")} destructive onPress={end} />
           </Card>
         ) : (
-          <View style={{ marginTop: S.xl }}><DeleteRow label={t("travel.trip.removeThis")} onPress={del} /></View>
+          <View style={{ marginTop: S.xl }}><DeleteRow label={t("travel.trip.removeThis", { kind })} onPress={del} /></View>
         )}
       </ScrollView>
     </>

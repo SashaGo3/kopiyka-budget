@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { tagTransactions } from "@kopiyka/core";
+import { tagTransactions, tripKind } from "@kopiyka/core";
 import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { TransactionList, useTransactions } from "@/components/TransactionList";
@@ -28,7 +28,8 @@ import { t } from "@/i18n";
  * the list to find the hotel does not forget the flight.
  */
 export default function TravelBackfill() {
-  const { tag, name, from, to } = useLocalSearchParams<{ tag: string; name?: string; from?: string; to?: string }>();
+  const { tag, name, from, to, kind: kindParam } = useLocalSearchParams<{ tag: string; name?: string; from?: string; to?: string; kind?: string }>();
+  const kind = tripKind({ kind: kindParam });
   const [since] = useState(() => new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10));
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<TxFilter>(EMPTY_FILTER);
@@ -64,9 +65,9 @@ export default function TravelBackfill() {
         </Pressable>
       </View>
       <TransactionList rows={rows} selected={selected} onToggle={toggle}
-        header={<Text style={styles.hint}>{from ? t("travel.backfill.hintPast") : t("travel.backfill.hint")}</Text>} />
+        header={<Text style={styles.hint}>{from ? t("travel.backfill.hintPast", { kind }) : t("travel.backfill.hint", { kind })}</Text>} />
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, S.md) }]}>
-        <ConfirmBar amount={n ? t("travel.backfill.selected", { count: n }) : t("travel.backfill.noneSelected")} label={n ? (name ? t("travel.backfill.addToName", { name }) : t("travel.backfill.addTo")) : t("travel.backfill.tick")} onPress={apply} disabled={!n} />
+        <ConfirmBar amount={n ? t("travel.backfill.selected", { count: n }) : t("travel.backfill.noneSelected")} label={n ? (name ? t("travel.backfill.addToName", { name }) : t("travel.backfill.addTo", { kind })) : t("travel.backfill.tick")} onPress={apply} disabled={!n} />
       </View>
     </View>
   );

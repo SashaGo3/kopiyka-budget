@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { countryCurrency, formatMinor, rateOrFallback, toMinor } from "@kopiyka/core";
+import { countryCurrency, formatMinor, rateOrFallback, toMinor, type TripKind } from "@kopiyka/core";
 import { SymbolView } from "expo-symbols";
 import { db } from "@/db";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { SheetFrame, Subtle, Title } from "@/components/ui";
+import { Segmented, SheetFrame, Subtle, Title } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
 import { errorText } from "@/lib/errors";
@@ -17,6 +17,10 @@ import { cityName, countryCode, quickLocation } from "@/lib/location";
 import { t } from "@/i18n";
 
 /**
+ * Start a trip or an event, first half — the two differ only in words and defaults (core
+ * `tripKind`), so one sheet asks for both, with the kind switchable at the top. An event does not
+ * take the city as its name: a birthday is not called "Kraków".
+ *
  * Turn travel mode on, first half: the name (prefilled with the current city when location is on)
  * and the budget in the current account's currency. Confirming opens the calendar
  * (`/travel/dates`), and choosing the dates there is what starts it: the dates come back here, the
@@ -33,7 +37,9 @@ import { t } from "@/i18n";
 export default function TravelStart() {
   // `past`: recording a trip that already happened (Settings → Travel → Add a past travel). Same two
   // sheets, but the location is not where it was, the dates are in the past, and nothing is switched on.
-  const past = useLocalSearchParams<{ past?: string }>().past === "1";
+  const p = useLocalSearchParams<{ past?: string; kind?: TripKind }>();
+  const past = p.past === "1";
+  const [kind, setKind] = useState<TripKind>(p.kind === "event" ? "event" : "trip");
   const [currency, setCurrency] = useState(tripCurrency);
   const [chosen, setChosen] = useState(false);   // picked by hand: the location guess no longer moves it
   const chosenRef = useRef(false);               // the same, for the location lookup that lands later
@@ -41,10 +47,11 @@ export default function TravelStart() {
   const [name, setName] = useState("");
   // The city the phone is in, when it could tell; it is both the placeholder and the name if none is typed.
   const [city, setCity] = useState<string | null>(null);
-  const placeholder = city ?? (past ? t("travel.start.wherePast") : t("travel.start.where"));
+  const placeCity = kind === "trip" ? city : null;
+  const placeholder = placeCity ?? (past ? t("travel.start.wherePast", { kind }) : t("travel.start.where", { kind }));
   const nameRef = useRef<TextInput>(null);
   const [expr, setExpr] = useState("");
-  const exit = useDiscardGuard(useDirty([name, expr, chosen]));
+  const exit = useDiscardGuard(useDirty([name, expr, chosen, kind]));
   useEffect(() => {
     if (past) return;
     let alive = true;
@@ -75,38 +82,39 @@ export default function TravelStart() {
     });
   }, []));
   const value = evalPartial(expr);
-  const finalName = name.trim() || city || "";
+  const finalName = name.trim() || placeCity || "";
   const valid = value !== null && value > 0 && !!finalName;
   const shown = value !== null ? formatMinor(toMinor(value, currency), currency) : "0";
   const key = useMemo(() => newPickKey("tripdates"), []);
   const next = () => {
     if (!valid) return;
     nameRef.current?.blur();
-    router.push({ pathname: "/travel/dates", params: { key, name: finalName, currency, amount: String(toMinor(value!, currency)), ...(past ? { past: "1" } : {}) } });
+    router.push({ pathname: "/travel/dates", params: { key, name: finalName, currency, amount: String(toMinor(value!, currency)), kind, ...(past ? { past: "1" } : {}) } });
   };
   usePickResult<{ start: string; end: string }>(key, useCallback(({ start, end }: { start: string; end: string }) => {
     try {
-      const trip = { name: finalName, currency, amount_minor: toMinor(value ?? 0, currency), starts: start, ends: end };
+      const trip = { name: finalName, kind, currency, amount_minor: toMinor(value ?? 0, currency), starts: start, ends: end };
       const { tag } = past ? addPastTravel(trip) : startTravel(trip);
       // A past trip's purchases are looked for in its own days; a new one's in the months before it.
       const range = past ? { from: start, to: nextDay(end) } : {};
       exit(() => {
         router.dismiss(2);
-        setTimeout(() => router.push({ pathname: "/travel/backfill", params: { tag: tag.id, name: finalName, ...range } }), DISMISS_MS);
+        setTimeout(() => router.push({ pathname: "/travel/backfill", params: { tag: tag.id, name: finalName, kind, ...range } }), DISMISS_MS);
       });
     } catch (e) {
-      Alert.alert(past ? t("travel.start.addFailed") : t("travel.start.startFailed"), errorText(e));
+      Alert.alert(past ? t("travel.start.addFailed") : t("travel.start.startFailed", { kind }), errorText(e));
     }
-  }, [finalName, currency, value, exit, past]));
+  }, [finalName, currency, value, exit, past, kind]));
   return (
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title>{past ? t("travel.start.pastTitle") : t("travel.start.title")}</Title>
-          <Subtle>{past ? t("travel.start.pastSubtitle") : t("travel.start.subtitle")}</Subtle>
+          <Segmented value={kind} onChange={setKind} options={[{ value: "trip", label: t("travel.kind.trip") }, { value: "event", label: t("travel.kind.event") }]} />
+          <Title>{past ? t("travel.start.pastTitle", { kind }) : t("travel.start.title", { kind })}</Title>
+          <Subtle>{past ? t("travel.start.pastSubtitle") : t("travel.start.subtitle", { kind })}</Subtle>
           <View style={styles.nameRow}>
             <TextInput ref={nameRef} value={name} onChangeText={setName} placeholder={placeholder} placeholderTextColor={C.tertiary} style={styles.input}
-              returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} accessibilityLabel={past ? t("travel.start.nameLabelPast") : t("travel.start.nameLabel")} />
+              returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} accessibilityLabel={past ? t("travel.start.nameLabelPast", { kind }) : t("travel.start.nameLabel", { kind })} />
           </View>
           <View style={styles.amountRow}>
             <Text style={[styles.amount, !expr && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{shown}</Text>

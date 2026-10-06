@@ -14,7 +14,7 @@ import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED } from "@/constants/features";
 import { lastBackupLine, useBackupState } from "@/lib/backup";
 import { getHideIncome, getHomeLocation, getLocationEnabled, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setShowBalance } from "@/lib/settings";
 import { ensureLocationPermission, locationStatus, placeName, preciseLocation } from "@/lib/location";
-import { tripLine, useActiveTrip, useTripStats } from "@/lib/travel";
+import { tripLine, tripLook, useActiveTrip, useTripStats } from "@/lib/travel";
 import { dayMonth, humanDayTime } from "@/lib/dates";
 import { appearanceName, themeName } from "@/components/ThemePicker";
 import { useAppearance, useTheme } from "@/lib/theme";
@@ -152,7 +152,7 @@ export default function SettingsScreen() {
           <Row icon="repeat" iconColor="#30D158" title={t("settings.recurring.title")} subtitle={t("settings.recurring.subtitle", { count: counts.recurring })} onPress={() => router.push("/settings/recurring")} style={styles.divider} />
           <Row icon="arrow.left.arrow.right.circle" iconColor="#FF9500" title={t("settings.debts.title")} subtitle={debtSubtitle} onPress={() => router.push("/settings/debts")} style={styles.divider} />
           {/* Its own screen: starting, changing, ending and looking back at trips all live there. */}
-          <Row icon="airplane" iconColor="#0A84FF" title={t("settings.travel.title")} style={styles.divider} onPress={() => router.push("/settings/travel")}
+          <Row icon={tripLook(trip).icon} iconColor={tripLook(trip).color} title={t("settings.travel.title")} style={styles.divider} onPress={() => router.push("/settings/travel")}
             subtitle={tripSubtitle} />
         </Card>
         <SectionHeader>{t("settings.section.preferences")}</SectionHeader>

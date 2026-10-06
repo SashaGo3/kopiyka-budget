@@ -98,12 +98,15 @@ export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: T
   const name = p.name.trim();
   if (!name) throw new KopiykaError("trip_name_required", "Name required");
   return db.transaction(() => {
-    const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: "#0A84FF" });
+    const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: tagColorFor(p.kind) });
     const starts = p.starts ?? todayLocalDay(p.today);
     const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts, ends: p.ends < starts ? starts : p.ends, account_id: null, category_id: null });
     return { budget, tag };
   });
 }
+
+/** A new trip's tag is blue, an event's pink — the same colours the app draws them in. */
+function tagColorFor(kind: TripKind | undefined): string { return kind === "event" ? "#FF2D55" : "#0A84FF"; }
 
 export interface PastTrip { name: string; kind?: TripKind; currency: string; amount_minor: number; starts: string; ends: string }
 
@@ -117,7 +120,7 @@ export function addPastTrip(db: SqlDriver, p: PastTrip): { budget: Budget; tag: 
   if (!name) throw new KopiykaError("trip_name_required", "Name required");
   const ends = p.ends < p.starts ? p.starts : p.ends;
   return db.transaction(() => {
-    const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: "#0A84FF" });
+    const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: tagColorFor(p.kind) });
     const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts: p.starts, ends, ended: ends, account_id: null, category_id: null });
     return { budget, tag };
   });

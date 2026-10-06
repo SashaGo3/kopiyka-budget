@@ -130,7 +130,7 @@
     "tags": "Теги",
     "anyTag": "Будь-який тег",
     "tag": "тег",
-    "travel": "Подорож",
+    "travel": "Подорож чи подія",
     "anyTravel": "Будь-яка",
     "tripRange": "{from} → {to}",
     "tripRangeNow": "{from} → {to} · зараз",
