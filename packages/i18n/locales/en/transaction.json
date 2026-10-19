@@ -1,10 +1,13 @@
 {
   "entry": {
+    "debtKey": { "message": "Debt · {person}", "note": "Category key when the entry pays a debt; person is who the debt is with." },
+    "debtKeyA11y": { "message": "Debt with {person}. Change" },
     "copied": { "message": "Copied", "note": "Replaces the sum line under the amount for a moment after the amount is tapped and copied." },
     "amountA11y": { "message": "{amount} {currency}. Tap to copy.", "note": "VoiceOver label of the big amount on the entry sheet; amount is formatted, with its sign." },
     "duplicateA11y": "Duplicate transaction",
     "deleteA11y": "Delete transaction",
     "noteA11y": { "message": "Note: {note}", "note": "VoiceOver label of the note line; note is what the user typed." },
+    "bankNoteA11y": { "message": "From the bank: {note}", "note": "VoiceOver label of the read-only line with what the bank's notification said about the payment." },
     "notePlaceholder": "Note",
     "locationPinned": { "message": "Location: pinned", "note": "VoiceOver label: the entry has map coordinates but no place name." },
     "addLocation": "Add location",

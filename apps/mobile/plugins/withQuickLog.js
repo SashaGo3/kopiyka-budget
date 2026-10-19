@@ -32,15 +32,17 @@ module.exports = (config) =>
     let src = c.modResults.contents;
     if (src.includes(MARK)) return c;
 
-    // A quick-action launch has no URL of its own; give React Native one.
-    src = swap(src,
+    // A quick-action launch has no URL of its own; give React Native one. With the scene lifecycle
+    // (withSceneLifecycle, whose mod runs before this one) React Native starts in KPSceneDelegate,
+    // which passes its launch options through KPQuickLog itself — nothing to patch here.
+    if (!src.includes("// kopiyka:scene-lifecycle")) src = swap(src,
       "    let delegate = ReactNativeDelegate()",
       `    ${MARK} — a launch by the "${"dev.kopiyka.log"}" quick action gets kopiyka://log put into the launch options.\n` +
       "    let kpLaunchOptions = KPQuickLog.launchOptions(for: launchOptions)\n" +
       "    let delegate = ReactNativeDelegate()",
       "launch options");
 
-    src = swap(src, "      launchOptions: launchOptions)", "      launchOptions: kpLaunchOptions)", "startReactNative");
+    if (!src.includes("// kopiyka:scene-lifecycle")) src = swap(src, "      launchOptions: launchOptions)", "      launchOptions: kpLaunchOptions)", "startReactNative");
 
     src = swap(src,
       "    return super.application(app, open: url, options: options) || RCTLinkingManager.application(app, open: url, options: options)",

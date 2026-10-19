@@ -1,10 +1,10 @@
 /**
- * Palette sources, all under the MIT licence (the app and the site credit them on the theme screen
- * and the themes section): Solarized — Ethan Schoonover (github.com/altercation/solarized);
- * Catppuccin — github.com/catppuccin/catppuccin; Gruvbox — Pavel Pertsev (github.com/morhetz/gruvbox);
- * Nord — Arctic Ice Studio (github.com/nordtheme/nord); Tokyo Night — enkia
- * (github.com/enkia/tokyo-night-vscode-theme); Rosé Pine — github.com/rose-pine/rose-pine-theme;
- * GitHub — Primer primitives (github.com/primer/primitives). Only colour values are taken.
+ * Four themes, each named after a cat: Pusik (the default, graphite), Siri, Tadeusz & Kastuś, and
+ * Una. Una's palette is Catppuccin's (github.com/catppuccin/catppuccin, MIT; the app and the site
+ * credit it), only its colour values taken. 1.0.3 shipped six more editor palettes — Solarized,
+ * Gruvbox, Nord, Tokyo Night, Rosé Pine, GitHub — removed in 1.1.0: a phone still storing one of
+ * those ids reads it as the default (`themeOf`), and an app icon set for one goes back to the primary
+ * icon, because the alternate is no longer in the bundle.
  *
  * The colour themes, as plain data: the app (apps/mobile/src/constants/theme.ts), the generated app
  * icons (apps/mobile/scripts/icons) and the website (site/) all read their colours from here, so a
@@ -13,11 +13,10 @@
  *
  * The id is what `meta.theme` stores (DATA.md rule 7) and what names an alternate app icon, so like a
  * preset key it is forever: add themes, never rename one. (The default was renamed once, "kopiyka" →
- * "graphite", before any release carried it; `themeOf` still reads the old id.) The palettes are the editor themes'
- * published colours; where one of them reads poorly as text on its own background (Nord's green on
- * Snow Storm), the darker shade the theme itself uses for that role is taken instead, and an accent
- * or muted grey that missed WCAG AA (4.5:1 for button text on the accent and for muted text on both
- * `bg` and `card`) has been nudged just far enough to pass. The site build warns if one regresses.
+ * "graphite", before any release carried it; `themeOf` still reads the old id. The ids keep their
+ * first names — "catppuccin" is Una — since a name is only a label.) Text and status colours are
+ * held to contrast bands and a minimum chroma in themeColors.ts; the site build warns if a palette
+ * regresses.
  */
 
 export interface ThemeSide {
@@ -57,7 +56,7 @@ export interface Theme {
   dark: ThemeSide;
 }
 
-export const THEME_IDS = ["graphite", "solarized", "catppuccin", "gruvbox", "nord", "tokyonight", "rosepine", "github"] as const;
+export const THEME_IDS = ["graphite", "siri", "tadeusz", "catppuccin"] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 export const DEFAULT_THEME: ThemeId = "graphite";
 
@@ -67,12 +66,21 @@ export const THEMES: Record<ThemeId, Theme> = {
     light: { bg: "#F4F4F1", card: "#FFFFFF", text: "#141413", muted: "#6E6E73", accent: "#2B2B2E", onAccent: "#FFFFFF", border: "#D9D9D4", red: "#FF3B30", green: "#34C759", orange: "#FF9500" },
     dark: { bg: "#141413", card: "#1F1F1E", text: "#F4F4F1", muted: "#A0A09C", accent: "#F4F4F1", onAccent: "#141413", border: "#2E2E2C", red: "#FF453A", green: "#30D158", orange: "#FF9F0A" },
   },
-  solarized: {
-    id: "solarized",
-    light: { bg: "#EEE8D5", card: "#FDF6E3", text: "#073642", muted: "#526D76", accent: "#217AB9", onAccent: "#FFFFFF", border: "#D9D2BC", red: "#DC322F", green: "#859900", orange: "#CB4B16",
-      hues: { blue: "#268BD2", purple: "#6C71C4", pink: "#D33682", yellow: "#B58900", teal: "#2AA198" } },
-    dark: { bg: "#002B36", card: "#073642", text: "#EEE8D5", muted: "#93A1A1", accent: "#3794D6", onAccent: "#002B36", border: "#0E4552", red: "#DC322F", green: "#859900", orange: "#CB4B16",
-      hues: { blue: "#268BD2", purple: "#6C71C4", pink: "#D33682", yellow: "#B58900", teal: "#2AA198" } },
+  // The app's own, with cats: Siri is a grey-fawn tabby with a terracotta nose (taupe surfaces, the nose
+  // as the accent); Tadeusz and Kastuś are a pair of gingers (cream surfaces, ginger accent).
+  siri: {
+    id: "siri",
+    light: { bg: "#EEEAE5", card: "#FAF8F5", text: "#2A2420", muted: "#6B6159", accent: "#A9573F", onAccent: "#FFFFFF", border: "#DCD5CD", red: "#D93A2B", green: "#2E9A4C", orange: "#D9731A",
+      hues: { pink: "#D2607A", blue: "#4F78A8", purple: "#8462A6", yellow: "#C49516", teal: "#2F8C86" } },
+    dark: { bg: "#1A1715", card: "#26221F", text: "#F2ECE6", muted: "#ABA096", accent: "#E8A089", onAccent: "#1A1715", border: "#3A3430", red: "#FF5A4E", green: "#3ED16A", orange: "#FFA040",
+      hues: { pink: "#F38CA3", blue: "#86A8DA", purple: "#B69CDB", yellow: "#EBC45A", teal: "#5EC6BB" } },
+  },
+  tadeusz: {
+    id: "tadeusz",
+    light: { bg: "#FAEFE2", card: "#FFF9F1", text: "#2E1A0E", muted: "#765843", accent: "#B84A08", onAccent: "#FFFFFF", border: "#EBD6BF", red: "#D3261E", green: "#2C8F43", orange: "#E07A0A",
+      hues: { pink: "#D8577A", blue: "#3A72BE", purple: "#8657BD", yellow: "#D69A12", teal: "#24897F" } },
+    dark: { bg: "#1C120B", card: "#2A1C12", text: "#FBEBDC", muted: "#C2A189", accent: "#FF8A3D", onAccent: "#1C120B", border: "#3E2B1D", red: "#FF5A4A", green: "#45C963", orange: "#FFB13B",
+      hues: { pink: "#FF8FA8", blue: "#7FB0FF", purple: "#C29BFF", yellow: "#FFD15C", teal: "#4FD1C0" } },
   },
   catppuccin: {
     id: "catppuccin",
@@ -80,45 +88,6 @@ export const THEMES: Record<ThemeId, Theme> = {
       hues: { blue: "#1E66F5", purple: "#7287FD", pink: "#EA76CB", yellow: "#DF8E1D", teal: "#179299" } },
     dark: { bg: "#1E1E2E", card: "#313244", text: "#CDD6F4", muted: "#A6ADC8", accent: "#CBA6F7", onAccent: "#1E1E2E", border: "#45475A", red: "#F38BA8", green: "#A6E3A1", orange: "#FAB387",
       hues: { blue: "#89B4FA", purple: "#B4BEFE", pink: "#F5C2E7", yellow: "#F9E2AF", teal: "#94E2D5" } },
-  },
-  gruvbox: {
-    id: "gruvbox",
-    light: { bg: "#F2E5BC", card: "#FBF1C7", text: "#3C3836", muted: "#6F645B", accent: "#AF3A03", onAccent: "#FFFFFF", border: "#D5C4A1", red: "#9D0006", green: "#79740E", orange: "#B57614",
-      hues: { blue: "#076678", purple: "#8F3F71", teal: "#427B58" } },
-    dark: { bg: "#282828", card: "#3C3836", text: "#EBDBB2", muted: "#AFA089", accent: "#FE8019", onAccent: "#282828", border: "#504945", red: "#FB4934", green: "#B8BB26", orange: "#FABD2F",
-      hues: { blue: "#83A598", purple: "#D3869B", teal: "#8EC07C" } },
-  },
-  nord: {
-    id: "nord",
-    light: { bg: "#E5E9F0", card: "#ECEFF4", text: "#2E3440", muted: "#4C566A", accent: "#56779E", onAccent: "#FFFFFF", border: "#D8DEE9", red: "#BF616A", green: "#5E8A4E", orange: "#C2693E",
-      hues: { blue: "#5E81AC", purple: "#B48EAD", yellow: "#D9A93F", teal: "#5E9C9A" } },
-    dark: { bg: "#2E3440", card: "#3B4252", text: "#ECEFF4", muted: "#D8DEE9", accent: "#88C0D0", onAccent: "#2E3440", border: "#434C5E", red: "#BF616A", green: "#A3BE8C", orange: "#D08770",
-      hues: { blue: "#81A1C1", purple: "#B48EAD", yellow: "#EBCB8B", teal: "#8FBCBB" } },
-  },
-  tokyonight: {
-    id: "tokyonight",
-    light: { bg: "#E1E2E7", card: "#EDEEF2", text: "#3760BF", muted: "#4C5A8C", accent: "#2A73D6", onAccent: "#FFFFFF", border: "#C4C8DA", red: "#F52A65", green: "#587539", orange: "#B15C00",
-      hues: { blue: "#2E7DE9", purple: "#9854F1", pink: "#D20065", yellow: "#8C6C3E", teal: "#118C74" } },
-    dark: { bg: "#1A1B26", card: "#24283B", text: "#C0CAF5", muted: "#A9B1D6", accent: "#7AA2F7", onAccent: "#1A1B26", border: "#2F3549", red: "#F7768E", green: "#9ECE6A", orange: "#FF9E64",
-      hues: { blue: "#7AA2F7", purple: "#BB9AF7", pink: "#FF007C", yellow: "#E0AF68", teal: "#73DACA" } },
-  },
-  rosepine: {
-    id: "rosepine",
-    light: { bg: "#FAF4ED", card: "#FFFAF3", text: "#575279", muted: "#716C8D", accent: "#826E98", onAccent: "#FFFFFF", border: "#DFDAD9", red: "#B4637A", green: "#286983", orange: "#D7827E",
-      hues: { purple: "#907AA9", yellow: "#EA9D34", teal: "#56949F" } },
-    dark: { bg: "#191724", card: "#1F1D2E", text: "#E0DEF4", muted: "#908CAA", accent: "#C4A7E7", onAccent: "#191724", border: "#26233A", red: "#EB6F92", green: "#31748F", orange: "#F6C177",
-      hues: { purple: "#C4A7E7", pink: "#EBBCBA", teal: "#9CCFD8" } },
-  },
-  github: {
-    id: "github",
-    // Primer's current functional colours; the accent is GitHub's green primary button
-    // (bgColor-success-emphasis, white text), not its link blue, which is what reads as GitHub.
-    // The extra hues are Primer's emphasis colours (accent, done, sponsors, attention) and its teal scale,
-    // since the green accent cannot stand in for blue and purple the way other themes' accents do.
-    light: { bg: "#F6F8FA", card: "#FFFFFF", text: "#1F2328", muted: "#59636E", accent: "#1F883D", onAccent: "#FFFFFF", border: "#D1D9E0", red: "#D1242F", green: "#1A7F37", orange: "#BC4C00",
-      hues: { blue: "#0969DA", purple: "#8250DF", pink: "#BF3989", yellow: "#9A6700", teal: "#1B7C83" } },
-    dark: { bg: "#0D1117", card: "#151B23", text: "#F0F6FC", muted: "#9198A1", accent: "#238636", onAccent: "#FFFFFF", border: "#3D444D", red: "#F85149", green: "#3FB950", orange: "#DB6D28",
-      hues: { blue: "#1F6FEB", purple: "#8957E5", pink: "#BF4B8A", yellow: "#9E6A03", teal: "#1A8A92" } },
   },
 };
 

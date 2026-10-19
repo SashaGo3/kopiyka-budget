@@ -1,4 +1,5 @@
 {
+  "paidSoFar": "Сплачено {paid} · лишилося {left}",
   "direction": {
     "owedToMe": "Мені винні",
     "iOwe": "Я маю віддати"

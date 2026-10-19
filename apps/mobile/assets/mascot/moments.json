@@ -1,0 +1,38 @@
+{
+  "hello": {
+    "loop": false,
+    "ms": 3063
+  },
+  "ready": {
+    "loop": false,
+    "ms": 3063
+  },
+  "coin": {
+    "loop": false,
+    "ms": 3063
+  },
+  "salary": {
+    "loop": false,
+    "ms": 3063
+  },
+  "proud": {
+    "loop": true,
+    "ms": 3063
+  },
+  "worried": {
+    "loop": true,
+    "ms": 3063
+  },
+  "sleep": {
+    "loop": true,
+    "ms": 3063
+  },
+  "debt": {
+    "loop": true,
+    "ms": 3063
+  },
+  "oops": {
+    "loop": false,
+    "ms": 3063
+  }
+}

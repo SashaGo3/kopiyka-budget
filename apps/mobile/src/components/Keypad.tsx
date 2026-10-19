@@ -31,6 +31,12 @@ export interface KeypadProps {
    *  the rows above it, and a key that is plainly off says the sign is not this screen's question. */
   allowSign?: boolean;
   onToggleSign?: () => void;
+  /** After every key that changed the number: whether the next digit goes into the whole units
+   *  (the point pressed a second time) rather than at the end — where the field's `Caret` belongs. */
+  onEdit?: (whole: boolean) => void;
+  /** Take whatever height the parent leaves, keys shrinking to `fillKey`'s minimum, instead of a
+   *  fixed one: for a screen that has to show the whole keypad without scrolling (onboarding). */
+  fill?: boolean;
 }
 
 const GRID: string[][] = [["7", "8", "9", "⌫"], ["4", "5", "6", "C"], ["1", "2", "3", "±"], ["0", ".", "extra"]];
@@ -49,8 +55,8 @@ const OPS = ["÷", "×", "−", "+"];
  * Both run on the native driver (transform and opacity only), so they keep time with the finger
  * while the amount above is being recalculated.
  */
-function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState, children }: {
-  on?: boolean; onPress: () => void; onLongPress?: () => void;
+function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState, fill, children }: {
+  on?: boolean; onPress: () => void; onLongPress?: () => void; fill?: boolean;
   style: StyleProp<ViewStyle>; onStyle?: StyleProp<ViewStyle>;
   a11y: string; a11yState?: { selected?: boolean; disabled?: boolean }; children: ReactNode;
 }) {
@@ -61,7 +67,7 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
   useEffect(() => { Animated.timing(lit, { toValue: on ? 1 : 0, duration: 160, useNativeDriver: true }).start(); }, [on, lit]);
   const to = (v: number, speed: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed, bounciness: v === 1 ? 10 : 0 }).start();
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} onPressIn={() => to(0.93, 40)} onPressOut={() => to(1, 20)}
+    <Pressable onPress={onPress} onLongPress={onLongPress} onPressIn={() => to(0.93, 40)} onPressOut={() => to(1, 20)} style={fill ? { flex: 1 } : undefined}
       accessibilityRole="button" accessibilityLabel={a11y} accessibilityState={a11yState}>
       <Animated.View style={[style, { transform: [{ scale }] }]}>
         {onStyle ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, onStyle, { opacity: lit }]} /> : null}
@@ -71,7 +77,7 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
   );
 }
 
-export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign }: KeypadProps) {
+export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign, onEdit, fill }: KeypadProps) {
   // The decimal point applies to the number being typed — the part after the last operator — so
   // that tail is what says whether it has been pressed.
   const tail = value.split(/[+−×÷]/).pop() ?? "";
@@ -97,29 +103,31 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
       return;
     }
     const decimals = (value.split(/[+−×÷]/).pop() ?? "").includes(".");
-    if (k === ".") { if (decimals) { setOnWhole((w) => !w); return; } setOnWhole(false); }
+    if (k === ".") { if (decimals) { setOnWhole(!onWhole); onEdit?.(!onWhole); return; } setOnWhole(false); }
     else if (/^\d$/.test(k) && onWhole && decimals) {
       // The caller is handed the finished expression and no key: `applyKeySigned` would append this
       // digit at the end again, and there is nothing to sign — an expression with a decimal point
       // in it already carries whatever sign it was given.
       onChange(applyDigitWhole(value, k));
+      onEdit?.(true);
       return;
     } else setOnWhole(false);
     onChange(applyKey(value, k), k);
-  }, [value, onChange, onToggleSign, onWhole]);
+    onEdit?.(false);
+  }, [value, onChange, onToggleSign, onWhole, onEdit]);
   // The key types "." whatever the language — the expression is the app's own — and only shows the
   // decimal separator the amounts above it are written with.
   const decimalChar = getLanguage() === "en" ? "." : ",";
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, fill && { flex: 1 }]}>
       <View style={styles.ops}>
         {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("keypad.divide") : o === "×" ? t("keypad.multiply") : o === "−" ? t("keypad.subtract") : t("keypad.add")} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
       </View>
       {GRID.map((row, i) => (
-        <View key={i} style={styles.row}>
+        <View key={i} style={[styles.row, fill && { flex: 1 }]}>
           {row.map((k) => {
             if (k === "extra") {
-              if (!extra) return <View key="extra" style={[styles.key, { flex: 2.08, backgroundColor: "transparent" }]} />;
+              if (!extra) return <View key="extra" style={[styles.key, fill && styles.fillKey, { flex: 2.08, backgroundColor: "transparent" }]} />;
               const main = (
                 <Pressable key="extra" onPress={extra.onPress} accessibilityRole="button" accessibilityLabel={extra.a11y ?? extra.label}
                   style={({ pressed }) => [styles.key, styles.extra, extra2 && { flex: 1 }, extra.active && [styles.extraActive, extra.color ? { backgroundColor: extra.color + "33", borderColor: extra.color } : null], pressed && styles.pressed]}>
@@ -142,15 +150,15 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             const wide = k === "0";
             const fn = k === "⌫" || k === "C" || k === "±";
             if (k === "±" && !allowSign) return (
-              <View key={k} style={[styles.keySlot, styles.key, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel={t("keypad.changeSign")} accessibilityState={{ disabled: true }}>
+              <View key={k} style={[styles.keySlot, styles.key, fill && styles.fillKey, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel={t("keypad.changeSign")} accessibilityState={{ disabled: true }}>
                 <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
               </View>
             );
             const dot = k === ".";
             return (
               <View key={k} style={wide ? styles.wide : styles.keySlot}>
-                <AnimatedKey on={dot && dotOn} onPress={() => press(k)} onLongPress={k === "⌫" ? () => { setOnWhole(false); onChange(""); } : undefined}
-                  style={styles.key} onStyle={dot ? styles.dotKey : undefined}
+                <AnimatedKey fill={fill} on={dot && dotOn} onPress={() => press(k)} onLongPress={k === "⌫" ? () => { setOnWhole(false); onChange(""); } : undefined}
+                  style={[styles.key, fill && styles.fillKey]} onStyle={dot ? styles.dotKey : undefined}
                   a11y={k === "⌫" ? t("keypad.delete") : k === "C" ? t("keypad.clear") : k === "±" ? t("keypad.changeSign") : dot ? (dotOn ? t("keypad.decimalTyping") : tail.includes(".") ? t("keypad.decimalWhole") : t("keypad.decimal")) : k}
                   a11yState={dot ? { selected: dotOn } : undefined}>
                   {k === "⌫" ? <SymbolView name="delete.left" size={22} tintColor={C.label} />
@@ -178,6 +186,24 @@ export function CalcLine({ expr, style }: { expr: string; style?: StyleProp<Text
   return <Text style={[styles.calc, style]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} accessibilityLabel={calc || undefined}>{calc || " "}</Text>;
 }
 
+/**
+ * Where the amount is being edited, shown for a moment after each key and gone again: the field shows
+ * the formatted answer rather than the keystrokes, so without it a ⌫ on "28 961,08" leaves you to
+ * work out which digit went. Nested inside the amount's `<Text>`; it always takes its width, clear
+ * while idle, so the amount does not shift when it comes and goes. `pulse` restarts it.
+ */
+export function Caret({ pulse, color }: { pulse: number; color: string }) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!pulse) return;
+    setOn(true);
+    let n = 0;
+    const blink = setInterval(() => { n++; setOn(n < 4 ? n % 2 === 0 : false); if (n >= 4) clearInterval(blink); }, 420);
+    return () => clearInterval(blink);
+  }, [pulse]);
+  return <Text style={[styles.caret, { color: on ? color : "transparent" }]} accessible={false}>|</Text>;
+}
+
 /** Full-width tap-to-add button: the value and the action, nothing that looks like a slider. */
 export function ConfirmBar({ amount, label, onPress, disabled, color }: { amount: string; label: string; onPress: () => void; disabled?: boolean; color?: string }) {
   return (
@@ -199,7 +225,9 @@ const styles = themed(() => StyleSheet.create({
   keySlot: { flex: 1 },
   key: { minHeight: 50, borderRadius: R.md, alignItems: "center", justifyContent: "center", backgroundColor: C.fill, overflow: "hidden" },
   wide: { flex: 1 },
+  fillKey: { flex: 1, minHeight: 36 },
   pressed: { opacity: 0.55 },
+  caret: { fontWeight: "200" },
   keyText: { fontSize: 27, fontWeight: "500", color: C.label, fontVariant: ["tabular-nums"] },
   fnText: { fontSize: 22 },
   clear: { color: C.orange, fontWeight: "600" },

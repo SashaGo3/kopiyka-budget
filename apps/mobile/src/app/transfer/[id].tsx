@@ -12,6 +12,7 @@ import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
+import { dismissSettledPaymentNotices } from "@/lib/notifications";
 import { catName, acctName } from "@/lib/names";
 
 
@@ -46,6 +47,8 @@ export default function TransferSheet() {
   const legs = useMemo(() => (isNew ? [] : listRows(db, "transactions", "deleted=0 AND transfer_id=?", [p.id])), [isNew, p.id]);
   const outLeg = legs.find((l) => l.amount_minor < 0) ?? legs[0], inLeg = legs.find((l) => l !== outLeg);
   const wasPending = legs.some((l) => l.pending === 1);
+  // Opening a transfer settles the automation's notification about either of its legs.
+  useEffect(() => { if (!isNew) void dismissSettledPaymentNotices(p.id); }, [isNew, p.id]);
   // An expense or income being turned into a transfer keeps its id as the leg on its own account
   // (createTransfer's `keep`), so its photo, place and history stay where they are.
   const source = useMemo(() => (isNew && p.convert ? getRow(db, "transactions", p.convert) ?? null : null), [isNew, p.convert]);

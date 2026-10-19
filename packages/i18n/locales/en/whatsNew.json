@@ -7,15 +7,30 @@
   "improved": "Improved",
   "fixed": "Fixed",
   "notes": {
-    "v1_0_4": {
+    "v1_1_0": {
       "events": "Events: a birthday, a wedding or a night out gets its own budget, like a trip, and stays out of your monthly budgets. Settings → Trips & Events.",
       "transferPairs": "When your bank notifies both sides of a transfer between your own accounts, the two become one transfer to check.",
       "checklist": "Insights: a payments checklist that includes your recurring payments.",
       "transferAccounts": "A new transfer asks for both accounts on one screen, From and To, and swaps them in a tap.",
       "transferAmounts": "Both amounts of a transfer can be typed, so a bank's own rate or a fee is kept as it was.",
-      "themes": "Switching themes is instant, with stronger contrast.",
+      "themes": "Switching themes is instant, with stronger contrast and more vivid colours.",
+      "catThemes": "Themes named after cats: Pusik (the default), Siri, Tadeusz & Kastuś, and Una. The other editor themes are gone; a phone using one switches to Pusik.",
+      "insightDetails": "Tap an insight to see what’s behind it: month by month, the highest and lowest, and where the money came from.",
+      "budgetDetails": "Tap a budget to see what it went on and how it did month by month.",
+      "debtPayments": "Paying back a debt in parts: pick Debt instead of a category, and the debt counts what has been paid.",
+      "paymentIcons": "Recurring payments show the company’s logo, or an icon, emoji or picture you choose.",
+      "search": "Search has its own screen and finds by tags, trips, events, debts and more, typos and all.",
+      "tripLimit": "A trip or event can go without a limit and just count what was spent, and one added ahead of time starts on its first day.",
+      "suggestions": "Suggested regular payments you don’t want can be dismissed for good.",
       "outside": "Payments kept outside a trip's budget are now remembered.",
-      "tripTag": "A shop visited on a trip no longer hands the trip's tag to what you buy there later."
+      "tripTag": "A shop visited on a trip no longer hands the trip's tag to what you buy there later.",
+      "bankNote": "A payment logged from your bank’s notification keeps the bank’s words apart from your note: add your own, and the bank’s stay underneath.",
+      "watchPending": "On Apple Watch, approve a pending payment, or pick its category first, and delete an entry typed by mistake.",
+      "watchNote": "Add a note on Apple Watch by dictation or Scribble, right from the category list.",
+      "watchControl": "A Log expense control for Control Center, the Smart Stack and the Action button on Apple Watch.",
+      "listTitles": "Entries are titled by the shop, with your note and the bank’s words beneath.",
+      "watchFaster": "The watch app opens faster, its keypad follows the screen’s corners, and Double Tap moves you on. It now needs watchOS 26.",
+      "watchBudgetNames": "The watch and its budgets show the name you gave a budget, and a debt payment says whose debt it is."
     },
     "v1_0_3": {
       "ukrainian": "Kopiyka now speaks Ukrainian.",

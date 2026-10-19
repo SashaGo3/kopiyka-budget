@@ -15,7 +15,10 @@
     "papaparse": "^5.4.1"
   },
   "devDependencies": {
-    "@types/papaparse": "^5.3.14"
+    "@iconify-json/arcticons": "1.2.58",
+    "@types/papaparse": "^5.3.14",
+    "canvaskit-wasm": "0.40.0",
+    "simple-icons": "16.35.0"
   },
   "exports": {
     ".": "./src/index.ts",

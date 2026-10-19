@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SymbolView } from "expo-symbols";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { THEMES, THEME_IDS, type ThemeId, type ThemeSide } from "@kopiyka/core";
 import { Image } from "expo-image";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { ButtonText, Card, Segmented } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { getAppIcon, setAppIcon } from "@/lib/bridge";
@@ -40,13 +40,9 @@ export function AppearancePicker() {
 // Static requires, one per theme (Metro cannot follow a computed path). Made by `bun run icons:themes`.
 const ICON_PREVIEW: Record<ThemeId, number> = {
   graphite: require("@/../assets/icons/preview/graphite.png"),
-  solarized: require("@/../assets/icons/preview/solarized.png"),
+  siri: require("@/../assets/icons/preview/siri.png"),
+  tadeusz: require("@/../assets/icons/preview/tadeusz.png"),
   catppuccin: require("@/../assets/icons/preview/catppuccin.png"),
-  gruvbox: require("@/../assets/icons/preview/gruvbox.png"),
-  nord: require("@/../assets/icons/preview/nord.png"),
-  tokyonight: require("@/../assets/icons/preview/tokyonight.png"),
-  rosepine: require("@/../assets/icons/preview/rosepine.png"),
-  github: require("@/../assets/icons/preview/github.png"),
 };
 
 /**
@@ -74,7 +70,7 @@ export function AppIconPicker() {
             <View style={[styles.iconRing, on && styles.iconRingOn]}>
               <Image source={ICON_PREVIEW[id]} style={styles.icon} />
             </View>
-            <ButtonText fit={1} style={[styles.iconName, on && styles.nameOn]}>{themeName(id)}</ButtonText>
+            <ButtonText fit={2} style={[styles.iconName, on && styles.nameOn]}>{themeName(id)}</ButtonText>
           </Pressable>
         );
       })}
@@ -106,18 +102,38 @@ function Preview({ side, label }: { side: ThemeSide; label: string }) {
 }
 
 /**
+ * A theme's name, bold when it is the chosen one. A weight cannot be animated, so the name is drawn
+ * twice — regular, and semibold on top — and the change is a cross-fade between the two.
+ */
+function ThemeName({ name, on }: { name: string; on: boolean }) {
+  const bold = useSharedValue(on ? 1 : 0);
+  useEffect(() => { bold.value = withTiming(on ? 1 : 0, { duration: 220 }); }, [on, bold]);
+  const boldStyle = useAnimatedStyle(() => ({ opacity: bold.value }));
+  const regularStyle = useAnimatedStyle(() => ({ opacity: 1 - bold.value }));
+  return (
+    <View style={styles.nameBox}>
+      <Animated.Text style={[styles.name, regularStyle]}>{name}</Animated.Text>
+      <Animated.Text style={[styles.name, styles.nameOn, styles.nameOver, boldStyle]} accessible={false}>{name}</Animated.Text>
+    </View>
+  );
+}
+
+/**
  * Every theme with a light and a dark preview of it; a tap applies it at once. The new colours grow
  * over the old screen from the tap, every screen already recoloured where it was (src/lib/theme.ts).
  * The app icon is chosen separately (AppIconPicker).
  */
 export function ThemePicker() {
-  // Ticked at once, so the tap is answered before the cover goes up.
-  const [picked, setPicked] = useState(getTheme);
+  // The chosen theme is the one whose name is bold; there is no tick. While a switch runs no name is
+  // bold: the old one lets go before the cover is laid (the snapshot shows neither), and the new one
+  // takes it once the new colours have grown over the screen, rather than a second change landing in
+  // the middle of the reveal.
+  const [picked, setPicked] = useState<ThemeId | null>(getTheme);
   const pick = (id: ThemeId, at: TapPoint) => {
     if (id === picked) return;
-    setPicked(id);
+    setPicked(null);
     void Haptics.selectionAsync();
-    void switchTheme(id, at).catch(() => setPicked(getTheme()));
+    void switchTheme(id, at).catch(() => {}).finally(() => setPicked(getTheme()));
   };
   return (
     <>
@@ -133,8 +149,7 @@ export function ThemePicker() {
               <Preview side={theme.light} label={t("theme.light")} />
               <Preview side={theme.dark} label={t("theme.dark")} />
             </View>
-            <Text style={[styles.name, on && styles.nameOn]}>{themeName(id)}</Text>
-            {on ? <SymbolView name="checkmark" size={17} weight="semibold" tintColor={C.tint} /> : null}
+            <ThemeName name={themeName(id)} on={on} />
           </Pressable>
         );
       })}
@@ -163,6 +178,8 @@ const styles = themed(() => StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   previews: { flexDirection: "row", gap: S.sm },
-  name: { flex: 1, fontSize: 17, color: C.label },
+  nameBox: { flex: 1 },
+  name: { fontSize: 17, color: C.label },
+  nameOver: { position: "absolute", left: 0, top: 0 },
   nameOn: { fontWeight: "600" },
 }));

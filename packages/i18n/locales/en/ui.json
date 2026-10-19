@@ -6,6 +6,7 @@
   "logA11y": "Log a transaction",
   "logHint": "Long press to photograph a receipt",
   "reorderA11y": { "message": "Reorder {title}", "note": "VoiceOver label of a row's drag handle; title is the row's name." },
+  "reorderDeleteA11y": { "message": "Delete {title}", "note": "VoiceOver label of the Delete button a row reveals when swiped left." },
   "value": {
     "high": { "message": "Could not live without", "note": "Importance level: high. Legend label on Insights." },
     "medium": { "message": "In between", "note": "Importance level: medium." },

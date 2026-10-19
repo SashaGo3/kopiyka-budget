@@ -259,6 +259,63 @@ describe("approving teaches the accounts their numbers", () => {
   });
 });
 
+describe("a leg on the wrong account", () => {
+  test("goes back to the account its number names, at the bank's own figure, and pairs: two rows, not three", () => {
+    const { db, usd, pln } = seed();
+    learnAccountNumber(db, usd.id, "3203");
+    learnAccountNumber(db, pln.id, "5837");
+    // The USD debit, converted onto the PLN account by the automation.
+    const out = createTransaction(db, { account_id: pln.id, date: "2026-10-15T14:31:00+02:00", amount_minor: -2121908, pending: 1, source: "shortcut",
+      bank_ref: writeBankRef({ own: "3203", other: "5837" }), entered_amount_minor: -548155, entered_currency: "USD", exchange_rate: 3.871, category_id: null });
+    expect(pairTransferLeg(db, out.id)?.kind).toBe("inferred");
+    const moved = getRow(db, "transactions", out.id)!;
+    expect([moved.account_id, moved.amount_minor, moved.entered_currency]).toEqual([usd.id, -548155, null]);
+    // The real credit then replaces the leg the app wrote.
+    const inn = leg(db, pln.id, 2050703, { own: "5837", other: "3203" }, "2026-10-15T14:31:30+02:00");
+    expect(pairTransferLeg(db, inn.id)?.kind).toBe("replaced");
+    const live = listRows(db, "transactions", "deleted=0");
+    expect(live.map((r) => r.id).sort()).toEqual([out.id, inn.id].sort());
+    expect(getRow(db, "transactions", out.id)!.transfer_id).toBe(getRow(db, "transactions", inn.id)!.transfer_id);
+  });
+
+  test("stays put when the bank's figure for the other account is not known", () => {
+    const { db, usd, pln } = seed();
+    learnAccountNumber(db, usd.id, "3203");
+    const row = createTransaction(db, { account_id: pln.id, date: "2026-10-15T14:31:00+02:00", amount_minor: -2121908, pending: 1, source: "shortcut",
+      bank_ref: writeBankRef({ own: "3203" }), category_id: null });
+    pairTransferLeg(db, row.id);
+    expect(getRow(db, "transactions", row.id)!.account_id).toBe(pln.id);
+  });
+});
+
+describe("a number learned from the wrong account", () => {
+  test("a converted payment teaches its account nothing", () => {
+    const { db, usd, pln } = seed();
+    const row = createTransaction(db, { account_id: pln.id, date: "2026-10-07T12:00:00+02:00", amount_minor: 2896108, pending: 1, source: "shortcut",
+      bank_ref: writeBankRef({ own: "3203", other: "3010" }), entered_amount_minor: 748155, entered_currency: "USD", exchange_rate: 3.871 });
+    approvePending(db, [row.id]);
+    expect(accountForNumber(db, "3203")).toBeNull();
+  });
+
+  test("a payment in the account's own currency takes the number back from an account in another one", () => {
+    const { db, usd, pln } = seed();
+    learnAccountNumber(db, pln.id, "3203"); // learned wrongly, by an older build
+    learnAccountNumber(db, pln.id, "5837");
+    const row = leg(db, usd.id, 748155, { own: "3203", other: "3010" });
+    approvePending(db, [row.id]);
+    expect(accountForNumber(db, "3203")?.id).toBe(usd.id);
+    expect(accountForNumber(db, "5837")?.id).toBe(pln.id);
+  });
+
+  test("an account in the same currency keeps its claim", () => {
+    const { db, usd } = seed();
+    const usd2 = createAccount(db, { name: "Revolut USD", currency: "USD" });
+    learnAccountNumber(db, usd2.id, "3203");
+    approvePending(db, [leg(db, usd.id, 748155, { own: "3203" }).id]);
+    expect(accountForNumber(db, "3203")?.id).toBe(usd2.id);
+  });
+});
+
 describe("editing a transfer in place", () => {
   test("keeps both ids, payees and numbers, and saving approves", () => {
     const { db, usd, pln } = seed();

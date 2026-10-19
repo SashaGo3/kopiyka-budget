@@ -14,7 +14,7 @@ struct KopiykaWatchApp: App {
         .environmentObject(session)
         .environmentObject(nav)
         .environmentObject(draft)
-        .onAppear { session.activate() }
+        .onAppear { session.activate(); WatchShot.open() }
         .onChange(of: phase) { _, p in if p == .active { session.refresh() } }
         // Complications (`widgetURL`) and `kopiyka://…` links land here: straight to a blank amount.
         .onOpenURL { _ in nav.resetToQuickAdd() }
@@ -35,6 +35,7 @@ final class WatchNav: ObservableObject {
     if !path.isEmpty { path = NavigationPath() }
     if page != 0 { page = 0 }
     WatchDraft.shared.text = ""
+    WatchDraft.shared.note = ""
   }
 }
 
@@ -44,7 +45,34 @@ final class WatchNav: ObservableObject {
 final class WatchDraft: ObservableObject {
   static let shared = WatchDraft()
   @Published var text = ""          // typed amount, e.g. "12.5"
+  @Published var note = ""          // dictated or scribbled on the category list; empty for most entries
   var value: Double { Double(text) ?? 0 }
+}
+
+/// Screenshots (scripts/screenshots/capture.sh): launched with `-KPShot <screen>` and `-KPShotAmount
+/// <amount>`, the app opens on that screen with the amount typed, so a capture needs no taps. Launch
+/// arguments are not something a person can pass on a watch; without them nothing here runs.
+enum WatchShot {
+  @MainActor static func open() {
+    let args = UserDefaults.standard
+    guard let shot = args.string(forKey: "KPShot") else { return }
+    let nav = WatchNav.shared
+    WatchDraft.shared.text = args.string(forKey: "KPShotAmount") ?? ""
+    switch shot {
+    case "categories": nav.path = NavigationPath([QuickStep.category])
+    case "tags":
+      // The tags of the category the list puts first, as the logging flow would reach them.
+      let s = WatchSession.shared.state
+      var path = NavigationPath()
+      path.append(QuickStep.category)
+      path.append(QuickStep.tags(KPRank.categories(s.categories, kind: "expense").first?.id))
+      nav.path = path
+    case "history": nav.page = 1
+    case "budgets": nav.page = 2
+    case "status": nav.page = 3
+    default: break   // "keypad"
+    }
+  }
 }
 
 /// Bind this to the Ultra's Action button (Settings → Action Button → Shortcut) or run it from Siri on the watch.

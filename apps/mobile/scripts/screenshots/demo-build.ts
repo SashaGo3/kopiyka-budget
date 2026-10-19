@@ -603,8 +603,11 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
     createTransfer(db, { from_account_id: main.id, to_account_id: savings.id, date: ts(day, 10, 0), from_amount_minor: toMinor(P.savingsMonthly, CUR), to_amount_minor: toMinor(P.savingsMonthly, CUR), from_currency: CUR, to_currency: CUR, notes: m("transfer") });
   }
 
-  // The one pending row Shortcuts is meant to demonstrate.
-  createTransaction(db, { account_id: main.id, date: ts(TODAY, 20, 5), amount_minor: -toMinor(P.pending, CUR), category_id: catTaxi.id, notes: m("shop.taxi2.name"), pending: 1, source: "shortcut-guess" });
+  // The one pending row Shortcuts is meant to demonstrate, written as the automation writes one: the
+  // shop as the payee, what the bank printed in `bank_note`, and no note of the person's own.
+  const city = m("home").split(",").pop()!.trim();
+  createTransaction(db, { account_id: main.id, date: ts(TODAY, 20, 5), amount_minor: -toMinor(P.pending, CUR), category_id: catTaxi.id, payee: m("shop.taxi2.name"),
+    bank_note: `${m("shop.taxi2.name").toUpperCase()}.EU, ${city.toUpperCase()}`, pending: 1, source: "shortcut-guess" });
 
   // ---------------------------------------------------------------------------------------------
   // Budgets

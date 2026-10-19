@@ -120,10 +120,14 @@ struct BudgetsView: View {
               Text(t.name).font(.subheadline).fontWeight(.semibold).lineLimit(1)
               Text("· " + (t.allowance.map { L10n.Budget.perDay(amount: KPFormat.money(max(0, $0), t.currency, decimals: 0)) } ?? t.dayLabel)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
               Spacer()
-              Text(KPFormat.money(t.remaining, t.currency, decimals: 0))
-                .font(.subheadline).monospacedDigit().foregroundStyle(t.remaining < 0 ? .red : .primary)
+              if t.limited {
+                Text(KPFormat.money(t.remaining, t.currency, decimals: 0))
+                  .font(.subheadline).monospacedDigit().foregroundStyle(t.remaining < 0 ? .red : .primary)
+              } else {
+                Text(L10n.Budget.spent(amount: KPFormat.money(t.spent, t.currency, decimals: 0))).font(.subheadline).monospacedDigit()
+              }
             }
-            ProgressView(value: t.ratio).tint(t.remaining < 0 ? .red : t.ratio > 0.85 ? .orange : .blue)
+            if t.limited { ProgressView(value: t.ratio).tint(t.remaining < 0 ? .red : t.ratio > 0.85 ? .orange : .blue) }
           }
         }
       }
@@ -174,7 +178,7 @@ struct LockView: View {
     switch family {
     case .accessoryCircular:
       Gauge(value: 1 - (budget?.ratio ?? 0)) {
-        Image(systemName: entry.snapshot.trip?.symbol ?? "chart.pie")
+        Image(systemName: entry.snapshot.trip?.limited == true ? entry.snapshot.trip!.symbol : "chart.pie")
       } currentValueLabel: {
         Text(KPFormat.compact(budget?.remaining ?? 0)).font(.caption2).minimumScaleFactor(0.5)
       }

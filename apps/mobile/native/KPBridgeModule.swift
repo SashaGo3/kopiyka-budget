@@ -34,8 +34,10 @@ private enum KPLaunch {
 ///  - beginThemeTransition(x, y) / endThemeTransition(s): the circular reveal over a theme switch (KPThemeTransition)
 ///  - setWindowBackground(light, dark): the theme's background behind everything React draws
 ///  - defineThemeColors(table) / setThemeColors(id) / signalThemeColors(): the named theme colours (KPThemeColors)
+///  - backgroundWorkDone(): JS has finished what it does on leaving the app (KPBackgroundTime)
 final class KPBridgeModule: Module {
   private var observer: NSObjectProtocol?
+  private var backgroundObserver: NSObjectProtocol?
   /// The moment this module instance was created — Expo builds it while setting up the bridge,
   /// which is as close to "the JS runtime is starting" as native code can observe.
   private let jsStart = Date().timeIntervalSince1970 * 1000
@@ -52,9 +54,15 @@ final class KPBridgeModule: Module {
       self.observer = NotificationCenter.default.addObserver(forName: KP.externalChange, object: nil, queue: .main) { [weak self] _ in
         self?.sendEvent("externalChange", [:])
       }
+      // Synchronously, inside the notification: by the time JS hears about it, suspension may be under way.
+      self.backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+        MainActor.assumeIsolated { KPBackgroundTime.begin() }
+      }
     }
     OnDestroy {
       if let o = self.observer { NotificationCenter.default.removeObserver(o) }
+      if let o = self.backgroundObserver { NotificationCenter.default.removeObserver(o) }
+      DispatchQueue.main.async { KPBackgroundTime.end() }
       KPWrites.release()
     }
 
@@ -83,6 +91,9 @@ final class KPBridgeModule: Module {
     }
 
     Function("reloadWidgets") { WidgetCenter.shared.reloadAllTimelines() }
+    /// The link a screenshot capture launched the app with (`-KPLink kopiyka://…`, scripts/screenshots/
+    /// capture.sh): the iPad cannot be handed one through `openurl` without iPadOS asking first.
+    Function("launchLink") { () -> String? in UserDefaults.standard.string(forKey: "KPLink") }
     AsyncFunction("updateWatch") { () -> String in WatchBridge.shared.pushState() }
     Function("isWatchPaired") { () -> Bool in WatchBridge.shared.isPaired }
     /// Read a receipt photo (file URI from the camera); returns what was understood, saves nothing.
@@ -149,6 +160,8 @@ final class KPBridgeModule: Module {
     AsyncFunction("signalThemeColors") { (promise: Promise) in
       DispatchQueue.main.async { KPThemeColors.signal(); promise.resolve() }
     }
+
+    Function("backgroundWorkDone") { DispatchQueue.main.async { KPBackgroundTime.end() } }
 
     // Device odds and ends (native/KPDevice.swift; JS side: src/lib/device.ts).
     Function("copyToClipboard") { (text: String) in KPDevice.copy(text) }
@@ -302,16 +315,30 @@ enum KPThemeTransition {
     CATransaction.commit()
   }
 
-  /// The theme's background, light and dark, on every window of the app's scenes and their root views.
+  /// The theme's background, light and dark, on the app's own windows and their root views.
+  ///
+  /// Only the app's own: iOS keeps windows of its own in the same scene — `UITextEffectsWindow`, made
+  /// the first time a text field is focused, and the keyboard's — which sit *above* the app, clear,
+  /// letting every touch through. Painted with the theme's background, one of them covered the whole
+  /// app with a plain colour that still let taps through to the screen nobody could see, and every
+  /// later switch only recoloured it: the "empty screen after a theme change" that came and went
+  /// with whether the keyboard had been up since launch.
   static func setBackground(light: String, dark: String) {
     guard let l = color(hex: light), let d = color(hex: dark) else { return }
     let dynamic = UIColor { $0.userInterfaceStyle == .dark ? d : l }
     for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-      for window in scene.windows {
+      for window in scene.windows where isAppWindow(window) {
         window.backgroundColor = dynamic
         window.rootViewController?.view.backgroundColor = dynamic
       }
     }
+  }
+
+  /// A window the app made (a plain `UIWindow`, or a subclass of our own), not one of UIKit's private
+  /// ones (`UITextEffectsWindow`, `UIRemoteKeyboardWindow`, `_UI…`).
+  static func isAppWindow(_ window: UIWindow) -> Bool {
+    let name = NSStringFromClass(type(of: window))
+    return name == "UIWindow" || !(name.hasPrefix("UI") || name.hasPrefix("_"))
   }
 
   /// "#RGB", "#RRGGBB" or "#RRGGBBAA".
@@ -323,5 +350,37 @@ enum KPThemeTransition {
     let rgba = s.count == 6 ? (v << 8) | 0xFF : v
     return UIColor(red: CGFloat((rgba >> 24) & 0xFF) / 255, green: CGFloat((rgba >> 16) & 0xFF) / 255,
                    blue: CGFloat((rgba >> 8) & 0xFF) / 255, alpha: CGFloat(rgba & 0xFF) / 255)
+  }
+}
+
+/// Time to finish writing after the app leaves the screen.
+///
+/// The database lives in the App Group container, and iOS kills an app that is suspended while it
+/// holds a lock on a file there (RUNNINGBOARD 0xdead10cc). Leaving the app starts a backup flush in
+/// JS (src/lib/backup.ts) that waits on iCloud and then commits; without background time the app
+/// was suspended in the middle of that commit and killed (TestFlight 1.1.0 (80), 2026-10-18). So
+/// leaving the app asks iOS for time, and JS hands it back once nothing is left to write
+/// (`backgroundWorkDone`). JS stops starting writes 15 s after leaving (`LEAVE_BUDGET_MS`), so
+/// it always answers first; `limit` and iOS's own expiry are only the backstop for a JS thread
+/// that never does.
+@MainActor
+enum KPBackgroundTime {
+  private static var task: UIBackgroundTaskIdentifier = .invalid
+  private static var deadline: DispatchWorkItem?
+  private static let limit: TimeInterval = 25
+
+  static func begin() {
+    guard task == .invalid else { return }
+    task = UIApplication.shared.beginBackgroundTask(withName: "Kopiyka database") { end() }
+    let item = DispatchWorkItem { end() }
+    deadline = item
+    DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: item)
+  }
+
+  static func end() {
+    deadline?.cancel(); deadline = nil
+    guard task != .invalid else { return }
+    UIApplication.shared.endBackgroundTask(task)
+    task = .invalid
   }
 }

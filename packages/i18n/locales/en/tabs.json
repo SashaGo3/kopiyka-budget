@@ -3,6 +3,5 @@
   "transactions": { "message": "Transactions", "max": 12 },
   "budgets": { "message": "Budgets", "max": 12 },
   "insights": { "message": "Insights", "max": 12 },
-  "settings": { "message": "Settings", "max": 12 },
-  "search": { "message": "Search", "max": 12 }
+  "settings": { "message": "Settings", "max": 12 }
 }

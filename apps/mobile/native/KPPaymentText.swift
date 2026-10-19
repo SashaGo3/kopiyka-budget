@@ -128,7 +128,9 @@ enum KPPaymentText {
     // An incoming transfer has no shop; the person who sent it is what names the row instead, and a
     // labelled sender beats guessing at the subtitle's position.
     let (shop, city) = splitCity(labelled ?? (income ? who : nil) ?? fallback ?? who)
-    let stamp = timestamp(in: text)
+    // The bank's own timestamp only. What the payer typed — "INVOICE … FROM 07.10.2026" in a transfer's
+    // title — is a date about the invoice, not about the money, and would file the credit on that day.
+    let stamp = timestamp(in: lines.filter { first(referenceLine, $0) == nil && first(senderLine, $0) == nil }.joined(separator: "\n"))
 
     return .payment(Parse(amount: money.value, currency: money.currency, merchant: shop, place: city, card: card(in: lines) ?? issuer(clean(title)),
                  date: stamp?.day, time: stamp?.time, income: income, hold: isHold(text),

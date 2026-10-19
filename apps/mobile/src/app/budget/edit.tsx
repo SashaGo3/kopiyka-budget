@@ -1,13 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { SymbolView } from "expo-symbols";
 import { router, useLocalSearchParams } from "expo-router";
 import { budgetCategoryIds, createBudget, formatMinor, getRow, listRows, remove, save, scopedBudget, suggestBudget, toMinor, fromMinor, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { Chip, SheetFrame, Subtle, Title, ChipRow, DeleteRow } from "@/components/ui";
-import { C, S } from "@/constants/theme";
+import { Chip, ChipGrid, SheetFrame } from "@/components/ui";
+import { SideScroll } from "@/components/SideScroll";
+import { C, S, themed } from "@/constants/theme";
 import { monthBounds, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
 import { getPeriodStartDay } from "@/lib/period";
@@ -50,11 +52,15 @@ export default function BudgetEdit() {
   const nameKey = useMemo(() => newPickKey("bname"), []);
   usePickResult<string>(nameKey, (v: string) => setName(v.trim()));
   usePickResult<string[]>(key, (v: string[]) => { setCategoryIds(v); if (v.length) setTagId(null); });
-  usePickResult<string>(tagKey, (v: string) => { setTagId(v); setCategoryIds([]); });
+  usePickResult<string>(tagKey, (v: string) => { setTagId(v || null); setCategoryIds([]); });
   const pickTag = () => {
     const tags = listRows(db, "tags", "deleted=0", [], "name");
     if (!tags.length) { Alert.alert(t("budgets.edit.noTagsTitle"), t("budgets.edit.noTagsBody")); return; }
-    router.push({ pathname: "/pick/option", params: { key: tagKey, title: t("budgets.edit.tagPickerTitle"), selected: tagId ?? "", options: JSON.stringify(tags.map((x) => ({ value: x.id, label: x.name, subtitle: t("budgets.edit.tagPickerSubtitle") }))) } });
+    // "No tag" first, so a tag budget can go back to categories without a separate button for it.
+    router.push({ pathname: "/pick/option", params: { key: tagKey, title: t("budgets.edit.tagPickerTitle"), selected: tagId ?? "", options: JSON.stringify([
+      ...(tagId ? [{ value: "", label: t("budgets.edit.noTag"), subtitle: t("budgets.edit.noTagSubtitle") }] : []),
+      ...tags.map((x) => ({ value: x.id, label: x.name, subtitle: t("budgets.edit.tagPickerSubtitle") })),
+    ]) } });
   };
   // `evalPartial`, as on the Log sheet: "900−" already means 900, and the field shows what is saved.
   const value = evalPartial(expr);
@@ -73,59 +79,61 @@ export default function BudgetEdit() {
     { text: t("common.cancel"), style: "cancel" },
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "budgets", existing.id)); leave(); } },
   ]);
+  // Laid out like the entry sheet: what it covers and the amount large at the top; then, in the thumb
+  // zone, what it could be — the averages, a line that scrolls sideways right above the buttons — the
+  // settings as a row of fixed cells, the keypad and the bar that saves.
   return (
     <SheetFrame
       top={
         <View style={styles.top}>
-          <Title numberOfLines={2}>{name.trim() || covers}</Title>
-          <Subtle>{[
+          {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("budgets.edit.delete")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
+          <Text style={styles.covers} numberOfLines={2}>{name.trim() || covers}</Text>
+          <Text style={styles.meta}>{[
             name.trim() ? covers : null,
             t("budgets.edit.monthlyLimit", { currency }),
             startDay > 1 ? t("budgets.edit.periodStart", { day: startDay }) : null,
             accountName ? t("budgets.edit.onlyFor", { account: accountName }) : null,
             counted ? null : t("budgets.edit.notCounted"),
-          ].filter(Boolean).join(" · ")}</Subtle>
-          {suggestion ? (
-            <View style={styles.suggest}>
-              <Subtle>{t("budgets.edit.suggested")}</Subtle>
-              {/* The averages first, shortest window to longest, then the two extremes. Each chip
-                  names the number of months it covers rather than claiming "a year" or "all time"
-                  over whatever history happens to exist; the longer ones are dropped when they would
-                  only repeat a shorter one. */}
-              <ChipRow>
-                {pick(t("budgets.edit.avg", { count: suggestion.periods }), suggestion.average_minor)}
-                {suggestion.year_minor !== null ? pick(t("budgets.edit.avg", { count: suggestion.year_periods }), suggestion.year_minor) : null}
-                {suggestion.all_periods > Math.max(suggestion.year_periods, suggestion.periods) ? pick(t("budgets.edit.avgAll", { count: suggestion.all_periods }), suggestion.all_minor) : null}
-                {pick(t("budgets.edit.lastMonth"), suggestion.last_minor)}
-                {pick(t("budgets.edit.highest"), suggestion.max_minor)}
-                {suggestion.min_minor !== suggestion.max_minor ? pick(t("budgets.edit.lowest"), suggestion.min_minor) : null}
-              </ChipRow>
-            </View>
-          ) : null}
-          <Title style={[styles.amount, !expr && { color: C.tertiary }]}>{shown} <Subtle style={{ fontSize: 18 }}>{currency}</Subtle></Title>
-          <CalcLine expr={expr} style={{ textAlign: "left" }} />
+          ].filter(Boolean).join(" · ")}</Text>
+          <View style={styles.amountRow} accessible accessibilityLabel={`${shown} ${currency}`}>
+            <Text style={[styles.amount, { color: expr ? C.label : C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{shown}</Text>
+            <Text style={styles.currency}>{currency}</Text>
+          </View>
+          <CalcLine expr={expr} style={styles.calc} />
         </View>
       }
       bottom={
         <>
-          <ChipRow>
-            {/* The multi-picker resolves a fully ticked folder back to the folder's own id, which is
-                exactly what a budget wants: "this folder, including categories added later". */}
-            <Chip icon="folder" label={scopeLabel ?? t("budgets.edit.categories")} active={categoryIds.length > 0}
+          {suggestion ? (
+            // Not a ScrollView: a form sheet takes any ScrollView in it for its own and moves it to the top (SideScroll).
+            <SideScroll style={styles.suggest} contentStyle={styles.suggestRow} accessibilityLabel={t("budgets.edit.suggested")}>
+              {/* The averages first, shortest window to longest, then the two extremes. Each chip names
+                  the number of months it covers rather than claiming "a year" or "all time" over
+                  whatever history happens to exist; the longer ones are dropped when they would only
+                  repeat a shorter one. */}
+              {pick(t("budgets.edit.avg", { count: suggestion.periods }), suggestion.average_minor)}
+              {suggestion.year_minor !== null ? pick(t("budgets.edit.avg", { count: suggestion.year_periods }), suggestion.year_minor) : null}
+              {suggestion.all_periods > Math.max(suggestion.year_periods, suggestion.periods) ? pick(t("budgets.edit.avgAll", { count: suggestion.all_periods }), suggestion.all_minor) : null}
+              {pick(t("budgets.edit.lastMonth"), suggestion.last_minor)}
+              {pick(t("budgets.edit.highest"), suggestion.max_minor)}
+              {suggestion.min_minor !== suggestion.max_minor ? pick(t("budgets.edit.lowest"), suggestion.min_minor) : null}
+            </SideScroll>
+          ) : null}
+          {/* What it covers is one choice: categories (none ticked is everything) or a tag. The
+              multi-picker resolves a fully ticked folder back to the folder's own id, which is
+              exactly what a budget wants: "this folder, including categories added later". */}
+          <ChipGrid rows={1}>
+            <Chip cell icon="folder" label={scopeLabel ?? (tag ? t("budgets.edit.categories") : t("budgets.title.everything"))} active={categoryIds.length > 0}
               onPress={() => router.push({ pathname: "/pick/categories", params: { key, selected: categoryIds.join(","), title: t("budgets.edit.categoryPickerTitle") } })} />
-            <Chip icon="number" label={tag?.name ?? t("budgets.edit.tag")} active={!!tag} onPress={pickTag} />
-            <Chip icon="asterisk" label={t("budgets.edit.allSpending")} active={!categoryIds.length && !tag} onPress={() => { setCategoryIds([]); setTagId(null); }} />
-          </ChipRow>
-          <ChipRow>
-            <Chip icon="textformat" label={name.trim() || t("budgets.edit.name")} active={!!name.trim()}
+            <Chip cell icon="number" label={tag?.name ?? t("budgets.edit.tag")} active={!!tag} onPress={pickTag} />
+            <Chip cell icon="textformat" label={name.trim() || t("budgets.edit.name")} active={!!name.trim()}
               onPress={() => router.push({ pathname: "/pick/text", params: { key: nameKey, title: t("budgets.edit.nameTitle"), value: name } })} />
             {/* A limit you keep as a yardstick still shows its own bar; it just stays out of the two
                 numbers at the top, where it would otherwise read as money set aside. */}
-            <Chip icon={counted ? "sum" : "eye.slash"} label={counted ? t("budgets.edit.inPlanned") : t("budgets.edit.notInPlanned")} active={counted} onPress={() => setCounted((v) => !v)} />
-          </ChipRow>
+            <Chip cell icon={counted ? "sum" : "eye.slash"} label={counted ? t("budgets.edit.inPlanned") : t("budgets.edit.notInPlanned")} active={counted} onPress={() => setCounted((v) => !v)} />
+          </ChipGrid>
           <Keypad value={expr} onChange={setExpr} allowSign={false} />
           <ConfirmBar amount={`${shown} ${currency}`} label={existing ? t("budgets.edit.tapToSave") : t("budgets.edit.tapToAdd")} onPress={commit} disabled={!valid} />
-          {existing ? <DeleteRow label={t("budgets.edit.delete")} onPress={del} /> : null}
         </>
       }
     />
@@ -134,8 +142,16 @@ export default function BudgetEdit() {
 
 function group(n: number): string { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
 
-const styles = StyleSheet.create({
-  top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.md, gap: 4 },
-  amount: { fontSize: 44, marginTop: S.sm },
-  suggest: { marginTop: S.sm, gap: 4 },
-});
+const styles = themed(() => StyleSheet.create({
+  top: { paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs, gap: 4, alignItems: "center" },
+  covers: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingHorizontal: 40 },
+  meta: { fontSize: 13, color: C.secondary, textAlign: "center" },
+  amountRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 8, maxWidth: "100%", marginTop: S.xs },
+  amount: { fontSize: 54, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 },
+  currency: { fontSize: 22, color: C.secondary, fontWeight: "600" },
+  calc: { textAlign: "center" },
+  // Spans the sheet's width so a chip scrolls off the side instead of stopping short of it.
+  suggest: { alignSelf: "stretch" },
+  suggestRow: { paddingHorizontal: S.xl, gap: S.sm },
+  trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
+}));

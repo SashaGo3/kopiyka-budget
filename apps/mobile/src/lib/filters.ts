@@ -61,8 +61,8 @@ export function activeCount(f: TxFilter, defaults?: { accounts?: string[]; perio
   return (f.type ? 1 : 0) + accounts + (f.categories.length ? 1 : 0) + (f.tags.length ? 1 : 0) + range + (f.pending !== null ? 1 : 0) + (f.upcoming ? 1 : 0) + (f.recurring !== null ? 1 : 0);
 }
 
-/** SQL for the transactions query in TransactionList (aliases t, a, c, p). */
-export function buildWhere(f: TxFilter, period: { start: string; end: string } | null, today = todayLocal(), shownNameMatches: string[] = [], shownAccountMatches: string[] = []): { where: string; params: (string | number)[] } {
+/** SQL for the transactions query in TransactionList (aliases t, a, c, p). `searchIds` is what `useSearchIds(f.q)` found. */
+export function buildWhere(f: TxFilter, period: { start: string; end: string } | null, today = todayLocal(), searchIds: string[] | null = null): { where: string; params: (string | number)[] } {
   const conds: string[] = []; const params: (string | number)[] = [];
   // Upcoming looks past the selected month: only an explicit "to" bounds it.
   const from = f.from ?? period?.start ?? null, to = f.to ?? (f.upcoming ? null : period?.end ?? null);
@@ -82,27 +82,8 @@ export function buildWhere(f: TxFilter, period: { start: string; end: string } |
   for (const tag of f.tags) { conds.push("t.tag_ids LIKE ?"); params.push(`%"${tag}"%`); }
   if (f.pending !== null) conds.push(`t.pending=${f.pending ? 1 : 0}`);
   if (f.recurring !== null) conds.push(`t.recurring_id IS ${f.recurring ? "NOT NULL" : "NULL"}`);
-  if (f.q.trim()) {
-    const q = f.q.trim(); const like = `%${q}%`;
-    const parts = ["t.notes LIKE ?", "t.payee LIKE ?", "c.name LIKE ?", "p.name LIKE ?", "a.name LIKE ?"]; const qparams: (string | number)[] = [like, like, like, like, like];
-    // A ready-made category is shown translated while its stored name stays as seeded (DATA.md rule
-    // 16), so the caller passes the ids whose *shown* name matches as well.
-    if (shownNameMatches.length) {
-      const ph = shownNameMatches.map(() => "?").join(",");
-      parts.push(`t.category_id IN (${ph})`, `c.parent_id IN (${ph})`); qparams.push(...shownNameMatches, ...shownNameMatches);
-    }
-    // And an account still under its default name ("Main") by the name it is shown under (rule 17).
-    if (shownAccountMatches.length) {
-      parts.push(`t.account_id IN (${shownAccountMatches.map(() => "?").join(",")})`); qparams.push(...shownAccountMatches);
-    }
-    // A typed number also matches amounts: exact match in major units, or (with no decimals typed) a prefix match on the integer part.
-    const amt = /^-?\d+([.,]\d{1,2})?$/.exec(q);
-    if (amt) {
-      const hasDecimals = !!amt[1];
-      parts.push("ABS(t.amount_minor)=?"); qparams.push(Math.round(Math.abs(parseFloat(q.replace(",", "."))) * 100));
-      if (!hasDecimals) { parts.push("CAST(ABS(t.amount_minor)/100 AS TEXT) LIKE ?"); qparams.push(`${q.replace(/^-/, "")}%`); }
-    }
-    conds.push(`(${parts.join(" OR ")})`); params.push(...qparams);
-  }
+  // What is typed is matched in JS (lib/search.ts: tags, trips, debts, folders, typos, any alphabet),
+  // and arrives here as the ids it found.
+  if (f.q.trim() && searchIds) { conds.push("t.id IN (SELECT value FROM json_each(?))"); params.push(JSON.stringify(searchIds)); }
   return { where: conds.length ? conds.join(" AND ") : "1=1", params };
 }

@@ -15,7 +15,7 @@ import { t } from "@/i18n";
 
 /**
  * One trip, and everything that can be changed about it: its budget (a trip rarely costs what was
- * guessed on the way to the airport), its currency, its dates, which of its payments stay outside
+ * guessed on the way to the airport, and some only want counting — no limit at all), its currency, its dates, which of its payments stay outside
  * the budget, the purchases that belong to it — and ending it, or, once it is
  * history, removing it. The card at the top is the same one Transactions shows.
  */
@@ -46,6 +46,15 @@ export default function TripSettings() {
   const tripTitle = tripName(s);
   const outsideCount = jsonIds(trip.outside_ids).length;
   const fmt = (m: number) => `${formatMinor(m, trip.currency)} ${trip.currency}`;
+  const pickAmount = () => router.push({ pathname: "/pick/amount", params: { key: keys.amount, title: t("travel.trip.amountTitle", { name: tripTitle }), currency: trip.currency, value: String(trip.amount_minor) } });
+  // A limit can be changed or taken away; no limit is "count what was spent" (core `tripLimited`).
+  const amount = () => s.limited
+    ? Alert.alert(t("travel.trip.amountTitle", { name: tripTitle }), undefined, [
+      { text: t("travel.trip.changeLimit"), onPress: pickAmount },
+      { text: t("travel.trip.removeLimit"), style: "destructive", onPress: () => change({ amount_minor: 0 }) },
+      { text: t("common.cancel"), style: "cancel" },
+    ])
+    : pickAmount();
   const last = trip.ended ?? trip.ends ?? trip.starts;
   // A past trip's purchases are looked for in its own days; a running one's in the months before it.
   const addPurchases = () => router.push({ pathname: "/travel/backfill", params: { tag: trip.tag_id ?? "", name: tripTitle,
@@ -66,8 +75,7 @@ export default function TripSettings() {
         <TripCard budget={trip} />
         <SectionHeader>{t("travel.trip.budget")}</SectionHeader>
         <Card>
-          <Row icon="banknote" iconColor="#34C759" title={t("travel.trip.amount")} subtitle={fmt(trip.amount_minor)}
-            onPress={() => router.push({ pathname: "/pick/amount", params: { key: keys.amount, title: t("travel.trip.amountTitle", { name: tripTitle }), currency: trip.currency, value: String(trip.amount_minor) } })} />
+          <Row icon="banknote" iconColor="#34C759" title={t("travel.trip.amount")} subtitle={s.limited ? fmt(trip.amount_minor) : t("travel.trip.noLimit")} onPress={amount} />
           <Row icon="dollarsign.circle" iconColor="#0A84FF" title={t("travel.trip.currency")} subtitle={t("travel.trip.currencyHint", { currency: trip.currency })} style={styles.divider}
             onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: trip.currency, title: t("travel.start.currency") } })} />
           <Row icon="calendar" iconColor="#FF9F0A" title={t("travel.trip.dates")} subtitle={`${humanDayTime(trip.starts, null, undefined, true)} → ${humanDayTime(last, null, undefined, true)}`} style={styles.divider}

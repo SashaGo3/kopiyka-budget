@@ -122,5 +122,13 @@
     "dueSince": "{count, plural, one {# due since {date}} other {# due since {date}}}",
     "dueOn": { "message": "Due {date}", "note": "date is \"22 Sep at 11:17\"." },
     "post": "Post"
-  }
+  },
+  "icon": { "message": "Icon", "note": "Row: what the payment is drawn with — a logo, an emoji or a symbol." },
+  "iconAuto": "Automatic",
+  "iconAutoFound": { "message": "Automatic · {name}", "note": "name is the brand found in the payment's name, e.g. Netflix." },
+  "iconCategory": "The category's icon",
+  "iconLogo": { "message": "Logo · {name}", "note": "name is the brand." },
+  "iconEmoji": "Emoji",
+  "iconSymbol": "Symbol",
+  "iconApp": "Picture"
 }

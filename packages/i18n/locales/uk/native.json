@@ -8,6 +8,7 @@
   },
   "budget": {
     "left": "залишилось {amount}",
+    "spent": "витрачено {amount}",
     "namedLeft": "{name}: залишилось {amount}",
     "fallback": "Бюджет",
     "perDay": "{amount}/день",
@@ -104,8 +105,14 @@
   "notify": {
     "received": "Платіж отримано",
     "logged": "Платіж записано",
-    "guess": "припущення",
-    "pending": "очікує"
+    "transfer": "Переказ",
+    "filed": "Розпізнано: {category}.",
+    "check": "Розпізнано як «{category}» — торкніться, щоб перевірити.",
+    "guess": "Схоже на «{category}» — торкніться, щоб підтвердити чи змінити.",
+    "unknown": "Не розпізнано — торкніться, щоб вибрати категорію.",
+    "transferPaired": "Обидві сторони знайдено — торкніться, щоб перевірити.",
+    "transferInferred": "Другу сторону додано за вас — торкніться, щоб перевірити.",
+    "transferWaiting": "Схоже на переказ — чекаємо на другу сторону."
   },
   "receipt": {
     "noImage": "Не вдалося прочитати фото.",
@@ -136,6 +143,9 @@
     "deleteDigit": "Стерти останню цифру",
     "decimalPoint": "Десяткова кома",
     "category": {
+      "addNote": "Додати нотатку",
+      "noteHint": "Надиктуйте або напишіть нотатку до запису",
+      "notePrompt": "Нотатка",
       "title": "Категорія",
       "empty": "Категорії надходять з iPhone.",
       "none": "Без категорії",
@@ -163,6 +173,14 @@
       "hintRemove": "Торкніться двічі, щоб прибрати тег"
     },
     "history": {
+      "approve": "Підтвердити",
+      "approveAs": "Вибрати категорію",
+      "delete": "Видалити",
+      "deleteConfirm": "Видалити цей запис?",
+      "cancel": "Скасувати",
+      "transferOnPhone": "Перекази змінюйте на iPhone.",
+      "pendingLabel": "Очікує",
+      "a11yPending": "очікує",
       "empty": "Сьогодні й учора нічого.",
       "waiting": "Чекає на iPhone",
       "a11yWaiting": "чекає на iPhone",
@@ -170,6 +188,8 @@
       "a11yAt": "о {time}"
     },
     "write": {
+      "approved": "Підтверджено",
+      "approveQueued": "Підтвердження чекає на iPhone",
       "added": "Додано {amount}",
       "addedFor": "Додано {amount} · {category}",
       "queued": "У черзі для iPhone: {amount}",
@@ -185,6 +205,8 @@
       "travelA11y": "Подорож {name}, залишилось {amount}, {day}",
       "event": "Подія",
       "eventA11y": "Подія {name}, залишилось {amount}, {day}",
+      "travelSpentA11y": "Подорож {name}, витрачено {amount}, {day}",
+      "eventSpentA11y": "Подія {name}, витрачено {amount}, {day}",
       "budgetA11y": "{name}, залишилось {amount}",
       "empty": "Бюджетів ще немає. Додайте на iPhone."
     },

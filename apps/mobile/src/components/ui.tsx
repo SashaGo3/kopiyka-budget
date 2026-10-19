@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle, type TextProps } from "react-native";
 import { SymbolView, type SFSymbol } from "expo-symbols";
+import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, R, S, themeTone, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
@@ -118,7 +119,8 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
         const on = o.value === value;
         return (
           <Pressable key={o.value} onPress={() => onChange(o.value)} accessibilityRole="button" accessibilityLabel={o.label} accessibilityState={{ selected: on }} style={[styles.segItem, on && styles.segOn]}>
-            <ButtonText style={[styles.segText, on && { color: o.color ?? C.label, fontWeight: "600" }]}>{o.label}</ButtonText>
+            {/* One line, shrinking to fit: a segment is a third of a row, and "Автоматично" broke mid-word. */}
+            <ButtonText fit={1} style={[styles.segText, on && { color: o.color ?? C.label, fontWeight: "600" }]}>{o.label}</ButtonText>
           </Pressable>
         );
       })}
@@ -204,6 +206,32 @@ export function FadeIn({ children, delay = 0, style }: { children: ReactNode; de
   return <Animated.View style={[style, { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}>{children}</Animated.View>;
 }
 
+/**
+ * A card that is a button as a whole and answers a touch the way an iOS 26 control does: it sinks a
+ * little and dims while the finger is on it, springs back on release, and a hold (`onLongPress`)
+ * knocks before its menu opens. Not glass — this is content, and glass laid over an opaque card reads
+ * as grey mud (components/glass.tsx). Buttons inside it are their own and take the touch first.
+ */
+export function PressCard({ children, style, onPress, onLongPress, accessibilityLabel, accessibilityHint, disabled }: {
+  children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; onLongPress?: () => void; accessibilityLabel?: string; accessibilityHint?: string; disabled?: boolean;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const to = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: v === 1 ? 6 : 0 }).start();
+  return (
+    <Pressable onPress={onPress} disabled={disabled} delayLongPress={400}
+      onLongPress={onLongPress ? () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); to(1); onLongPress(); } : undefined}
+      onPressIn={() => to(0.97)} onPressOut={() => to(1)}
+      accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityHint={accessibilityHint}>
+      {({ pressed }) => (
+        <Animated.View style={[style, styles.pressCard, { transform: [{ scale }] }]}>
+          {children}
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.pressVeil, { opacity: pressed ? 1 : 0 }]} />
+        </Animated.View>
+      )}
+    </Pressable>
+  );
+}
+
 /** Small tag pill: visibly different from note text. */
 export function TagPill({ name, color, onPress }: { name: string; color?: string | null; onPress?: () => void }) {
   // No colour of its own: one derived from the name, so a row of tags is not a row of identical pills.
@@ -269,11 +297,17 @@ export function DeleteRow({ label, onPress, icon = "trash" }: { label: string; o
   );
 }
 
+/**
+ * The alpha (hex) of a category tile: the category's colour, this faint, under its glyph in full. At
+ * 15% the tile read as a brown or grey smudge on a dark card; 25% shows the colour on both sides.
+ */
+export const TILE_ALPHA = "40";
+
 /** Category icon box using the auto-matched or explicit symbol. */
 export function CategoryIcon({ name, icon, color, size = 30 }: { name: string; icon?: string | null; color?: string | null; size?: number }) {
   const m = iconFor(name, { icon: icon ?? null, color: color ?? null });
   return (
-    <View style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: m.color + "26", alignItems: "center", justifyContent: "center" }}>
+    <View style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: m.color + TILE_ALPHA, alignItems: "center", justifyContent: "center" }}>
       <SymbolView name={m.icon as SFSymbol} size={size * 0.55} tintColor={m.color} />
     </View>
   );
@@ -303,7 +337,7 @@ export function CategoryIconStack({ items, size = 30, max = 3, cutout = C.card }
         return (
           <View key={`${it.name}-${i}`} style={{
             position: "absolute", left: i * step, width: tile, height: tile, borderRadius: tile * 0.28,
-            backgroundColor: m.color + "26", alignItems: "center", justifyContent: "center",
+            backgroundColor: m.color + TILE_ALPHA, alignItems: "center", justifyContent: "center",
             // The ring is the background showing through, which is what makes the overlap legible.
             borderWidth: i ? 1.5 : 0, borderColor: cutout,
           }}>
@@ -433,6 +467,9 @@ export function Empty({ title, hint, action }: { title: string; hint?: string; a
 }
 
 const styles = themed(() => StyleSheet.create({
+  // Clipped so the veil follows whatever corners the card has.
+  pressCard: { overflow: "hidden" },
+  pressVeil: { backgroundColor: C.fill },
   busy: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" },
   busyCard: { alignItems: "center", gap: S.md, paddingHorizontal: S.xl, paddingVertical: S.xl, borderRadius: R.card, backgroundColor: C.card, minWidth: 200 },
   busyText: { color: C.label, fontSize: 15, textAlign: "center" },

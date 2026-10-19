@@ -120,6 +120,12 @@ export interface Messages {
   "automation.shortcut.account": undefined;
   "automation.shortcut.accountSub": undefined;
   "automation.shortcut.expect": undefined;
+  /** Label on the guide picture where Messages stands in for the bank's app (the simulator has none). */
+  "automation.shortcut.guide.bankApp": undefined;
+  /** Label under Shortcuts' Edit button on the guide picture of the “Describe a shortcut” screen, which only exists in English (Apple Intelligence). Use the name Shortcuts gives the button in this language. */
+  "automation.shortcut.guide.edit": undefined;
+  /** Accessibility label of a step's pictures; n is the step number. */
+  "automation.shortcut.guide.step": { n: string | number };
   "automation.shortcut.hint": undefined;
   "automation.shortcut.intro": undefined;
   "automation.shortcut.known": undefined;
@@ -138,40 +144,71 @@ export interface Messages {
   "automation.shortcut.setUp": undefined;
   "automation.shortcut.settings": undefined;
   "automation.shortcut.settingsSub": undefined;
-  /** Apple's Shortcuts app, its Automation tab, then the + button. */
+  /** Apple's Shortcuts app, then its + button. */
   "automation.shortcut.step1": undefined;
+  /** Edit is the Shortcuts button at the top right of the “Describe a shortcut” screen (only with Apple Intelligence). */
   "automation.shortcut.step1Sub": undefined;
-  /** The Shortcuts automation trigger, as iOS names it. */
+  /** Shortcuts labels: the Automation chip, then the Notification trigger. */
   "automation.shortcut.step2": undefined;
   "automation.shortcut.step2Sub": undefined;
-  /** Run Immediately is a Shortcuts option. */
   "automation.shortcut.step3": undefined;
-  /** Notify When Run is a Shortcuts switch. */
+  /** App is the trigger's placeholder in Shortcuts. */
   "automation.shortcut.step3Sub": undefined;
-  /** The Kopiyka action's name exactly as Shortcuts lists it (native.json intents.payment.title). */
+  /** Message and contains are Shortcuts labels. */
   "automation.shortcut.step4": undefined;
-  /** Kopiyka Budget is the app's name in the Shortcuts action list. */
+  /** Add Filter, Title, Message: Shortcuts labels. The example is a word banks print; use one natural for the language's banks. */
   "automation.shortcut.step4Sub": undefined;
   "automation.shortcut.step5": undefined;
-  /** Select Variable is a Shortcuts menu item; Notification is the trigger's variable. */
+  /** Automation and Notify are Shortcuts switches. */
   "automation.shortcut.step5Sub": undefined;
+  /** The Kopiyka action's name exactly as Shortcuts lists it (native.json intents.payment.title). */
   "automation.shortcut.step6": undefined;
-  /** Get Current Location is a Shortcuts action; Location is a field of the Kopiyka action; Show More expands it. */
+  /** Kopiyka is what to type; keep it in Latin letters. */
   "automation.shortcut.step6Sub": undefined;
+  "automation.shortcut.step7": undefined;
+  /** Select Variable is a Shortcuts button; Notification is the trigger's variable. */
+  "automation.shortcut.step7Sub": undefined;
+  "automation.shortcut.step8": undefined;
+  /** Location, Account: the Kopiyka action's fields; Choose, Current Location: Shortcuts labels. */
+  "automation.shortcut.step8Sub": undefined;
+  "automation.shortcut.step9": undefined;
+  /** Library and Automation are Shortcuts labels. */
+  "automation.shortcut.step9Sub": undefined;
   "automation.shortcut.title": undefined;
   "automation.shortcut.unavailableMessage": undefined;
   "automation.shortcut.unavailableTitle": undefined;
   "budgets.add": undefined;
   /** account is an account name. */
   "budgets.addFor": { account: string | number };
+  /** Note above the budgets with the mascot, a period that is over and no budget went over. */
+  "budgets.allKept": undefined;
   "budgets.available": undefined;
   /** VoiceOver label of a category line; name is a category. */
   "budgets.childLabel": { name: string | number };
   /** VoiceOver label of a category line under a tag budget. */
   "budgets.childTaggedLabel": { name: string | number; tag: string | number };
+  "budgets.detail.goneHint": undefined;
+  "budgets.detail.goneTitle": undefined;
+  /** Section header over the chart of what the budget counted each period. */
+  "budgets.detail.history": { currency: string | number };
+  /** Row label; the value is "4 of 6 months". */
+  "budgets.detail.kept": undefined;
+  /** limit is "1 500.00 PLN". */
+  "budgets.detail.keptHint": { limit: string | number };
+  /** kept is a number. */
+  "budgets.detail.keptValue": { kept: string | number; count: number };
+  /** Under the big amount on a budget's details. */
+  "budgets.detail.left": { period: string | number };
+  "budgets.detail.noHistory": undefined;
+  "budgets.detail.nothing": { period: string | number };
+  /** Under the big amount when the budget went over. */
+  "budgets.detail.over": { period: string | number };
+  /** What can still be spent per day until the period ends; amount is "42.00 PLN". */
+  "budgets.detail.perDay": { amount: string | number; count: number };
+  /** Section header: the categories the budget's money went on. */
+  "budgets.detail.spentOn": { period: string | number };
   /** A line under a folder for what was filed on the folder itself (or the budget's own category), not on a category inside it. */
   "budgets.direct": undefined;
-  "budgets.edit.allSpending": undefined;
   /** Suggestion chip: the average over the last N months. */
   "budgets.edit.avg": { count: number };
   /** Suggestion chip: the average over all N months of history. */
@@ -192,6 +229,9 @@ export interface Messages {
   /** Chip: give the budget a name of its own. */
   "budgets.edit.name": undefined;
   "budgets.edit.nameTitle": undefined;
+  /** First option of the tag picker on a tag budget: back to categories. */
+  "budgets.edit.noTag": undefined;
+  "budgets.edit.noTagSubtitle": undefined;
   "budgets.edit.noTagsBody": undefined;
   "budgets.edit.noTagsTitle": undefined;
   /** Budget sheet subtitle part. */
@@ -207,8 +247,6 @@ export interface Messages {
   "budgets.edit.tagPickerTitle": undefined;
   "budgets.edit.tapToAdd": undefined;
   "budgets.edit.tapToSave": undefined;
-  /** VoiceOver label of a budget row. */
-  "budgets.editLabel": { name: string | number };
   "budgets.empty": undefined;
   /** account is an account name. */
   "budgets.emptyFor": { account: string | number };
@@ -217,14 +255,14 @@ export interface Messages {
   "budgets.exceeded": { count: number };
   /** Note above the budgets, a period that is over. */
   "budgets.exceededEnded": { count: number };
-  /** VoiceOver, the fold under a budget. */
-  "budgets.hideCategories": { count: number };
   /** Section header; period is "Aug 2026" or "15 Aug – 14 Sep". */
   "budgets.monthly": { period: string | number };
   /** Same, with the account or group being shown. */
   "budgets.monthlyScoped": { period: string | number; scope: string | number };
   /** Lowercase, after a dot in a budget subtitle: this budget is left out of the Planned total. */
   "budgets.notInPlanned": undefined;
+  /** VoiceOver label of a budget card. */
+  "budgets.openLabel": { name: string | number };
   "budgets.planned.counted": { count: number };
   "budgets.planned.countedHeader": undefined;
   /** off is the number of budgets switched off. */
@@ -247,17 +285,16 @@ export interface Messages {
   "budgets.reorder.spendingSection": undefined;
   "budgets.reorder.title": undefined;
   "budgets.reorder.travelSection": undefined;
-  "budgets.reorderHint": undefined;
   /** Title of the account picker opened from the scope pill. */
   "budgets.scopePicker": undefined;
   /** Large title of the Budgets screen. */
   "budgets.screenTitle": undefined;
-  /** VoiceOver, the fold under a budget. */
-  "budgets.showCategories": { count: number };
   /** First line inside an opened folder; name is a folder or trip. */
   "budgets.spending.allIn": { name: string | number };
   /** VoiceOver; name is a folder or trip. */
   "budgets.spending.allLabel": { name: string | number };
+  /** Spending line: payments made on debts this period. */
+  "budgets.spending.debts": undefined;
   /** Section header; period is "Aug 2026". */
   "budgets.spending.header": { period: string | number };
   /** Same, with the account or group being shown. */
@@ -355,27 +392,19 @@ export interface Messages {
   "category.importance.folderA11y": { name: string | number };
   /** Follows the row count after " · ". */
   "category.importance.folders": { count: number };
+  /** Screen header on step 2 of marking what matters. */
+  "category.importance.high.header": undefined;
   "category.importance.high.hint": undefined;
   "category.importance.high.title": undefined;
-  /** Importance high, as a section heading on the review step. */
-  "category.importance.level.high": undefined;
-  /** Importance low. */
-  "category.importance.level.low": undefined;
-  /** Importance medium. */
-  "category.importance.level.medium": undefined;
+  /** Screen header on step 1 of marking what matters. */
+  "category.importance.low.header": undefined;
   "category.importance.low.hint": undefined;
   "category.importance.low.title": undefined;
   "category.importance.mark": { count: number };
   "category.importance.noChanges": undefined;
   "category.importance.noFolder": undefined;
-  /** Under a level heading with no categories. */
-  "category.importance.none": undefined;
   "category.importance.nothingLeft": undefined;
   "category.importance.nothingToChange": undefined;
-  "category.importance.review.hint": undefined;
-  "category.importance.review.title": undefined;
-  /** VoiceOver label on the review step; level is one of the level titles. */
-  "category.importance.rowA11y": { name: string | number; level: string | number };
   /** Progress over the question. */
   "category.importance.step": { step: string | number; total: string | number };
   "category.importance.title": undefined;
@@ -676,6 +705,8 @@ export interface Messages {
   "debt.paid.title": undefined;
   /** date is "22 Sep" or "22 Sep 2025". */
   "debt.paidBack": { date: string | number };
+  /** By the payments pointed at this debt; amounts are "500.00 PLN". */
+  "debt.paidSoFar": { paid: string | number; left: string | number };
   "debt.reminderOff": undefined;
   "debt.reminderOn": undefined;
   "debt.reopen.body": undefined;
@@ -697,33 +728,49 @@ export interface Messages {
   "insights.balance.left": { account: string | number };
   /** amount is the balance once the pending entries are counted. */
   "insights.balance.leftPending": { account: string | number; amount: string | number };
-  /** Under "4.5 months"; account is an account name. */
-  "insights.buffer.covered": { account: string | number };
-  "insights.buffer.coveredThis": undefined;
+  /** On an opened Safety buffer; accounts is a list of account names. */
+  "insights.buffer.accounts": { accounts: string | number; amount: string | number };
+  /** pct is a whole number. */
+  "insights.buffer.cushion": { pct: string | number; amount: string | number };
   "insights.buffer.explain": { count: number; amount: string | number; periods: string | number };
+  "insights.buffer.explainChosen": { count: number; amount: string | number; periods: string | number };
+  /** Under "4.5 months". */
+  "insights.buffer.liveChosenPlain": undefined;
+  /** Under "4.5 months". */
+  "insights.buffer.liveImportantPlain": undefined;
+  "insights.buffer.monthCosts": { amount: string | number; periods: string | number };
   "insights.buffer.noEssentials": undefined;
   "insights.buffer.noEssentialsHint": undefined;
+  /** currencies is "USD, EUR". */
+  "insights.buffer.noRate": { currencies: string | number };
   "insights.checklist.allDone": { period: string | number };
+  /** Alert after tapping an open checklist line; its title is the line's name. */
+  "insights.checklist.askBody": undefined;
+  /** Alert button: opens a new entry prefilled from the last payment. */
+  "insights.checklist.askLog": undefined;
+  /** Alert button: mark the line done for this period without a transaction. */
+  "insights.checklist.askTick": undefined;
   "insights.checklist.choose": undefined;
   /** VoiceOver; name is a category. */
   "insights.checklist.doneLabel": { name: string | number };
   /** Recurring payment line not paid yet; day is "22 Sep". */
   "insights.checklist.due": { amount: string | number; day: string | number };
-  /** Under the checklist when paid lines are set to be hidden. */
-  "insights.checklist.hiddenDone": { count: number };
   /** The last payment in this category; day is "22 Sep". */
   "insights.checklist.last": { amount: string | number; day: string | number };
-  "insights.checklist.missing": { count: string | number; period: string | number };
+  /** Under a checklist line paid several times a month: what the previous period came to in all, and how many payments. */
+  "insights.checklist.lastMonth": { amount: string | number; count: number };
   /** VoiceOver; name is a category. */
   "insights.checklist.notYetLabel": { name: string | number };
-  /** VoiceOver hint on the checklist's sum line. */
-  "insights.checklist.sumLabel": undefined;
+  /** Under a checklist line done this period: everything paid on it so far. */
+  "insights.checklist.paid": { amount: string | number };
+  /** Under the checklist card: how many lines are already paid; they are listed on the details screen. */
+  "insights.checklist.paidCount": { count: string | number };
   /** Checklist summary part: roughly what the open lines will still cost. */
   "insights.checklist.summaryLeft": { amount: string | number };
-  /** Checklist summary part; amount is "250.00 PLN". Parts are joined with " · ". */
-  "insights.checklist.summaryPaid": { amount: string | number };
-  /** Checklist summary part: paid plus still to go. */
-  "insights.checklist.summaryTotal": { amount: string | number };
+  /** Under a checklist line marked done by hand. */
+  "insights.checklist.ticked": undefined;
+  /** VoiceOver; name is a category. */
+  "insights.checklist.tickedLabel": { name: string | number };
   /** A weekly payment paid once of the four times it falls this period: "1 of 4". */
   "insights.checklist.times": { paid: string | number; total: string | number };
   /** VoiceOver for the progress dots of a payment due several times this period. */
@@ -731,18 +778,102 @@ export interface Messages {
   "insights.chooseAccount": undefined;
   /** Big number on the Until salary card. */
   "insights.days": { count: number };
+  /** Average of what the balance went up or down by in each complete month. */
+  "insights.detail.avgChange": { count: number };
+  /** Section header over the balance chart; account is a name. */
+  "insights.detail.balance": { account: string | number };
+  /** Section header: each budget's state in the period shown. */
+  "insights.detail.budgets": { period: string | number };
+  /** Section header on a payments checklist's details. */
+  "insights.detail.checklistSums": { period: string | number };
+  /** Section header; day is the next payday, "30 Sep". */
+  "insights.detail.coming": { day: string | number };
+  /** Section header: recurring payments included in the total. */
+  "insights.detail.counted": { count: string | number };
+  /** Section header: the accounts a safety buffer adds up. */
+  "insights.detail.counts": undefined;
+  "insights.detail.edit": undefined;
+  /** Section header over the comfort level's spending per month. */
+  "insights.detail.essentialHistory": { currency: string | number };
+  /** Row label; the value is when the goal would be reached. */
+  "insights.detail.eta": undefined;
+  /** month is "March 2027". */
+  "insights.detail.etaAt": { month: string | number; count: number };
+  "insights.detail.etaNever": undefined;
+  /** Section header on a savings goal's details. */
+  "insights.detail.goal": undefined;
+  "insights.detail.goneHint": undefined;
+  "insights.detail.goneTitle": undefined;
+  /** Section header on an opened insight; currency is a code. */
+  "insights.detail.history": { currency: string | number };
+  /** period is "Aug 2026" or "15 Aug – 14 Sep". */
+  "insights.detail.historyHint": { period: string | number };
+  /** Row label: paid plus still to pay. */
+  "insights.detail.inAll": undefined;
+  /** Section header on Days to salary: what came in, period by period. */
+  "insights.detail.income": { currency: string | number };
+  /** Section header: this period's income grouped by payee and category. */
+  "insights.detail.incomeFrom": { period: string | number };
+  /** VoiceOver, on a budget line. */
+  "insights.detail.left": { amount: string | number };
+  /** VoiceOver, one month of an account. */
+  "insights.detail.monthA11y": { period: string | number; income: string | number; spent: string | number; balance: string | number };
+  "insights.detail.monthByMonth": undefined;
+  "insights.detail.noHistory": undefined;
+  "insights.detail.noIncome": undefined;
+  "insights.detail.noMoves": undefined;
+  "insights.detail.noSubscriptions": undefined;
+  /** Section header: recurring payments left out of the total in the card's settings. */
+  "insights.detail.notCounted": { count: string | number };
+  /** VoiceOver, on a budget line that went over its limit. */
+  "insights.detail.over": { amount: string | number };
+  /** Section header on an account's details: the average change per month. */
+  "insights.detail.pace": undefined;
+  /** Row label: what the checklist's lines were paid this period. */
+  "insights.detail.paid": undefined;
+  /** The yearly total divided by 12. */
+  "insights.detail.perMonth": { currency: string | number };
+  /** Section header over a monthly history chart. */
+  "insights.detail.perMonthHistory": { currency: string | number };
+  /** Section header over a weekly history chart. */
+  "insights.detail.perWeekHistory": { currency: string | number };
+  "insights.detail.perYear": { currency: string | number };
+  "insights.detail.reached": undefined;
+  /** VoiceOver, on the arrows that switch an opened insight's chart to another currency. */
+  "insights.detail.showCurrency": { currency: string | number };
+  /** Under a budget line; both are money with the currency. */
+  "insights.detail.spentOf": { spent: string | number; limit: string | number };
+  /** Row label; roughly what the open lines will cost. */
+  "insights.detail.stillToPay": undefined;
+  "insights.detail.target": undefined;
+  /** Under an income source. */
+  "insights.detail.times": { count: number };
+  "insights.detail.toGo": undefined;
+  /** All counted accounts converted into one currency. */
+  "insights.detail.together": { currency: string | number };
+  "insights.detail.totals": undefined;
   "insights.edit.account": undefined;
-  "insights.edit.addFromTx": undefined;
-  "insights.edit.addFromTxHint": undefined;
   /** Right side of a card kind with nothing to set: tapping adds it at once. */
   "insights.edit.addNow": undefined;
+  /** Section above 3 / 6 / 12 months on Regular spending. */
+  "insights.edit.averageOver": undefined;
+  /** Safety buffer row: the accounts whose money counts. */
+  "insights.edit.bufferAccounts": undefined;
+  "insights.edit.bufferAccountsHint": undefined;
   "insights.edit.categories": undefined;
-  "insights.edit.changeType": undefined;
   /** Row subtitle when nothing is picked yet. */
   "insights.edit.choose": undefined;
+  /** Safety buffer setting: the categories a month has to pay for. */
+  "insights.edit.comfort": undefined;
+  /** Safety buffer toggle. */
+  "insights.edit.cushion": undefined;
+  "insights.edit.cushionSubtitle": undefined;
   /** Subtitle when no title is set; title is the kind's name. */
   "insights.edit.defaultTitle": { title: string | number };
   "insights.edit.editTitle": undefined;
+  /** Section above the months the safety buffer should cover. */
+  "insights.edit.goal": undefined;
+  "insights.edit.goalHint": undefined;
   /** Section in the Add insight list. */
   "insights.edit.group.accounts": undefined;
   /** Section in the Add insight list. */
@@ -750,15 +881,17 @@ export interface Messages {
   /** Section in the Add insight list. */
   "insights.edit.group.spending": undefined;
   "insights.edit.includedRules": undefined;
-  "insights.edit.monthsToCover": undefined;
+  /** Comfort level row when no categories are chosen. */
+  "insights.edit.mostImportant": undefined;
   "insights.edit.newTitle": undefined;
+  /** Segment: the safety buffer has no target. */
+  "insights.edit.noGoal": undefined;
   "insights.edit.noRules": undefined;
   "insights.edit.noRulesHint": undefined;
   /** Categories row when the checklist only watches recurring payments. */
   "insights.edit.none": undefined;
   "insights.edit.notSet": undefined;
   "insights.edit.offeredOnce": undefined;
-  "insights.edit.payments": undefined;
   "insights.edit.perMonth": undefined;
   "insights.edit.perTag.hint": undefined;
   /** Subtitle of a chosen category with no tags picked. */
@@ -769,14 +902,7 @@ export interface Messages {
   /** Section header above a live preview of the card being set up. */
   "insights.edit.preview": undefined;
   "insights.edit.question": undefined;
-  /** Toggle on the payments checklist editor. */
-  "insights.edit.recurring.hideDone": undefined;
-  "insights.edit.recurring.hideDoneSubtitle": undefined;
   "insights.edit.recurring.subtitle": undefined;
-  /** Section above a two-way switch: still to pay / total. */
-  "insights.edit.recurring.sum": undefined;
-  "insights.edit.recurring.sumLeft": undefined;
-  "insights.edit.recurring.sumTotal": undefined;
   /** Toggle on the payments checklist editor. */
   "insights.edit.recurring.title": undefined;
   /** Section listing the recurring expenses the checklist waits for, each with a tick. */
@@ -792,16 +918,33 @@ export interface Messages {
   "insights.edit.target": undefined;
   /** Row: the card's own title. */
   "insights.edit.title": undefined;
-  "insights.edit.whichPayment": undefined;
-  /** VoiceOver label of a card's header; title is the card's name. */
-  "insights.editLabel": { title: string | number };
   "insights.empty": undefined;
   "insights.emptyHint": undefined;
+  /** Under the budgets left; day is "30 Sep". */
+  "insights.free.committed": { amount: string | number; day: string | number };
   "insights.free.left": { period: string | number };
+  /** The tag makes the amount bold. */
+  "insights.free.perDayAfter": { amount: string | number };
   "insights.goal.reached": undefined;
   "insights.goal.toGo": { amount: string | number };
   "insights.gone": undefined;
-  "insights.hideList": undefined;
+  "insights.history.avg.month": { count: number };
+  "insights.history.avg.week": { count: number };
+  /** VoiceOver label of a history chart. */
+  "insights.history.chartA11y": { count: string | number; average: string | number };
+  "insights.history.current": undefined;
+  "insights.history.highest.balance": undefined;
+  "insights.history.highest.income": undefined;
+  "insights.history.highest.spend": undefined;
+  "insights.history.last.month": undefined;
+  "insights.history.last.week": undefined;
+  "insights.history.lowest.balance": undefined;
+  "insights.history.lowest.income": undefined;
+  "insights.history.lowest.spend": undefined;
+  /** Income history: the monthly average times 12. */
+  "insights.history.perYear": undefined;
+  /** After a period still running. */
+  "insights.history.soFar": undefined;
   "insights.kind.account_balance.hint": undefined;
   "insights.kind.account_balance.title": undefined;
   "insights.kind.checklist.hint": undefined;
@@ -810,20 +953,14 @@ export interface Messages {
   "insights.kind.days_to_salary.title": undefined;
   "insights.kind.free_money.hint": undefined;
   "insights.kind.free_money.title": undefined;
-  "insights.kind.recurring_spend.hint": undefined;
-  "insights.kind.recurring_spend.title": undefined;
   "insights.kind.regular.hint": undefined;
   "insights.kind.regular.title": undefined;
-  "insights.kind.safe_to_spend.hint": undefined;
-  "insights.kind.safe_to_spend.title": undefined;
   "insights.kind.safety_buffer.hint": undefined;
   "insights.kind.safety_buffer.title": undefined;
   "insights.kind.savings_goal.hint": undefined;
   "insights.kind.savings_goal.title": undefined;
   "insights.kind.subscriptions.hint": undefined;
   "insights.kind.subscriptions.title": undefined;
-  "insights.kind.upcoming.hint": undefined;
-  "insights.kind.upcoming.title": undefined;
   "insights.kind.values.hint": undefined;
   "insights.kind.values.title": undefined;
   /** "3 months"; also the big number on Safety buffer, which may be a fraction (1.5). */
@@ -831,8 +968,8 @@ export interface Messages {
   "insights.noBudgets": undefined;
   /** Progress towards a target: "1 200.00 EUR of 5 000.00 EUR". */
   "insights.of": { have: string | number; target: string | number };
-  /** Name of an upcoming payment with no note and no category. */
-  "insights.payment": undefined;
+  /** VoiceOver label of a card's header; title is the card's name. */
+  "insights.openLabel": { title: string | number };
   "insights.per.daily": { count: number };
   "insights.per.monthly": { count: number };
   "insights.per.weekly": { count: number };
@@ -841,47 +978,26 @@ export interface Messages {
   "insights.perDay": { amount: string | number };
   /** Name of a recurring rule with no payee and no category. */
   "insights.recurring": undefined;
-  "insights.recurringSpend.allRules": undefined;
-  "insights.recurringSpend.allRulesLabel": undefined;
-  /** VoiceOver; title is a payee or category. */
-  "insights.recurringSpend.editRule": { title: string | number };
-  "insights.recurringSpend.from": { count: number; period: string | number };
-  "insights.recurringSpend.fromDue": { count: number; period: string | number; due: string | number };
-  "insights.recurringSpend.none": { period: string | number };
-  "insights.recurringSpend.noneWaiting": { period: string | number; count: string | number };
   "insights.regular.choose": undefined;
   /** names is a list of categories. */
   "insights.regular.monthly": { names: string | number; last: string | number };
   /** names is a list of categories. */
   "insights.regular.weekly": { names: string | number; last: string | number };
+  "insights.regular.window": { count: number };
   "insights.reorder.emptyHint": undefined;
   "insights.reorder.emptyTitle": undefined;
   "insights.reorder.hint": undefined;
   "insights.reorder.title": undefined;
-  "insights.reorderHint": undefined;
-  "insights.safe.committed": { amount: string | number };
-  "insights.safe.free": { amount: string | number };
-  /** free and committed are lists of insights.safe.free / .committed joined with " · ". */
-  "insights.safe.less": { free: string | number; committed: string | number };
-  "insights.safe.none": undefined;
-  "insights.safe.nothingElse": undefined;
-  /** Under the big amount; day is "30 Sep". */
-  "insights.safe.over": { count: number; day: string | number };
   "insights.safe.short": { amount: string | number };
   /** Under "12 days"; day is "22 Sep". */
   "insights.salary.until": { day: string | number };
   "insights.screenTitle": undefined;
-  "insights.showList": undefined;
   /** "9.99 EUR per month"; per is insights.per.*. */
   "insights.subscriptions.amountPer": { amount: string | number; per: string | number };
+  /** Under the yearly total: the same divided by 12. The tag makes the amount bold. */
+  "insights.subscriptions.perMonth": { amount: string | number };
   /** Under the yearly total. */
   "insights.subscriptions.perYear": { included: string | number; count: number };
-  "insights.upcoming.empty": undefined;
-  /** VoiceOver; name is a note or category. */
-  "insights.upcoming.logLabel": { name: string | number };
-  /** VoiceOver; name is a note or category. */
-  "insights.upcoming.loggedLabel": { name: string | number };
-  "insights.upcoming.toGo": { count: string | number; period: string | number };
   /** Legend: categories nobody has marked. */
   "insights.values.level.l0": undefined;
   /** Legend: low importance. */
@@ -947,8 +1063,6 @@ export interface Messages {
   "misc.watch.transfer": undefined;
   /** Title of a history row on the watch with no note, shop or category. */
   "misc.watch.uncategorized": undefined;
-  /** Name of a budget that covers all categories, on the widget and the watch. */
-  "misc.widget.everything": undefined;
   "notify.debt.backToday": { amount: string | number };
   "notify.debt.backTomorrow": { amount: string | number };
   "notify.debt.oweToday": { person: string | number; amount: string | number };
@@ -1150,6 +1264,16 @@ export interface Messages {
   "pick.categories.wholeFolder": undefined;
   /** Section: the category the entry already has. */
   "pick.category.assigned": undefined;
+  /** Row under No category: the payment is on a debt. */
+  "pick.category.debt": undefined;
+  /** Back from the list of debts to the categories. */
+  "pick.category.debtBack": undefined;
+  "pick.category.debtHint": undefined;
+  /** amount is "500.00 PLN". */
+  "pick.category.debtOwedToYou": { amount: string | number };
+  "pick.category.debtSub": undefined;
+  /** amount is "500.00 PLN". */
+  "pick.category.debtYouOwe": { amount: string | number };
   "pick.category.everything": undefined;
   /** Under a folder that an older entry was filed into. */
   "pick.category.folder": undefined;
@@ -1162,6 +1286,7 @@ export interface Messages {
   "pick.category.noFolder": undefined;
   "pick.category.recent": undefined;
   "pick.category.search": undefined;
+  "pick.category.whichDebt": undefined;
   /** VoiceOver. */
   "pick.category.wholeA11y": { name: string | number };
   /** VoiceOver on a swatch; name is a colour name, lowercase. */
@@ -1288,6 +1413,19 @@ export interface Messages {
   "pick.nothingMatches": { query: string | number };
   /** Default title of a single-choice sheet. */
   "pick.option.title": undefined;
+  /** name is the brand found in the payment's name, e.g. Netflix. */
+  "pick.payIcon.automaticFound": { name: string | number };
+  "pick.payIcon.category": undefined;
+  /** Attribution under the logo grid; keep the names and licences as they are. */
+  "pick.payIcon.credit": undefined;
+  "pick.payIcon.emoji": undefined;
+  "pick.payIcon.logos": undefined;
+  "pick.payIcon.photo": undefined;
+  "pick.payIcon.photoFailed": undefined;
+  "pick.payIcon.pictures": undefined;
+  "pick.payIcon.search": undefined;
+  "pick.payIcon.symbols": undefined;
+  "pick.payIcon.webHint": undefined;
   /** name is what was typed. */
   "pick.tags.create": { name: string | number };
   "pick.tags.empty": undefined;
@@ -1465,6 +1603,17 @@ export interface Messages {
   "recurring.fromTx.updateSubtitle": undefined;
   /** Row on an existing recurring rule: refill its fields from a payment. */
   "recurring.fromTx.updateTitle": undefined;
+  /** Row: what the payment is drawn with — a logo, an emoji or a symbol. */
+  "recurring.icon": undefined;
+  "recurring.iconApp": undefined;
+  "recurring.iconAuto": undefined;
+  /** name is the brand found in the payment's name, e.g. Netflix. */
+  "recurring.iconAutoFound": { name: string | number };
+  "recurring.iconCategory": undefined;
+  "recurring.iconEmoji": undefined;
+  /** name is the brand. */
+  "recurring.iconLogo": { name: string | number };
+  "recurring.iconSymbol": undefined;
   "recurring.income": undefined;
   "recurring.match.amountHint": undefined;
   "recurring.match.amountOnly": undefined;
@@ -1704,6 +1853,8 @@ export interface Messages {
   "settingsLists.debts.owedToYou": undefined;
   /** date is "22 Sep". */
   "settingsLists.debts.paidBack": { date: string | number };
+  /** In a debt's row: what its payments have paid so far. */
+  "settingsLists.debts.paidPart": { amount: string | number };
   "settingsLists.debts.settled": undefined;
   "settingsLists.debts.title": undefined;
   "settingsLists.debts.youOwe": undefined;
@@ -1715,6 +1866,8 @@ export interface Messages {
   "settingsLists.recurring.days": { count: number };
   "settingsLists.recurring.defaultReminder": undefined;
   "settingsLists.recurring.defaultReminderTitle": undefined;
+  /** name is the suggested payment. */
+  "settingsLists.recurring.dismissA11y": { name: string | number };
   "settingsLists.recurring.due": undefined;
   "settingsLists.recurring.emptyHint": undefined;
   "settingsLists.recurring.emptyTitle": undefined;
@@ -1755,6 +1908,8 @@ export interface Messages {
   "settingsLists.recurring.posting.manual": undefined;
   "settingsLists.recurring.posting.manualSubtitle": undefined;
   "settingsLists.recurring.posting.title": undefined;
+  /** Link under the suggestions. */
+  "settingsLists.recurring.restoreDismissed": { count: number };
   "settingsLists.recurring.source.new": undefined;
   "settingsLists.recurring.source.newSubtitle": undefined;
   "settingsLists.recurring.source.title": undefined;
@@ -1790,7 +1945,6 @@ export interface Messages {
   "settingsLists.tags.usesOnly": { count: number; categories: string | number };
   "tabs.budgets": undefined;
   "tabs.insights": undefined;
-  "tabs.search": undefined;
   "tabs.settings": undefined;
   "tabs.transactions": undefined;
   "tag.anyCategory": undefined;
@@ -1859,15 +2013,14 @@ export interface Messages {
   "theme.icon.title": undefined;
   /** VoiceOver label of the light-mode preview tile of a theme. */
   "theme.light": undefined;
+  /** A theme named after a cat called Una: soft lavender and pastels (the Catppuccin palette). */
   "theme.name.catppuccin": undefined;
-  "theme.name.github": undefined;
-  /** The default theme: graphite grey on off-white (and the reverse in dark mode). Translate the colour name. */
+  /** The default theme, graphite grey on off-white (and the reverse in dark mode), named after a cat called Pusik. */
   "theme.name.graphite": undefined;
-  "theme.name.gruvbox": undefined;
-  "theme.name.nord": undefined;
-  "theme.name.rosepine": undefined;
-  "theme.name.solarized": undefined;
-  "theme.name.tokyonight": undefined;
+  /** A theme named after a grey-fawn tabby cat called Siri: warm grey with a terracotta accent. A cat's name, not Apple's assistant. */
+  "theme.name.siri": undefined;
+  /** A theme named after two ginger cats, Tadeusz and Kastuś: cream and ginger. Two cats' names joined by 'and'. */
+  "theme.name.tadeusz": undefined;
   /** Settings row and screen title; the colour theme of the app. */
   "theme.title": undefined;
   "transaction.bulk.apply": { count: number };
@@ -1908,6 +2061,8 @@ export interface Messages {
   "transaction.entry.balance": undefined;
   "transaction.entry.balanceA11y": { balance: string | number; currency: string | number };
   "transaction.entry.balanceAfterA11y": { balance: string | number; currency: string | number; after: string | number };
+  /** VoiceOver label of the read-only line with what the bank's notification said about the payment. */
+  "transaction.entry.bankNoteA11y": { note: string | number };
   /** Chip on a saved entry: open a copy of it to add again. */
   "transaction.entry.chip.duplicate": undefined;
   "transaction.entry.chip.note": undefined;
@@ -1929,6 +2084,9 @@ export interface Messages {
   "transaction.entry.convert.title": { currency: string | number };
   /** Replaces the sum line under the amount for a moment after the amount is tapped and copied. */
   "transaction.entry.copied": undefined;
+  /** Category key when the entry pays a debt; person is who the debt is with. */
+  "transaction.entry.debtKey": { person: string | number };
+  "transaction.entry.debtKeyA11y": { person: string | number };
   "transaction.entry.deleteA11y": undefined;
   "transaction.entry.deleteTitle": undefined;
   "transaction.entry.duplicate.action": undefined;
@@ -2059,6 +2217,8 @@ export interface Messages {
   "transactions.empty.hint": { parts: string | number };
   "transactions.empty.period": { period: string | number };
   "transactions.empty.scope": { scope: string | number };
+  /** On Search, what was typed: "Nothing matching “coffee”, with 1 filter on." */
+  "transactions.empty.search": { q: string | number };
   "transactions.empty.title": undefined;
   "transactions.expenses": undefined;
   "transactions.filter.account": undefined;
@@ -2108,6 +2268,8 @@ export interface Messages {
   "transactions.filter.upcoming": undefined;
   "transactions.filter.where": undefined;
   "transactions.income": undefined;
+  /** In place of a category on a payment made on a debt. */
+  "transactions.list.debt": { person: string | number };
   "transactions.list.emptyHint": undefined;
   /** A payment the bank charged in another currency: the original amount. */
   "transactions.list.entered": { amount: string | number; currency: string | number };
@@ -2116,6 +2278,8 @@ export interface Messages {
   "transactions.list.pendingA11y": undefined;
   /** Part of the payment was returned; both are formatted amounts. */
   "transactions.list.returned": { paid: string | number; back: string | number };
+  /** VoiceOver hint on a transaction row: holding it starts selection mode. */
+  "transactions.list.selectHint": undefined;
   /** Before the day's total under each day of the list. */
   "transactions.list.sum": undefined;
   "transactions.list.tagsA11y": { names: string | number };
@@ -2142,7 +2306,7 @@ export interface Messages {
   "transactions.scopeTitle": undefined;
   "transactions.searchPlaceholder": undefined;
   "transactions.searchTitle": undefined;
-  /** Header button that starts choosing several transactions to edit at once. */
+  /** Accessibility action on a transaction row that starts choosing several transactions to edit at once. */
   "transactions.select": undefined;
   "transactions.selectAll": undefined;
   /** Screen title in selection mode. */
@@ -2241,6 +2405,8 @@ export interface Messages {
   "travel.card.hideSpent": undefined;
   /** VoiceOver label of the card's head. */
   "travel.card.label": { kind: "event" | (string & {}); name: string | number; amount: string | number };
+  /** VoiceOver label of the card's head, no budget limit. */
+  "travel.card.labelSpent": { kind: "event" | (string & {}); name: string | number; amount: string | number };
   /** Verdict of a finished trip. */
   "travel.card.leftOfPlan": { amount: string | number };
   /** Next to a big amount on the last day. */
@@ -2253,21 +2419,34 @@ export interface Messages {
   "travel.card.overPlan": { amount: string | number };
   /** Spending per day against the planned pace. */
   "travel.card.pace": { amount: string | number; planned: string | number };
+  /** A finished trip with no budget limit: what it cost per day. */
+  "travel.card.paceOnly": { amount: string | number };
   /** Next to a big amount: what each remaining day may cost. */
   "travel.card.perDayLeft": { count: number };
   "travel.card.showSpent": undefined;
   /** A past trip; from/to are "3 Jul 2026". */
   "travel.card.span": { from: string | number; to: string | number; count: number };
   "travel.card.spent": { spent: string | number; limit: string | number; currency: string | number };
+  /** Under a trip or event that has no budget limit. */
+  "travel.card.spentNoLimit": { spent: string | number; currency: string | number };
+  /** Beside the big number on a running trip or event with no budget limit. */
+  "travel.card.spentSoFar": undefined;
+  /** On the card of a trip or event set up ahead; date is "20 Sep". */
+  "travel.card.startsOn": { date: string | number };
   /** amounts is a list like "12.00 THB, 5.00 USD". */
   "travel.card.unconverted": { amounts: string | number };
   "travel.dates.add": undefined;
-  "travel.dates.hint": undefined;
   /** Calendar hint for an event: one tap is a one-day event. */
   "travel.dates.hintEvent": undefined;
   "travel.dates.hintPast": undefined;
+  /** Calendar hint while another trip or event is on. */
+  "travel.dates.onlyOver": undefined;
+  /** Calendar hint when adding: the dates decide whether it is over or running. */
+  "travel.dates.overOrNot": { kind: "event" | (string & {}) };
   "travel.dates.pickLast": undefined;
   "travel.dates.save": undefined;
+  /** Confirm button when the chosen first day is after today. */
+  "travel.dates.setUp": { kind: "event" | (string & {}) };
   /** from/to are "22 Sep". */
   "travel.dates.span": { from: string | number; to: string | number; count: number };
   "travel.dates.start": { kind: "event" | (string & {}) };
@@ -2283,24 +2462,24 @@ export interface Messages {
   "travel.error.nameRequired": undefined;
   "travel.error.notFound": undefined;
   "travel.error.running": undefined;
-  /** Segment on the start sheet: a party, a wedding, a day out. Short. */
-  "travel.kind.event": undefined;
-  /** Segment on the start sheet: what is being started. Short. */
-  "travel.kind.trip": undefined;
   /** Part of the one-line trip summary. */
   "travel.line.day": { day: string | number };
   /** Part of the one-line trip summary. */
   "travel.line.dayOf": { day: string | number; days: string | number };
   /** Part of the one-line trip summary: "Lisbon · 420 of 900 EUR · day 3 of 7". */
   "travel.line.spent": { spent: string | number; limit: string | number; currency: string | number };
+  /** The same, for a trip or event with no budget limit: "Wedding · 4 200 PLN spent · day 1". */
+  "travel.line.spentNoLimit": { spent: string | number; currency: string | number };
+  /** Part of the one-line summary of a trip or event set up ahead: "Wedding · 0 of 900 PLN · starts 20 Sep". */
+  "travel.line.startsOn": { date: string | number };
   /** Number of payments kept outside the budget. */
   "travel.outside.count": { count: string | number };
   "travel.outside.everything": undefined;
   "travel.outside.hint": { kind: "event" | (string & {}) };
   "travel.outside.save": undefined;
   "travel.outside.title": undefined;
-  "travel.settings.addPast": undefined;
-  "travel.settings.addPastHint": undefined;
+  /** Subtitle of Add a trip / Add an event while a trip or event is on: only a finished one can be added. */
+  "travel.settings.addHintRunning": undefined;
   "travel.settings.history": undefined;
   /** Unfolds under noteShort. */
   "travel.settings.noteMore": undefined;
@@ -2314,6 +2493,8 @@ export interface Messages {
   "travel.settings.startHint": undefined;
   "travel.settings.title": undefined;
   "travel.start.addFailed": undefined;
+  /** Under the locked Already over toggle while a trip or event is on. */
+  "travel.start.alreadyOverLocked": undefined;
   "travel.start.currency": undefined;
   "travel.start.currencyLabel": { currency: string | number };
   "travel.start.enterBudget": undefined;
@@ -2321,6 +2502,10 @@ export interface Messages {
   "travel.start.nameFirst": undefined;
   "travel.start.nameLabel": { kind: "event" | (string & {}) };
   "travel.start.nameLabelPast": { kind: "event" | (string & {}) };
+  /** In place of the amount while none is typed: the trip or event will only count what is spent. */
+  "travel.start.noLimit": undefined;
+  /** Confirm bar, left side, while no budget is typed. */
+  "travel.start.noLimitHint": undefined;
   "travel.start.noRateBody": { home: string | number; currency: string | number };
   "travel.start.noRateTitle": { currency: string | number };
   "travel.start.pastSubtitle": undefined;
@@ -2341,6 +2526,7 @@ export interface Messages {
   "travel.trip.amount": undefined;
   "travel.trip.amountTitle": { name: string | number };
   "travel.trip.budget": undefined;
+  "travel.trip.changeLimit": undefined;
   "travel.trip.currency": undefined;
   "travel.trip.currencyHint": { currency: string | number };
   "travel.trip.dates": undefined;
@@ -2351,11 +2537,15 @@ export interface Messages {
   "travel.trip.endIt": undefined;
   "travel.trip.endTitle": { kind: "event" | (string & {}); name: string | number };
   "travel.trip.keep": { kind: "event" | (string & {}) };
+  /** Subtitle of the Amount row when the trip or event has no budget. */
+  "travel.trip.noLimit": undefined;
   "travel.trip.noRateBody": undefined;
   "travel.trip.outsideCount": { count: number; amount: string | number };
   "travel.trip.outsideHint": { kind: "event" | (string & {}) };
   "travel.trip.remove": undefined;
   "travel.trip.removeBody": { kind: "event" | (string & {}) };
+  /** Action: take the budget away so the trip only counts what is spent. */
+  "travel.trip.removeLimit": undefined;
   "travel.trip.removeThis": { kind: "event" | (string & {}) };
   "travel.trip.removeTitle": { name: string | number };
   "travel.trip.transactions": undefined;
@@ -2369,6 +2559,8 @@ export interface Messages {
   "ui.logHint": undefined;
   /** VoiceOver label of a row's drag handle; title is the row's name. */
   "ui.reorderA11y": { title: string | number };
+  /** VoiceOver label of the Delete button a row reveals when swiped left. */
+  "ui.reorderDeleteA11y": { title: string | number };
   /** VoiceOver label of a tag pill; name is the tag's name. */
   "ui.tagA11y": { name: string | number };
   /** Importance level: high. Legend label on Insights. */
@@ -2386,14 +2578,29 @@ export interface Messages {
   "whatsNew.notes.v1_0_3.language": undefined;
   "whatsNew.notes.v1_0_3.themes": undefined;
   "whatsNew.notes.v1_0_3.ukrainian": undefined;
-  "whatsNew.notes.v1_0_4.checklist": undefined;
-  "whatsNew.notes.v1_0_4.events": undefined;
-  "whatsNew.notes.v1_0_4.outside": undefined;
-  "whatsNew.notes.v1_0_4.themes": undefined;
-  "whatsNew.notes.v1_0_4.transferAccounts": undefined;
-  "whatsNew.notes.v1_0_4.transferAmounts": undefined;
-  "whatsNew.notes.v1_0_4.transferPairs": undefined;
-  "whatsNew.notes.v1_0_4.tripTag": undefined;
+  "whatsNew.notes.v1_1_0.bankNote": undefined;
+  "whatsNew.notes.v1_1_0.budgetDetails": undefined;
+  "whatsNew.notes.v1_1_0.catThemes": undefined;
+  "whatsNew.notes.v1_1_0.checklist": undefined;
+  "whatsNew.notes.v1_1_0.debtPayments": undefined;
+  "whatsNew.notes.v1_1_0.events": undefined;
+  "whatsNew.notes.v1_1_0.insightDetails": undefined;
+  "whatsNew.notes.v1_1_0.listTitles": undefined;
+  "whatsNew.notes.v1_1_0.outside": undefined;
+  "whatsNew.notes.v1_1_0.paymentIcons": undefined;
+  "whatsNew.notes.v1_1_0.search": undefined;
+  "whatsNew.notes.v1_1_0.suggestions": undefined;
+  "whatsNew.notes.v1_1_0.themes": undefined;
+  "whatsNew.notes.v1_1_0.transferAccounts": undefined;
+  "whatsNew.notes.v1_1_0.transferAmounts": undefined;
+  "whatsNew.notes.v1_1_0.transferPairs": undefined;
+  "whatsNew.notes.v1_1_0.tripLimit": undefined;
+  "whatsNew.notes.v1_1_0.tripTag": undefined;
+  "whatsNew.notes.v1_1_0.watchBudgetNames": undefined;
+  "whatsNew.notes.v1_1_0.watchControl": undefined;
+  "whatsNew.notes.v1_1_0.watchFaster": undefined;
+  "whatsNew.notes.v1_1_0.watchNote": undefined;
+  "whatsNew.notes.v1_1_0.watchPending": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;
   "whatsNew.title": undefined;

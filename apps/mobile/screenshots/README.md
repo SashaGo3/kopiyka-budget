@@ -56,7 +56,7 @@ real device or App Store Connect.
 |---|---|
 | `scripts/screenshots/run.sh` | orchestration; pick steps with `--build --install --seed --capture --frame` |
 | `scripts/screenshots/demo-data.ts` | invents the demo dataset for one language (`--lang`; English: Lisbon, EUR — Ukrainian: Kyiv, UAH; 5 months of history, budgets, trip, debts, insights) and writes `screenshots/demo/kopiyka-demo-<lang>.json`; `--apply=<udid>` installs it into a simulator |
-| `scripts/screenshots/capture.sh` | cold-starts the app into a deep link per shot and screenshots it (light + dark) on the iPhone and the iPad; drives the watch with idb |
+| `scripts/screenshots/capture.sh` | cold-starts the app into a deep link per shot and screenshots it (light + dark) on the iPhone and the iPad; launches the watch straight onto each screen |
 | `scripts/screenshots/frame.mjs` | composes the raw shots into App Store art from `shots.json` (headline, subtitle, device bezel) |
 | `scripts/screenshots/langs.mjs` | the language list and each language's App Store code, for the other three |
 | `scripts/screenshots/font-widths.mjs` | one-off: measures the Cyrillic advance widths `frame.mjs` wraps with (see below) |
@@ -132,10 +132,10 @@ wraps wrongly, extend that script's character list and paste its output over `W_
 
 ## Requirements
 
-Xcode with the iOS 26 + watchOS 26 simulator runtimes, `idb` (`brew install idb-companion &&
-pipx install fb-idb`; watch taps and the iPad's confirmation prompt) and `rsvg-convert`
-(`brew install librsvg`) for the framing. The phone needs nothing beyond `simctl`: every shot is a
-deep link.
+Xcode with the iOS 26 + watchOS 26 simulator runtimes and `rsvg-convert` (`brew install librsvg`)
+for the framing. Nothing beyond `simctl` drives the simulators: every iPhone shot is a deep link, every
+iPad shot a launch with the same link as an argument, every watch shot a launch onto that screen. idb
+is no longer needed — its taps load SimulatorKit from where Xcode kept it until 26.
 ImageMagick (`brew install imagemagick`) is used for the contact sheet and size checks.
 
 ## Gotchas
@@ -147,15 +147,17 @@ ImageMagick (`brew install imagemagick`) is used for the contact sheet and size 
   `--capture --watch`.
 - **iPadOS confirms every deep link.** `simctl openurl` on the iPad raises "Open in “Kopiyka
   Budget”?" whether or not the app is running, and a shot taken over it is a picture of an alert on
-  the home screen. `confirm_open` in `capture.sh` finds the Open button through idb’s accessibility
-  bridge and taps it — by label, not by a fixed point, because the alert is still animating in when
-  the first look happens. The iPhone does not ask, and pays none of this.
+  the home screen. So the iPad is launched with the link as an argument instead (`-KPLink`), which a
+  screenshot build opens as if it had arrived while running (`src/lib/launchLink.ts`). The iPhone
+  does not ask, and keeps using `openurl`.
+- A screenshot build never shows What's New (`maybeShowWhatsNew`): otherwise every slide that opens
+  without a link to land on is the release notes.
 - The iPad is drawn rather than composited into an Apple product bezel: there is no 13" iPad bezel in
   Apple’s Product Bezels download and frameit’s set stops at the 12.9" Pro of 2020. `ipadDrawn` in
   `frame.mjs` has the geometry (and where the numbers come from) if one ever turns up.
-- The watch tap points in `capture.sh` (`KEY_COLS`, `KEY_ROWS`, `AMOUNT_ROW_Y`) are in points
-  (px ÷ 2 on the 49 mm). Re-calibrate from a screenshot if the keypad layout changes. The keypad's
-  top row is 7-8-9, not 1-2-3.
+- The watch is launched with `-KPShot <screen> -KPShotAmount <amount>` (`WatchShot` in
+  `targets/watch/KopiykaWatchApp.swift`): keypad, categories, tags, history, budgets, status. A new
+  watch shot is a new case there and a name in `capture.sh`'s list.
 - If you add a shot that needs a tap: `agent-device` runs every command through an XCTest runner
   app, and launching that runner puts Kopiyka in the background, so a shot taken right after one
   comes out as the home screen. Open the session once before the loop, never between the deep link
@@ -165,9 +167,6 @@ ImageMagick (`brew install imagemagick`) is used for the contact sheet and size 
 - `demo-data.ts` seeds row ids from its own PRNG (it overrides `crypto.randomUUID`), so the JSON can
   be regenerated without invalidating the ids `capture.sh` puts in deep links. Change that and the
   `log` and `trip` shots break the next time the file is rebuilt without `--seed`.
-- The iPad's "Open in …?" button is found by label, `Open` or `Відкрити` — SpringBoard switches to
-  the simulator's language once it restarts in it. Add the label if another language is added.
-- The watch types the same amount as the entry sheet shows (`demo.capture.logAmount`), one key at a
-  time: digits and a dot only.
+- The watch shows the same amount as the entry sheet (`demo.capture.logAmount`).
 - Everything under `screenshots/raw/` and `screenshots/appstore/` is generated; commit it if you want
   the history, regenerate it if not.

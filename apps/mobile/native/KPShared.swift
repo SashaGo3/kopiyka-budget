@@ -50,6 +50,9 @@ struct KPSnapshot: Codable {
     let day: Int; let days: Int; let days_left: Int; let allowance: Double?
     var remaining: Double { limit - spent }
     var ratio: Double { limit > 0 ? min(1, spent / limit) : 0 }
+    /// False for a trip with no budget (core `tripLimited`): it only counts what was spent, so it is
+    /// drawn as a total with no bar and no "left".
+    var limited: Bool { limit > 0 }
     var dayLabel: String { days_left > 0 ? L10n.Budget.dayOf(day: String(day), days: String(days)) : L10n.Budget.day(day: String(day)) }
     /// The trip drawn like a budget row (widgets and complications reuse the budget views).
     var asBudget: Budget { .init(category_id: "trip:" + budget_id, name: name, currency: currency, limit: limit, spent: spent) }
@@ -63,7 +66,9 @@ struct KPSnapshot: Codable {
   var category_icons: [String: Icon]?
   var trip: Trip?
   /// What a one-line budget surface should show: the trip while travelling, else the first budget.
-  var featured: Budget? { trip?.asBudget ?? budgets.first }
+  /// What a Lock Screen widget shows: the trip while one runs — unless it has no limit, since there is
+  /// nothing "left" of it to show — else the first budget.
+  var featured: Budget? { (trip?.limited == true ? trip?.asBudget : nil) ?? budgets.first }
 
   /// Computed, not stored: its names are in the app's language at the moment it is drawn.
   static var placeholder: KPSnapshot {
@@ -152,6 +157,20 @@ struct KPWatchState: Codable {
     if let s = snapshot, let su = KP.snapshotURL, let sd = try? JSONEncoder().encode(s) { try? sd.write(to: su, options: .atomic) }
   }
   func json() -> String { (try? JSONEncoder().encode(self)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}" }
+
+  /// What the watch is sent: the same state without what only the phone's intents read — receipt
+  /// keywords (every language's, for an untouched preset), exchange rates, account numbers, home,
+  /// the automation's notify setting. Less to send, and less for the watch to decode at launch.
+  func forWatch() -> KPWatchState {
+    var s = self
+    s.categories = categories.map { c in
+      KPWatchState.Category(id: c.id, name: c.name, parent_id: c.parent_id, parent_name: c.parent_name, kind: c.kind, icon: c.icon, color: c.color,
+                            uses: c.uses, description: nil, archived: c.archived)
+    }
+    s.accounts = accounts.map { a in var a = a; a.numbers = nil; return a }
+    s.home = nil; s.shortcut_notify = nil; s.rates = nil
+    return s
+  }
   static func from(json: String) -> KPWatchState? { json.data(using: .utf8).flatMap { try? JSONDecoder().decode(KPWatchState.self, from: $0) } }
 
   var defaultAccount: Account? { accounts.first { $0.id == current_account } ?? accounts.first }
@@ -463,14 +482,17 @@ enum KPStore {
     return out
   }
 
-  /// Travel mode (core `activeTripTagId`): the tag every new expense gets while a trip runs.
+  /// Travel mode (core `activeTripTagId`): the tag every new expense gets while a trip runs — from its
+  /// first day, so one set up ahead tags nothing yet. `starts` is a local YYYY-MM-DD.
   static func activeTripTagId(_ db: OpaquePointer) -> String? {
     var stmt: OpaquePointer?
-    guard sqlite3_prepare_v2(db, "SELECT tag_id FROM budgets WHERE deleted=0 AND period='once' AND tag_id IS NOT NULL AND ended IS NULL ORDER BY starts DESC, rowid DESC LIMIT 1", -1, &stmt, nil) == SQLITE_OK else { return nil }
+    guard sqlite3_prepare_v2(db, "SELECT tag_id, starts FROM budgets WHERE deleted=0 AND period='once' AND tag_id IS NOT NULL AND ended IS NULL ORDER BY starts DESC, rowid DESC LIMIT 1", -1, &stmt, nil) == SQLITE_OK else { return nil }
     defer { sqlite3_finalize(stmt) }
     guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
     let t = str(stmt, 0)
-    return t.isEmpty ? nil : t
+    let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+    guard !t.isEmpty, str(stmt, 1) <= f.string(from: Date()) else { return nil }
+    return t
   }
 
   static func accounts() -> [AccountRef] {
@@ -650,8 +672,9 @@ enum KPStore {
 
   private static func history(_ db: OpaquePointer, limit: Int, presets: String = "c.preset, p.preset") -> [KPWatchState.Tx] {
     var stmt: OpaquePointer?
+    let bankNote = hasColumn(db, "transactions", "bank_note") ? "t.bank_note" : "NULL"
     let sql = """
-      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets)
+      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets), \(bankNote)
       FROM transactions t JOIN accounts a ON a.id=t.account_id
       LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
       WHERE t.deleted=0 ORDER BY t.date DESC, t.updated_at DESC LIMIT ?
@@ -667,8 +690,10 @@ enum KPStore {
       let cat = opt(stmt, 7).map { KPPreset.name($0, preset: opt(stmt, 14)) }, parent = opt(stmt, 8).map { KPPreset.name($0, preset: opt(stmt, 15)) }
       let notes = opt(stmt, 9), payee = opt(stmt, 10)
       let transfer = opt(stmt, 13) != nil
-      let note = notes?.split(separator: "\n").first.map(String.init) ?? ""
-      let title = transfer ? L10n.Common.transfer : (!note.isEmpty ? note : (payee ?? cat ?? parent ?? L10n.Common.uncategorized))
+      // Named the way the app's list names it: the shop, then your note, then what the bank said.
+      let firstLine = { (s: String?) in s?.split(separator: "\n").first.map(String.init).flatMap { $0.isEmpty ? nil : $0 } }
+      let note = firstLine(notes) ?? firstLine(opt(stmt, 16))
+      let title = transfer ? L10n.Common.transfer : (payee ?? note ?? cat ?? parent ?? L10n.Common.uncategorized)
       let catLabel: String? = transfer ? nil : (cat != nil ? (parent != nil ? "\(parent!) › \(cat!)" : cat) : parent)
       let sub = [KPPreset.name(str(stmt, 4), preset: "account"), catLabel].compactMap { $0 }.joined(separator: " · ")
       out.append(.init(id: str(stmt, 0), date: str(stmt, 1), title: title, sub: sub, amount: KPFormat.major(Int(sqlite3_column_int64(stmt, 2)), currency), currency: currency,
@@ -831,11 +856,14 @@ enum KPStore {
     let title = note?.trimmingCharacters(in: .whitespacesAndNewlines)
     // The shop's exact name first, then the note's, then the shop's first word, so different branches
     // of one chain ("ZABKA ZE212 K.5" / "ZABKA NANO 3087") still find each other. A name matches
-    // whether it was filed as a payee or as a note: a Shortcut with only a note writes it into `notes`.
-    let byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE)"
+    // whether it was filed as a payee or as a note: a Shortcut with only a note writes it into `notes`,
+    // and the automation from v23 writes the bank's own words into `bank_note`.
+    let bankCol = hasColumn(db, "transactions", "bank_note")
+    let byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE\(bankCol ? " OR bank_note = ? COLLATE NOCASE" : ""))"
+    let names = { (n: String) in Array(repeating: n, count: bankCol ? 3 : 2) }
     var tries: [(clause: String, binds: [String], exact: Bool)] = []
-    if let s = shop, !s.isEmpty { tries.append((byName, [s, s], true)) }
-    if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, [t, t], true)) }
+    if let s = shop, !s.isEmpty { tries.append((byName, names(s), true)) }
+    if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, names(t), true)) }
     // A first word that says how you paid is no name at all, so there is nothing to widen to.
     if let s = shop, let head = s.split(separator: " ").first.map(String.init), head.count >= 3, head != s,
        !isMethodWord(head) {
@@ -983,12 +1011,12 @@ enum KPStore {
   @discardableResult
   static func addTransaction(id: String? = nil, accountId: String, amountMinor: Int, categoryId: String?, tagIds: [String] = [], note: String?, payee: String? = nil,
                              lat: Double? = nil, lon: Double? = nil, place: String? = nil, pending: Bool = false, date: String? = nil, source: String? = nil,
-                             enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil) -> Bool {
+                             enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil, bankNote: String? = nil) -> Bool {
     lastError = nil
     guard let ok = withDatabase({ db -> Bool in
       addTransaction(db, id: id, accountId: accountId, amountMinor: amountMinor, categoryId: categoryId, tagIds: tagIds, note: note, payee: payee,
                      lat: lat, lon: lon, place: place, pending: pending, date: date, source: source,
-                     enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: rate, bank: bank)
+                     enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: rate, bank: bank, bankNote: bankNote)
     }) else { lastError = L10n.Common.noDatabase; return false }
     return ok
   }
@@ -998,7 +1026,7 @@ enum KPStore {
   /// what lets a converted row be checked — and corrected — instead of being taken on trust.
   private static func addTransaction(_ db: OpaquePointer, id: String?, accountId: String, amountMinor: Int, categoryId: String?, tagIds: [String], note: String?, payee: String?,
                                      lat: Double?, lon: Double?, place: String?, pending: Bool, date: String?, source: String? = nil,
-                                     enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil) -> Bool {
+                                     enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil, bankNote: String? = nil) -> Bool {
     let id = (id?.isEmpty == false ? id! : UUID().uuidString.lowercased())
     let now = Int(Date().timeIntervalSince1970 * 1000)
     let iso = date ?? isoNow()
@@ -1011,10 +1039,18 @@ enum KPStore {
     // `bank_ref` arrived in schema v19, and the automation can run before the app has migrated the file:
     // then the row is written without it and pairs by hand rather than not at all.
     let bankRef = hasColumn(db, "transactions", "bank_ref") ? bank?.json : nil
+    // `bank_note` (v23) the same way: before the app has migrated, what the bank said goes where it
+    // always went, after the note, rather than nowhere.
+    var note = note, bankNote = bankNote?.isEmpty == false ? bankNote : nil
+    if let b = bankNote, !hasColumn(db, "transactions", "bank_note") {
+      note = [note, b].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: "\n")
+      bankNote = nil
+    }
+    let extra = [bankRef != nil ? "bank_ref" : nil, bankNote != nil ? "bank_note" : nil].compactMap { $0 }
     let sql = """
       INSERT INTO transactions (id, updated_at, deleted, account_id, date, amount_minor, category_id, payee, notes, tag_ids, pending, transfer_id,
-        entered_amount_minor, entered_currency, exchange_rate, recurring_id, lat, lon, place, source\(bankRef != nil ? ", bank_ref" : ""))
-      VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?\(bankRef != nil ? ", ?" : ""))
+        entered_amount_minor, entered_currency, exchange_rate, recurring_id, lat, lon, place, source\(extra.map { ", \($0)" }.joined()))
+      VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?\(String(repeating: ", ?", count: extra.count)))
       """
     guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { lastError = String(cString: sqlite3_errmsg(db)); sqlite3_exec(db, "ROLLBACK", nil, nil, nil); return false }
     sqlite3_bind_text(stmt, 1, id, -1, T)
@@ -1035,7 +1071,9 @@ enum KPStore {
     if let la = lat, let lo = lon { sqlite3_bind_double(stmt, 14, la); sqlite3_bind_double(stmt, 15, lo) } else { sqlite3_bind_null(stmt, 14); sqlite3_bind_null(stmt, 15) }
     if let p = place, !p.isEmpty { sqlite3_bind_text(stmt, 16, p, -1, T) } else { sqlite3_bind_null(stmt, 16) }
     if let s = source, !s.isEmpty { sqlite3_bind_text(stmt, 17, s, -1, T) } else { sqlite3_bind_null(stmt, 17) }
-    if let b = bankRef { sqlite3_bind_text(stmt, 18, b, -1, T) }
+    var next: Int32 = 18
+    if let b = bankRef { sqlite3_bind_text(stmt, next, b, -1, T); next += 1 }
+    if let b = bankNote { sqlite3_bind_text(stmt, next, b, -1, T) }
     let ok = sqlite3_step(stmt) == SQLITE_DONE
     if !ok { lastError = String(cString: sqlite3_errmsg(db)) }
     sqlite3_finalize(stmt)
@@ -1062,6 +1100,50 @@ enum KPStore {
     let ok2 = ok && queueOutbox(db, table: "transactions", id: id)
     sqlite3_exec(db, ok && ok2 ? "COMMIT" : "ROLLBACK", nil, nil, nil)
     return ok && ok2
+  }
+
+  /// Approve a pending entry (core `approvePending`): both legs of a transfer, never half of one. A
+  /// category, when given, files a plain entry first; a transfer keeps its own. Without the app running
+  /// the accounts learn their numbers from the next approval made there instead.
+  @discardableResult
+  static func approve(id: String, categoryId: String?) -> Bool {
+    withDatabase { approve($0, id: id, categoryId: categoryId) } ?? false
+  }
+
+  private static func approve(_ db: OpaquePointer, id: String, categoryId: String?) -> Bool {
+    var ids: [String] = []
+    var stmt: OpaquePointer?
+    let pick = """
+      SELECT id FROM transactions WHERE deleted=0 AND pending=1 AND (id=?1 OR (transfer_id IS NOT NULL AND
+        transfer_id=(SELECT transfer_id FROM transactions WHERE id=?1)))
+      """
+    guard sqlite3_prepare_v2(db, pick, -1, &stmt, nil) == SQLITE_OK else { return false }
+    sqlite3_bind_text(stmt, 1, id, -1, T)
+    while sqlite3_step(stmt) == SQLITE_ROW { ids.append(str(stmt, 0)) }
+    sqlite3_finalize(stmt)
+    guard !ids.isEmpty else { return false }
+    let now = sqlite3_int64(Int(Date().timeIntervalSince1970 * 1000))
+    sqlite3_exec(db, "BEGIN", nil, nil, nil)
+    var ok = true
+    for rid in ids {
+      let category = rid == id && categoryId?.isEmpty == false ? categoryId : nil
+      let sql = "UPDATE transactions SET pending=0, updated_at=?\(category != nil ? ", category_id=?" : "") WHERE id=?\(category != nil ? " AND transfer_id IS NULL" : "")"
+      guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { ok = false; break }
+      sqlite3_bind_int64(stmt, 1, now)
+      if let c = category { sqlite3_bind_text(stmt, 2, c, -1, T); sqlite3_bind_text(stmt, 3, rid, -1, T) } else { sqlite3_bind_text(stmt, 2, rid, -1, T) }
+      ok = sqlite3_step(stmt) == SQLITE_DONE
+      sqlite3_finalize(stmt)
+      // A category for a transfer matches nothing above; the leg is approved as it is.
+      if ok, category != nil, sqlite3_changes(db) == 0 {
+        guard sqlite3_prepare_v2(db, "UPDATE transactions SET pending=0, updated_at=? WHERE id=?", -1, &stmt, nil) == SQLITE_OK else { ok = false; break }
+        sqlite3_bind_int64(stmt, 1, now); sqlite3_bind_text(stmt, 2, rid, -1, T)
+        ok = sqlite3_step(stmt) == SQLITE_DONE
+        sqlite3_finalize(stmt)
+      }
+      if !ok || !queueOutbox(db, table: "transactions", id: rid) { ok = false; break }
+    }
+    sqlite3_exec(db, ok ? "COMMIT" : "ROLLBACK", nil, nil, nil)
+    return ok
   }
 
   /// Fill in the place name later (reverse geocoding finishes after the write).

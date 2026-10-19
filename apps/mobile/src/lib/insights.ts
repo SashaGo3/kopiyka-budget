@@ -3,7 +3,7 @@
  * it wears on its card, in the picker and on the reorder list is a matter for this side.
  */
 import type { SFSymbol } from "expo-symbols";
-import { INSIGHT_KINDS, type Frequency, type Insight, type InsightKind } from "@kopiyka/core";
+import { INSIGHT_KINDS, categoryImportance, listRows, retiredKind, type Category, type Frequency, type Insight, type InsightKind, type SqlDriver } from "@kopiyka/core";
 import { t } from "@/i18n";
 import { catNameById } from "@/lib/names";
 
@@ -27,9 +27,9 @@ export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }
  * here is not lost: `kindsIn` puts it in the last group rather than leaving a card nobody can add.
  */
 export const INSIGHT_GROUPS: { id: "spending" | "accounts" | "payments"; kinds: InsightKind[] }[] = [
-  { id: "spending", kinds: ["free_money", "safe_to_spend", "days_to_salary", "regular", "values"] },
+  { id: "spending", kinds: ["free_money", "days_to_salary", "regular", "values"] },
   { id: "accounts", kinds: ["account_balance", "savings_goal", "safety_buffer"] },
-  { id: "payments", kinds: ["checklist", "upcoming", "subscriptions", "recurring_spend"] },
+  { id: "payments", kinds: ["checklist", "subscriptions"] },
 ];
 
 /** The kinds of `list` that belong in group `id`, in the group's order; the last group also takes any kind no group names. */
@@ -57,10 +57,12 @@ export function addableKinds(existing: Pick<Insight, "kind">[]): typeof INSIGHT_
  * longer knows (a card from a newer build) falls back to its raw id.
  */
 export function kindTitle(kind: InsightKind): string {
-  return INSIGHT_KINDS.some((k) => k.kind === kind) ? t(`insights.kind.${kind}.title`) : kind;
+  const k = INSIGHT_KINDS.find((x) => x.kind === kind)?.kind;
+  return k ? t(`insights.kind.${k}.title`) : kind;
 }
 export function kindHint(kind: InsightKind): string {
-  return INSIGHT_KINDS.some((k) => k.kind === kind) ? t(`insights.kind.${kind}.hint`) : "";
+  const k = INSIGHT_KINDS.find((x) => x.kind === kind)?.kind;
+  return k ? t(`insights.kind.${k}.hint`) : "";
 }
 
 /** A recurring rule's name in a list: its payee, else its category, else "Recurring" (core's `title`, translated). */
@@ -77,4 +79,35 @@ export function perPeriod(f: Frequency, interval: number): string {
     case "monthly": return t("insights.per.monthly", { count });
     default: return t("insights.per.yearly", { count });
   }
+}
+
+/**
+ * The cards the Insights tab draws, in order: a card of a kind no longer offered is drawn as the kind
+ * it was folded into (core `retiredKind`) or not at all, and a "Safe to spend" card is left out when
+ * there is a budgets card already — it would be the same card twice.
+ */
+export function shownInsights(list: Insight[]): Insight[] {
+  const hasBudgets = list.some((i) => i.kind === "free_money");
+  return list.filter((i) => retiredKind(i.kind) !== null && !(i.kind === "safe_to_spend" && hasBudgets));
+}
+
+/**
+ * Ready-made categories a comfort level starts from when nothing is marked most important: a roof,
+ * the bills that keep it running, food bought to cook and the doctor. Preset keys (DATA.md rule 16),
+ * so a category renamed or moved still counts, and one deleted is simply not there.
+ */
+const COMFORT_PRESETS = ["home.rent", "home.utilities", "home.internet", "food.groceries", "health.pharmacy", "health.doctor", "bills.insurance"];
+
+/**
+ * What a new safety buffer's comfort level is filled in with, so the card means something before
+ * anyone has thought about it: the categories marked most important (rule 15), else the essentials
+ * among the ready-made ones. Empty when neither is there — the card then goes by importance.
+ */
+export function comfortDefaults(db: SqlDriver): string[] {
+  const cats = (listRows(db, "categories", "deleted=0 AND archived=0") as Category[]);
+  const level = categoryImportance(cats);
+  const kids = new Set(cats.map((c) => c.parent_id).filter(Boolean));
+  const important = cats.filter((c) => level.get(c.id) === 3 && !kids.has(c.id)).map((c) => c.id);
+  if (important.length) return important;
+  return cats.filter((c) => c.preset && COMFORT_PRESETS.includes(c.preset)).map((c) => c.id);
 }

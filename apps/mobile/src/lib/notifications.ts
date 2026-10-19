@@ -1,5 +1,5 @@
 import * as Notifications from "expo-notifications";
-import { listRows, listDebts, plannedNotifications, plannedDebtNotifications, postDueRecurring, formatMinor, DEFAULT_DEBT_NOTIFY_TIME, type RecurringRule } from "@kopiyka/core";
+import { getRow, listRows, listDebts, plannedNotifications, plannedDebtNotifications, postDueRecurring, formatMinor, DEFAULT_DEBT_NOTIFY_TIME, type RecurringRule } from "@kopiyka/core";
 import { mutate } from "@/store";
 import { pendingCount } from "./nativeWrites";
 import { db } from "@/db";
@@ -29,6 +29,38 @@ export async function syncBadge(): Promise<void> {
     if (!(await Notifications.getPermissionsAsync()).granted) return;
     await Notifications.setBadgeCountAsync(pendingCount());
   } catch { /* a badge is not worth a crash */ }
+}
+
+/** The row a Shortcut-logged payment's notification is about (native/KPNotify.swift), or null for any other notification. */
+function noticeRow(data: Record<string, unknown> | undefined): string | null {
+  if (typeof data?.transaction_id === "string") return data.transaction_id;
+  // Notifications posted before the id was carried on its own still name the row in their link.
+  const m = typeof data?.url === "string" ? /^kopiyka:\/\/transaction\/([^/?#]+)$/.exec(data.url) : null;
+  return m?.[1] ?? null;
+}
+
+/**
+ * Take a Shortcut-logged payment's notification off the screen once there is nothing left to do
+ * about it: its entry was approved (here, on the watch, on another phone), deleted, or opened.
+ *
+ * `opened` is the row or the transfer whose sheet is on screen now — looking at the entry is
+ * dealing with it, whether or not anything was changed. A transfer counts for both its legs, since
+ * the notification names whichever one arrived last.
+ *
+ * Only ever the automation's own notifications: reminders for recurring payments and debts are
+ * left exactly where they are.
+ */
+export async function dismissSettledPaymentNotices(opened?: string): Promise<void> {
+  try {
+    const shown = await Notifications.getPresentedNotificationsAsync();
+    for (const n of shown) {
+      const id = noticeRow(n.request.content.data);
+      if (!id) continue;
+      const row = getRow(db, "transactions", id);
+      const done = !row || row.deleted === 1 || row.pending !== 1 || id === opened || (!!opened && row.transfer_id === opened);
+      if (done) await Notifications.dismissNotificationAsync(n.request.identifier);
+    }
+  } catch { /* a stale notification is not worth a crash */ }
 }
 
 /**

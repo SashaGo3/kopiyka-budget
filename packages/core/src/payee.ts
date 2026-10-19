@@ -82,17 +82,18 @@ function isMethodWord(word: string): boolean {
  * The SQL that finds this name, in the order it should be tried: the shop's exact name first, then
  * the note's, then the shop's first word, so different branches of one chain ("ZABKA ZE212 K.5" /
  * "ZABKA NANO 3087") still find each other. A name matches whether it was filed as a payee or as a
- * note, because a Shortcut that has only a note writes it into `notes`.
+ * note, because a Shortcut that has only a note writes it into `notes` — and the automation, from
+ * v23, writes the bank's own words into `bank_note`.
  */
 function nameTries(payee: string | null | undefined, note?: string | null): { where: string; binds: string[]; match: PayeeMatch }[] {
   const shop = payee?.trim() || null;
   // The whole note, not its first line: an automation writes one line, and an exact match is the
   // only rule that cannot file an entry under the wrong thing.
   const title = note?.trim() || null;
-  const byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE)";
+  const byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE OR bank_note = ? COLLATE NOCASE)";
   const tries: { where: string; binds: string[]; match: PayeeMatch }[] = [];
-  if (shop) tries.push({ where: byName, binds: [shop, shop], match: "exact" });
-  if (title && title.toLowerCase() !== shop?.toLowerCase()) tries.push({ where: byName, binds: [title, title], match: "exact" });
+  if (shop) tries.push({ where: byName, binds: [shop, shop, shop], match: "exact" });
+  if (title && title.toLowerCase() !== shop?.toLowerCase()) tries.push({ where: byName, binds: [title, title, title], match: "exact" });
   const head = shop?.split(" ")[0];
   // A first word that says how you paid is no name at all, so there is nothing to widen the search to.
   if (head && head.length >= 3 && head !== shop && !isMethodWord(head)) {

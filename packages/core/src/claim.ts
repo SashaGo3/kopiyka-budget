@@ -49,8 +49,8 @@ const NAMED_AMOUNT_FACTOR = 4;
  * Compared as whole words after normalisation, plus word-prefix either way, so "NETFLIX.COM
  * AMSTERDAM" and "Netflix" find each other while "Netflix" and "Net-a-Porter" do not.
  */
-function namesMatch(rule: RecurringRule, tx: Pick<Transaction, "payee" | "notes">): boolean {
-  const seen = [normTitle(tx.payee), normTitle(tx.notes)].filter(Boolean);
+function namesMatch(rule: RecurringRule, tx: Pick<Transaction, "payee" | "notes" | "bank_note">): boolean {
+  const seen = [normTitle(tx.payee), normTitle(tx.notes), normTitle(tx.bank_note)].filter(Boolean);
   if (!seen.length) return false;
   for (const name of [rule.match_payee, rule.payee]) {
     const want = normTitle(name);

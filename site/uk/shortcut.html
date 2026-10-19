@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Як налаштувати швидку команду для сповіщень — Копійка</title>
+    <meta name="description" content="Крок за кроком, зі знімками: автоматизація у «Швидких командах», яка перетворює сповіщення банку про платіж на запис у Копійці." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/uk/shortcut.html" />
+    <link rel="alternate" hreflang="en" href="https://sashago3.github.io/kopiyka-budget/shortcut.html" />
+    <link rel="alternate" hreflang="uk" href="https://sashago3.github.io/kopiyka-budget/uk/shortcut.html" />
+    <link rel="alternate" hreflang="x-default" href="https://sashago3.github.io/kopiyka-budget/shortcut.html" />
+    <link rel="icon" href="../img/icon-180.png" sizes="180x180" type="image/png" />
+    <link rel="apple-touch-icon" href="../img/icon-180.png" />
+    <link rel="stylesheet" href="../themes.css" />
+    <link rel="stylesheet" href="../styles.css" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <script>
+      (function () {
+        var T = {"graphite":["#F4F4F1","#141413"],"siri":["#EEEAE5","#1A1715"],"tadeusz":["#FAEFE2","#1C120B"],"catppuccin":["#E6E9EF","#1E1E2E"]}, K = "kopiyka-budget.theme", D = "graphite";
+        function apply(id) {
+          if (!Object.prototype.hasOwnProperty.call(T, id)) id = D;
+          document.documentElement.setAttribute('data-theme', id);
+          var m = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < m.length; i++) m[i].setAttribute('content', T[id][/dark/.test(m[i].media) ? 1 : 0]);
+          return id;
+        }
+        var saved = null;
+        try { saved = localStorage.getItem(K); } catch (e) {}
+        apply(saved);
+        window.kopiykaTheme = function (id) {
+          id = apply(id);
+          try { localStorage.setItem(K, id); } catch (e) {}
+          return id;
+        };
+      })();
+    </script>
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Копійка" />
+    <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/uk/shortcut.html" />
+    <meta property="og:locale" content="uk_UA" />
+    <meta property="og:locale:alternate" content="en_GB" />
+    <meta property="og:title" content="Як налаштувати швидку команду для сповіщень — Копійка" />
+    <meta property="og:description" content="Крок за кроком, зі знімками: автоматизація у «Швидких командах», яка перетворює сповіщення банку про платіж на запис у Копійці." />
+    <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/uk/og.png" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Перейти до вмісту</a>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="../img/icon-180.png" alt="" width="32" height="32" />
+          <span>Копійка</span>
+        </a>
+        <nav class="site-nav" aria-label="Розділи">
+          <a href="index.html#features">Можливості</a>
+          <a href="index.html#watch">Годинник</a>
+          <a href="privacy.html">Приватність</a>
+          <a href="index.html#open-source">Відкритий код</a>
+        </nav>
+        <div class="brand-actions">
+          <nav class="lang-switch" aria-label="Мова">
+            <a href="../shortcut.html" hreflang="en" lang="en" title="English">EN</a>
+            <a href="shortcut.html" hreflang="uk" lang="uk" title="Українська" aria-current="page">УКР</a>
+          </nav>
+          <a class="btn" href="https://apps.apple.com/us/app/kopiyka-budget/id6809896169" rel="noopener"
+            ><span class="long">Завантажити в App Store</span><span class="short">App Store</span></a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc">
+        <div class="wrap">
+          <a class="doc-back" href="index.html">&#8592; Копійка</a>
+          <h1>Як налаштувати швидку команду для сповіщень</h1>
+          <p>Ваш банк і так сповіщає про кожен платіж карткою. Автоматизація у «Швидких командах» може передати це сповіщення Копійці — вона прочитає суму й магазин просто на телефоні та запише платіж. Потрібна iOS 27. Налаштовується один раз.</p>
+          <p>На симуляторі, з якого ці знімки, немає застосунку банку, тож замість нього — «Повідомлення».</p>
+          <h2>1. Швидкі команди → +</h2>
+          <p>Відкрийте «Швидкі команди» й торкніть + унизу. Якщо просить описати команду, торкніть «Редагувати».</p>
+          <p class="guide-shots"><img src="../img/guide/uk/01.webp" width="300" height="652" loading="lazy" alt="Крок 1"><img src="../img/guide/uk/02.webp" width="300" height="652" loading="lazy" alt="Крок 1"></p><h2>2. Автоматизація → Сповіщення</h2>
+          <p>Торкніть «Автоматизація» під полем пошуку й знайдіть «Сповіщення».</p>
+          <p class="guide-shots"><img src="../img/guide/uk/03.webp" width="300" height="652" loading="lazy" alt="Крок 2"><img src="../img/guide/uk/04.webp" width="300" height="652" loading="lazy" alt="Крок 2"></p><h2>3. Виберіть застосунок банку</h2>
+          <p>Торкніть «Програма» й знайдіть його. Банк не надсилає сповіщень? Виберіть Wallet (Apple Pay); + додає ще одну програму.</p>
+          <p class="guide-shots"><img src="../img/guide/uk/05.webp" width="300" height="652" loading="lazy" alt="Крок 3"><img src="../img/guide/uk/06.webp" width="300" height="652" loading="lazy" alt="Крок 3"></p><h2>4. Фільтр: «Повідомлення» містить слово</h2>
+          <p>«Додати фільтр», замініть «Назва» на «Повідомлення» й введіть слово, яке є в кожному сповіщенні про платіж, наприклад «Сума».</p>
+          <p class="guide-shots"><img src="../img/guide/uk/07.webp" width="300" height="652" loading="lazy" alt="Крок 4"><img src="../img/guide/uk/08.webp" width="300" height="652" loading="lazy" alt="Крок 4"><img src="../img/guide/uk/09.webp" width="300" height="652" loading="lazy" alt="Крок 4"></p><h2>5. Хай працює сама</h2>
+          <p>Торкніть стрілку біля програми: «Автоматизація» увімкнена, «Сповіщати» вимкнено.</p>
+          <p class="guide-shots"><img src="../img/guide/uk/10.webp" width="300" height="652" loading="lazy" alt="Крок 5"></p><h2>6. Додайте «Записати платіж зі сповіщення застосунку»</h2>
+          <p>Знайдіть Kopiyka в полі внизу. Дія може бути підписана англійською: «Log payment from an app notification».</p>
+          <p class="guide-shots"><img src="../img/guide/uk/11.webp" width="300" height="652" loading="lazy" alt="Крок 6"></p><h2>7. Вставте «Сповіщення» в поле</h2>
+          <p>Торкніть «Сповіщення», потім «Вибрати змінну» й «Сповіщення» під тригером.</p>
+          <p class="guide-shots"><img src="../img/guide/uk/12.webp" width="300" height="652" loading="lazy" alt="Крок 7"><img src="../img/guide/uk/13.webp" width="300" height="652" loading="lazy" alt="Крок 7"><img src="../img/guide/uk/14.webp" width="300" height="652" loading="lazy" alt="Крок 7"></p><h2>8. Необовʼязково: де ви платили</h2>
+          <p>Торкніть стрілку, потім «Розташування» → «Вибрати» → «Поточне місце» → ✓. «Рахунок» лишіть порожнім: Копійка вибере його за карткою чи валютою.</p>
+          <p class="guide-shots"><img src="../img/guide/uk/15.webp" width="300" height="652" loading="lazy" alt="Крок 8"><img src="../img/guide/uk/16.webp" width="300" height="652" loading="lazy" alt="Крок 8"></p><h2>9. Торкніть ‹ — і готово</h2>
+          <p>Команда зберігається сама. Вона в розділі «Автоматизація», де її вимикає перемикач.</p>
+          <p class="guide-shots"><img src="../img/guide/uk/17.webp" width="300" height="652" loading="lazy" alt="Крок 9"><img src="../img/guide/uk/18.webp" width="300" height="652" loading="lazy" alt="Крок 9"></p><p>Тепер заплатіть за щось. Магазин, який ви вже записували, запишеться сам; новий чекатиме в «Очікують» на перевірку. Сповіщення, які не вдалося прочитати, зберігаються в «Налаштування» → «Налаштування швидкої команди» → «Журнал сповіщень», щоб потім навчити Копійку їхнього формулювання.</p>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href="privacy.html">Приватність</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="terms.html">Умови</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://github.com/SashaGo3/kopiyka-budget">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="index.html#bug">Повідомити про помилку</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>© Автори Копійки</span>
+        <span class="made">Зроблено на React Native і трохи на Swift.</span>
+        <div class="theme-switch" role="group" aria-label="Тема оформлення" hidden>
+          <button type="button" class="swatch" data-set-theme="graphite" aria-pressed="false" aria-label="Пусік" title="Пусік"><span data-palette="graphite"></span></button>
+          <button type="button" class="swatch" data-set-theme="siri" aria-pressed="false" aria-label="Сірі" title="Сірі"><span data-palette="siri"></span></button>
+          <button type="button" class="swatch" data-set-theme="tadeusz" aria-pressed="false" aria-label="Тадеуш і Кастусь" title="Тадеуш і Кастусь"><span data-palette="tadeusz"></span></button>
+          <button type="button" class="swatch" data-set-theme="catppuccin" aria-pressed="false" aria-label="Уна" title="Уна"><span data-palette="catppuccin"></span></button>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // The theme switcher: the footer swatches and the landing page's previews. Without JS there is
+      // nothing to press, so the swatches stay hidden and the page keeps the default theme.
+      (function () {
+        if (!window.kopiykaTheme) return;
+        var buttons = document.querySelectorAll('[data-set-theme]');
+        var sync = function () {
+          var current = document.documentElement.getAttribute('data-theme');
+          for (var i = 0; i < buttons.length; i++) {
+            buttons[i].setAttribute('aria-pressed', String(buttons[i].getAttribute('data-set-theme') === current));
+          }
+        };
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].addEventListener('click', function () {
+            window.kopiykaTheme(this.getAttribute('data-set-theme'));
+            sync();
+          });
+        }
+        var row = document.querySelectorAll('.theme-switch');
+        for (var j = 0; j < row.length; j++) row[j].hidden = false;
+        sync();
+      })();
+    </script>
+  </body>
+</html>

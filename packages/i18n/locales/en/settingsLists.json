@@ -57,6 +57,7 @@
     "add": "Add tag"
   },
   "debts": {
+    "paidPart": { "message": "{amount} paid", "note": "In a debt's row: what its payments have paid so far." },
     "title": "Debts",
     "introShort": { "message": "Money lent or borrowed. It touches no balance until it is paid.", "note": "Note above the debts list; the ⓘ unfolds introMore." },
     "introMore": { "message": "Settling a debt here writes the transaction for you. With a due date, a reminder comes the day before and on the day, at the time you choose.", "note": "Unfolds under introShort." },
@@ -94,6 +95,8 @@
     "auto": "Automatic",
     "paused": "Paused",
     "suggested": "Suggested from your history",
+    "dismissA11y": { "message": "Dismiss the suggestion {name}", "note": "name is the suggested payment." },
+    "restoreDismissed": { "message": "{count, plural, one {Show # dismissed suggestion} other {Show # dismissed suggestions}}", "note": "Link under the suggestions." },
     "addAll": "Add all",
     "add": "Add",
     "addA11y": "Add a recurring rule",

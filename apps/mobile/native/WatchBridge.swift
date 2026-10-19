@@ -10,6 +10,8 @@ import CoreLocation
 ///  - "state"          → reply { state: <KPWatchState JSON> }
 ///  - "addTransaction" → write into SQLite, reply { ok, state }
 ///  - "delete"         → tombstone a transaction, reply { ok, state }
+///  - "approve"        → { id, category_id? } take a pending entry (both legs of a transfer) out of the
+///                       Pending queue, filing it under the category first when one is given; reply { ok, state }
 ///  - "suggest"        → { lat, lon, place? } → reply { category_id? } (core `suggestCategoryAt`).
 ///                       The watch sends no place name — it has no geocoder — so it gets the coordinate search.
 /// Phone → watch: the full state as the application context (last value wins).
@@ -30,7 +32,7 @@ final class WatchBridge: NSObject, WCSessionDelegate {
   /// wrote just before calling `updateWatch`; otherwise it is built from SQLite (a few small queries).
   @discardableResult
   func pushState() -> String {
-    let json = KPStore.buildState().json()
+    let json = KPStore.buildState().forWatch().json()
     if WCSession.isSupported(), WCSession.default.activationState == .activated, WCSession.default.isPaired, WCSession.default.isWatchAppInstalled {
       try? WCSession.default.updateApplicationContext(["state": json, "at": Date().timeIntervalSince1970])
     }
@@ -96,6 +98,11 @@ final class WatchBridge: NSObject, WCSessionDelegate {
     case "delete":
       guard let id = m["id"] as? String else { return ["ok": false] }
       let r = await KPWrites.deleteTransaction(id: id)
+      if r.ok { Self.didWrite() }
+      return ["ok": r.ok, "state": pushState()]
+    case "approve":
+      guard let id = m["id"] as? String else { return ["ok": false] }
+      let r = await KPWrites.approve(id: id, categoryId: m["category_id"] as? String)
       if r.ok { Self.didWrite() }
       return ["ok": r.ok, "state": pushState()]
     case "suggest":

@@ -57,3 +57,17 @@ export function resetSelectedPeriod(): void { setSelectedPeriod(currentPeriod())
 export function usePeriod(): [Period, (p: Period) => void] {
   return [useSyncExternalStore(subscribe, snapshot, snapshot), setSelectedPeriod];
 }
+
+/**
+ * The day a card computed "as of today" is computed as of, for a period that may not be this one:
+ * today inside the current period, the last day of a period that is over, the first of one to come.
+ * Insights follow the month picked on Budgets and Transactions, and "today" in March is 31 March.
+ */
+export function anchorDay(p: Period, today = todayLocal()): string {
+  if (today >= p.start && today < p.end) return today;
+  if (today >= p.end) {
+    const d = new Date(`${p.end}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+  return p.start;
+}

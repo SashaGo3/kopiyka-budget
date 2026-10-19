@@ -12,13 +12,9 @@
     "a11y": "Іконка {name}"
   },
   "name": {
-    "graphite": "Графіт",
-    "solarized": "Соларайзд",
-    "catppuccin": "Катпучин",
-    "gruvbox": "Ґрувбокс",
-    "nord": "Норд",
-    "tokyonight": "Токіо Найт",
-    "rosepine": "Розе Пайн",
-    "github": "ГітХаб"
+    "graphite": "Пусік",
+    "siri": "Сірі",
+    "tadeusz": "Тадеуш і Кастусь",
+    "catppuccin": "Уна"
   }
 }

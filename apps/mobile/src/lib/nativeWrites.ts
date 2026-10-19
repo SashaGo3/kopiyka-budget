@@ -4,12 +4,14 @@
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
 import { AppState } from "react-native";
-import { claimRecurring, createTransaction, fillPending, getRow, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef } from "@kopiyka/core";
+import { approvePending, claimRecurring, createTransaction, fillPending, getRow, listRows, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, photoInUse, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef, type PairOutcome } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, notifyChange } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
 import { localIso, todayLocal } from "./dates";
 import { waitDefaultDays } from "./settings";
+import { acctName } from "./names";
+import { deletePhoto } from "./photos";
 
 /** Entries waiting in the Pending queue: the app's badge, and what a native write is told after it lands. */
 export function pendingCount(): number {
@@ -19,16 +21,31 @@ export function pendingCount(): number {
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
+/**
+ * What pairing made of a notification-written row, for the notification the automation posts next
+ * (native/KopiykaIntents.swift): a transfer between two named accounts, or a repeat of a
+ * notification already logged — which `pairTransferLeg` has just deleted, so there is nothing to say.
+ */
+function transferReply(p: PairOutcome): Record<string, unknown> {
+  if (!p) return {};
+  if (p.kind === "duplicate") return { duplicate: true };
+  const legs = listRows(db, "transactions", "deleted=0 AND transfer_id=?", [p.transfer_id]);
+  const out = legs.find((l) => l.amount_minor < 0), into = legs.find((l) => l.amount_minor > 0);
+  const name = (accountId: string | undefined) => { const a = accountId ? getRow(db, "accounts", accountId) : null; return a ? acctName(a) : ""; };
+  return { transfer: { kind: p.kind, id: p.transfer_id, from: name(out?.account_id), to: name(into?.account_id) } };
+}
+
 async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
   switch (w.op) {
     case "addTransaction": {
       const id = String(w.id);
       // The watch may deliver the same entry twice (a reply that timed out, then the queued transfer).
       if (getRow(db, "transactions", id)) return {};
+      let paired: PairOutcome = null;
       mutate((d) => {
         const row = createTransaction(d, {
           id, account_id: String(w.account_id), date: str(w.date) ?? localIso(), amount_minor: Number(w.amount_minor),
-          category_id: str(w.category_id), payee: str(w.payee), notes: str(w.note),
+          category_id: str(w.category_id), payee: str(w.payee), notes: str(w.note), bank_note: str(w.bank_note),
           tag_ids: JSON.stringify(withTripTag(d, Array.isArray(w.tag_ids) ? w.tag_ids.map(String) : [])),
           pending: w.pending ? 1 : 0, lat: num(w.lat), lon: num(w.lon), place: str(w.place), source: str(w.source),
           // A payment the bank printed in another currency: what it charged, and the rate it was
@@ -43,15 +60,35 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
         claimRecurring(d, row, { today: todayLocal(), waitDefault: waitDefaultDays() });
         // The other half of a transfer: a debit and a credit between your own accounts become one
         // pending transfer instead of an expense and an income. A claimed recurring charge is not one.
-        if (!getRow(d, "transactions", id)?.recurring_id) pairTransferLeg(d, id);
+        if (!getRow(d, "transactions", id)?.recurring_id) paired = pairTransferLeg(d, id);
       });
       // What the badge on the app icon should read now. Native code cannot count it for itself
       // while JS has the database open, and the notification it is about to post carries the number.
-      return { pending: pendingCount() };
+      // Pairing may have moved the row to the account its number names (core `rehome`): the
+      // automation's notice then says that account and the bank's own amount, not the ones it guessed.
+      const now = getRow(db, "transactions", id);
+      const acc = now && now.account_id !== String(w.account_id) ? getRow(db, "accounts", now.account_id) : null;
+      const moved = acc && now ? { moved: { account: acctName(acc), currency: acc.currency, amount_minor: now.amount_minor } } : {};
+      return { pending: pendingCount(), ...moved, ...transferReply(paired) };
     }
-    case "delete":
+    case "delete": {
+      const row = getRow(db, "transactions", String(w.id));
       mutate((d) => remove(d, "transactions", String(w.id)));
+      // The photo goes with the last entry holding it, as when one is deleted in the app (DATA.md rule 4).
+      if (row?.photo && !photoInUse(db, row.photo, row.id)) deletePhoto(row.photo);
       return {};
+    }
+    case "approve":
+      // The watch's Approve: filed under the category it chose first (a plain entry only — a transfer
+      // keeps its own), then approved as the Pending screen approves, both legs and the account numbers.
+      mutate((d) => {
+        const row = getRow(d, "transactions", String(w.id));
+        if (!row || row.deleted) return;
+        const cat = str(w.category_id);
+        if (cat && !row.transfer_id) save(d, "transactions", { ...row, category_id: cat, debt_id: null });
+        approvePending(d, [row.id]);
+      });
+      return { pending: pendingCount() };
     case "updatePlace":
       mutate((d) => {
         const row = getRow(d, "transactions", String(w.id));

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { activeBudgets, budgetCategoryIds, formatMinor, getRow, listTrips, save, type Budget } from "@kopiyka/core";
+import { activeBudgets, budgetCategoryIds, formatMinor, getRow, listTrips, remove, save, type Budget } from "@kopiyka/core";
 import { SymbolView } from "expo-symbols";
 import { View } from "react-native";
 import { mutate, useQuery } from "@/store";
@@ -14,7 +14,7 @@ import { t } from "@/i18n";
 
 /**
  * Drag the budgets into the order you want them on the Budgets screen, and the screen's sections
- * with them. The drag is `ReorderList`.
+ * with them, and swipe a budget left to delete it. The drag and the swipe are `ReorderList`.
  *
  * One list rather than two: the budgets are rows, and Spending and Travel history are a row each
  * standing for their whole section. Where the budgets go as a block is where the first of them is,
@@ -28,16 +28,19 @@ export default function BudgetReorder() {
   const hasTravel = useQuery((d) => listTrips(d).some((t) => t.ended));
   const items = useMemo(() => getBudgetsSections().flatMap((sec) => {
     if (sec === "budgets") return budgets.map(({ b, title, icon }) => ({
-      id: b.id, title,
+      id: b.id, title, deletable: true,
       subtitle: b.in_planned === 0 ? t("budgets.reorder.amountOff", { amount: `${formatMinor(b.amount_minor, b.currency)} ${b.currency}` }) : `${formatMinor(b.amount_minor, b.currency)} ${b.currency}`,
       icon: <CategoryIcon name={title} icon={icon?.icon ?? null} color={icon?.color ?? null} size={30} />,
     }));
     if (sec === "travel" && !hasTravel) return [];
     return [sectionRow(sec)];
   }), [budgets, hasTravel]);
-  const commit = (ids: string[]) => {
+  const commit = (ids: string[], removed: string[]) => {
     const budgetIds = ids.filter((id) => !id.startsWith(SECTION));
-    mutate((d) => budgetIds.forEach((id, i) => { const b = getRow(d, "budgets", id); if (b && b.sort !== i) save(d, "budgets", { ...b, sort: i } as Budget); }));
+    mutate((d) => {
+      for (const id of removed) remove(d, "budgets", id);
+      budgetIds.forEach((id, i) => { const b = getRow(d, "budgets", id); if (b && b.sort !== i) save(d, "budgets", { ...b, sort: i } as Budget); });
+    });
     // A section that is not in the list (no budgets yet, no past travel) keeps its place in the saved order.
     const saved = getBudgetsSections();
     const at = (sec: BudgetsSection) => {

@@ -19,8 +19,9 @@ import {
   DEFAULT_BACKUP_POLICY, type BackupPolicy, type ImportMode,
 } from "@kopiyka/core";
 import { db } from "@/db";
+import { KPBridge } from "@/lib/bridge";
 import { dayLabel, todayLocal } from "@/lib/dates";
-import { mutate, notifyChange, onAfterWrite, refreshQueries } from "@/store";
+import { SIDE_EFFECT_DELAY_MS, mutate, notifyChange, onAfterWrite, refreshQueries } from "@/store";
 import { getBackupKeepDays } from "@/lib/settings";
 import { t } from "@/i18n";
 import { localPhotoNames, photoPath } from "@/lib/photos";
@@ -268,13 +269,16 @@ export function backupNow(reason = "manual"): Promise<BackupEntry | null> {
       const day = localDay(now), name = backupFileName(now);
       const json = JSON.stringify(exportBackup(db, { includeDeleted: true, now: () => now, compact: true }));
       await native.write(day, name, json);
+      // The file is written; only the bookkeeping is left. Skipped when out of background time, the
+      // database still reads as changed and the next backup simply writes another file.
+      if (outOfTime()) return null;
       setMeta(db, META_AT, String(now.getTime()));
       setMeta(db, META_FILE, name);
       setMeta(db, META_DIRTY, "0");
       const files = await listBackups();
       // What we just wrote is by definition already in this database, so it never needs merging back.
       const seen = readSeen();
-      if (seen) { seen.add(name); writeSeen(seen, files.map((f) => f.name).concat(name)); }
+      if (seen && !outOfTime()) { seen.add(name); writeSeen(seen, files.map((f) => f.name).concat(name)); }
       await applyRetention(files, now);
       if (__DEV__) console.log(`[backup] ${reason}: ${name} ${(json.length / 1024).toFixed(0)} KB`);
       // Deliberately not awaited: the backup itself is done, and copying images must not hold up
@@ -374,6 +378,7 @@ export function pullFromCloud(reason = "poll"): Promise<number> {
       // device that has not been set up yet, and what is in the container is the user's data waiting
       // to come back — that is the welcome flow's decision (`findRestorable`), so the set is left
       // unwritten for it rather than quietly marking the lot as read.
+      if (outOfTime()) return 0;
       if (seen === null) { if (hasData()) { writeSeen(names); markChecked(0); } return 0; }
       const fresh = files.filter((f) => !seen.has(f.name)).sort((a, z) => a.time - z.time);   // oldest first, so the newest row wins last
       if (!fresh.length) { writeSeen(seen, names); markChecked(0); return 0; }
@@ -388,14 +393,16 @@ export function pullFromCloud(reason = "poll"): Promise<number> {
         // next poll have it. Anything past that point has been read, so it is marked either way —
         // a file we cannot parse will not parse any better in five minutes.
         try { text = await native.read(f.day, f.name); } catch { continue; }
+        // Out of background time: the rest, and the bookkeeping, wait for the next pull. A file merged
+        // but not recorded as seen is merged again then, which changes nothing.
+        if (outOfTime()) break;
         seen.add(f.name);
         try {
           const r = importBackup(db, text, { mode: "merge", applySettings: false });
           rows += Object.values(r.imported).reduce((a, b) => a + b, 0) + r.rates;
         } catch (e) { if (__DEV__) console.log(`[sync] ${f.name} unreadable: ${(e as Error).message}`); }
       }
-      writeSeen(seen, names);
-      markChecked(rows);
+      if (!outOfTime()) { writeSeen(seen, names); markChecked(rows); }
       if (__DEV__) console.log(`[sync] ${reason}: ${fresh.length} new file(s), ${rows} rows`);
       // Only a merge that changed something is a change: telling the app otherwise would mark the
       // database dirty, write a backup about nothing, and hand the other device a file to merge back.
@@ -480,10 +487,12 @@ function schedule(ms: number) {
 }
 
 /** Take in whatever the other devices left, then decide whether a backup is due and take it. */
-export async function tick(): Promise<void> {
+export async function tick(leaving = false): Promise<void> {
   if (!native) return;
-  // Pull before push, so the backup this writes is the union rather than half the story.
-  await pullFromCloud("tick");
+  // Pull before push, so the backup this writes is the union rather than half the story — except on
+  // the way out, where a merge is the one part with no bound on how long it takes, and the next
+  // return to the app pulls anyway. The backup is then only this phone's side, which merges the same.
+  if (!leaving) await pullFromCloud("tick");
   if (!enabled() || !hasData()) return;
   const now = new Date();
   let hasToday = state.today > 0;
@@ -493,20 +502,38 @@ export async function tick(): Promise<void> {
   if (due) await backupNow(due);
 }
 
+/**
+ * How long the work done on leaving the app may keep writing. iOS kills an app suspended while it
+ * holds a lock on the shared database (RUNNINGBOARD 0xdead10cc), and every write here is synchronous
+ * on the JS thread, so the lock is held only while one runs. Stopping new writes this long after
+ * leaving, well inside the time native asks for (KPBackgroundTime, 25 s, ended by
+ * `backgroundWorkDone` rather than by its own timer), means the time never runs out mid-write: what
+ * did not fit is left for the next return to the app. Null while the app is on screen.
+ */
+const LEAVE_BUDGET_MS = 15_000;
+let writesUntil: number | null = null;
+function outOfTime(): boolean { return writesUntil !== null && Date.now() > writesUntil; }
+
 let installed = false;
 /** After each write: mark dirty and back up once things go quiet. Leaving the app flushes; returning checks the daily one. */
 export function installBackupTriggers(): void {
   if (installed || !native) return;
   installed = true;
   onAfterWrite(() => {
-    if (!enabled()) return;
+    if (!enabled() || outOfTime()) return;
     setMeta(db, META_DIRTY, "1");
     set({ dirty: true });
     schedule(BACKUP_POLICY.debounceMs);
   });
   AppState.addEventListener("change", (s) => {
-    if (s === "active") void tick();
-    else if (dirty()) { if (timer) { clearTimeout(timer); timer = null; } void tick(); }
+    if (s === "active") { writesUntil = null; void tick(); return; }
+    if (s === "background") writesUntil = Date.now() + LEAVE_BUDGET_MS;
+    let leaving: Promise<unknown> = Promise.resolve();
+    if (dirty()) { if (timer) { clearTimeout(timer); timer = null; } leaving = tick(true); }
+    // Leaving the app bought time to finish writing (native KPBackgroundTime). Handed back once the
+    // flush, any pull already running (the five-minute poll) and the side effects of their writes
+    // are done: after that nothing here writes, so nothing holds the database when iOS suspends.
+    if (s === "background") void Promise.allSettled([leaving, pulling]).then(() => setTimeout(() => KPBridge.backgroundWorkDone(), SIDE_EFFECT_DELAY_MS + 200));
   });
   // iCloud hands a file over when it feels like it, and there is no notification for it, so the
   // container is looked at every few minutes while the app is open. Nothing is read unless a name

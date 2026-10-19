@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { getBaseCurrency } from "./rates";
 import { getCurrentAccount } from "./settings";
+import { humanDayTime, todayLocal } from "./dates";
 import { t } from "@/i18n";
 
 /** Currency a new trip budget is entered in: the current account's, else the base currency. */
@@ -29,8 +30,9 @@ export function addPastTravel(p: PastTrip) { return mutate((d) => addPastTrip(d,
 
 export function tripLine(s: TripStats): string {
   const fmt = (m: number) => (m / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  const spent = t("travel.line.spent", { spent: fmt(s.spent_minor), limit: fmt(s.limit_minor), currency: s.currency });
-  const day = s.days_left ? t("travel.line.dayOf", { day: s.day, days: s.days }) : t("travel.line.day", { day: s.day });
+  const spent = s.limited ? t("travel.line.spent", { spent: fmt(s.spent_minor), limit: fmt(s.limit_minor), currency: s.currency }) : t("travel.line.spentNoLimit", { spent: fmt(s.spent_minor), currency: s.currency });
+  const day = s.active && s.budget.starts > todayLocal() ? t("travel.line.startsOn", { date: humanDayTime(s.budget.starts) })
+    : s.days_left ? t("travel.line.dayOf", { day: s.day, days: s.days }) : t("travel.line.day", { day: s.day });
   return `${tripName(s)} · ${spent} · ${day}`;
 }
 

@@ -3,32 +3,37 @@ import { DEFAULT_THEME, THEMES, themeOf } from "../src/themes";
 
 test("themeOf reads ids, falls back to the default, and keeps the pre-release default id", () => {
   expect(DEFAULT_THEME).toBe("graphite");
-  expect(themeOf("nord")).toBe(THEMES.nord);
+  expect(themeOf("siri")).toBe(THEMES.siri);
+  // A theme 1.0.3 shipped and 1.1.0 removed reads as the default.
+  expect(themeOf("nord")).toBe(THEMES.graphite);
   expect(themeOf("kopiyka")).toBe(THEMES.graphite);
   expect(themeOf("nope")).toBe(THEMES.graphite);
   expect(themeOf(null)).toBe(THEMES.graphite);
 });
 
 import { DEFAULT_THEME as DEF, THEME_IDS } from "../src/themes";
-import { contrast, LABEL_MIN_DARK, SURFACE_MIN, TEXT_MIN, themeColors, toneColors } from "../src/themeColors";
+import { apca, contrast, ICON_LC, MIN_CHROMA, oklch, SURFACE_MIN, TEXT_LC, themeColors, toneColors } from "../src/themeColors";
 
 const opaque = (v: string) => v.startsWith("#") && v.length === 7;
 
-test("every theme's text clears its floor against the page and the card, on both sides", () => {
+test("every theme's text sits in its APCA band against the page and the card, on both sides", () => {
   const failures: string[] = [];
   for (const id of THEME_IDS) {
     const c = themeColors(THEMES[id]);
     for (const side of [0, 1] as const) {
-      const grounds = [c.bg[side], c.card[side]];
-      const floors: [keyof typeof c, number][] = [
-        ["label", side ? LABEL_MIN_DARK : TEXT_MIN.label], ["secondary", TEXT_MIN.secondary], ["tertiary", TEXT_MIN.tertiary],
-        ["red", TEXT_MIN.coloured], ["green", TEXT_MIN.coloured], ["orange", TEXT_MIN.coloured],
+      const grounds = [c.bg[side], c.card[side]].filter((g) => g.startsWith("#")).map((g) => g.slice(0, 7));
+      const bands: [keyof typeof c, number, number][] = [
+        ["label", side ? TEXT_LC.label.loDark : TEXT_LC.label.lo, side ? TEXT_LC.label.hiDark : TEXT_LC.label.hi],
+        ["secondary", TEXT_LC.secondary.lo, TEXT_LC.secondary.hi], ["tertiary", TEXT_LC.tertiary.lo, TEXT_LC.tertiary.hi],
+        ...(["red", "green", "orange"] as const).map((r): [keyof typeof c, number, number] => [r, side ? TEXT_LC.coloured.loDark : TEXT_LC.coloured.lo, side ? TEXT_LC.coloured.hiDark : TEXT_LC.coloured.hi]),
       ];
-      for (const [role, min] of floors) {
-        for (const g of grounds) {
-          const r = contrast(c[role][side], g);
-          if (r < min - 0.01 && !/^#(FFFFFF|000000)$/.test(c[role][side])) failures.push(`${id} ${side ? "dark" : "light"} ${role} ${c[role][side]} on ${g}: ${r.toFixed(2)} < ${min}`);
-        }
+      for (const [role, lo, hi] of bands) {
+        const fg = c[role][side];
+        if (/^#(FFFFFF|000000)$/.test(fg)) continue;
+        const lcs = grounds.map((g) => apca(fg, g));
+        // The ceiling gives way only where page and card are further apart than the band is wide:
+        // then the colour sits right at the floor on the page, and readability wins.
+        if (Math.min(...lcs) < lo - 0.5 || (lcs[lcs.length - 1]! > hi + 0.5 && Math.min(...lcs) > lo + 1.5)) failures.push(`${id} ${side ? "dark" : "light"} ${role} ${fg}: Lc ${lcs.map((l) => l.toFixed(0)).join("/")} outside ${lo}–${hi}`);
       }
     }
   }
@@ -67,8 +72,26 @@ test("every value is a colour native can read", () => {
 
 test("chrome tones: the default theme draws the hex as given, others in their own palette", () => {
   expect(toneColors(THEMES.graphite, "#FF9F0A")).toEqual({ fill: ["#FF9F0A", "#FF9F0A"], glyph: ["#FFFFFF", "#FFFFFF"] });
-  const nord = toneColors(THEMES.nord, "#0A84FF");
-  expect(nord.fill).toEqual([THEMES.nord.light.hues!.blue!, THEMES.nord.dark.hues!.blue!]);
+  // A vivid palette colour that already holds its glyph is drawn as the palette has it: Una's light blue.
+  expect(toneColors(THEMES.catppuccin, "#0A84FF").fill[0]).toBe(THEMES.catppuccin.light.hues!.blue!);
+  // A muted one is first raised to MIN_CHROMA: Una's pastel dark green (#A6E3A1, C 0.10), and its incomes with it.
+  expect(oklch(toneColors(THEMES.catppuccin, "#30D158").fill[1]).c).toBeGreaterThan(MIN_CHROMA - 0.01);
+  expect(oklch(themeColors(THEMES.catppuccin).green[1]).c).toBeGreaterThan(MIN_CHROMA - 0.01);
   // A grey is the theme's muted colour.
-  expect(toneColors(THEMES.gruvbox, "#8E8E93").fill).toEqual([THEMES.gruvbox.light.muted, THEMES.gruvbox.dark.muted]);
+  expect(toneColors(THEMES.siri, "#8E8E93").fill[0]).toBe(THEMES.siri.light.muted);
+});
+
+test("an icon's glyph reads on its square in every theme", () => {
+  const failures: string[] = [];
+  for (const id of THEME_IDS) {
+    if (id === DEF) continue;
+    for (const hex of ["#FF9F0A", "#5E5CE6", "#30D158", "#0A84FF", "#FF375F", "#8E8E93", "#64D2FF", "#BF5AF2", "#FFD60A", "#A2845E"]) {
+      const t = toneColors(THEMES[id], hex);
+      for (const side of [0, 1] as const) {
+        const r = apca(t.glyph[side], t.fill[side]);
+        if (r < ICON_LC - 0.5) failures.push(`${id} ${side ? "dark" : "light"} ${hex}: ${t.glyph[side]} on ${t.fill[side]} ${r.toFixed(2)}`);
+      }
+    }
+  }
+  expect(failures).toEqual([]);
 });

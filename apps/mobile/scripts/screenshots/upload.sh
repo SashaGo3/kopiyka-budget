@@ -5,7 +5,7 @@
 # promotional text, what's new — written there by `bun run i18n` from packages/i18n/locales/*/store.json).
 #
 #   bun run screenshots:upload                        # the version open for editing on App Store Connect
-#   bun run screenshots:upload -- 1.0.4               # that version (created if it does not exist yet)
+#   bun run screenshots:upload -- 1.1.0               # that version (created if it does not exist yet)
 #   bun run screenshots:upload -- --screenshots-only  # leave the listing text alone
 #   bun run screenshots:upload -- --lang uk           # one language (en or en-US, uk); the others stay as they are
 #

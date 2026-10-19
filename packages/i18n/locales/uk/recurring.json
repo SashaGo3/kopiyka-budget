@@ -134,5 +134,13 @@
     "dueSince": "{count, plural, one {# до сплати з {date}} few {# до сплати з {date}} many {# до сплати з {date}} other {# до сплати з {date}}}",
     "dueOn": "До сплати {date}",
     "post": "Записати"
-  }
+  },
+  "icon": "Іконка",
+  "iconAuto": "Автоматично",
+  "iconAutoFound": "Автоматично · {name}",
+  "iconCategory": "Іконка категорії",
+  "iconLogo": "Логотип · {name}",
+  "iconEmoji": "Емодзі",
+  "iconSymbol": "Символ",
+  "iconApp": "Зображення"
 }

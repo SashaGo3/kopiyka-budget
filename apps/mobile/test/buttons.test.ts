@@ -17,7 +17,7 @@ const SRC = join(import.meta.dir, "..", "src");
 /** Styles of a row's own content, which is not a button label and may truncate. */
 const ROW_CONTENT = new Set([
   "title", "sub", "name", "before", "after", "hitName", "hitSub", "header", "folder", "line", "lineText",
-  "place", "text", "budgetName", "legendName", "amount", "rowSub",
+  "place", "text", "budgetName", "legendName", "amount", "rowSub", "optText",
 ]);
 
 /**

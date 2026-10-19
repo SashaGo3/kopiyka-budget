@@ -162,6 +162,49 @@ describe("safety buffer", () => {
     expect(safetyBuffer(db, { account_id: acc.id }, { today: TODAY, startDay: 1 })!.essential_minor).toBe(10000);
   });
 
+  test("several accounts count together, another currency at the latest rate", () => {
+    const { db, acc, rent } = fresh();
+    const usd = createAccount(db, { name: "USD", currency: "USD" });
+    db.run(`INSERT INTO exchange_rates (base, quote, day, rate, fetched_at) VALUES ('USD', 'PLN', '2026-09-01', 4, '2026-09-01T00:00:00Z')`);
+    createTransaction(db, { account_id: acc.id, date: "2026-01-01T10:00:00Z", amount_minor: 600000 });
+    createTransaction(db, { account_id: usd.id, date: "2026-01-01T10:00:00Z", amount_minor: 100000 });
+    spend(db, acc.id, rent.id, 60000, "2026-08-10");
+    spend(db, usd.id, rent.id, 15000, "2026-07-10"); // 600,00 PLN of rent paid in USD
+    const b = safetyBuffer(db, { account_ids: [acc.id, usd.id] }, { today: TODAY, startDay: 1 })!;
+    expect(b.currency).toBe("PLN");
+    expect(b.have_minor).toBe(600000 - 60000 + (100000 - 15000) * 4);
+    expect(b.essential_minor).toBe(20000); // 120000 over six periods
+    expect(b.months_covered).toBeCloseTo(b.have_minor / 20000);
+    expect(b.missing).toEqual([]);
+  });
+
+  test("chosen categories set the comfort level, a folder with everything in it", () => {
+    const { db, acc, rent, food, bars } = fresh();
+    const home = createCategory(db, { name: "Home" });
+    const repairs = createCategory(db, { name: "Repairs", parent_id: home.id });
+    spend(db, acc.id, rent.id, 60000, "2026-08-10");
+    spend(db, acc.id, food.id, 30000, "2026-08-11");
+    spend(db, acc.id, bars.id, 12000, "2026-08-12");
+    spend(db, acc.id, repairs.id, 6000, "2026-08-13");
+    const b = safetyBuffer(db, { account_ids: [acc.id], category_ids: [food.id, bars.id, home.id] }, { today: TODAY, startDay: 1 })!;
+    expect(b.basis).toBe("chosen");
+    expect(b.essential_minor).toBe(8000); // (30000 + 12000 + 6000) / 6, rent not chosen
+    expect(b.no_essentials).toBe(false);
+  });
+
+  test("no goal means no target, and the cushion makes a month dearer", () => {
+    const { db, acc, rent } = fresh();
+    spend(db, acc.id, rent.id, 60000, "2026-08-10");
+    createTransaction(db, { account_id: acc.id, date: "2026-01-01T10:00:00Z", amount_minor: 600000 });
+    const b = safetyBuffer(db, { account_id: acc.id, months: 0, extra_pct: 10 }, { today: TODAY, startDay: 1 })!;
+    expect(b.base_minor).toBe(10000);
+    expect(b.essential_minor).toBe(11000);
+    expect(b.months_wanted).toBe(0);
+    expect(b.target_minor).toBe(0);
+    expect(b.ratio).toBe(0);
+    expect(b.months_covered).toBeCloseTo(b.have_minor / 11000);
+  });
+
   test("no account chosen is no card", () => {
     const { db } = fresh();
     expect(safetyBuffer(db, {}, { today: TODAY, startDay: 1 })).toBeNull();

@@ -103,20 +103,22 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
 
   const history: WatchTx[] = db.all<{
     id: string; date: string; amount_minor: number; currency: string; account_name: string; account_id: string;
-    category_id: string | null; cat_name: string | null; cat_preset: string | null; parent_name: string | null; parent_preset: string | null; notes: string | null; payee: string | null;
-    tag_ids: string; pending: number; transfer_id: string | null;
+    category_id: string | null; cat_name: string | null; cat_preset: string | null; parent_name: string | null; parent_preset: string | null; notes: string | null; bank_note: string | null; payee: string | null;
+    tag_ids: string; pending: number; transfer_id: string | null; debt_id: string | null; debt_person: string | null;
   }>(
     `SELECT t.id, t.date, t.amount_minor, a.currency, a.name AS account_name, t.account_id, t.category_id,
-       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id
+       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.bank_note, t.payee, t.tag_ids, t.pending, t.transfer_id, t.debt_id, d.person AS debt_person
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
+     LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id LEFT JOIN debts d ON d.id=t.debt_id
      WHERE t.deleted=0 ORDER BY t.date DESC, t.updated_at DESC LIMIT 50`,
   ).map((r) => {
     const transfer = r.transfer_id != null;
-    const note = r.notes?.split("\n")[0] ?? "";
+    // A debt payment has no category: it is named after whose debt it pays, as in the app's list.
+    const debtLabel = r.debt_id ? t("transactions.list.debt", { person: r.debt_person ?? "?" }) : null;
+    const note = r.notes?.split("\n")[0] || r.bank_note?.split("\n")[0] || "";
     const catName = r.cat_name === null ? null : name(r.cat_name, r.cat_preset);
     const parentName = r.parent_name === null ? null : name(r.parent_name, r.parent_preset);
-    const title = transfer ? t("misc.watch.transfer") : note || r.payee || catName || parentName || t("misc.watch.uncategorized");
+    const title = transfer ? t("misc.watch.transfer") : r.payee || note || catName || parentName || debtLabel || t("misc.watch.uncategorized");
     const catLabel = transfer ? null : catName ? (parentName ? `${parentName} › ${catName}` : catName) : parentName;
     const sub = [accountName({ name: r.account_name }, lang), catLabel].filter((x): x is string => !!x).join(" · ");
     return {

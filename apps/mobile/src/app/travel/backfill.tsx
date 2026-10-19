@@ -11,6 +11,7 @@ import { ConfirmBar } from "@/components/Keypad";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, S, themed } from "@/constants/theme";
 import { EMPTY_FILTER, activeCount, buildWhere, type TxFilter } from "@/lib/filters";
+import { useSearchIds } from "@/lib/search";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 
@@ -35,7 +36,8 @@ export default function TravelBackfill() {
   const [filter, setFilter] = useState<TxFilter>(EMPTY_FILTER);
   const key = useMemo(() => newPickKey("bfilter"), []);
   usePickResult<TxFilter>(key, useCallback((f: TxFilter) => setFilter(f), []));
-  const { where, params } = buildWhere({ ...filter, q, ...(!filter.from && !filter.to ? (from ? { from, to: to ?? null } : { from: since }) : {}) }, null);
+  const searchIds = useSearchIds(q);
+  const { where, params } = buildWhere({ ...filter, q, ...(!filter.from && !filter.to ? (from ? { from, to: to ?? null } : { from: since }) : {}) }, null, undefined, searchIds);
   const rows = useTransactions(`t.transfer_id IS NULL AND t.amount_minor<0 AND t.recurring_id IS NULL AND t.tag_ids NOT LIKE ? AND ${where}`, [`%"${tag}"%`, ...params], 400);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   // Ticks are work too: leaving with some and without adding them asks first (lib/discard.ts).

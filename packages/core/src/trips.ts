@@ -15,6 +15,15 @@ import { createBudget, createTag, getRow, jsonIds, listRows, save, tagIdsOf, tag
 export const TRIP_WHERE = "deleted=0 AND period='once' AND tag_id IS NOT NULL";
 
 /**
+ * Whether a trip or an event has a budget to keep to. `amount_minor = 0` is "no limit": it only
+ * counts what was spent — the wedding you want the total of, not a plan for. Nothing else differs;
+ * the money is still the trip's and still out of the month's budgets.
+ */
+export function tripLimited(b: Pick<Budget, "amount_minor">): boolean {
+  return b.amount_minor > 0;
+}
+
+/**
  * A trip or an event. Both are the same thing to every number — a one-off budget on a tag, kept out
  * of the month's budgets — and differ only in what the app calls them. Anything but "event" is a
  * trip, so a row from before v20 (NULL) or from a newer build that knows more kinds is still shown.
@@ -65,14 +74,19 @@ export function carriedTagIds(tagIds: readonly string[], skip: ReadonlySet<strin
   return tagIds.filter((id) => !skip.has(id));
 }
 
-/** Id of the tag new expenses should carry while travel mode is on, else null. Cheap: one indexed-size query. */
-export function activeTripTagId(db: SqlDriver): string | null {
-  return activeTrip(db)?.tag_id ?? null;
+/**
+ * Id of the tag new expenses should carry while travel mode is on, else null. Cheap: one
+ * indexed-size query. A trip set up ahead (it starts on a later day) is the running one already, but
+ * tags nothing until its first day — next week's wedding has no business on today's coffee.
+ */
+export function activeTripTagId(db: SqlDriver, today = todayLocalDay()): string | null {
+  const trip = activeTrip(db);
+  return trip && trip.starts <= today ? trip.tag_id ?? null : null;
 }
 
-/** Add the active trip's tag to a tag list (no-op when travel mode is off or the tag is already there). */
-export function withTripTag(db: SqlDriver, tagIds: string[]): string[] {
-  const t = activeTripTagId(db);
+/** Add the active trip's tag to a tag list (no-op when travel mode is off, the trip has not begun, or the tag is already there). */
+export function withTripTag(db: SqlDriver, tagIds: string[], today?: string): string[] {
+  const t = activeTripTagId(db, today);
   return t && !tagIds.includes(t) ? [...tagIds, t] : tagIds;
 }
 
@@ -81,6 +95,7 @@ export interface StartTrip {
   /** Defaults to "trip". */
   kind?: TripKind;
   currency: string;
+  /** 0 = no limit, only count what is spent (`tripLimited`). */
   amount_minor: number;
   /** YYYY-MM-DD; defaults to today. */
   starts?: string;
@@ -91,7 +106,8 @@ export interface StartTrip {
 
 /**
  * Turn travel mode on: reuse a tag with that name (case-insensitive) or create one, then
- * create the one-off budget. Fails when a trip is already running.
+ * create the one-off budget. Fails when a trip is already running. `starts` may be a later day:
+ * the trip is then the running one, waiting, and tags nothing until it begins (`activeTripTagId`).
  */
 export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: Tag } {
   if (activeTrip(db)) throw new KopiykaError("trip_running", "Travel mode is already on");
@@ -108,6 +124,7 @@ export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: T
 /** A new trip's tag is blue, an event's pink — the same colours the app draws them in. */
 function tagColorFor(kind: TripKind | undefined): string { return kind === "event" ? "#FF2D55" : "#0A84FF"; }
 
+/** `amount_minor` 0 = no limit (`tripLimited`). */
 export interface PastTrip { name: string; kind?: TripKind; currency: string; amount_minor: number; starts: string; ends: string }
 
 /**
@@ -155,6 +172,8 @@ export interface TripStats {
   /** The trip's tag's name; null when the tag is gone, and the app names it in its own language. */
   name: string | null;
   currency: string;
+  /** False when the trip has no budget (`tripLimited`): only `spent_minor` means anything, and remaining/allowance/over are 0/null/false. */
+  limited: boolean;
   limit_minor: number;
   /** What counts against the budget, converted into its currency where a rate is cached. */
   spent_minor: number;
@@ -242,17 +261,20 @@ export function tripStats(db: SqlDriver, b: Budget, o: { today?: string; rateFor
   const cur = active ? today : b.ended!;
   const day = Math.max(1, Math.min(days, daysBetween(b.starts, cur) + 1));
   const elapsed = Math.max(1, daysBetween(b.starts, cur) + 1);
-  const daysLeft = active && today <= ends ? daysBetween(today, ends) + 1 : 0;
-  const remaining = b.amount_minor - spent;
+  // A trip that has not begun yet has every one of its days still to come.
+  const from = today < b.starts ? b.starts : today;
+  const daysLeft = active && from <= ends ? daysBetween(from, ends) + 1 : 0;
+  const limited = tripLimited(b);
+  const remaining = limited ? b.amount_minor - spent : 0;
   return {
-    budget: b, tag, name: tag?.name ?? null, currency: b.currency, limit_minor: b.amount_minor, spent_minor: spent, remaining_minor: remaining,
+    budget: b, tag, name: tag?.name ?? null, currency: b.currency, limited, limit_minor: b.amount_minor, spent_minor: spent, remaining_minor: remaining,
     outside_minor: outside,
     unconverted: [...unconverted].map(([currency, minor]) => ({ currency, minor })),
     by_category: [...byCat].map(([category_id, spent_minor]) => ({ category_id, spent_minor })).sort((x, y) => y.spent_minor - x.spent_minor),
     // The pace is what the days cost: what was paid before them is not spread over them.
     day, days, days_left: daysLeft, per_day_minor: Math.round(during / elapsed),
-    allowance_minor: daysLeft > 0 ? Math.round(remaining / daysLeft) : null,
-    active, over: spent > b.amount_minor,
+    allowance_minor: limited && daysLeft > 0 ? Math.round(remaining / daysLeft) : null,
+    active, over: limited && spent > b.amount_minor,
   };
 }
 

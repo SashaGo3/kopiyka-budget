@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { Stack, router } from "expo-router";
-import { debtTotals, isOverdue, listDebts, listRows, type Debt, type DebtTotal } from "@kopiyka/core";
+import { debtPaid, debtTotals, formatMinor, isOverdue, listDebts, listRows, type Debt, type DebtTotal } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, Empty, Money, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
@@ -9,14 +9,14 @@ import { humanDayTime, todayLocal } from "@/lib/dates";
 import { t } from "@/i18n";
 import { acctName } from "@/lib/names";
 
-type DebtWithAccount = Debt & { accountName?: string };
+type DebtWithAccount = Debt & { accountName?: string; paid: number };
 
 export default function DebtsSettings() {
   // Add sits at the bottom like on Categories, and slides away while scrolling down.
   const { visible, onScroll } = useScrollHide();
   const data = useQuery((db) => {
     const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, acctName(a)]));
-    const debts = listDebts(db).map((d): DebtWithAccount => ({ ...d, accountName: d.account_id ? accounts.get(d.account_id) : undefined }));
+    const debts = listDebts(db).map((d): DebtWithAccount => ({ ...d, accountName: d.account_id ? accounts.get(d.account_id) : undefined, paid: debtPaid(db, d) }));
     return { debts, totals: debtTotals(debts) };
   });
   const today = todayLocal();
@@ -70,7 +70,7 @@ function DebtRow({ d, first, today, settled }: { d: DebtWithAccount; first: bool
   const overdue = !settled && isOverdue(d, today);
   const due = d.due_date ? humanDayTime(d.due_date) : t("settingsLists.debts.noDue");
   const when = settled && d.settled_date ? t("settingsLists.debts.paidBack", { date: humanDayTime(d.settled_date) }) : overdue ? t("settingsLists.debts.overdue", { date: due }) : due;
-  const subtitle = [when, d.accountName].filter(Boolean).join(" · ");
+  const subtitle = [when, !settled && d.paid > 0 ? t("settingsLists.debts.paidPart", { amount: formatMinor(d.paid, d.currency) }) : null, d.accountName].filter(Boolean).join(" · ");
   return (
     <Row title={d.person} subtitle={subtitle} subtitleColor={overdue ? (C.red as unknown as string) : undefined}
       right={<Money minor={d.amount_minor} currency={d.currency} />}

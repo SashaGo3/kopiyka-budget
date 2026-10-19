@@ -84,28 +84,19 @@
     "title": "Set what matters",
     "step": { "message": "Step {step} of {total}", "note": "Progress over the question." },
     "high": {
+      "header": { "message": "Must-haves", "note": "Screen header on step 2 of marking what matters.", "max": 22 },
       "title": "Which could you not live without?",
-      "hint": "If the money got tight, these are the ones you would still be paying. The roof, the food, the bills with consequences."
+      "hint": "From what is left. If the money got tight, these are the ones you would still be paying: the roof, the food, the bills with consequences. Whatever you tick neither time stays in between."
     },
     "low": {
+      "header": { "message": "Could stop", "note": "Screen header on step 1 of marking what matters.", "max": 22 },
       "title": "Which could you stop tomorrow?",
-      "hint": "From what is left. Nothing breaks if these stop — you would miss them, and that is all."
-    },
-    "review": {
-      "title": "Everything else is in between",
-      "hint": "The third answer is what was left over rather than a box anyone ticked. Tap any category to move it."
-    },
-    "level": {
-      "high": { "message": "Could not live without", "note": "Importance high, as a section heading on the review step." },
-      "medium": { "message": "In between", "note": "Importance medium." },
-      "low": { "message": "Could stop tomorrow", "note": "Importance low." }
+      "hint": "Nothing breaks if these stop — you would miss them, and that is all."
     },
     "folderA11y": { "message": "{name} folder", "note": "VoiceOver label of a folder row that ticks all its categories." },
     "all": { "message": "· all {count}", "note": "After a folder name: ticking it ticks all of its count categories." },
     "noFolder": "No folder",
     "nothingLeft": "Nothing left to ask about — the first question took everything.",
-    "rowA11y": { "message": "{name}, {level}. Tap to move.", "note": "VoiceOver label on the review step; level is one of the level titles." },
-    "none": { "message": "None.", "note": "Under a level heading with no categories." },
     "changes": "{count, plural, one {# row changes} other {# rows change}}",
     "noChanges": "Nothing changes: they already say this",
     "folders": { "message": "{count, plural, one {one folder answers for what is inside, so anything added to it later is already marked} other {# folders answer for what is inside, so anything added to them later is already marked}}", "note": "Follows the row count after \" · \"." },

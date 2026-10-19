@@ -203,6 +203,13 @@ Kopiyka stands on other people's open-source work. Thank you to the people behin
 - The device bezels in the screenshots are Apple's own, taken from Apple Design Resources and the
   [fastlane frameit-frames](https://github.com/fastlane/frameit-frames) mirror; the pipeline also uses
   librsvg, ImageMagick, [idb](https://fbidb.io) and [Maestro](https://maestro.mobile.dev) during development.
+- The logos a regular payment can wear come from [Simple Icons](https://simpleicons.org) (CC0) and
+  [Arcticons](https://github.com/Arcticons-Team/Arcticons) by Donnnno and the Arcticons team
+  (CC BY-SA 4.0, thickened into outlines), drawn with
+  [react-native-nano-icons](https://github.com/software-mansion-labs/react-native-nano-icons). The
+  adapted Arcticons and the icon font built from them are CC BY-SA 4.0, not MIT — see
+  `apps/mobile/assets/icons/logos/LICENSE.md`. A website's own icon is fetched from that site only,
+  for a site named in the payment or typed in the picker. Every mark is its owner's trademark.
 
 Licences of the dependencies are in their packages under `node_modules` after `bun install`.
 

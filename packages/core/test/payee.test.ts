@@ -29,6 +29,12 @@ describe("payeeHistory", () => {
     expect(payeeHistory(db, "zabka ze212 k.5")).toEqual({ ...nothing, category_id: food.id, tag_ids: ["snack", "work"], match: "exact" });
   });
 
+  test("the bank's own words find the row as well as a note does, and a note added later does not hide it", () => {
+    const { db, acc, food } = seed();
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, bank_note: "Przelew na telefon 48500100200", notes: "Mum's birthday", category_id: food.id });
+    expect(payeeHistory(db, null, "przelew na telefon 48500100200")).toEqual({ ...nothing, category_id: food.id, match: "exact" });
+  });
+
   test("first-word fallback matches a different branch of the same chain, and says it is only similar", () => {
     const { db, acc, food } = seed();
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "ZABKA ZE212 K.5", category_id: food.id, tag_ids: JSON.stringify(["snack"]) });

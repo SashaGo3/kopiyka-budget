@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -6,7 +7,33 @@ import WidgetKit
 /// Assets.xcassets, so watchOS tints it like any SF Symbol in every rendering mode.
 @main
 struct KopiykaWatchWidgetBundle: WidgetBundle {
-  var body: some Widget { AddExpenseComplication() }
+  var body: some Widget {
+    AddExpenseComplication()
+    AddExpenseControl()
+  }
+}
+
+/// The same thing as a Control (watchOS 26): in Control Center, the Smart Stack or on the Action
+/// button, it opens the app on a blank amount without a watch face to go through.
+struct AddExpenseControl: ControlWidget {
+  var body: some ControlWidgetConfiguration {
+    StaticControlConfiguration(kind: "dev.kopiyka.watch.add.control") {
+      ControlWidgetButton(action: OpenQuickAddIntent()) {
+        Label(L10n.Complication.label, systemImage: "plus.circle.fill")
+      }
+    }
+    .displayName(LocalizedStringResource("native.complication.name"))
+    .description(LocalizedStringResource("native.complication.description"))
+  }
+}
+
+/// Opens the watch app through the link the complication uses, which the app answers with a blank amount.
+struct OpenQuickAddIntent: AppIntent {
+  static let title: LocalizedStringResource = "native.watch.intent.title"
+  static let isDiscoverable = false
+  func perform() async throws -> some IntentResult & OpensIntent {
+    .result(opensIntent: OpenURLIntent(KP.url("watch/add")))
+  }
 }
 
 struct AddEntry: TimelineEntry { let date: Date }

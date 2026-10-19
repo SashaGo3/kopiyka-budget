@@ -87,6 +87,27 @@ describe("travel mode", () => {
     expect(listTrips(db)).toHaveLength(2);
   });
 
+  test("a trip set up ahead tags nothing until its first day", () => {
+    const { db } = seed();
+    const { budget, tag } = startTrip(db, { name: "Wedding", kind: "event", currency: "PLN", amount_minor: 30000, starts: "2026-09-20", ends: "2026-09-20", today: "2026-09-08" });
+    expect(activeTrip(db)?.id).toBe(budget.id);
+    expect(activeTripTagId(db, "2026-09-08")).toBeNull();
+    expect(withTripTag(db, [], "2026-09-19")).toEqual([]);
+    expect(withTripTag(db, [], "2026-09-20")).toEqual([tag.id]);
+    // All of its days are still to come, so the allowance is spread over them, not over the wait.
+    expect(tripStats(db, budget, { today: "2026-09-08" })).toMatchObject({ days: 1, days_left: 1, allowance_minor: 30000 });
+  });
+
+  test("a trip without a limit only counts what was spent", () => {
+    const { db, pln, food } = seed();
+    const { budget, tag } = addPastTrip(db, { name: "Wedding", kind: "event", currency: "PLN", amount_minor: 0, starts: "2026-05-01", ends: "2026-05-01" });
+    createTransaction(db, { account_id: pln.id, amount_minor: -25000, category_id: food.id, date: "2026-05-01T18:00:00", tag_ids: JSON.stringify([tag.id]) });
+    const s = tripStats(db, budget, { today: "2026-05-02" });
+    expect(s).toMatchObject({ limited: false, spent_minor: 25000, remaining_minor: 0, allowance_minor: null, over: false });
+    const running = startTrip(db, { name: "Rome", currency: "PLN", amount_minor: 0, ends: "2026-09-14", today: "2026-09-08" });
+    expect(tripStats(db, running.budget, { today: "2026-09-08" })).toMatchObject({ limited: false, allowance_minor: null, over: false });
+  });
+
   test("an existing tag with the same name is reused, case-insensitively", () => {
     const { db } = seed();
     const old = createTag(db, { name: "rome" });

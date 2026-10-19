@@ -3,7 +3,7 @@ import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, Def
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
 import { C, NAMED_COLORS, R, S, layoutColor, themed } from "@/constants/theme";
-import { themeOf, type ThemeId } from "@kopiyka/core";
+import { themeColors, themeOf, type ThemeId } from "@kopiyka/core";
 import { themeMounted, useTheme } from "@/lib/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
@@ -15,6 +15,7 @@ import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markBooted, markRootLayoutRender, onBooted } from "@/lib/boot";
 import { maybeShowWhatsNew } from "@/lib/whatsNew";
+import { openLaunchLink } from "@/lib/launchLink";
 import { needsOnboarding } from "@/lib/onboarding";
 import { isPad, screenContentStyle } from "@/constants/layout";
 import { t, useLanguage } from "@/i18n";
@@ -46,7 +47,10 @@ export const unstable_settings = { anchor: "(tabs)" };
 // re-mounts on a theme switch, and the React Compiler memoises a call on its arguments.
 function sheetOptions(theme: ThemeId) {
   const sheetContent: ViewStyle = { backgroundColor: layoutColor(theme, "bgGrouped"), ...(isPad ? { justifyContent: "flex-end" as const } : null) };
-  const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
+  // No `sheetCornerRadius`: iOS 26 floats a sheet a few points in from the screen and rounds its
+  // corners to follow the screen's own. A fixed 24 is far tighter than an iPhone's corners, so the
+  // sheet's bottom corners ran under the curve of the display and were cut off.
+  const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, contentStyle: sheetContent };
   return {
     /** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
     fit: { ...sheet, sheetAllowedDetents: "fitToContents" as const },
@@ -70,7 +74,10 @@ const pushed = { contentStyle: screenContentStyle };
 function navigationTheme(dark: boolean, theme: ThemeId) {
   const s = themeOf(theme)[dark ? "dark" : "light"];
   const base = dark ? DarkTheme : DefaultTheme;
-  return { ...base, colors: { ...base.colors, background: s.bg, card: s.bg, primary: s.accent, border: s.border, text: s.text } };
+  // Header titles in the body text's colour as the app draws it (held to its contrast floor), not the
+  // palette's raw value, which on several themes is the faded grey the floor exists to fix.
+  const label = themeColors(themeOf(theme)).label[dark ? 1 : 0];
+  return { ...base, colors: { ...base.colors, background: s.bg, card: s.bg, primary: s.accent, border: s.border, text: label } };
 }
 
 export default function RootLayout() {
@@ -129,12 +136,14 @@ export default function RootLayout() {
     const notifications = require("@/lib/notifications") as typeof import("@/lib/notifications"); // eslint-disable-line @typescript-eslint/no-require-imports
     const Notifications = require("expo-notifications") as typeof import("expo-notifications"); // eslint-disable-line @typescript-eslint/no-require-imports
     const offBoot = onBooted(() => {
+      openLaunchLink();
       InteractionManager.runAfterInteractions(() => {
         installBackupTriggers();
         writeWidgetSnapshot();
         maybeShowWhatsNew();
         void notifications.runAutoPosting().then(() => notifications.rescheduleRecurringNotifications());
         void notifications.syncBadge();
+        void notifications.dismissSettledPaymentNotices();
       });
     });
     // Coming back to the foreground: post anything that fell due, and re-read the database. A
@@ -142,10 +151,11 @@ export default function RootLayout() {
     // nothing in JS ever hears about those — without this the entry only appears on a cold start.
     // A Shortcut automation sets the badge itself while the app is away; coming back re-reads it
     // from the database, so a queue approved on another device does not leave a number behind.
-    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); void notifications.syncBadge(); } });
+    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); void notifications.syncBadge(); void notifications.dismissSettledPaymentNotices(); } });
     // The badge is derived, never incremented: approving the queue here, on the watch or on another
-    // phone all end at the same recount.
-    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); void notifications.syncBadge(); });
+    // phone all end at the same recount. So is the automation's notification: once its entry is
+    // approved or deleted there is nothing left on it to act on, and it goes.
+    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); void notifications.syncBadge(); void notifications.dismissSettledPaymentNotices(); });
     // A tapped reminder goes where it is about: this debt, this recurring occurrence. The same
     // response can arrive twice — once cached from the cold launch that the tap caused, once live —
     // so each notification is followed only once.
@@ -176,6 +186,7 @@ export default function RootLayout() {
           {/* A short read of variable length: a half sheet that can be dragged up, not a full card. */}
           <Stack.Screen name="whats-new" options={medium} />
           <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: t("common.back") }} />
+          <Stack.Screen name="search" options={{ ...pushed, title: t("transactions.searchTitle"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="pending" options={{ ...pushed, title: t("layout.pending"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
           <Stack.Screen name="transaction/split" options={modal} />
@@ -205,6 +216,7 @@ export default function RootLayout() {
           <Stack.Screen name="recurring/due" options={{ ...pushed, title: t("layout.recurringDue"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="pick/category" options={picker} />
           <Stack.Screen name="pick/icon" options={picker} />
+          <Stack.Screen name="pick/payicon" options={picker} />
           <Stack.Screen name="pick/color" options={picker} />
           <Stack.Screen name="pick/account" options={picker} />
           <Stack.Screen name="pick/transfer" options={picker} />

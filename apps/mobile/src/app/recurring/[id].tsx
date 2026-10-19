@@ -2,12 +2,13 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { candidateFromTransaction, createRecurring, getRow, iconFor, jsonIds, listRows, remove, save, formatMinor, type Frequency, type RecurringRule } from "@kopiyka/core";
+import { candidateFromTransaction, createRecurring, getRow, guessLogo, iconFor, parsePaymentIcon, jsonIds, listRows, remove, save, formatMinor, type Frequency, type RecurringRule } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
 import { Card, DeleteRow, ModalHeader, Row, Segmented } from "@/components/ui";
+import { PaymentIcon } from "@/components/PaymentIcon";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, localIso, timeLabel, todayLocal } from "@/lib/dates";
 import { confirmDiscard, guardOptions, useDirty, useDiscardGuard } from "@/lib/discard";
@@ -88,17 +89,20 @@ export default function RecurringEdit() {
   // The name the bank prints on this charge, which is rarely the name you gave the rule. Taken from
   // a payment you point at, so the rule recognises next month's even if the price has changed.
   const [matchPayee, setMatchPayee] = useState<string | null>(existing?.match_payee ?? seedTx?.match_payee ?? null);
+  // What the payment is drawn with (core logos.ts); null lets its names pick a brand's mark.
+  const [icon, setIcon] = useState<string | null>(from?.icon ?? null);
   const [tagIds, setTagIds] = useState<string[]>(() => jsonIds((from ?? seedTx)?.tag_ids ?? ""));
   const customUnit = useRef<Frequency>("monthly");
   const [fromTx, setFromTx] = useState<string | null>(seedTx ? seenLabel(seedTx) : null);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
-  const dirty = useDirty([accountId, kind, amountMinor, categoryId, payee, notes, freq, interval, start, daysBefore, autoPost, time, waitDays, matchPayee, tagIds, asCopy]);
+  const dirty = useDirty([accountId, kind, amountMinor, categoryId, payee, notes, freq, interval, start, daysBefore, autoPost, time, waitDays, matchPayee, tagIds, asCopy, icon]);
   const exit = useDiscardGuard(dirty);
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const cat = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) : null), [categoryId]);
   const tags = useQuery((d) => listRows(d, "tags", "deleted=0").filter((tg) => tagIds.includes(tg.id)), [tagIds.join(",")]);
-  const keys = useMemo(() => ({ cat: newPickKey("rcat"), acc: newPickKey("racc"), date: newPickKey("rdate"), time: newPickKey("rtime"), payee: newPickKey("rpayee"), notes: newPickKey("rnotes"), amount: newPickKey("ramount"), repeat: newPickKey("rrep"), unit: newPickKey("runit"), count: newPickKey("rcount"), remind: newPickKey("rrem"), post: newPickKey("rpost"), wait: newPickKey("rwait"), match: newPickKey("rmatch"), tags: newPickKey("rtags"), tx: newPickKey("rtx") }), []);
+  const keys = useMemo(() => ({ cat: newPickKey("rcat"), acc: newPickKey("racc"), date: newPickKey("rdate"), time: newPickKey("rtime"), payee: newPickKey("rpayee"), notes: newPickKey("rnotes"), amount: newPickKey("ramount"), repeat: newPickKey("rrep"), unit: newPickKey("runit"), count: newPickKey("rcount"), remind: newPickKey("rrem"), post: newPickKey("rpost"), wait: newPickKey("rwait"), match: newPickKey("rmatch"), tags: newPickKey("rtags"), tx: newPickKey("rtx"), icon: newPickKey("ricon") }), []);
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
+  usePickResult<string>(keys.icon, useCallback((v: string) => setIcon(v || null), []));
   // On a rule that already exists this updates it from a payment — the price went up, the category
   // changed — but leaves the next date alone: moving it could skip an occurrence still waiting to be
   // posted or claimed. A title the payment cannot supply keeps the one the rule has.
@@ -145,7 +149,7 @@ export default function RecurringEdit() {
     if (!valid || !account) return;
     if (daysBefore !== null) await ensureNotificationPermission();
     mutate((d) => {
-      const base = { account_id: account.id, amount_minor: amountMinor * (kind === "expense" ? -1 : 1), category_id: categoryId, payee: payee.trim() || null, notes: notes.trim() || null, tag_ids: JSON.stringify(tagIds), frequency: freq, interval, start_date: existing?.start_date ?? start, next_date: start, notify: daysBefore !== null ? 1 : 0, notify_days_before: daysBefore ?? 1, auto_post: autoPost ? 1 : 0, time_of_day: time, wait_days: waitDays, match_payee: matchPayee } as const;
+      const base = { account_id: account.id, amount_minor: amountMinor * (kind === "expense" ? -1 : 1), category_id: categoryId, payee: payee.trim() || null, notes: notes.trim() || null, tag_ids: JSON.stringify(tagIds), frequency: freq, interval, start_date: existing?.start_date ?? start, next_date: start, notify: daysBefore !== null ? 1 : 0, notify_days_before: daysBefore ?? 1, auto_post: autoPost ? 1 : 0, time_of_day: time, wait_days: waitDays, match_payee: matchPayee, icon } as const;
       if (existing) save(d, "recurring_rules", { ...existing, ...base } as RecurringRule); else createRecurring(d, base);
     });
     leave();
@@ -184,6 +188,15 @@ export default function RecurringEdit() {
   const repeats = repeatLabel(freq, interval);
   const remindLabel = daysBefore === null ? t("recurring.reminder.off") : reminderOptions().find((o) => o.value === String(daysBefore))?.label ?? t("recurring.reminder.daysBefore", { count: daysBefore });
   const catIcon = cat ? iconFor(cat.name, { icon: cat.icon, color: cat.color }) : null;
+  // The row shows what the list will: the chosen icon, else the brand its names match.
+  const chosenIcon = parsePaymentIcon(icon);
+  const guessed = chosenIcon ? null : guessLogo(payee, matchPayee);
+  const shownIcon = icon ?? (guessed ? `logo:${guessed.slug}` : null);
+  const iconLabel = !chosenIcon ? (guessed ? t("recurring.iconAutoFound", { name: guessed.title }) : t("recurring.iconAuto"))
+    : chosenIcon.kind === "logo" ? t("recurring.iconLogo", { name: chosenIcon.logo.title })
+    : chosenIcon.kind === "img" ? t("recurring.iconApp")
+    : chosenIcon.kind === "emoji" ? `${t("recurring.iconEmoji")} · ${chosenIcon.emoji}`
+    : chosenIcon.kind === "sf" ? t("recurring.iconSymbol") : t("recurring.iconCategory");
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
@@ -201,6 +214,8 @@ export default function RecurringEdit() {
         </Card>
         <Card>
           <Row icon="textformat" iconColor="#8E8E93" title={t("recurring.titleRow")} subtitle={payee || t("recurring.titleRequired")} subtitleColor={titled ? undefined : C.orange} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.payee, title: t("recurring.titleRow"), value: payee } })} />
+          <Row left={<PaymentIcon icon={shownIcon} category={cat ? { name: catName(cat), icon: cat.icon, color: cat.color } : null} size={26} />} title={t("recurring.icon")} subtitle={iconLabel}
+            onPress={() => router.push({ pathname: "/pick/payicon", params: { key: keys.icon, selected: icon ?? "", payee, match: matchPayee ?? "" } })} style={styles.divider} />
           <Row icon="text.alignleft" iconColor="#8E8E93" title={t("recurring.note")} subtitle={notes || t("recurring.noteHint")} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.notes, title: t("recurring.note"), value: notes } })} style={styles.divider} />
           <Row icon={(catIcon?.icon as SFSymbol) ?? "folder"} iconFill={catIcon?.color} iconColor="#FF9F0A" title={t("recurring.category")} subtitle={cat ? catName(cat) : t("common.none")} onPress={() => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind, selected: categoryId ?? "" } })} style={styles.divider} />
           {/* Nothing to choose with one account: the rule goes on the only one there is. */}

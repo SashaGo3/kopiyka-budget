@@ -1,10 +1,13 @@
 {
   "entry": {
+    "debtKey": "Борг · {person}",
+    "debtKeyA11y": "Борг: {person}. Змінити",
     "copied": "Скопійовано",
     "amountA11y": "{amount} {currency}. Торкніться, щоб скопіювати.",
     "duplicateA11y": "Дублювати операцію",
     "deleteA11y": "Видалити операцію",
     "noteA11y": "Нотатка: {note}",
+    "bankNoteA11y": "Від банку: {note}",
     "notePlaceholder": "Нотатка",
     "locationPinned": "Місце: позначено на мапі",
     "addLocation": "Додати місце",

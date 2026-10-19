@@ -10,15 +10,39 @@ import { addPeriod, budgetPeriod, dueOccurrences, occurrencesBetween } from "./r
 import { categoryImportance } from "./importance";
 import { commitments } from "./commitments";
 import { tripTagIds } from "./trips";
+import { latestCachedRate } from "./rates";
+import { convertMinor } from "./money";
+import { shownPaymentIcon } from "./logos";
+import { periodWindows, regularSeries, toSeries, type Series } from "./insightHistory";
 
 export interface UpcomingTemplate { category_id: string | null; tag_ids: string[]; notes: string | null; amount_minor: number; account_id: string }
 
 export interface InsightParams {
   title?: string;
   account_id?: string;
+  /**
+   * Safety buffer: the accounts whose money counts towards it (savings, the current account, cash
+   * in another currency). A card saved before there could be several carries `account_id` instead.
+   */
+  account_ids?: string[];
   target_minor?: number;
   monthly_minor?: number;
+  /**
+   * Safety buffer: how many months the money is meant to cover — a goal, and an optional one. 0 is
+   * "no goal" (the card just says how long the money lasts); absent is 3, what a card saved before
+   * the goal could be left out always meant.
+   */
   months?: number;
+  /**
+   * Safety buffer: a cushion for the unexpected, as a percentage on top of what a month costs (10 =
+   * a month is reckoned 10% dearer than it was). Absent or 0 is none.
+   */
+  extra_pct?: number;
+  /**
+   * Regular spending: how many months of history the average is taken over (3, 6 or 12). Absent is
+   * the window a card saved before it could be chosen always used: six months, or twelve weeks.
+   */
+  window_months?: number;
   category_ids?: string[];
   /** Rules left out of the subscriptions card. */
   exclude_rule_ids?: string[];
@@ -31,27 +55,48 @@ export interface InsightParams {
   category_tags?: Record<string, string[]>;
   /** Checklist: also wait for every recurring expense that falls due in the period, but those in `exclude_rule_ids`. */
   include_recurring?: boolean;
-  /** Checklist: leave the lines already paid off the card; only what is still missing is listed. */
+  /** Checklist, no longer read: the card now always lists only what is still to pay. Kept so older params still parse. */
   hide_done?: boolean;
-  /** Checklist: what its sum is — roughly what is still to pay (the default), or that plus what was paid. */
+  /** Checklist, no longer read: the card's sum is always what is still to pay; the details screen has the rest. */
   sum?: "left" | "total";
+  /**
+   * Checklist: lines marked done by hand with no payment behind them — paid in cash and not worth
+   * logging, settled by someone else, not needed this time. Only for the period that starts on
+   * `period`; a new period starts with nothing ticked, so the list never has to be cleaned up.
+   */
+  ticked?: { period: string; keys: string[] };
 }
 
-/** `instant` kinds have nothing to configure but their title, so picking one is the whole setup. */
-export const INSIGHT_KINDS: { kind: InsightKind; title: string; hint: string; instant?: boolean }[] = [
-  { instant: true, kind: "free_money", title: "Free to spend", hint: "What is left of your budgets this period" },
+/**
+ * `instant` kinds have nothing to configure but their title, so picking one is the whole setup.
+ *
+ * Not every `InsightKind` is offered any more: "Recurring this period" and "Upcoming payments" were
+ * dropped in 1.1.0, and "Safe to spend" folded into the budgets card (`free_money`, which now says
+ * what is still to be charged too). Cards of those kinds saved earlier stay in the database; the app
+ * decides what to draw for them (`retiredKind`).
+ */
+export type OfferedInsightKind = Exclude<InsightKind, "recurring_spend" | "upcoming" | "safe_to_spend">;
+export const INSIGHT_KINDS: { kind: OfferedInsightKind; title: string; hint: string; instant?: boolean }[] = [
+  { instant: true, kind: "free_money", title: "Left in budgets", hint: "What is left of your budgets this period, and what is still to be charged" },
   { instant: true, kind: "days_to_salary", title: "Until salary", hint: "Days left in the period and what you can spend per day" },
   { kind: "savings_goal", title: "Savings goal", hint: "Progress of an account towards a target" },
   { kind: "account_balance", title: "Account balance", hint: "What is left on one account, and what moved this period" },
   { kind: "checklist", title: "Payments checklist", hint: "Which of these categories still have no transaction this period" },
   { kind: "subscriptions", title: "Subscriptions per year", hint: "What your recurring expenses cost yearly" },
-  { instant: true, kind: "recurring_spend", title: "Recurring this period", hint: "What your recurring rules have actually taken so far this period" },
-  { kind: "upcoming", title: "Upcoming payments", hint: "Templates from past transactions: tap to log the same again" },
   { kind: "regular", title: "Regular spending", hint: "Weekly or monthly average for a category" },
   { instant: true, kind: "values", title: "What it went on", hint: "This period split by how much each category matters to you" },
-  { kind: "safety_buffer", title: "Safety buffer", hint: "How many months of essentials an account would cover" },
-  { instant: true, kind: "safe_to_spend", title: "Safe to spend", hint: "What is free once everything still coming out is taken off" },
+  { kind: "safety_buffer", title: "Safety buffer", hint: "How many months you could live on your money" },
 ];
+
+/**
+ * What a card of a kind no longer offered is shown as: a "Safe to spend" card is the budgets card it
+ * was folded into, and the two dropped kinds are not shown at all (null). Any other kind is itself.
+ */
+export function retiredKind(kind: InsightKind): InsightKind | null {
+  if (kind === "safe_to_spend") return "free_money";
+  if (kind === "recurring_spend" || kind === "upcoming") return null;
+  return kind;
+}
 
 /**
  * How many periods of history a card looks back over when it wants "your own normal". Six months is
@@ -131,12 +176,33 @@ export function budgetRows(db: SqlDriver, o: { start: string; end: string; accou
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
   const trips = tripTagIds(db);
   const spend = categorySpend(db, o.start, o.end, o.accountIds, { exceptTags: trips });
-  return activeBudgets(db, o.end, o.budgetAccount).map((b) => {
-    const ids = budgetCategoryIds(b);
-    const pool = b.tag_id ? tagSpend(db, b.tag_id, { fromIso: o.start, toIso: o.end, accountIds: o.accountIds, exceptTags: trips }) : spend;
-    const scoped = pool.filter((s) => s.currency === b.currency && inBudgetScope(ids, cats, s.category_id));
-    return { budget: b, spent_minor: -scoped.reduce((a, s) => a + s.spent_minor, 0), children: scoped.map((s) => ({ category_id: s.category_id, spent_minor: -s.spent_minor })) };
-  });
+  return activeBudgets(db, o.end, o.budgetAccount).map((b) => budgetRowIn(db, b, o, cats, trips, spend));
+}
+
+/** One budget against one period, counted as `budgetRows` counts it, whether or not it is one of the active ones there. */
+export function budgetRow(db: SqlDriver, b: Budget, o: { start: string; end: string; accountIds?: string[] }): BudgetRow {
+  const trips = tripTagIds(db);
+  return budgetRowIn(db, b, o, new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])), trips, b.tag_id ? [] : categorySpend(db, o.start, o.end, o.accountIds, { exceptTags: trips }));
+}
+
+/** One budget's row for one window; `spend` is that window's `categorySpend`, shared between budgets when there are several. */
+function budgetRowIn(db: SqlDriver, b: Budget, o: { start: string; end: string; accountIds?: string[] }, cats: Map<string, Category>, trips: string[], spend: ReturnType<typeof categorySpend>): BudgetRow {
+  const ids = budgetCategoryIds(b);
+  const pool = b.tag_id ? tagSpend(db, b.tag_id, { fromIso: o.start, toIso: o.end, accountIds: o.accountIds, exceptTags: trips }) : spend;
+  const scoped = pool.filter((s) => s.currency === b.currency && inBudgetScope(ids, cats, s.category_id));
+  return { budget: b, spent_minor: -scoped.reduce((a, s) => a + s.spent_minor, 0), children: scoped.map((s) => ({ category_id: s.category_id, spent_minor: -s.spent_minor })) };
+}
+
+/**
+ * One budget, period by period: what it counted in each of the `count` periods ending with the one
+ * containing `today`, the same way its bar does (`budgetRows`) — so the budget's details screen and
+ * the bar on the Budgets screen never disagree about a month. Null when nothing was ever spent in it.
+ */
+export function budgetSeries(db: SqlDriver, b: Budget, o: { accountIds?: string[]; startDay: number; today: string; count?: number }): Series | null {
+  const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
+  const trips = tripTagIds(db);
+  const windows = periodWindows(o.today, o.startDay, o.count ?? 12);
+  return toSeries(b.currency, windows.map((w) => ({ ...w, minor: budgetRowIn(db, b, { ...w, accountIds: o.accountIds }, cats, trips, b.tag_id ? [] : categorySpend(db, w.start, w.end, o.accountIds, { exceptTags: trips })).spent_minor })));
 }
 
 export interface MoneyByCurrency { currency: string; minor: number }
@@ -295,57 +361,99 @@ export function valueSplit(db: SqlDriver, o: { today: string; startDay: number; 
 /* ── Safety buffer ────────────────────────────────────────────────────────────────────────── */
 
 export interface SafetyBuffer {
+  /** The first chosen account's currency; everything else is converted into it at the latest rate. */
   currency: string;
-  /** What a month of the things you could not live without actually costs, averaged over `periods`. */
+  /** What a month of the chosen comfort level actually costs, averaged over `periods`, with the cushion (`extra_pct`) on top. */
   essential_minor: number;
-  /** What the chosen account holds, pending included. */
+  /** The same without the cushion: what a month actually cost. */
+  base_minor: number;
+  extra_pct: number;
+  /** What the chosen accounts hold together, pending included. */
   have_minor: number;
-  /** How many months of essentials that covers; null when no essential spend is known yet. */
+  /** How many months you could live on that; null when no such spending is known yet. */
   months_covered: number | null;
+  /** The goal in months; 0 when the card has none, and then there is no target and no bar. */
   months_wanted: number;
   target_minor: number;
-  /** 0..1 against the target, for the bar. */
+  /** 0..1 against the target, for the bar; 0 with no goal. */
   ratio: number;
   periods: number;
-  /** True when no category is marked high: the target would be 0 and the card should say why. */
+  /** The accounts counted (live ones only). */
+  account_ids: string[];
+  /** What a month is measured by: categories chosen on the card, or the ones marked most important. */
+  basis: "chosen" | "important";
+  /** Currencies with no known rate to this one: their money and spending were left out, and the card says so. */
+  missing: string[];
+  /** True when the basis is "important" and nothing is marked high: the card should say why. */
   no_essentials: boolean;
 }
 
 /**
- * "Enough to be safe" is a real number and nobody ever computes it, because it needs two things:
- * what an essential month costs, and what you have. Importance gives the first for free.
+ * How many months you could live on what you have: the money in the accounts you count (savings,
+ * the current account, a USD account — converted at the latest known rate), divided by what a month
+ * of the life you want to keep actually costs.
+ *
+ * What a month costs is either the categories chosen on the card — the comfort level, say rent, food
+ * and the kids' school but not restaurants — or, with none chosen, the ones marked most important
+ * (rule 15), which is the honest minimum. Folders count with everything inside them. It is what
+ * those categories cost from every account, not only the counted ones: rent paid from the current
+ * account is still rent the savings would have to cover.
  *
  * The target is **computed, not typed**: it moves on its own as life gets more expensive, which a
- * figure you entered last year does not. That is the whole difference from `savings_goal`, and the
- * reason both exist.
+ * figure you entered last year does not. That is the whole difference from `savings_goal`.
  *
- * Like `savings_goal` this ignores the scope pill. A buffer is a whole-life number, and showing it
- * differently because you were looking at one account would be answering a question nobody asked.
+ * Like `savings_goal` this ignores the scope pill. A buffer is a whole-life number.
  */
 export function safetyBuffer(db: SqlDriver, p: InsightParams, o: { today: string; startDay: number }): SafetyBuffer | null {
-  const a = p.account_id ? getRow(db, "accounts", p.account_id) : undefined;
-  if (!a) return null;
+  const ids = p.account_ids?.length ? p.account_ids : p.account_id ? [p.account_id] : [];
+  const accs = ids.map((id) => getRow(db, "accounts", id)).filter((a): a is NonNullable<typeof a> => !!a && !a.deleted);
+  if (!accs.length) return null;
+  const currency = accs[0]!.currency;
+  const missing = new Set<string>();
+  const inBase = (minor: number, from: string): number | null => {
+    if (from === currency) return minor;
+    const r = latestCachedRate(db, from, currency);
+    if (!r) { missing.add(from); return null; }
+    return convertMinor(minor, from, currency, r.rate);
+  };
+
   const cats = listRows(db, "categories", "1=1") as Category[];
-  const level = categoryImportance(cats);
-  const months = Math.max(1, Math.round(p.months ?? 3));
+  const chosen = (p.category_ids ?? []).filter((id) => cats.some((c) => c.id === id && !c.deleted));
+  const basis = chosen.length ? "chosen" as const : "important" as const;
+  let counted: (id: string) => boolean;
+  if (basis === "chosen") {
+    // A chosen folder stands for everything inside it, whatever is added to it later.
+    const scope = new Set<string>();
+    const add = (id: string) => { if (scope.has(id)) return; scope.add(id); for (const c of cats) if (c.parent_id === id) add(c.id); };
+    chosen.forEach(add);
+    counted = (id) => scope.has(id);
+  } else {
+    const level = categoryImportance(cats);
+    counted = (id) => level.get(id) === 3;
+  }
+
+  const months = p.months === 0 ? 0 : Math.max(1, Math.round(p.months ?? 3));
+  const extra = Math.max(0, Math.min(100, Math.round(p.extra_pct ?? 0)));
   // Complete periods only: the month in progress would drag the average down every time it is read.
   const windows = recentPeriods(o.today, o.startDay, HISTORY_PERIODS + 1).slice(0, -1);
   let essential = 0;
   for (const w of windows) {
     for (const s of categorySpend(db, w.start, w.end, undefined)) {
-      if (s.currency !== a.currency) continue;
-      if ((s.category_id ? level.get(s.category_id) : 0) === 3) essential += -s.spent_minor;
+      if (!s.category_id || !counted(s.category_id)) continue;
+      essential += inBase(-s.spent_minor, s.currency) ?? 0;
     }
   }
-  const essential_minor = Math.round(essential / windows.length);
-  const have_minor = accountBalanceMinor(db, a.id, { includePending: true });
+  const base_minor = Math.round(essential / windows.length);
+  const essential_minor = Math.round((base_minor * (100 + extra)) / 100);
+  let have_minor = 0;
+  for (const a of accs) have_minor += inBase(accountBalanceMinor(db, a.id, { includePending: true }), a.currency) ?? 0;
   const target_minor = essential_minor * months;
   return {
-    currency: a.currency, essential_minor, have_minor, months_wanted: months, target_minor,
-    months_covered: essential_minor > 0 ? have_minor / essential_minor : null,
+    currency, essential_minor, base_minor, extra_pct: extra, have_minor, months_wanted: months, target_minor,
+    months_covered: essential_minor > 0 ? Math.max(0, have_minor) / essential_minor : null,
     ratio: target_minor > 0 ? Math.max(0, Math.min(1, have_minor / target_minor)) : 0,
-    periods: windows.length,
-    no_essentials: !cats.some((c) => level.get(c.id) === 3),
+    periods: windows.length, account_ids: accs.map((a) => a.id), basis, missing: [...missing],
+    no_essentials: basis === "important" && !cats.some((c) => !c.deleted && counted(c.id)),
   };
 }
 
@@ -408,6 +516,12 @@ export interface ChecklistItem {
   tag_id: string | null;
   /** Set when this line is a recurring payment due in the period (`include_recurring`). */
   rule_id: string | null;
+  /**
+   * What a recurring line is drawn with, in `recurring_rules.icon`'s form (logos.ts): the one chosen,
+   * else `logo:<slug>` for a mark its names match. Null on a category line, or for a rule that wears
+   * its category's icon.
+   */
+  icon: string | null;
   /** A recurring line's next occurrence still to be paid; null once nothing more is due in the period. */
   due: string | null;
   /**
@@ -416,6 +530,8 @@ export interface ChecklistItem {
    * is in neither and the line asks for what is really still coming. Null on a category line.
    */
   occurrences: { paid: number; total: number } | null;
+  /** Done because it was ticked by hand (`InsightParams.ticked`), not because a payment was found. */
+  ticked: boolean;
   /**
    * What is still expected on this line, positive minor units in `expected_currency`: the rule's amount
    * for a recurring line still owed, the last payment for a category line not done yet. Null when done,
@@ -423,6 +539,12 @@ export interface ChecklistItem {
    */
   expected_minor: number | null;
   expected_currency: string | null;
+  /**
+   * What a category line came to over the period before this one, when it was paid more than once
+   * there: groceries-style lines want the month's total, not whichever payment happened to be last.
+   * In the last payment's currency; null on a recurring line, or with fewer than two payments.
+   */
+  previous: { total_minor: number; count: number; currency: string } | null;
   /** Most recent non-transfer transaction in this category (or its subcategories) before the period started, so the row can be prefilled. */
   last: { id: string; amount_minor: number; currency: string; date: string; tag_ids: string[]; notes: string | null; account_id: string; payee: string | null } | null;
 }
@@ -446,21 +568,36 @@ export function categoryChecklist(db: SqlDriver, p: InsightParams, o: { start: s
     const t = txs.find((x) => x.date < o.start) ?? txs[0];
     return t ? { id: t.id, amount_minor: t.amount_minor, currency: accounts.get(t.account_id)?.currency ?? "", date: t.date, tag_ids: tagIdsOf(t), notes: t.notes, account_id: t.account_id, payee: t.payee } : null;
   };
+  // The period before this one, the same length in months: what a line paid several times a month
+  // usually comes to.
+  const prevStart = addPeriod(o.start.slice(0, 10), "monthly", -1);
+  const scopes = new Map<string, string[]>();
   const line = (key: string, id: string, scope: string[], tagId: string | null): ChecklistItem | null => {
     const c = cats.get(id); if (!c) return null;
+    scopes.set(key, scope);
     const hit = (t: Transaction) => !!t.category_id && scope.includes(t.category_id) && (!tagId || tagIdsOf(t).includes(tagId));
     const rows = period.filter(hit);
     const history = (listRows(db, "transactions", `deleted=0 AND transfer_id IS NULL AND category_id IN (${scope.map(() => "?").join(",")})`, scope, "date DESC") as Transaction[]).filter((t) => !tagId || tagIdsOf(t).includes(tagId));
     const last = lastOf(history);
+    const before = last ? history.filter((t) => t.amount_minor < 0 && t.date >= prevStart && t.date < o.start && inAccounts(t.account_id) && accounts.get(t.account_id)?.currency === last.currency) : [];
+    const previous = before.length > 1 ? { total_minor: before.reduce((a, t) => a - t.amount_minor, 0), count: before.length, currency: last!.currency } : null;
+    const expected = previous ? previous.total_minor : last ? Math.abs(last.amount_minor) : null;
     return {
       key, category_id: id, name: c.name, done: rows.length > 0, spent_minor: rows.reduce((a, t) => a - t.amount_minor, 0),
-      currency: rows[0] ? accounts.get(rows[0].account_id)?.currency ?? null : null, tag_id: tagId, rule_id: null, due: null, occurrences: null, last,
-      expected_minor: !rows.length && last ? Math.abs(last.amount_minor) : null, expected_currency: !rows.length && last ? last.currency : null,
+      currency: rows[0] ? accounts.get(rows[0].account_id)?.currency ?? null : null, tag_id: tagId, rule_id: null, icon: null, due: null, occurrences: null, ticked: false, last, previous,
+      expected_minor: !rows.length && expected ? expected : null, expected_currency: !rows.length && last ? last.currency : null,
     };
   };
   const seen = new Set<string>();
   const out: ChecklistItem[] = [];
-  const push = (item: ChecklistItem | null) => { if (item && !seen.has(item.key)) { seen.add(item.key); out.push(item); } };
+  // A tick by hand closes a line that nothing paid: done, and no longer expected to cost anything.
+  // A line a payment already closed stays a payment's, tick or no tick.
+  const ticked = new Set(p.ticked?.period === o.start ? p.ticked.keys : []);
+  const push = (item: ChecklistItem | null) => {
+    if (!item || seen.has(item.key)) return;
+    seen.add(item.key);
+    out.push(!item.done && ticked.has(item.key) ? { ...item, done: true, ticked: true, expected_minor: null, expected_currency: null } : item);
+  };
   for (const id of p.category_ids ?? []) {
     const tags = p.category_tags?.[id] ?? [];
     const kids = kidsOf(id);
@@ -482,13 +619,30 @@ export function categoryChecklist(db: SqlDriver, p: InsightParams, o: { start: s
       push({
         key: `rule:${r.id}`, category_id: r.category_id ?? "", name: r.payee || c?.name || "Recurring",
         done: !owed.length, spent_minor: posted.reduce((a, t) => a - t.amount_minor, 0),
-        currency, tag_id: null, rule_id: r.id, due: owed[0] ?? null, last: null,
-        occurrences: { paid: posted.length, total: posted.length + owed.length },
+        currency, tag_id: null, rule_id: r.id, icon: shownPaymentIcon(r), due: owed[0] ?? null, last: null, previous: null,
+        occurrences: { paid: posted.length, total: posted.length + owed.length }, ticked: false,
         expected_minor: owed.length ? owed.length * Math.abs(r.amount_minor) : null, expected_currency: owed.length ? currency : null,
       });
     }
+    // A recurring payment filed under a category answers for that category: Rent and the landlord's
+    // rule filed under Rent are one payment, and listing both counts it twice in "to go". The rule's
+    // line stays — it knows the amount and the day. A line waiting for a tag is a narrower question
+    // and is left alone.
+    const covered = new Set(out.filter((i) => i.rule_id && i.category_id).map((i) => i.category_id));
+    return out.filter((i) => i.rule_id || i.tag_id || !(scopes.get(i.key) ?? [i.category_id]).some((id) => covered.has(id)));
   }
   return out;
+}
+
+/**
+ * The same params with one checklist line ticked or unticked for the period starting `period`. Ticks
+ * from an earlier period are dropped on the way, since only the current one is ever shown.
+ */
+export function withChecklistTick(p: InsightParams, period: string, key: string, on: boolean): InsightParams {
+  const keys = new Set(p.ticked?.period === period ? p.ticked.keys : []);
+  if (on) keys.add(key); else keys.delete(key);
+  const { ticked: _, ...rest } = p;
+  return keys.size ? { ...rest, ticked: { period, keys: [...keys] } } : rest;
 }
 
 export interface ChecklistTotal { currency: string; paid_minor: number; expected_minor: number }
@@ -554,27 +708,14 @@ export function upcomingPayments(db: SqlDriver, p: InsightParams, o: { start: st
 
 export interface RegularSpend { currency: string; average_minor: number; periods: number; last_minor: number; frequency: "weekly" | "monthly" }
 
-/** Average spend in a category (with its subcategories) per week or month over the recent past. */
+/**
+ * Average spend in a category (with its subcategories) per week or month over the recent past — the
+ * windows and the sums are `regularSeries`'s, which the details screen draws, so the two agree.
+ */
 export function regularSpending(db: SqlDriver, p: InsightParams, o: { today: string; accountIds?: string[] }): RegularSpend[] {
-  const freq = p.frequency ?? "monthly";
-  const n = freq === "weekly" ? 12 : 6;
-  const ids = p.category_ids ?? [];
-  if (!ids.length) return [];
-  const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
-  const scope = new Set(ids);
-  const inScope = (cid: string | null) => !!cid && (scope.has(cid) || scope.has(cats.get(cid)?.parent_id ?? ""));
-  let end = freq === "weekly" ? addPeriod(o.today, "daily", 1) : budgetPeriod(o.today, 1).end;
-  const totals = new Map<string, number[]>();
-  for (let i = 0; i < n; i++) {
-    const start = freq === "weekly" ? addPeriod(end, "daily", -7) : addPeriod(end, "monthly", -1);
-    for (const s of categorySpend(db, start, end, o.accountIds)) {
-      if (!inScope(s.category_id)) continue;
-      const arr = totals.get(s.currency) ?? new Array<number>(n).fill(0);
-      arr[i]! += -s.spent_minor; totals.set(s.currency, arr);
-    }
-    end = start;
-  }
-  return [...totals].map(([currency, arr]) => ({ currency, average_minor: Math.round(arr.reduce((a, b) => a + b, 0) / n), periods: n, last_minor: arr[0] ?? 0, frequency: freq }));
+  const frequency = p.frequency ?? "monthly";
+  // "Last" on the card is the newest window, the month still running included.
+  return regularSeries(db, p, o).map((x) => ({ currency: x.currency, average_minor: x.average_minor, periods: x.periods, last_minor: x.points[x.points.length - 1]?.minor ?? 0, frequency }));
 }
 
 export { jsonIds as insightIds };

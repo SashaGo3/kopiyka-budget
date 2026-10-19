@@ -9,6 +9,7 @@
   },
   "budget": {
     "left": { "message": "{amount} left", "note": "Under a budget on the watch and in the widgets; amount is formatted money, e.g. \"420 PLN\".", "max": 24 },
+    "spent": { "message": "{amount} spent", "note": "A trip or event with no budget limit, on the watch and in the widgets: what was spent so far.", "max": 24 },
     "namedLeft": { "message": "{name}: {amount} left", "note": "Lock Screen inline widget, one short line; name is the budget, amount compact (\"1.2k\")." },
     "fallback": { "message": "Budget", "note": "Lock Screen widget when there is no budget to name.", "max": 16 },
     "perDay": { "message": "{amount}/day", "note": "Travel mode: what may be spent per day; amount is formatted money.", "max": 20 },
@@ -108,8 +109,14 @@
   "notify": {
     "received": { "message": "Payment received", "note": "Notification title after the automation logged income, when no payer name was read.", "max": 40 },
     "logged": { "message": "Payment logged", "note": "Notification title after the automation logged a payment, when no shop name was read.", "max": 40 },
-    "guess": { "message": "guess", "note": "In the notification body, after the category: the category was guessed. Lowercase, one word if possible.", "max": 16 },
-    "pending": { "message": "pending", "note": "In the notification body: the entry waits in the Pending queue. Lowercase.", "max": 16 }
+    "transfer": { "message": "Transfer", "note": "Notification title after the automation logged one side of a transfer between the user's own accounts.", "max": 40 },
+    "filed": { "message": "Recognised: {category}.", "note": "Second line of the notification: the shop was filed under this category before, and the entry is saved as it is." },
+    "check": { "message": "Recognised as {category} — tap to check.", "note": "Second line of the notification: the category comes from an earlier entry, but the entry still waits for approval (converted currency, a shop filed several ways)." },
+    "guess": { "message": "Guessed {category} — tap to confirm or change.", "note": "Second line of the notification: the category was guessed from the shop's name or location, not filed before." },
+    "unknown": { "message": "Not recognised — tap to choose a category.", "note": "Second line of the notification: nothing is known about this shop; the entry has no category." },
+    "transferPaired": { "message": "Both sides matched — tap to check.", "note": "Second line of the notification: the debit and the credit notifications of one transfer were matched by account numbers." },
+    "transferInferred": { "message": "The other side was added for you — tap to check.", "note": "Second line of the notification: only one side of the transfer was notified, so the app wrote the other." },
+    "transferWaiting": { "message": "Looks like a transfer — waiting for the other side.", "note": "Second line of the notification: the bank named another account; the other notification has not arrived yet." }
   },
   "receipt": {
     "noImage": "The photo could not be read.",
@@ -142,6 +149,9 @@
     "deleteDigit": { "message": "Delete last digit", "note": "VoiceOver: the ⌫ key." },
     "decimalPoint": { "message": "Decimal point", "note": "VoiceOver: the . key." },
     "category": {
+      "addNote": { "message": "Add note", "note": "First row of the watch category list: dictate or scribble a note for the entry.", "max": 20 },
+      "noteHint": { "message": "Dictate or scribble a note for this entry", "note": "VoiceOver hint." },
+      "notePrompt": { "message": "Note", "note": "Prompt of the text field the watch opens for the note.", "max": 14 },
       "title": { "message": "Category", "max": 14 },
       "empty": { "message": "Categories sync from your iPhone.", "max": 48 },
       "none": { "message": "No category", "max": 20 },
@@ -169,6 +179,14 @@
       "hintRemove": "Double tap to remove this tag"
     },
     "history": {
+      "approve": { "message": "Approve", "note": "Button on a pending entry: take it out of the Pending queue as it is.", "max": 18 },
+      "approveAs": { "message": "Set category", "note": "Button on a pending entry: choose its category, which approves it.", "max": 18 },
+      "delete": { "message": "Delete", "max": 18 },
+      "deleteConfirm": { "message": "Delete this entry?", "max": 28 },
+      "cancel": { "message": "Cancel", "max": 14 },
+      "transferOnPhone": { "message": "Change transfers on your iPhone.", "note": "On a transfer, which the watch can neither approve with a category nor delete.", "max": 40 },
+      "pendingLabel": { "message": "Pending", "note": "Under the amount on an entry still in the Pending queue.", "max": 16 },
+      "a11yPending": { "message": "pending", "note": "VoiceOver, inside a row's description." },
       "empty": { "message": "Nothing today or yesterday.", "max": 40 },
       "waiting": { "message": "Waiting for iPhone", "note": "Under an entry the phone has not received yet.", "max": 24 },
       "a11yWaiting": { "message": "waiting for iPhone", "note": "VoiceOver, inside a row's description." },
@@ -176,6 +194,8 @@
       "a11yAt": { "message": "at {time}", "note": "VoiceOver, inside a row's description; time like 14:05." }
     },
     "write": {
+      "approved": { "message": "Approved", "max": 24 },
+      "approveQueued": { "message": "Approval queued for iPhone", "max": 32 },
       "added": { "message": "Added {amount}", "note": "Status page after an entry was saved; also read by VoiceOver.", "max": 40 },
       "addedFor": { "message": "Added {amount} for {category}", "note": "Status page after an entry was saved." },
       "queued": { "message": "Queued for iPhone: {amount}", "note": "Status page: saved on the watch, sent when the phone is near." },
@@ -191,6 +211,8 @@
       "travelA11y": { "message": "Travel {name}, {amount} left, {day}", "note": "VoiceOver; name is the trip, day is \"Day 3 of 7\"." },
       "event": { "message": "Event", "note": "Section heading while an event (a birthday, a wedding) is on.", "max": 20 },
       "eventA11y": { "message": "Event {name}, {amount} left, {day}", "note": "VoiceOver; name is the event, day is \"Day 1 of 1\"." },
+      "travelSpentA11y": { "message": "Travel {name}, {amount} spent, {day}", "note": "VoiceOver, a trip with no budget limit; day is \"Day 3 of 7\"." },
+      "eventSpentA11y": { "message": "Event {name}, {amount} spent, {day}", "note": "VoiceOver, an event with no budget limit; day is \"Day 1 of 1\"." },
       "budgetA11y": { "message": "{name}, {amount} left", "note": "VoiceOver." },
       "empty": { "message": "No budgets yet. Add one on your iPhone.", "max": 48 }
     },

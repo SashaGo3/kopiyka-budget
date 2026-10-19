@@ -12,7 +12,7 @@ const afterWrite = new Set<() => void>();
 
 let uiScheduled = false, sideScheduled = false;
 /** Long enough for a sheet dismissal to finish before widgets, watch and notifications are rebuilt. */
-const SIDE_EFFECT_DELAY_MS = 300;
+export const SIDE_EFFECT_DELAY_MS = 300;
 /**
  * Bump the version now (any render from here on sees fresh data), but notify subscribers on the
  * next tick so a navigation started by the same tap (closing the Log sheet) commits first, and run

@@ -18,7 +18,7 @@ const iosVersion = Platform.OS === "ios" ? parseFloat(String(Platform.Version)) 
  * automation should not carry the "needs iOS 27" warning. scripts/screenshots/run.sh sets this when
  * it builds; Expo inlines it into the bundle, so every other build reads it as unset.
  */
-const SCREENSHOT_BUILD = process.env.EXPO_PUBLIC_SCREENSHOTS === "1";
+export const SCREENSHOT_BUILD = process.env.EXPO_PUBLIC_SCREENSHOTS === "1";
 /** True on anything that could run the automation; an unreadable version is given the benefit of the doubt. */
 export const AUTOMATION_SUPPORTED =
   SCREENSHOT_BUILD || Platform.OS !== "ios" || !Number.isFinite(iosVersion) || iosVersion >= AUTOMATION_MIN_IOS;

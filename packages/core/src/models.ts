@@ -132,6 +132,18 @@ export interface Transaction extends Synced {
    * (packages/core/src/transferPair.ts). NULL for everything else.
    */
   bank_ref: string | null;
+  /**
+   * The debt this row pays off, or the repayment of one (`packages/core/src/debts.ts`): picked as
+   * "Debt" in the category picker, so a row carrying it usually has no category. NULL otherwise.
+   */
+  debt_id: string | null;
+  /**
+   * What the bank's notification said about this payment — the reference, the shop and town as
+   * printed, the original currency — written by the notification automation and never edited in the
+   * app. `notes` is the person's own words. NULL on everything else, and on automation rows written
+   * before v23, which carry the bank's text in `notes`.
+   */
+  bank_note: string | null;
 }
 
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
@@ -176,6 +188,13 @@ export interface RecurringRule extends Synced {
    * rule is still called `payee`.
    */
   match_payee: string | null;
+  /**
+   * What the payment is drawn with: `logo:<slug>`, `emoji:<text>`, `sf:<name>` or `category`
+   * (v21). NULL means nobody chose, and the payee is matched against the built-in marks — read it
+   * through `resolvePaymentIcon` (logos.ts), never off the column. Absent from a backup written
+   * before v21, which leaves the phone's answer alone (not in `ROW_DEFAULTS`).
+   */
+  icon?: string | null;
 }
 
 /** What a one-off budget on a tag is about (`Budget.kind`). */

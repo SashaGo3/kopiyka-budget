@@ -46,6 +46,7 @@ export const BACKUP_META_KEYS = [
   "location_enabled", "home_lat", "home_lon", "home_place",
   "current_account", "budget_scope", "hide_income", "show_balance", "backup_keep_days",
   "shortcut_notify", "recurring_wait", "recurring_wait_days", "budgets_sections", "language", "theme", "appearance",
+  "recurring_dismissed",
 ] as const;
 
 /**

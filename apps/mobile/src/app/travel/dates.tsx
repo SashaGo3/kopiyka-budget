@@ -11,6 +11,7 @@ import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { resolvePick } from "@/store/pick";
+import { prevDay } from "@/lib/filters";
 import { t } from "@/i18n";
 
 /**
@@ -21,20 +22,28 @@ import { t } from "@/i18n";
  * starts it — there is no separate "are you sure" after this, the dates were the last question.
  * They go back to the start sheet (`key`), which creates the trip and closes both.
  *
- * Editing (`budget`): the same calendar on that trip's own span, saved over it. The first day can be
- * today at the latest either way — a trip that has not begun yet would put its tag on everything
- * logged at home in the meantime.
+ * Adding: any days. A last day before today adds it as already over; anything reaching today or
+ * later makes it the running one — set up ahead when it starts later, and then it tags nothing
+ * until its first day (core `activeTripTagId`). While another one runs (`past`) only days that are
+ * over can be picked, since two cannot run at once.
+ *
+ * Editing (`budget`): the same calendar on that trip's own span, saved over it. One that has ended
+ * stays wholly in the past.
  */
 export default function TravelDates() {
   const p = useLocalSearchParams<{ key?: string; name?: string; currency?: string; amount?: string; budget?: string; past?: string; kind?: string }>();
   const today = todayLocal();
   const editing = p.budget ? getRow(db, "budgets", p.budget) ?? null : null;
   const kind = tripKind(editing ?? { kind: p.kind });
-  // A trip that is over — recorded after the fact, or ended — lies wholly in the past: its last day
-  // can be today at the latest, like its first.
-  const past = p.past === "1" || !!editing?.ended;
-  const [start, setStart] = useState(editing?.starts ?? today);
-  const [end, setEnd] = useState<string | null>(editing ? editing.ended ?? editing.ends ?? editing.starts : defaultTripEnd(today));
+  // Another trip is running, so this one can only be over: every day before today.
+  const onlyOver = p.past === "1" && !editing;
+  const yesterday = prevDay(today);
+  // An ended one stays over: its last day today at the latest. Otherwise nothing caps the range.
+  const maxDay = onlyOver ? yesterday : editing?.ended ? today : undefined;
+  const past = onlyOver || !!editing?.ended;
+  const first = onlyOver ? yesterday : today;
+  const [start, setStart] = useState(editing?.starts ?? first);
+  const [end, setEnd] = useState<string | null>(editing ? editing.ended ?? editing.ends ?? editing.starts : defaultTripEnd(first));
   const [jump, setJump] = useState(0);
   const exit = useDiscardGuard(useDirty([start, end]) && !!editing);   // remounts the calendar on the month Today lands in
   const days = end ? daysBetween(start, end) + 1 : null;
@@ -43,7 +52,7 @@ export default function TravelDates() {
   // keeps the calendar's own first-day-then-last-day.
   const pick = (s: string, e: string | null) => {
     if (kind === "event" && e === null) {
-      if (end === start && s > start && (!past || s <= today)) { setEnd(s); return; }
+      if (end === start && s > start && (!maxDay || s <= maxDay)) { setEnd(s); return; }
       setStart(s); setEnd(s); return;
     }
     setStart(s); setEnd(e);
@@ -70,14 +79,16 @@ export default function TravelDates() {
       }
       bottom={
         <>
-          <ChipRow>
-            <Chip icon="calendar" label={t("common.today")} active={start === today}
-              onPress={() => { setStart(today); setEnd((e) => (e && e >= today ? e : null)); setJump((j) => j + 1); }} />
-          </ChipRow>
-          <RangeCalendar key={jump} start={start} end={end} maxStart={today} maxEnd={past ? today : undefined} onChange={pick} />
-          <Text style={styles.hint}>{kind === "event" ? t("travel.dates.hintEvent") : past ? t("travel.dates.hintPast") : t("travel.dates.hint")}</Text>
-          <ConfirmBar amount={editing ? (end ? t("travel.days", { count: days ?? 0 }) : t("travel.dates.pickLast")) : `${formatMinor(amount, currency)} ${currency}${days ? ` · ${t("travel.days", { count: days })}` : ""}`}
-            label={!end ? t("travel.dates.tapLastCalendar") : editing ? t("travel.dates.save") : past ? t("travel.dates.add") : t("travel.dates.start", { kind })} onPress={confirm} disabled={!end} />
+          {onlyOver ? null : (
+            <ChipRow>
+              <Chip icon="calendar" label={t("common.today")} active={start === today}
+                onPress={() => { setStart(today); setEnd((e) => (e && e >= today ? e : null)); setJump((j) => j + 1); }} />
+            </ChipRow>
+          )}
+          <RangeCalendar key={jump} start={start} end={end} maxStart={maxDay} maxEnd={maxDay} onChange={pick} />
+          <Text style={styles.hint}>{[kind === "event" ? t("travel.dates.hintEvent") : t("travel.dates.hintPast"), editing ? null : onlyOver ? t("travel.dates.onlyOver") : t("travel.dates.overOrNot", { kind })].filter(Boolean).join(" ")}</Text>
+          <ConfirmBar amount={editing ? (end ? t("travel.days", { count: days ?? 0 }) : t("travel.dates.pickLast")) : `${amount ? `${formatMinor(amount, currency)} ${currency}` : t("travel.start.noLimit")}${days ? ` · ${t("travel.days", { count: days })}` : ""}`}
+            label={!end ? t("travel.dates.tapLastCalendar") : editing ? t("travel.dates.save") : end < today ? t("travel.dates.add") : start > today ? t("travel.dates.setUp", { kind }) : t("travel.dates.start", { kind })} onPress={confirm} disabled={!end} />
         </>
       }
     />

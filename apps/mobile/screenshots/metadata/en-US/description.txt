@@ -15,11 +15,11 @@ WHAT IS IN IT
 - Debts, so you know who owes whom, with a reminder before the due date.
 - A category suggested from where you are: buy coffee at the same place twice and the third time it is filled in. Your location never leaves the phone.
 - Receipt photos on any entry, backed up beside your data.
-- An Apple Watch app with the keypad, today's entries, your budgets and a watch-face complication.
+- An Apple Watch app with the keypad, today's entries and your budgets: approve pending payments, add a note by voice, and start from a complication or a Control Center control.
 - In English and Ukrainian.
 
 BANK NOTIFICATIONS (BETA)
 
-iOS never hands card transactions to an app. What it does allow is a Shortcuts automation: when your bank notifies you about a payment, it passes the notification to Kopiyka, which reads the amount, the shop, the card and the time out of the text - on the device, silently, with the app closed. The entry waits in Pending until you approve it. Settings walks you through the setup once.
+iOS never hands card transactions to an app. What it does allow is a Shortcuts automation: when your bank notifies you about a payment, it passes the notification to Kopiyka, which reads the amount, the shop, the card and the time out of the text - on the device, silently, with the app closed. The entry waits in Pending until you approve it, on the phone or on your watch, and what the bank said stays beside it, apart from your own note. Settings walks you through the setup once.
 
 Kopiyka is open source. No analytics, no trackers, no third-party SDKs: nothing is collected and nothing is sent anywhere.

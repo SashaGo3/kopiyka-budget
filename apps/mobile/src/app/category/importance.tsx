@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View, type ColorValue } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
   applyImportance, categoryImportance, importanceAffected, importanceMarks, markableCategories,
-  markableLeaves, type Category, type Importance,
+  markableLeaves, type Category,
 } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
@@ -20,32 +20,32 @@ import { t } from "@/i18n";
  * "set this to Medium" is a shrug, and "could you stop paying for this tomorrow?" is a decision
  * anyone can make about forty things in five minutes.
  *
- * So: two questions and a confirmation. Medium is never asked — it is what neither answer claimed.
+ * So: two questions — what could stop tomorrow, then what you could not live without — and the second one saves. Medium is never asked — it is what neither answer claimed.
  * That is not a saved tap. Asked as a third question, Medium becomes where everything you did not
  * want to think about goes; arrived at by elimination it honestly means "the things in between".
  * It also makes marking something both High and Low unreachable rather than a contradiction the app
  * has to settle by some arbitrary rule.
  *
- * Nothing is written until the last screen, and what that screen lists is what `applyImportance`
- * writes — `importanceMarks` computes both, so the preview cannot describe one edit while the save
- * performs another (the `bulk.ts` rule).
+ * Nothing is written until the second question is answered, and the count on its button is what
+ * `applyImportance` writes — `importanceMarks` computes both, so the button cannot promise one edit
+ * while the save performs another (the `bulk.ts` rule).
  */
 
+// The easy question first: what could go tomorrow is quick to see, and taking it out of the list
+// leaves the second question — what you could not live without — a shorter, clearer one.
 const steps = () => [
-  { title: t("category.importance.high.title"), hint: t("category.importance.high.hint") },
-  { title: t("category.importance.low.title"), hint: t("category.importance.low.hint") },
-  { title: t("category.importance.review.title"), hint: t("category.importance.review.hint") },
+  { header: t("category.importance.low.header"), title: t("category.importance.low.title"), hint: t("category.importance.low.hint") },
+  { header: t("category.importance.high.header"), title: t("category.importance.high.title"), hint: t("category.importance.high.hint") },
 ] as const;
-
-const levelTitle = (level: Exclude<Importance, 0>): string =>
-  level === 3 ? t("category.importance.level.high") : level === 2 ? t("category.importance.level.medium") : t("category.importance.level.low");
-const LEVEL_TINT = themed((): Record<Exclude<Importance, 0>, ColorValue> => ({ 3: C.green, 2: C.secondary, 1: C.orange }));
 
 type Group = { folder: Category | null; kids: Category[] };
 
 export default function ImportanceFlow() {
   const asked = useQuery((d) => markableCategories(d));
   const [step, setStep] = useState(0);
+  // Each step is a new question over a new list: it starts at the top, not where the last one was left.
+  const list = useRef<FlatList<number>>(null);
+  useEffect(() => { list.current?.scrollToOffset({ offset: 0, animated: false }); }, [step]);
   // Both sets hold leaf ids only. A folder is a way of ticking its categories, never a member
   // itself — `importanceMarks` decides when a whole folder agrees and writes the mark up there.
   const seed = useMemo(() => {
@@ -80,28 +80,25 @@ export default function ImportanceFlow() {
     return out;
   }, [asked]);
 
-  const levelOf = (id: string): Exclude<Importance, 0> => (high.has(id) ? 3 : low.has(id) ? 1 : 2);
   const marks = useMemo(() => importanceMarks(asked, [...high], [...low]), [asked, high, low]);
   const affected = useQuery(() => importanceAffected(db, marks), [JSON.stringify([...marks])]);
   const folderRows = affected.filter((a) => groups.some((g) => g.folder?.id === a.row.id)).length;
 
-  /** Step 1 offers everything; step 2 only what step 1 did not already claim. */
-  const offered = (kids: Category[]) => (step === 0 ? kids : kids.filter((c) => !high.has(c.id)));
-  const chosen = step === 0 ? high : low;
-  const setChosen = step === 0 ? setHigh : setLow;
-  const toggle = (id: string) => setChosen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const toggleFolder = (kids: Category[]) => setChosen((s) => {
-    const n = new Set(s);
-    const full = kids.every((k) => n.has(k.id));
-    for (const k of kids) { if (full) n.delete(k.id); else n.add(k.id); }
-    return n;
-  });
-  /** On the last screen a row cycles: could not live without → in between → could stop → back. */
-  const cycle = (id: string) => {
-    const at = levelOf(id);
-    setHigh((s) => { const n = new Set(s); n.delete(id); if (at === 1) n.add(id); return n; });
-    setLow((s) => { const n = new Set(s); n.delete(id); if (at === 2) n.add(id); return n; });
+  /** Step 1 (could stop) offers everything; step 2 (could not live without) only what step 1 did not claim. */
+  const offered = (kids: Category[]) => (step === 0 ? kids : kids.filter((c) => !low.has(c.id)));
+  const chosen = step === 0 ? low : high;
+  /**
+   * Tick or untick `ids` on this step's answer. Ticked on the first question, a category is gone
+   * from the second's — including an answer it was given there earlier, or by the seed — so nothing
+   * is ever both, and nothing hidden on step 2 is still quietly marked "could not live without".
+   */
+  const set = (ids: string[], on: boolean) => {
+    const apply = (s: Set<string>, add: boolean) => { const n = new Set(s); for (const id of ids) { if (add) n.add(id); else n.delete(id); } return n; };
+    if (step === 0) { setLow((s) => apply(s, on)); if (on) setHigh((s) => apply(s, false)); }
+    else setHigh((s) => apply(s, on));
   };
+  const toggle = (id: string) => set([id], !chosen.has(id));
+  const toggleFolder = (kids: Category[]) => set(kids.map((k) => k.id), !kids.every((k) => chosen.has(k.id)));
 
   const commit = () => {
     mutate((d) => applyImportance(d, marks));
@@ -148,60 +145,41 @@ export default function ImportanceFlow() {
   );
 
   const leaves = markableLeaves(asked);
-  const review = (
-    <View>
-      {([3, 2, 1] as const).map((level) => {
-        const rows = leaves.filter((c) => levelOf(c.id) === level);
-        return (
-          <View key={level}>
-            <Text style={[styles.levelHead, { color: LEVEL_TINT[level] }]}>{levelTitle(level)} · {rows.length}</Text>
-            {rows.length ? (
-              <Card style={styles.group}>
-                {rows.map((c) => (
-                  <Pressable key={c.id} onPress={() => cycle(c.id)} style={styles.row} accessibilityRole="button"
-                    accessibilityLabel={t("category.importance.rowA11y", { name: catName(c), level: levelTitle(level) })}>
-                    <CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={26} />
-                    <Text style={styles.name}>{catName(c)}</Text>
-                    <SymbolView name="arrow.triangle.2.circlepath" size={13} tintColor={C.tertiary} />
-                  </Pressable>
-                ))}
-              </Card>
-            ) : <Text style={styles.emptyLevel}>{t("category.importance.none")}</Text>}
-          </View>
-        );
-      })}
-      <Text style={styles.foot}>
-        {affected.length ? t("category.importance.changes", { count: affected.length }) : t("category.importance.noChanges")}
-        {folderRows ? ` · ${t("category.importance.folders", { count: folderRows })}` : ""}
-      </Text>
-    </View>
+  // What saving will change, under the last question: the same count the button carries.
+  const summary = (
+    <Text style={styles.foot}>
+      {affected.length ? t("category.importance.changes", { count: affected.length }) : t("category.importance.noChanges")}
+      {folderRows ? ` · ${t("category.importance.folders", { count: folderRows })}` : ""}
+    </Text>
   );
 
-  const nextLabel = step < 2 ? t("common.next") : affected.length ? t("category.importance.mark", { count: affected.length }) : t("category.importance.nothingToChange");
+  const last = step === 1;
+  const nextLabel = !last ? t("common.next") : affected.length ? t("category.importance.mark", { count: affected.length }) : t("category.importance.nothingToChange");
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={t("category.importance.title")}
+      <ModalHeader title={steps()[step]!.header}
         left={step === 0 ? { label: t("common.cancel"), onPress: () => router.back() } : { label: t("common.back"), onPress: () => setStep((s) => s - 1) }} />
       {leaves.length ? (
         <FlatList
+          ref={list}
           data={[0]}
           keyExtractor={() => "body"}
           contentContainerStyle={{ paddingBottom: 140 }}
           ListHeaderComponent={
             <View style={styles.head}>
-              <Text style={styles.step}>{t("category.importance.step", { step: step + 1, total: 3 })}</Text>
+              <Text style={styles.step}>{t("category.importance.step", { step: step + 1, total: 2 })}</Text>
               <Text style={styles.question}>{steps()[step]!.title}</Text>
               <Text style={styles.hint}>{steps()[step]!.hint}</Text>
             </View>
           }
-          renderItem={() => (step === 2 ? review : picking)}
+          renderItem={() => <>{picking}{last ? summary : null}</>}
         />
       ) : (
         <Empty title={t("category.importance.empty.title")} hint={t("category.importance.empty.hint")} />
       )}
       {leaves.length ? (
         <View style={styles.bar}>
-          <BigButton label={nextLabel} onPress={() => (step < 2 ? setStep((s) => s + 1) : commit())} disabled={step === 2 && !affected.length} />
+          <BigButton label={nextLabel} onPress={() => (!last ? setStep(1) : commit())} disabled={last && !affected.length} />
         </View>
       ) : null}
     </View>
@@ -220,8 +198,6 @@ const styles = themed(() => StyleSheet.create({
   name: { flex: 1, fontSize: 16, color: C.label },
   all: { fontSize: 13, color: C.secondary, fontWeight: "400" },
   looseHead: { fontSize: 13, color: C.tertiary, fontWeight: "600", paddingHorizontal: S.md, paddingTop: 4, paddingBottom: 2 },
-  levelHead: { fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: 6 },
-  emptyLevel: { fontSize: 14, color: C.tertiary, paddingHorizontal: S.xl, paddingBottom: S.sm },
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingHorizontal: S.xl, paddingVertical: S.xxl },
   foot: { fontSize: 13, color: C.secondary, paddingHorizontal: S.xl, paddingTop: S.lg, lineHeight: 18 },
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: S.xxl, paddingTop: S.sm, backgroundColor: C.bgGrouped },

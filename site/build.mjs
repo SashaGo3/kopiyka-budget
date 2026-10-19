@@ -426,6 +426,7 @@ const DOC_PAGES = [
   { md: 'privacy-policy.md', file: 'privacy.html', key: 'privacy' },
   { md: 'terms-of-use.md', file: 'terms.html', key: 'terms' },
   { md: 'migrate-with-ai.md', file: 'migrate.html', key: 'migrate', copyable: true },
+  { md: 'shortcut-guide.md', file: 'shortcut.html', key: 'shortcut' },
 ];
 
 const docSource = (lang, page) => join(DOCS, lang === SOURCE ? '' : lang.code, page.md);
@@ -437,12 +438,15 @@ const LINK_MAP = {
   'privacy-policy.md': 'privacy.html',
   'terms-of-use.md': 'terms.html',
   'migrate-with-ai.md': 'migrate.html',
+  'shortcut-guide.md': 'shortcut.html',
   'docs/privacy-policy.md': 'privacy.html',
   'docs/terms-of-use.md': 'terms.html',
   'docs/migrate-with-ai.md': 'migrate.html',
+  'docs/shortcut-guide.md': 'shortcut.html',
   '../privacy-policy.md': '../privacy.html',
   '../terms-of-use.md': '../terms.html',
   '../migrate-with-ai.md': '../migrate.html',
+  '../shortcut-guide.md': '../shortcut.html',
 };
 
 function rewriteLinks(html, src) {

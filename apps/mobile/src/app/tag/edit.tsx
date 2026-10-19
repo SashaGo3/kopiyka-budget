@@ -7,7 +7,6 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { BusyOverlay, Card, DeleteRow, ModalHeader, Row, SectionHeader, TagPill, runBusy } from "@/components/ui";
-import { ALL_TIME } from "@/lib/filters";
 import { dismissTo } from "@/lib/nav";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -47,12 +46,12 @@ export default function TagEdit() {
       ) },
     ]);
   }, [existing, uses, leave]));
-  // Jump to this tag's transactions: the Transactions tab itself, filtered to it over all time (see
+  // Jump to this tag's transactions: Search, filtered to it over every month (see
   // the same jump in category/edit.tsx). One navigation rather than a dismissal and a timer — see
   // `lib/nav.ts` for what the timer cost.
   const showTransactions = () => {
     if (!existing) return;
-    dismissTo({ pathname: "/transactions", params: { tag: existing.id, name: existing.name, from: ALL_TIME, nonce: String(Date.now()) } });
+    dismissTo({ pathname: "/search", params: { tag: existing.id, name: existing.name, nonce: String(Date.now()) } });
   };
   const convert = () => {
     const folders = [...cats.values()].filter((c) => !c.parent_id);

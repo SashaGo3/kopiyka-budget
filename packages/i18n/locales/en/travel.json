@@ -8,18 +8,25 @@
     "notFound": "This trip or event no longer exists."
   },
   "line": {
+    "startsOn": { "message": "starts {date}", "note": "Part of the one-line summary of a trip or event set up ahead: \"Wedding · 0 of 900 PLN · starts 20 Sep\"." },
     "spent": { "message": "{spent} of {limit} {currency}", "note": "Part of the one-line trip summary: \"Lisbon · 420 of 900 EUR · day 3 of 7\"." },
+    "spentNoLimit": { "message": "{spent} {currency} spent", "note": "The same, for a trip or event with no budget limit: \"Wedding · 4 200 PLN spent · day 1\"." },
     "day": { "message": "day {day}", "note": "Part of the one-line trip summary." },
     "dayOf": { "message": "day {day} of {days}", "note": "Part of the one-line trip summary." }
   },
   "card": {
     "dayOf": { "message": "Day {day} of {days}" },
+    "startsOn": { "message": "Starts {date}", "note": "On the card of a trip or event set up ahead; date is \"20 Sep\"." },
     "dayPlanned": { "message": "Day {day} · planned until {date}", "note": "A trip that has outrun its planned last day; date is \"22 Sep\"." },
     "span": { "message": "{from} → {to} · {count, plural, one {# day} other {# days}}", "note": "A past trip; from/to are \"3 Jul 2026\"." },
     "over": { "message": "over the budget", "note": "Next to a big amount." },
     "leftToday": { "message": "left for today", "note": "Next to a big amount on the last day." },
     "perDayLeft": { "message": "a day for the {count, plural, one {# day} other {# days}} left", "note": "Next to a big amount: what each remaining day may cost." },
     "spent": { "message": "{spent} of {limit} {currency} spent" },
+    "spentNoLimit": { "message": "{spent} {currency} spent · no limit", "note": "Under a trip or event that has no budget limit." },
+    "spentSoFar": { "message": "spent so far", "note": "Beside the big number on a running trip or event with no budget limit." },
+    "labelSpent": { "message": "{kind, select, event {Event {name}, {amount} spent} other {Travel {name}, {amount} spent}}", "note": "VoiceOver label of the card's head, no budget limit." },
+    "paceOnly": { "message": "{amount} a day", "note": "A finished trip with no budget limit: what it cost per day." },
     "outside": { "message": "+ {amount} outside the budget", "note": "Payments of the trip chosen to stay out of its budget." },
     "label": { "message": "{kind, select, event {Event {name}, {amount} left} other {Travel {name}, {amount} left}}", "note": "VoiceOver label of the card's head." },
     "overPlan": { "message": "{amount} over the plan", "note": "Verdict of a finished trip." },
@@ -36,7 +43,10 @@
     "title": "{kind, select, event {New event} other {Travel mode}}",
     "pastTitle": { "message": "{kind, select, event {A past event} other {A past travel}}", "note": "Title when recording one that already happened." },
     "subtitle": "{kind, select, event {Every new expense gets the event’s tag; its budget counts everything with it, and none of it touches your monthly budgets.} other {Every new expense gets the travel tag; the budget counts everything with it, whatever currency it was paid in.}}",
-    "pastSubtitle": "Name it and say what it was meant to cost; its purchases come next.",
+    "pastSubtitle": "Name it, and give it a budget if it had one; its purchases come next.",
+    "alreadyOverLocked": { "message": "One is running now, so this one goes in as already over.", "note": "Under the locked Already over toggle while a trip or event is on." },
+    "noLimit": { "message": "No limit", "note": "In place of the amount while none is typed: the trip or event will only count what is spent.", "max": 16 },
+    "noLimitHint": { "message": "Only count what’s spent", "note": "Confirm bar, left side, while no budget is typed.", "max": 28 },
     "where": { "message": "{kind, select, event {What’s the occasion?} other {Where to?}}", "note": "Placeholder of the name (for a trip, when no city is known)." },
     "wherePast": { "message": "{kind, select, event {What was the occasion?} other {Where did you go?}}", "note": "Same, for a past one." },
     "nameLabel": "{kind, select, event {What the event is} other {Where you are going}}",
@@ -61,13 +71,15 @@
     "whenWas": "When was it?",
     "span": { "message": "{from} → {to} · {count, plural, one {# day} other {# days}}", "note": "from/to are \"22 Sep\"." },
     "tapLast": "Now tap the last day",
-    "hint": "Tap the first day, then the last. It can start today at the latest, and end whenever you like.",
     "hintPast": "Tap the first day, then the last.",
     "hintEvent": { "message": "Tap the day. Tap a later one to make it longer.", "note": "Calendar hint for an event: one tap is a one-day event." },
     "pickLast": "Pick the last day",
     "tapLastCalendar": "Tap the last day on the calendar",
     "save": "Tap to save the dates",
     "add": "Tap to add it",
+    "setUp": { "message": "{kind, select, event {Tap to set up the event} other {Tap to set up the trip}}", "note": "Confirm button when the chosen first day is after today." },
+    "overOrNot": { "message": "{kind, select, event {Days that are over add it as finished; today or later makes it the current event, counting from its first day.} other {Days that are over add it as finished; today or later turns travel mode on from its first day.}}", "note": "Calendar hint when adding: the dates decide whether it is over or running." },
+    "onlyOver": { "message": "One is running now, so only days that are over can be picked.", "note": "Calendar hint while another trip or event is on." },
     "start": "{kind, select, event {Tap to start the event} other {Tap to start travel mode}}"
   },
   "backfill": {
@@ -102,12 +114,11 @@
     "noteShort": { "message": "While a trip or an event is on, new expenses get its tag and count towards its budget.", "note": "Note on the Trips & Events screen; the ⓘ unfolds noteMore." },
     "noteMore": { "message": "In any currency. None of it touches your monthly budgets.", "note": "Unfolds under noteShort." },
     "now": { "message": "Now", "note": "Section header above the trip that is running." },
-    "start": "Start a trip",
-    "startHint": "Where, how much, and the dates",
-    "startEvent": "Start an event",
-    "startEventHint": "A birthday, a wedding, a night out",
-    "addPast": "Add a past trip or event",
-    "addPastHint": "Something that already happened, and what it cost",
+    "start": "Add a trip",
+    "startHint": "Happening now, or already over",
+    "startEvent": "Add an event",
+    "startEventHint": "A birthday, a wedding — now, or already over",
+    "addHintRunning": { "message": "Already over — one is running now", "note": "Subtitle of Add a trip / Add an event while a trip or event is on: only a finished one can be added." },
     "history": "History"
   },
   "trip": {
@@ -122,6 +133,9 @@
     "budget": "Budget",
     "amount": "Amount",
     "amountTitle": { "message": "Budget for {name}" },
+    "noLimit": { "message": "No limit — only counts what’s spent", "note": "Subtitle of the Amount row when the trip or event has no budget." },
+    "changeLimit": "Change the amount",
+    "removeLimit": { "message": "No limit", "note": "Action: take the budget away so the trip only counts what is spent." },
     "currency": "Currency",
     "currencyHint": { "message": "{currency} · payments in any currency are converted" },
     "dates": "Dates",
@@ -134,9 +148,5 @@
     "end": "{kind, select, event {End the event} other {End travel mode}}",
     "endHint": "New expenses stop getting its tag",
     "removeThis": "{kind, select, event {Remove this event} other {Remove this travel}}"
-  },
-  "kind": {
-    "trip": { "message": "Trip", "note": "Segment on the start sheet: what is being started. Short." },
-    "event": { "message": "Event", "note": "Segment on the start sheet: a party, a wedding, a day out. Short." }
   }
 }

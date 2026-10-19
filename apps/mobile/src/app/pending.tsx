@@ -134,7 +134,7 @@ function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete
   if (tx.transfer_id) return <PendingTransfer tx={tx} partner={partner} first={first} last={last} onApprove={onApprove} onDelete={onDelete} />;
   const names = rowCategory(tx);
   const catLabel = names.name ?? names.parent;
-  const title = tx.payee || (tx.notes ? tx.notes.split("\n")[0]! : "") || catLabel || t("common.noCategory");
+  const title = tx.payee || tx.notes?.split("\n")[0] || tx.bank_note?.split("\n")[0] || catLabel || t("common.noCategory");
   // Where it came from matters here more than anywhere else in the app: a Shortcut authorisation
   // and a scanned receipt are both guesses in different ways, and that's worth a glance before approving.
   const origin = sourceLabel(tx.source);

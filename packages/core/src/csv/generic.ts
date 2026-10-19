@@ -9,7 +9,7 @@ import { toCsv } from "./parse";
 
 export const GENERIC_COLUMNS = [
   "id", "date", "account", "currency", "amount", "type", "parent_category", "category",
-  "payee", "tags", "notes", "pending", "transfer_id", "entered_amount", "entered_currency", "exchange_rate",
+  "payee", "tags", "notes", "bank_note", "pending", "transfer_id", "entered_amount", "entered_currency", "exchange_rate",
 ] as const;
 
 export function exportGeneric(db: SqlDriver, opts: { from?: string; to?: string } = {}): string {
@@ -37,6 +37,7 @@ export function exportGeneric(db: SqlDriver, opts: { from?: string; to?: string 
       payee: t.payee ?? "",
       tags: tagIdsOf(t).map((id) => tags.get(id)?.name ?? "").filter(Boolean).join("|"),
       notes: t.notes ?? "",
+      bank_note: t.bank_note ?? "",
       pending: t.pending ? "true" : "false",
       transfer_id: t.transfer_id ?? "",
       entered_amount: t.entered_amount_minor != null && t.entered_currency ? fromMinor(t.entered_amount_minor, t.entered_currency) : "",

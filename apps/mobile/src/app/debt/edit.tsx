@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { createDebt, formatMinor, getRow, remove, save, settleDebt, toMinor, fromMinor, trimNumber, DEFAULT_DEBT_NOTIFY_TIME, type Debt, type DebtDirection } from "@kopiyka/core";
+import { createDebt, debtPaid, formatMinor, getRow, remove, save, settleDebt, toMinor, fromMinor, trimNumber, DEFAULT_DEBT_NOTIFY_TIME, type Debt, type DebtDirection } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -41,6 +41,8 @@ export default function DebtEdit() {
   const exit = useDiscardGuard(useDirty([person, direction, currency, expr, accountId, dueDate, notes, notify, notifyTime]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const account = useQuery((d) => (accountId ? getRow(d, "accounts", accountId) : null), [accountId]);
+  // What the payments pointed at this debt (picked as Debt on the entry sheet) have paid so far.
+  const paid = useQuery((d) => (existing ? debtPaid(d, existing) : 0), [existing?.id]);
   const keys = useMemo(() => ({ person: newPickKey("dperson"), currency: newPickKey("dcur"), account: newPickKey("dacc"), date: newPickKey("ddate"), time: newPickKey("dtime"), notes: newPickKey("dnotes") }), []);
   // The state setters are already stable, so they are handed over as they are; wrapping them in
   // useCallback only gives the React Compiler a memo it cannot reconcile with what it infers.
@@ -114,6 +116,7 @@ export default function DebtEdit() {
           <Text style={[styles.amount, direction === "owed_to_me" ? { color: C.green } : { color: C.red }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={t("debt.amountA11y", { amount: shown })}>{shown}</Text>
           <CalcLine expr={expr} style={{ textAlign: "left" }} />
           <Subtle>{summary}</Subtle>
+          {existing && paid > 0 ? <Subtle>{t("debt.paidSoFar", { paid: `${formatMinor(paid, existing.currency)} ${existing.currency}`, left: `${formatMinor(Math.max(0, existing.amount_minor - paid), existing.currency)} ${existing.currency}` })}</Subtle> : null}
         </View>
       }
       bottom={

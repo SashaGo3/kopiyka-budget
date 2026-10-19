@@ -12,9 +12,9 @@ export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset"],
   tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
-    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref"],
+    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref", "debt_id", "bank_note"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
-    "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee"],
+    "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee", "icon"],
   budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids", "kind"],
   insights: ["kind", "params", "sort"],
   debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
@@ -109,7 +109,7 @@ export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<
   return save(db, "transactions", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", pending: 0, transfer_id: null,
     entered_amount_minor: null, entered_currency: null, exchange_rate: null, recurring_id: null, lat: null, lon: null, place: null, photo: null,
-    source: null, refunded_minor: 0, bank_ref: null, ...t,
+    source: null, refunded_minor: 0, bank_ref: null, debt_id: null, bank_note: null, ...t,
   } as Transaction);
 }
 
@@ -271,8 +271,8 @@ export interface CategorySpend { category_id: string | null; currency: string; s
  * excluded; optionally limited to some accounts, and optionally leaving out whatever carries one of
  * `exceptTags` — the trip tags, when the question is what the ordinary month cost (trips.ts).
  */
-export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, accountIds?: string[], o: { exceptTags?: string[] } = {}): CategorySpend[] {
-  const scope = accountIds?.length ? ` AND t.account_id IN (${accountIds.map(() => "?").join(",")})` : "";
+export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, accountIds?: string[], o: { exceptTags?: string[]; exceptDebts?: boolean } = {}): CategorySpend[] {
+  const scope = (accountIds?.length ? ` AND t.account_id IN (${accountIds.map(() => "?").join(",")})` : "") + (o.exceptDebts ? " AND t.debt_id IS NULL" : "");
   // A recurring payment carrying a trip tag is still the month's: the trip never counts it (`tripStats`).
   const except = (o.exceptTags ?? []).map(() => " AND (t.recurring_id IS NOT NULL OR t.tag_ids NOT LIKE ?)").join("");
   return db.all<Row>(

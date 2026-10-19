@@ -179,6 +179,22 @@ export const MIGRATIONS: string[][] = [
     // words, icon and defaults. NULL is a trip, which is what every row written before this was.
     `ALTER TABLE budgets ADD COLUMN kind TEXT`,
   ],
+  [
+    // v21: what a recurring payment is drawn with — a brand's mark, an emoji or a symbol (logos.ts).
+    // NULL is "nobody chose": the payee is matched against the marks, then the category's icon.
+    `ALTER TABLE recurring_rules ADD COLUMN icon TEXT`,
+  ],
+  [
+    // v22: the debt a payment pays off (or a repayment settles), chosen as "Debt" in the category
+    // picker. NULL is everything else. The debt counts what its payments add up to (debts.ts).
+    `ALTER TABLE transactions ADD COLUMN debt_id TEXT`,
+  ],
+  [
+    // v23: what the bank's notification said, kept apart from the note. `notes` is the person's own
+    // words; the automation writes the bank's into `bank_note`, so a note added later never has to be
+    // typed around it, and nothing typed can lose it. Rows from before keep the bank's text in `notes`.
+    `ALTER TABLE transactions ADD COLUMN bank_note TEXT`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;
@@ -186,7 +202,8 @@ const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;
 /**
  * Column additions are skipped when the column is already there. A database can be ahead of its
  * recorded version (the native side or an interrupted run added the columns first); without this
- * the app would crash at launch with "duplicate column name".
+ * the app would crash at launch with "duplicate column name". It can be behind it too, so every
+ * launch checks that each added column exists (`migrate`) — a few dozen pragma reads.
  */
 function hasColumn(db: SqlDriver, table: string, column: string): boolean {
   return !!db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info(?) WHERE name=?`, [table, column])?.n;
@@ -196,10 +213,16 @@ export function migrate(db: SqlDriver): void {
   db.run(`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
   const cur = Number(db.get<{ value: string }>(`SELECT value FROM meta WHERE key='schema_version'`)?.value ?? 0);
   db.transaction(() => {
-    for (let v = cur; v < MIGRATIONS.length; v++) {
+    for (let v = 0; v < MIGRATIONS.length; v++) {
       for (const stmt of MIGRATIONS[v]!) {
         const add = ADD_COLUMN.exec(stmt);
         if (add && hasColumn(db, add[1]!, add[2]!)) continue;
+        // Below the recorded version only a missing column is put back. A database can also be
+        // *behind* its version — one a development build stamped with a different numbering left
+        // 1.0.4 testers without `budgets.outside_ids` at v20, and every new trip failed to save —
+        // and an added column is the one kind of step that is safe to repeat, with its default.
+        // Anything else in an old migration (backfills, deletes) already ran and must not run again.
+        if (v < cur && !add) continue;
         db.run(stmt);
       }
     }

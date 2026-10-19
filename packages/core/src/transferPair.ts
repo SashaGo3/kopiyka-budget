@@ -141,16 +141,42 @@ export type PairOutcome =
   | null;
 
 /**
+ * A leg the automation put on the wrong account goes back to the one the bank printed it for. The
+ * automation chooses with less to go on than this does (a stale snapshot while the app is open, a
+ * number another account wrongly learned), and a USD debit left on the PLN account can never pair
+ * with the PLN credit beside it: the credit invents a USD leg at a cached rate, and the real debit
+ * stays an expense — three rows for one transfer, two of them with the wrong amount.
+ *
+ * Only when the account is known by that number alone, and only when the bank's own figure is to
+ * hand for it: the amount as written when the currencies match, or the original the automation kept
+ * when it converted (rule 6). The id stays (rule 1).
+ */
+function rehome(db: SqlDriver, row: Transaction, ref: BankRef): Transaction {
+  if (row.source === SYNTH_SOURCE || !row.source?.startsWith("shortcut")) return row;
+  const home = accountForNumber(db, ref.own);
+  if (!home || home.id === row.account_id) return row;
+  const sign = row.amount_minor < 0 ? -1 : 1;
+  const amount = home.currency === currencyOf(db, row.account_id) ? row.amount_minor
+    : row.entered_currency === home.currency && row.entered_amount_minor ? sign * Math.abs(row.entered_amount_minor)
+    : null;
+  if (amount === null) return row;
+  const moved: Transaction = { ...row, account_id: home.id, amount_minor: amount, entered_amount_minor: null, entered_currency: null, exchange_rate: null };
+  save(db, "transactions", moved);
+  return getRow(db, "transactions", row.id) ?? moved;
+}
+
+/**
  * Pair one pending, notification-written row with the other half of its transfer, if there is one.
  * Safe to run any number of times: a row that is already a transfer, approved, deleted or carries no
  * account numbers is left alone, and nothing is written unless something pairs.
  */
 export function pairTransferLeg(db: SqlDriver, id: string): PairOutcome {
-  const row = getRow(db, "transactions", id);
+  const found = getRow(db, "transactions", id);
   // A charge a recurring rule claimed is that rule's payment (rule 13), not half of a transfer.
-  if (!row || row.deleted || row.transfer_id || row.recurring_id || row.pending !== 1 || row.amount_minor === 0) return null;
-  const ref = readBankRef(row.bank_ref);
+  if (!found || found.deleted || found.transfer_id || found.recurring_id || found.pending !== 1 || found.amount_minor === 0) return null;
+  const ref = readBankRef(found.bank_ref);
   if (!ref) return null;
+  const row = rehome(db, found, ref);
   const outgoing = row.amount_minor < 0;
   const rowCur = currencyOf(db, row.account_id);
 
@@ -224,7 +250,11 @@ export function pairTransferLegs(db: SqlDriver, now = new Date()): number {
   const waiting = db.all<{ id: string }>(
     `SELECT id FROM transactions WHERE deleted=0 AND pending=1 AND transfer_id IS NULL AND bank_ref IS NOT NULL AND date>=? ORDER BY date, rowid`, [since]);
   let n = 0;
-  for (const { id } of waiting) if (pairTransferLeg(db, id)) n++;
+  for (const { id } of waiting) {
+    const before = getRow(db, "transactions", id)?.account_id;
+    // A leg moved to its own account is a change too, even when it found nothing to pair with.
+    if (pairTransferLeg(db, id) || getRow(db, "transactions", id)?.account_id !== before) n++;
+  }
   return n;
 }
 
@@ -232,15 +262,20 @@ export function pairTransferLegs(db: SqlDriver, now = new Date()): number {
  * Give an account a number it is printed with, unless another live account already claims it. Writes
  * only when something changes (an untouched account with a fresh `updated_at` would win a merge it
  * should lose — DATA.md rule 15's lesson).
+ *
+ * `reclaim`: the evidence is a payment the bank printed in this account's own currency, which beats
+ * a claim held by an account in another currency — that claim was learned from a payment filed on
+ * the wrong account, and kept, it would send every later notification for this number there too.
  */
-export function learnAccountNumber(db: SqlDriver, accountId: string, digits: string | null | undefined): boolean {
+export function learnAccountNumber(db: SqlDriver, accountId: string, digits: string | null | undefined, reclaim = false): boolean {
   const d = last4(digits);
   const acc = getRow(db, "accounts", accountId);
   if (!d || !acc || acc.deleted) return false;
   const known = accountNumbers(acc);
   if (known.includes(d)) return false;
-  const claimed = listRows(db, "accounts", "deleted=0 AND id<>? AND numbers LIKE ?", [accountId, `%"${d}"%`]).some((a) => accountNumbers(a).includes(d));
-  if (claimed) return false;
+  const claims = listRows(db, "accounts", "deleted=0 AND id<>? AND numbers LIKE ?", [accountId, `%"${d}"%`]).filter((a) => accountNumbers(a).includes(d));
+  if (claims.some((a) => !reclaim || a.currency === acc.currency)) return false;
+  for (const a of claims) save(db, "accounts", { ...a, numbers: JSON.stringify(accountNumbers(a).filter((x) => x !== d)) });
   save(db, "accounts", { ...acc, numbers: JSON.stringify([...known, d]) });
   return true;
 }
@@ -252,7 +287,13 @@ export function learnAccountNumber(db: SqlDriver, accountId: string, digits: str
 export function learnFromRow(db: SqlDriver, row: Transaction): void {
   const ref = readBankRef(row.bank_ref);
   if (!ref) return;
-  learnAccountNumber(db, row.account_id, ref.own);
+  // A payment the bank printed in another currency and the automation converted was put on an account
+  // the bank was not talking about: the USD account's credit filed on the PLN one, for want of a USD
+  // account it could tell apart. Its number is not this account's. (A transfer leg's entered columns
+  // hold the other leg's figure instead, so they say nothing about this.)
+  const acc = getRow(db, "accounts", row.account_id);
+  const foreign = !row.transfer_id && !!row.entered_currency && row.entered_currency !== acc?.currency;
+  if (!foreign) learnAccountNumber(db, row.account_id, ref.own, true);
   const partner = partnerOf(db, row);
   if (partner && ref.other) learnAccountNumber(db, partner.account_id, ref.other);
 }

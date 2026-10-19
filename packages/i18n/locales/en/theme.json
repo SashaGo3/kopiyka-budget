@@ -23,17 +23,13 @@
     "a11y": { "message": "{name} icon", "note": "VoiceOver label of one icon in that row; name is a theme name." }
   },
   "name": {
-    "$comment": "Theme names: the editor themes they come from. In Ukrainian they are written in Cyrillic as they sound; the app's own is translated.",
+    "$comment": "Theme names: every theme is named after a cat. Write the names as they sound.",
     "graphite": {
-      "message": "Graphite",
-      "note": "The default theme: graphite grey on off-white (and the reverse in dark mode). Translate the colour name."
+      "message": "Pusik",
+      "note": "The default theme, graphite grey on off-white (and the reverse in dark mode), named after a cat called Pusik."
     },
-    "solarized": "Solarized",
-    "catppuccin": "Catppuccin",
-    "gruvbox": "Gruvbox",
-    "nord": "Nord",
-    "tokyonight": "Tokyo Night",
-    "rosepine": "Rosé Pine",
-    "github": "GitHub"
+    "siri": { "message": "Siri", "note": "A theme named after a grey-fawn tabby cat called Siri: warm grey with a terracotta accent. A cat's name, not Apple's assistant." },
+    "tadeusz": { "message": "Tadeusz & Kastuś", "note": "A theme named after two ginger cats, Tadeusz and Kastuś: cream and ginger. Two cats' names joined by 'and'." },
+    "catppuccin": { "message": "Una", "note": "A theme named after a cat called Una: soft lavender and pastels (the Catppuccin palette)." }
   }
 }

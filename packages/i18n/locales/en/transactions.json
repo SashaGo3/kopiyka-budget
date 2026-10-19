@@ -16,7 +16,7 @@
   "deselectAll": "Deselect all",
   "select": {
     "message": "Select",
-    "note": "Header button that starts choosing several transactions to edit at once."
+    "note": "Accessibility action on a transaction row that starts choosing several transactions to edit at once."
   },
   "searchPlaceholder": "Search notes, categories, amounts",
   "upcoming": {
@@ -66,6 +66,7 @@
     },
     "scope": "from {scope}",
     "period": "in {period}",
+    "search": { "message": "matching “{q}”", "note": "On Search, what was typed: \"Nothing matching “coffee”, with 1 filter on.\"" },
     "filters": "{count, plural, one {with # filter on} other {with # filters on}}",
     "action": "Show everything"
   },
@@ -129,7 +130,9 @@
     "sortByDate": "Sort by date"
   },
   "list": {
+    "debt": { "message": "Debt · {person}", "note": "In place of a category on a payment made on a debt." },
     "emptyHint": "Tap Log to add one.",
+    "selectHint": { "message": "Touch and hold to select several", "note": "VoiceOver hint on a transaction row: holding it starts selection mode." },
     "sum": {
       "message": "Sum:",
       "note": "Before the day's total under each day of the list."

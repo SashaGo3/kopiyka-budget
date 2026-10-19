@@ -144,6 +144,24 @@
         }
       }
     },
+    "native.budget.spent" : {
+      "comment" : "A trip or event with no budget limit, on the watch and in the widgets: what was spent so far.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ spent"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "витрачено %1$@"
+          }
+        }
+      }
+    },
     "native.common.noDatabase" : {
       "comment" : "Why a Siri / Shortcut / watch entry could not be saved: the app has never been opened.",
       "extractionState" : "manual",
@@ -1391,20 +1409,56 @@
         }
       }
     },
-    "native.notify.guess" : {
-      "comment" : "In the notification body, after the category: the category was guessed. Lowercase, one word if possible.",
+    "native.notify.check" : {
+      "comment" : "Second line of the notification: the category comes from an earlier entry, but the entry still waits for approval (converted currency, a shop filed several ways).",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "guess"
+            "value" : "Recognised as %1$@ — tap to check."
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "припущення"
+            "value" : "Розпізнано як «%1$@» — торкніться, щоб перевірити."
+          }
+        }
+      }
+    },
+    "native.notify.filed" : {
+      "comment" : "Second line of the notification: the shop was filed under this category before, and the entry is saved as it is.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recognised: %1$@."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Розпізнано: %1$@."
+          }
+        }
+      }
+    },
+    "native.notify.guess" : {
+      "comment" : "Second line of the notification: the category was guessed from the shop's name or location, not filed before.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guessed %1$@ — tap to confirm or change."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Схоже на «%1$@» — торкніться, щоб підтвердити чи змінити."
           }
         }
       }
@@ -1427,24 +1481,6 @@
         }
       }
     },
-    "native.notify.pending" : {
-      "comment" : "In the notification body: the entry waits in the Pending queue. Lowercase.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "pending"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "очікує"
-          }
-        }
-      }
-    },
     "native.notify.received" : {
       "comment" : "Notification title after the automation logged income, when no payer name was read.",
       "extractionState" : "manual",
@@ -1459,6 +1495,96 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Платіж отримано"
+          }
+        }
+      }
+    },
+    "native.notify.transfer" : {
+      "comment" : "Notification title after the automation logged one side of a transfer between the user's own accounts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transfer"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переказ"
+          }
+        }
+      }
+    },
+    "native.notify.transferInferred" : {
+      "comment" : "Second line of the notification: only one side of the transfer was notified, so the app wrote the other.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The other side was added for you — tap to check."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Другу сторону додано за вас — торкніться, щоб перевірити."
+          }
+        }
+      }
+    },
+    "native.notify.transferPaired" : {
+      "comment" : "Second line of the notification: the debit and the credit notifications of one transfer were matched by account numbers.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Both sides matched — tap to check."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обидві сторони знайдено — торкніться, щоб перевірити."
+          }
+        }
+      }
+    },
+    "native.notify.transferWaiting" : {
+      "comment" : "Second line of the notification: the bank named another account; the other notification has not arrived yet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looks like a transfer — waiting for the other side."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Схоже на переказ — чекаємо на другу сторону."
+          }
+        }
+      }
+    },
+    "native.notify.unknown" : {
+      "comment" : "Second line of the notification: nothing is known about this shop; the entry has no category.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not recognised — tap to choose a category."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не розпізнано — торкніться, щоб вибрати категорію."
           }
         }
       }
@@ -1781,6 +1907,24 @@
         }
       }
     },
+    "native.watch.budgets.eventSpentA11y" : {
+      "comment" : "VoiceOver, an event with no budget limit; day is \"Day 1 of 1\".",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Event %1$@, %2$@ spent, %3$@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подія %1$@, витрачено %2$@, %3$@"
+          }
+        }
+      }
+    },
     "native.watch.budgets.travel" : {
       "comment" : "Section heading.",
       "extractionState" : "manual",
@@ -1813,6 +1957,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Подорож %1$@, залишилось %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "native.watch.budgets.travelSpentA11y" : {
+      "comment" : "VoiceOver, a trip with no budget limit; day is \"Day 3 of 7\".",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travel %1$@, %2$@ spent, %3$@"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подорож %1$@, витрачено %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "native.watch.category.addNote" : {
+      "comment" : "First row of the watch category list: dictate or scribble a note for the entry.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add note"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додати нотатку"
           }
         }
       }
@@ -1959,6 +2139,42 @@
         }
       }
     },
+    "native.watch.category.noteHint" : {
+      "comment" : "VoiceOver hint.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dictate or scribble a note for this entry"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Надиктуйте або напишіть нотатку до запису"
+          }
+        }
+      }
+    },
+    "native.watch.category.notePrompt" : {
+      "comment" : "Prompt of the text field the watch opens for the note.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нотатка"
+          }
+        }
+      }
+    },
     "native.watch.category.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2066,6 +2282,24 @@
         }
       }
     },
+    "native.watch.history.a11yPending" : {
+      "comment" : "VoiceOver, inside a row's description.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "pending"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "очікує"
+          }
+        }
+      }
+    },
     "native.watch.history.a11yTags" : {
       "comment" : "VoiceOver, inside a row's description; list is comma-separated.",
       "extractionState" : "manual",
@@ -2102,6 +2336,93 @@
         }
       }
     },
+    "native.watch.history.approve" : {
+      "comment" : "Button on a pending entry: take it out of the Pending queue as it is.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approve"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Підтвердити"
+          }
+        }
+      }
+    },
+    "native.watch.history.approveAs" : {
+      "comment" : "Button on a pending entry: choose its category, which approves it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set category"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вибрати категорію"
+          }
+        }
+      }
+    },
+    "native.watch.history.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скасувати"
+          }
+        }
+      }
+    },
+    "native.watch.history.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видалити"
+          }
+        }
+      }
+    },
+    "native.watch.history.deleteConfirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete this entry?"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Видалити цей запис?"
+          }
+        }
+      }
+    },
     "native.watch.history.empty" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2115,6 +2436,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сьогодні й учора нічого."
+          }
+        }
+      }
+    },
+    "native.watch.history.pendingLabel" : {
+      "comment" : "Under the amount on an entry still in the Pending queue.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очікує"
+          }
+        }
+      }
+    },
+    "native.watch.history.transferOnPhone" : {
+      "comment" : "On a transfer, which the watch can neither approve with a category nor delete.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change transfers on your iPhone."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перекази змінюйте на iPhone."
           }
         }
       }
@@ -2835,6 +3192,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Додано %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "native.watch.write.approveQueued" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approval queued for iPhone"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Підтвердження чекає на iPhone"
+          }
+        }
+      }
+    },
+    "native.watch.write.approved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approved"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Підтверджено"
           }
         }
       }

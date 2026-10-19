@@ -179,6 +179,21 @@ let blobs: [(String, String, Want)] = [
 
    Stan konta po transakcji: +2063,91 PLN
    """, .payment),
+  // A foreign transfer in: the date in its title is the invoice's, not the day the money arrived.
+  ("Notification variable · foreign transfer in, invoice date in the title", """
+   Uznanie konta
+   +7481,55 USD Przelew zagraniczny
+
+   Konto nadawcy: 00..1234
+
+   Nadawca: ACME INC 1 MAIN ST SPRINGFIELD,IL,60000 US
+
+   Tytuł: IT SERVICES SEPTEMBER 2026, INVOICE FO/1/10/2026 FROM 07.10.2026
+
+   Na koncie: 84..3203
+
+   Stan konta po transakcji: +10481,55 USD
+   """, .payment),
 ]
 
 let args = Array(CommandLine.arguments.dropFirst())
@@ -217,6 +232,8 @@ if args.isEmpty || args[0] == "--samples" {
      [("amount", "500.00"), ("currency", "USD"), ("income", "no"), ("own", "3203"), ("other", "5837"), ("balance", "3000.00"), ("ref", "PRZELEW IKO NA NUMER RACHUNKU"), ("payee", "JAN KOWALSKI")]),
     ("credit", fields(blobs.first { $0.0.hasSuffix("own transfer, credit") }!.1),
      [("amount", "1882.75"), ("currency", "PLN"), ("income", "yes"), ("own", "5837"), ("other", "3203"), ("balance", "2063.91"), ("payee", "JAN KOWALSKI")]),
+    ("foreign transfer in", fields(blobs.first { $0.0.hasSuffix("invoice date in the title") }!.1),
+     [("amount", "7481.55"), ("currency", "USD"), ("income", "yes"), ("own", "3203"), ("other", "1234"), ("balance", "10481.55"), ("date", nil)]),
     ("PKO transfer in", fields(blobs[0].1), [("own", "1946"), ("other", "0007")]),
     ("ES transfer sent", KPPaymentText.parse(title: "ING", subtitle: nil, body: "Transferencia emitida a favor de CARLOS RUIZ por 300,00 €\nCuenta destino: ES12 3456 7890 1234 5678 4321"),
      [("amount", "300.00"), ("currency", "EUR"), ("income", "no"), ("other", "4321"), ("payee", "CARLOS RUIZ")]),
@@ -246,6 +263,7 @@ if args.isEmpty || args[0] == "--samples" {
       case "balance": got = p.balance.map { String(format: "%.2f", $0) }
       case "ref": got = p.reference
       case "payee": got = p.merchant
+      case "date": got = p.date
       default: got = nil
       }
       if got != expected { failures += 1; print("FAIL \(label) \(what) → \(got ?? "-"), expected \(expected ?? "-")") }
