@@ -54,8 +54,9 @@ if has build; then
   # No -sdk here: it would force the watch targets onto the iOS SDK. The destination is enough.
   # Signing stays on (ad-hoc for the simulator): CODE_SIGNING_ALLOWED=NO drops the entitlements,
   # and without the App Group entitlement the database lands outside the group container.
-  # EXPO_PUBLIC_SCREENSHOTS=1: the simulator runs an iOS older than the automation needs, and the
-  # shortcut slide should not show the "needs iOS 27" warning (src/constants/features.ts).
+  # EXPO_PUBLIC_SCREENSHOTS=1 (src/constants/features.ts): the app opens the `-KPLink` launch
+  # argument capture.sh passes, never shows What's New, and never shows the automation's "needs
+  # iOS 27" warning should the simulators ever run an older iOS again (SHOTS_KEEP_RUNTIME=1).
   EXPO_PUBLIC_SCREENSHOTS=1 xcodebuild -workspace ios/Kopiyka.xcworkspace -scheme Kopiyka -configuration Release \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED" build -quiet \
     || die "xcodebuild failed"

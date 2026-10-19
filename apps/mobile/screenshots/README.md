@@ -132,10 +132,15 @@ wraps wrongly, extend that script's character list and paste its output over `W_
 
 ## Requirements
 
-Xcode with the iOS 26 + watchOS 26 simulator runtimes and `rsvg-convert` (`brew install librsvg`)
+Xcode 27 with its iOS 27 + watchOS 27 simulator runtimes and `rsvg-convert` (`brew install librsvg`)
 for the framing. Nothing beyond `simctl` drives the simulators: every iPhone shot is a deep link, every
 iPad shot a launch with the same link as an argument, every watch shot a launch onto that screen. idb
 is no longer needed — its taps load SimulatorKit from where Xcode kept it until 26.
+
+The three "Kopiyka Shots" simulators always run the newest iOS and watchOS runtime installed: one
+left on an older runtime by a previous Xcode is deleted and created again on the first run
+(`ensure_sim` in `lib.sh`), so the screenshots show the OS the current Xcode ships.
+`SHOTS_KEEP_RUNTIME=1` keeps them as they are.
 ImageMagick (`brew install imagemagick`) is used for the contact sheet and size checks.
 
 ## Gotchas

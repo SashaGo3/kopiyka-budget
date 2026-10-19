@@ -32,7 +32,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # No device flag means every device; one or more pick exactly those, so `--phone --watch` is the
 # old two-device run and `--ipad` on its own re-shoots the iPad set.
-DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-3}"
+# SETTLE: seconds from launch to shot. On the iOS 27 simulators a launch onto a link is drawn about
+# 4 s in (3 was enough on iOS 26), later while the other simulators are busy, so 6.
+DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-6}"
 LANG_SPEC="all"; SEED=auto
 pick() { [[ $PICKED == 1 ]] || { DO_PHONE=0; DO_WATCH=0; DO_IPAD=0; PICKED=1; }; }
 while [[ $# -gt 0 ]]; do
@@ -168,6 +170,12 @@ capture_ios() { # <udid> <name> <kind: iphone|ipad> <expected WxH> <radio: cellu
     boot_sim "$SIM"
   fi
   pretty_status_bar "$SIM" "$radio"
+  # One launch off-camera first. A simulator's first start of a fresh install takes far longer than
+  # the settle time (a just-created iOS 27 simulator drew the launch skeleton into every light shot);
+  # every launch after it is quick.
+  xcrun simctl launch "$SIM" "$APP_ID" >/dev/null 2>&1 || true
+  sleep "${SHOTS_WARMUP:-15}"
+  xcrun simctl terminate "$SIM" "$APP_ID" 2>/dev/null || true
   for THEME in "${THEMES[@]}"; do
     log "$SIM_NAME · $LANG_CODE · $THEME"
     xcrun simctl ui "$SIM" appearance "$THEME" >/dev/null 2>&1 || true
@@ -191,6 +199,21 @@ capture_phone_ipad() {
 # targets/watch/KopiykaWatchApp.swift), the amount already typed. idb's taps need SimulatorKit where
 # Xcode kept it until 26, and coordinates broke whenever a row was added above the one they hit.
 wshoot() { mkdir -p "$RAW_DIR/watch"; xcrun simctl io "$WATCH" screenshot "$RAW_DIR/watch/$1.png" >/dev/null 2>&1; log "  $LANG_CODE/watch/$1  $(png_size "$RAW_DIR/watch/$1.png")"; }
+# Wait until the watch holds the phone's state in this language (watch-state.json in its App Group,
+# written when the state arrives), launching the watch app so it asks. A new watch has none, and a
+# shot taken before it lands is the "Open Kopiyka on your iPhone" keypad over an empty list.
+wait_watch_state() {
+  local group file try
+  group="$(xcrun simctl get_app_container "$WATCH" "$WATCH_APP_ID" groups 2>/dev/null | awk '$1 == "group.dev.kopiyka" { print $2 }')"
+  file="$group/watch-state.json"
+  xcrun simctl launch "$WATCH" "$WATCH_APP_ID" $(lang_launch_args "$LANG_CODE") >/dev/null 2>&1 || true
+  for try in $(seq 1 45); do
+    if [[ -f "$file" ]] && grep -q "\"language\":\"$LANG_CODE\"" "$file" && ! grep -q '"accounts":\[\]' "$file"; then return 0; fi
+    sleep 2
+  done
+  warn "    the watch has no $LANG_CODE data from the phone after 90 s — the shots may be empty"
+}
+
 # Open one screen and photograph it.
 wscreen() {
   wanted "$1" || return 0
@@ -216,7 +239,7 @@ capture_watch() {
   xcrun simctl launch "$PHONE" "$APP_ID" $(lang_launch_args "$LANG_CODE") >/dev/null; sleep 4
 
   log "Watch · $LANG_CODE"
-  # The phone pushes the state on launch; one launch first so every screen below has it.
+  wait_watch_state
   wscreen keypad
   local screen
   for screen in categories tags history budgets status; do wscreen "$screen"; done

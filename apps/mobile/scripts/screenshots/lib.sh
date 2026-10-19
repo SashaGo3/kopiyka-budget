@@ -46,14 +46,34 @@ sim_udid() {
 }
 
 # Create the simulator if it does not exist; print its UDID.
+# The runtime identifier a simulator was created on (com.apple.CoreSimulator.SimRuntime.iOS-27-0).
+sim_runtime() {
+  xcrun simctl list devices -j | python3 -c '
+import json, sys
+udid = sys.argv[1]
+for runtime, devices in json.load(sys.stdin)["devices"].items():
+    if any(d["udid"] == udid for d in devices): print(runtime)
+' "$1"
+}
+
+# The pipeline's own simulators run the newest runtime this Xcode has: one made under an older Xcode
+# (iOS 26.5 when Xcode 27 arrived) is deleted and made again, so a new Xcode means screenshots of the
+# OS it ships. They hold nothing but demo data the seed step writes, and a recreated watch is paired
+# again by `ensure_pair`. SHOTS_KEEP_RUNTIME=1 keeps whatever runtime they are on.
 ensure_sim() {
-  local name="$1" type="$2" platform="$3" udid
+  local name="$1" type="$2" platform="$3" udid runtime
   udid="$(sim_udid "$name")"
+  runtime="$(latest_runtime "$platform")"
+  [[ -n "$runtime" ]] || die "No $platform simulator runtime installed (Xcode → Settings → Components)."
+  if [[ -n "$udid" && "${SHOTS_KEEP_RUNTIME:-}" != 1 && "$(sim_runtime "$udid")" != "$runtime" ]]; then
+    log "Replacing simulator \"$name\" ($(sim_runtime "$udid") → $runtime)"
+    xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
+    xcrun simctl delete "$udid" >/dev/null 2>&1 || die "could not delete \"$name\" ($udid)"
+    udid=""
+  fi
   if [[ -z "$udid" ]]; then
-    local runtime; runtime="$(latest_runtime "$platform")"
-    [[ -n "$runtime" ]] || die "No $platform simulator runtime installed (Xcode → Settings → Components)."
     log "Creating simulator \"$name\" ($type, $runtime)"
-    udid="$(xcrun simctl create "$name" "$type" "$runtime")"
+    udid="$(xcrun simctl create "$name" "$type" "$runtime")" || die "could not create \"$name\" — is $type available for $runtime?"
   fi
   echo "$udid"
 }

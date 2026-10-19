@@ -14,9 +14,10 @@ export const RECEIPT_SCANNER_ENABLED = false;
 export const AUTOMATION_MIN_IOS = 27;
 const iosVersion = Platform.OS === "ios" ? parseFloat(String(Platform.Version)) : 0;
 /**
- * The App Store screenshots are taken on a simulator older than iOS 27, and a slide selling the
- * automation should not carry the "needs iOS 27" warning. scripts/screenshots/run.sh sets this when
- * it builds; Expo inlines it into the bundle, so every other build reads it as unset.
+ * A build for the App Store screenshots (scripts/screenshots/run.sh sets it; Expo inlines it into the
+ * bundle, so every other build reads it as unset). It opens the link a capture launches it with
+ * (lib/launchLink.ts), shows no What's New, and keeps the automation's "needs iOS 27" warning off a
+ * slide selling it even on a simulator older than iOS 27.
  */
 export const SCREENSHOT_BUILD = process.env.EXPO_PUBLIC_SCREENSHOTS === "1";
 /** True on anything that could run the automation; an unreadable version is given the benefit of the doubt. */
