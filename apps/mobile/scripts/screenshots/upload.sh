@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Uploads the App Store listing with fastlane deliver, every language: the screenshots from
-# screenshots/Finals (iPhone 6.5", iPad 13", Apple Watch) in slide order, replacing whatever the
+# screenshots/Finals (iPhone 6.9" and 6.3", iPad 13", Apple Watch) in slide order, replacing whatever the
 # version had, and the text from screenshots/metadata (name, subtitle, description, keywords,
 # promotional text, what's new — written there by `bun run i18n` from packages/i18n/locales/*/store.json).
 #
@@ -11,7 +11,9 @@
 #
 # The web uploader places files in whatever order they finish uploading; deliver uploads them one
 # by one, sorted by file name, so the numbers in the names become the order on the store.
-# Nothing else is touched: no binary, no URLs or age rating, no submission for review.
+# Nothing else is touched: no binary, no URLs or age rating, no submission for review. Nor the
+# header and search results art in Finals/<lang>/creative: the API deliver uses has no place for
+# it, so it is dragged into App Store Connect by hand (the version → Header and Search Results).
 #
 # Login: an App Store Connect API key when apps/mobile/.env has ASC_KEY_PATH / ASC_KEY_ID /
 # ASC_ISSUER_ID (see .env.example), otherwise fastlane asks for your Apple ID and the 2FA code.
@@ -53,18 +55,18 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 # deliver wants one flat folder per App Store language and tells the devices apart by pixel size.
-# The prefixes keep the three sets from colliding (they share names like 01-log.png) and keep each
-# set's own numbering as its order.
+# The prefixes keep the sets from colliding (they share names like 01-log.png) and keep each set's
+# own numbering as its order. 1320×2868 lands in the 6.9" slot and 1206×2622 in the 6.3" one.
 for lang_dir in "$FINALS"/*/; do
   lang="$(basename "$lang_dir")"
   want_lang "$lang" || continue
   mkdir -p "$WORK/shots/$lang"
-  for set in iphone ipad watch; do
+  for set in iphone iphone-6.3 ipad watch; do
     for f in "$lang_dir$set"/*.png; do
       [[ -e "$f" ]] && cp "$f" "$WORK/shots/$lang/$set-$(basename "$f")"
     done
   done
-  echo "$lang: $(ls "$WORK/shots/$lang" | grep -c '^iphone-') iPhone, $(ls "$WORK/shots/$lang" | grep -c '^ipad-') iPad, $(ls "$WORK/shots/$lang" | grep -c '^watch-') watch"
+  echo "$lang: $(ls "$WORK/shots/$lang" | grep -c '^iphone-[0-9]') iPhone 6.9\", $(ls "$WORK/shots/$lang" | grep -c '^iphone-6.3-') iPhone 6.3\", $(ls "$WORK/shots/$lang" | grep -c '^ipad-') iPad, $(ls "$WORK/shots/$lang" | grep -c '^watch-') watch"
 done
 
 AUTH=()

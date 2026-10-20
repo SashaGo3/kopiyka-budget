@@ -23,6 +23,7 @@
  *   --contact-sheet    also write <out>/contact-sheet.png (the numbered ten)
  *   --contact-sheet=all  ...with the extras appended
  *   --no-bare          skip the transparent <out>/bare set (it is built by default)
+ *   --no-creative      skip the <out>/creative header and search results art
  *   --no-ipad          skip the <out>/ipad-13 set (it is built whenever raw/ipad exists)
  *   --keep-svg         leave the intermediate .svg files next to the PNGs (debugging)
  *   --help
@@ -35,9 +36,11 @@
  * Every path below is per language: <out> means <out>/<App Store language>, and the raw captures
  * are read from <raw>/<lang>.
  *
- * Output: <out>/iphone-6.9, <out>/iphone-6.5, <out>/iphone-6.5-1242 (the numbered App Store set),
- * <out>/ipad-13 (the same slides, laid out for the 13" iPad, from raw/ipad), <out>/extras/…
- * (unnumbered spares) and <out>/watch (raw screens, which is what watchOS wants).
+ * Output: <out>/iphone-6.9, <out>/iphone-6.3, <out>/iphone-6.5, <out>/iphone-6.5-1242 (the
+ * numbered App Store set), <out>/ipad-13 (the same slides, laid out for the 13" iPad, from
+ * raw/ipad), <out>/extras/… (unnumbered spares), <out>/watch (raw screens, which is what watchOS
+ * wants) and <out>/creative (the product page header and search results art, from shots.json's
+ * `creative`; `--no-creative` skips it).
  *
  * It also writes a fourth, non-App-Store set: <out>/bare/iphone/<id>.png, <out>/bare/ipad/<id>.png
  * and <out>/bare/watch/<id>.png — the capture inside Apple's bezel on a TRANSPARENT canvas, with
@@ -104,6 +107,7 @@ const CONTACT_SHEET = flag("contact-sheet", false); // true = the numbered set, 
 const KEEP_SVG = flag("keep-svg", false) === true;
 const IPAD = flag("no-ipad", false) !== true; // the 13" iPad set, on whenever raw/ipad has captures
 const BARE = flag("no-bare", false) !== true; // the transparent website set, on unless opted out
+const CREATIVE = flag("no-creative", false) !== true; // header + search results art, on unless opted out
 
 /* -------------------------------------------------------------------- design */
 
@@ -111,6 +115,9 @@ const BARE = flag("no-bare", false) !== true; // the transparent website set, on
  *  so type is laid out in the target coordinate space rather than resampled. */
 const IPHONE_SIZES = [
   { dir: "iphone-6.9", w: 1320, h: 2868, label: '6.9" (iPhone 17 Pro Max)' },
+  // "iPhone with Dynamic Island (medium display)": the one iPhone set App Store Connect requires
+  // since iOS 27. Laid out from the same 6.9" captures; the two screens are the same shape.
+  { dir: "iphone-6.3", w: 1206, h: 2622, label: '6.3" (iPhone 17 Pro / 17 / 18 Pro)' },
   { dir: "iphone-6.5", w: 1284, h: 2778, label: '6.5" (iPhone 14 Plus / 11 Pro Max)' },
   { dir: "iphone-6.5-1242", w: 1242, h: 2688, label: '6.5" legacy (iPhone 11 Pro Max / XS Max)' },
 ];
@@ -123,8 +130,8 @@ const IPAD_SIZES = [{ dir: "ipad-13", w: 2064, h: 2752, label: '13" (iPad Pro M4
 
 /** Sizes App Store Connect accepts for Apple Watch, newest first. */
 const WATCH_SIZES = [
-  { w: 422, h: 514, label: "Ultra 3 (49 mm)" },
-  { w: 416, h: 496, label: "Series 10 / 11 (46 mm)" },
+  { w: 422, h: 514, label: "Ultra 3 / 4 (49 mm)" },
+  { w: 416, h: 496, label: "Series 10–12 (46 mm)" },
   { w: 410, h: 502, label: "Ultra 2 (49 mm)" },
   { w: 396, h: 484, label: "Series 7–9 (45 mm)" },
   { w: 368, h: 448, label: "Series 4–6 / SE (44 mm)" },
@@ -910,19 +917,128 @@ function buildSlide({ shot, W, H, device = PHONE_DEVICE, phoneImg, watchImg, dev
   };
 }
 
+/* ---------------------------------------------------------- creative assets */
+
+/**
+ * The product page header and the search results art App Store Connect added with iOS 27
+ * ("Header and Search Results" on the version page). Not screenshots: wide images that are cropped
+ * differently on every device, so only the "Art Safe Area" is sure to be seen. The safe areas are
+ * the layers of that name in Apple's own Photoshop templates (developer.apple.com/app-store/
+ * asset-best-practices → Templates), read with `magick identify` — they are centred except the
+ * universal one, which sits above the middle. The 16:9 universal file is accepted in both places.
+ * No alpha, like every App Store image; deliver cannot upload these, so they go in by hand.
+ */
+const CREATIVE_SIZES = [
+  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, label: "product page header (21:9)" },
+  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, label: "search results (3:2)" },
+  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, label: "header or search results (16:9)" },
+];
+
+/**
+ * One row of devices across the whole canvas: the middle phone standing tallest in the safe area
+ * with the watch beside it (the two centred together, nothing covering a screen), the other phones
+ * stepping down towards both edges and running off them. No words: the safe area is a sixth of the
+ * header, and the app's name is printed beside the art anyway. `phones` is centre first, then
+ * right, left, right, left….
+ */
+function buildCreative({ size, phones, watchImg, frames, bg }) {
+  const { w: W, h: H, safe } = size;
+  const uid = `c-${W}x${H}`;
+  const dark = isDarkBg(bg);
+  const pw = safe.h * 1.3; // the phone's body width
+  const ph = phoneHeightFor(pw);
+  const gap = pw * 0.14;
+  const pitch = pw + gap;
+  const top = safe.y - ph * 0.04; // the top bezel may fall outside; the screen's header may not
+  const step = ph * 0.075;
+  const ww = watchImg ? pw * 0.62 : 0;
+  const wslot = watchImg ? ww + gap : 0; // the watch takes this much room right of the middle phone
+  const cx = safe.x + safe.w / 2 - wslot / 2; // the middle phone's centre
+
+  // Left edges outward from the middle until the canvas is covered; the right side starts past the
+  // watch. Drawn outermost first so each phone nearer the middle overlaps its neighbour's shadow.
+  const xOf = (i) => cx - pw / 2 + i * pitch + (i > 0 ? wslot : 0);
+  const slots = [{ i: 0 }];
+  for (let n = 1; xOf(-n) + pw > 0 || xOf(n) < W; n++) slots.push({ i: n }, { i: -n });
+  const body = [];
+  const defs = [];
+  slots
+    .map((slot, k) => ({ ...slot, img: phones[k % phones.length] }))
+    .sort((a, b) => Math.abs(b.i) - Math.abs(a.i))
+    .forEach(({ i, img }) => {
+      const y = top + Math.abs(i) * step;
+      body.push(phone({ uid: `${uid}-p${i}`, x: xOf(i), y, w: pw, href: img.href, frameHref: frames.phone, imgW: img.w, imgH: img.h }).svg);
+    });
+
+  if (watchImg) {
+    const probe = watchDevice({ uid: `${uid}-w`, x: 0, y: 0, w: ww, href: watchImg.href, frameHref: frames.watch, imgW: watchImg.w, imgH: watchImg.h });
+    const wx = cx + pw / 2 + gap;
+    const wy = safe.y + safe.h / 2 - probe.h / 2;
+    const wd = watchDevice({ uid: `${uid}-w`, x: wx, y: wy, w: ww, href: watchImg.href, frameHref: frames.watch, imgW: watchImg.w, imgH: watchImg.h });
+    if (wd.defs) defs.push(wd.defs);
+    body.push(wd.svg);
+  }
+
+  // A warm light behind the middle phone, so the eye lands in the safe area on every crop.
+  const glow = dark ? BRAND.gold : "#FFFFFF";
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>${defs.join("")}
+    <linearGradient id="g-bg-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${shade(bg, dark ? 0.06 : 0.03)}"/>
+      <stop offset="1" stop-color="${shade(bg, dark ? -0.25 : -0.06)}"/>
+    </linearGradient>
+    <radialGradient id="g-glow-${uid}" cx="${cx}" cy="${safe.y + safe.h / 2}" r="${(safe.w * 0.9).toFixed(2)}" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="${glow}" stop-opacity="${dark ? 0.22 : 0.7}"/>
+      <stop offset="1" stop-color="${glow}" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="f-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="${(pw * 0.03).toFixed(2)}"/>
+    </filter>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#g-bg-${uid})"/>
+  <rect width="${W}" height="${H}" fill="url(#g-glow-${uid})"/>
+  ${body.join("\n  ")}
+</svg>`;
+}
+
 /* ------------------------------------------------------------------- raster */
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "kopiyka-frame-"));
 
 function rasterize(svg, { W, H, out, bg, tag }) {
   const svgPath = KEEP_SVG ? out.replace(/\.png$/, ".svg") : path.join(TMP, `${tag}.svg`);
-  fs.writeFileSync(svgPath, svg);
+  const assets = externalize(svg, svgPath, tag);
+  fs.writeFileSync(svgPath, assets.svg);
   const rawPng = path.join(TMP, `${tag}.png`);
   execFileSync(RSVG, ["-w", String(W), "-h", String(H), "-b", bg, "--format", "png", "-o", rawPng, svgPath], { stdio: "pipe" });
   // App Store Connect rejects PNGs that carry an alpha channel.
   execFileSync(MAGICK, [rawPng, "-background", bg, "-flatten", "-alpha", "off", "-colorspace", "sRGB", "-strip", out], { stdio: "pipe" });
   fs.rmSync(rawPng, { force: true });
   if (!KEEP_SVG) fs.rmSync(svgPath, { force: true });
+  for (const f of assets.files) fs.rmSync(f, { force: true });
+}
+
+/**
+ * librsvg's XML parser gives up past ~10 MB of attribute text, and a canvas with several phones
+ * repeats the bezel's data URI in every one of them. So an SVG that big gets each distinct embedded
+ * PNG written once beside it and referenced by a relative name (librsvg only loads files from the
+ * SVG's own directory). Small SVGs — every slide — are written as they are.
+ */
+function externalize(svg, svgPath, tag) {
+  if (svg.length < 8e6) return { svg, files: [] };
+  const names = new Map();
+  const files = [];
+  const out = svg.replace(/data:image\/png;base64,[A-Za-z0-9+/=]+/g, (uri) => {
+    if (!names.has(uri)) {
+      const name = `${tag}-asset-${names.size}.png`;
+      const file = path.join(path.dirname(svgPath), name);
+      fs.writeFileSync(file, Buffer.from(uri.slice(uri.indexOf(",") + 1), "base64"));
+      names.set(uri, name);
+      files.push(file);
+    }
+    return names.get(uri);
+  });
+  return { svg: out, files };
 }
 
 /** The bare set is the one output that must KEEP its alpha, so it never goes near -flatten. */
@@ -1183,6 +1299,42 @@ function frameLanguage(shotList, lang) {
   }
 
   if (BARE) renderBare();
+
+  /* --------------------------------------------------- creative assets */
+  // Unnumbered and never part of an --only run: they show several captures at once.
+  const creative = shots.creative;
+  if (CREATIVE && creative && !ONLY_SET) {
+    const themeOf = new Map([...(shots.iphone || []), ...(shots.extras || [])].map((s) => [s.id, s.theme]));
+    const phones = [];
+    for (const entry of creative.phones || []) {
+      const { id, theme = themeOf.get(entry) } = typeof entry === "string" ? { id: entry } : entry;
+      const rawFile = path.join(RAW_DIR, "iphone", theme === "dark" ? "dark" : "light", `${id}.png`);
+      if (!fs.existsSync(rawFile)) {
+        warnings.push(`creative: missing raw ${short(rawFile)}, left out`);
+        continue;
+      }
+      const { w, h } = readPngSize(rawFile);
+      phones.push({ href: dataUri(rawFile), w, h });
+    }
+    const watchImg = creative.watch ? loadWatch(creative.watch) : null;
+    if (creative.watch && !watchImg) warnings.push(`creative: missing raw watch shot "${creative.watch}", drawn without it`);
+    if (!phones.length) {
+      warnings.push("creative assets skipped: none of their phone captures exist");
+    } else {
+      const outDir = path.join(OUT_DIR, "creative");
+      fs.mkdirSync(outDir, { recursive: true });
+      console.log("");
+      const bg = creative.bg || BRAND.ink;
+      for (const size of CREATIVE_SIZES) {
+        const svg = buildCreative({ size, phones, watchImg, frames, bg });
+        const out = path.join(outDir, `${size.file}.png`);
+        rasterize(svg, { W: size.w, H: size.h, out, bg, tag: `creative-${size.file}` });
+        const v = verify(out, size.w, size.h);
+        console.log(`${v.ok ? "ok  " : "BAD "} creative/${size.file}.png  ${v.detail}  -> ${size.label}`);
+        if (!v.ok) warnings.push(`${out} is ${v.detail}`);
+      }
+    }
+  }
 
   /* ----------------------------------------------------- contact sheet */
   if (CONTACT_SHEET) {

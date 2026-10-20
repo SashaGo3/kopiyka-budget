@@ -17,11 +17,15 @@ language has its own folder, named with App Store Connect's code for it (`en` �
 
 | Folder | Size | Upload as |
 |---|---|---|
-| `iphone-6.9/` | 1320 × 2868 | iPhone 6.9" display (required) |
+| `iphone-6.9/` | 1320 × 2868 | iPhone with Dynamic Island (large display), 6.9" |
+| `iphone-6.3/` | 1206 × 2622 | iPhone with Dynamic Island (medium display), 6.3" — **the one iPhone set App Store Connect requires** since iOS 27; laid out from the 6.9" captures (the screens are the same shape) |
 | `iphone-6.5/` | 1284 × 2778 | iPhone 6.5" display (App Store Connect accepts 1284 × 2778 or 1242 × 2688 here) |
 | `iphone-6.5-1242/` | 1242 × 2688 | the same slides at the other accepted 6.5" size |
 | `ipad-13/` | 2064 × 2752 | iPad 13" display (required as long as the build is offered on iPad) |
-| `watch/` | 422 × 514 | Apple Watch Ultra 3 (raw screen, no frame — what Apple wants for watchOS) |
+| `watch/` | 422 × 514 | Apple Watch Ultra 3 / Ultra 4 (raw screen, no frame — what Apple wants for watchOS) |
+| `creative/header-21x9.png` | 3840 × 1646 | product page header |
+| `creative/search-results-3x2.png` | 3840 × 2560 | search results |
+| `creative/universal-16x9.png` | 5244 × 2950 | either of the two (App Store Connect takes the 16:9 file in both places) |
 | `bare/iphone/` | 1470 × 3000 | **not for the App Store** — the capture in Apple's bezel on a transparent canvas, no headline, no background |
 | `bare/watch/` | 600 × 960 | the same for the watch, band faded out at both ends |
 | `contact-sheet.png` | — | all iPhone slides in a row, for a quick look |
@@ -29,8 +33,26 @@ language has its own folder, named with App Store Connect's code for it (`en` �
 Raw captures are per language too: `screenshots/raw/<lang>/{iphone,ipad,watch}/…`.
 
 **What to upload** is gathered after every `--frame` into `screenshots/Finals/<App Store language>/`
-— `iphone/` (the 6.5" set), `ipad/` (13") and `watch/` — rebuilt from scratch each time, so it
-holds the current slides and nothing else. It is a copy of the folders above, so it is gitignored.
+— `iphone/` (the 6.9" set), `iphone-6.3/`, `ipad/` (13"), `watch/` and `creative/` — rebuilt from
+scratch each time, so it holds the current slides and nothing else. It is a copy of the folders
+above, so it is gitignored. App Store Connect scales every other iPhone from the two iPhone sets
+(6.5" from 6.9", 6.1" from 6.3", and so on down). `bun run screenshots:upload` sends everything but
+`creative/`, which deliver has no API for: drag it into the version's **Header and Search Results**
+tab by hand.
+
+### Header and search results art
+
+`creative/` is the art App Store Connect added with iOS 27 above the product page and in search
+results. It is cropped differently on every device, so only the "Art Safe Area" of Apple's templates
+(developer.apple.com/app-store/asset-best-practices → Templates; the layer of that name, read with
+`magick identify`) is sure to be seen — `CREATIVE_SIZES` in `frame.mjs` carries those boxes. The
+layout is a row of phones with the watch beside the middle one, which is centred in the safe area;
+the rest run off the edges. Which captures, in what order, and the background are `creative` in
+`shots.json`. There are no words on it: the safe area is a sixth of the header, and the store prints
+the app's name beside it. `--no-creative` skips it.
+
+**iPhone Duo** (1398 × 2034 outer, 2007 × 2853 inner) has no set yet: Xcode 27.0 has no simulator
+for it. App Store Connect requires it only for builds made with the iOS 27.1 SDK, from April 2027.
 
 `bare/` exists for the promo site in `site/`, which supplies its own words: a slide's baked-in
 headline next to the page's own heading is the same sentence printed twice. It is the only output

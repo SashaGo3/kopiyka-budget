@@ -17,7 +17,8 @@
 # for --frame runs, to frame.mjs (e.g. --contact-sheet).
 #
 # Output, per language (en → en-US, uk → uk, the App Store's codes):
-# screenshots/appstore/<store lang>/iphone-6.9/*.png, iphone-6.5/*.png, ipad-13/*.png, watch/*.png
+# screenshots/appstore/<store lang>/iphone-6.9/*.png, iphone-6.3/*.png, iphone-6.5/*.png, ipad-13/*.png,
+# watch/*.png, creative/*.png
 # (+ contact-sheet.png); raw captures in screenshots/raw/<lang>/; the listing text to paste is in
 # screenshots/metadata/<store lang>/ (written by `bun run i18n`, not by this). Uses its own simulators
 # ("Kopiyka Shots" / "Kopiyka Shots Watch" / "Kopiyka Shots iPad"); yours are never touched.
@@ -100,18 +101,23 @@ if has frame; then
   node scripts/screenshots/frame.mjs --lang "$(IFS=,; echo "${LANGS[*]}")" "${FRAME_ARGS[@]+"${FRAME_ARGS[@]}"}"
 fi
 
-# Finals/<store lang>/{iphone,ipad,watch}: exactly what gets uploaded, nothing else — the 6.5"
-# iPhone set (App Store Connect scales it for every other iPhone), the 13" iPad set and the watch.
+# Finals/<store lang>/: exactly what gets uploaded, nothing else. Since iOS 27 App Store Connect
+# requires "iPhone with Dynamic Island (medium display)" and scales every iPhone from two sets:
+# iphone/ (6.9", the large display) and iphone-6.3/ (the medium one). Then the 13" iPad set, the
+# watch, and creative/ — the product page header and search results art, which deliver cannot
+# upload (App Store Connect → the version → Header and Search Results, by hand).
 # Rebuilt from scratch each time so a slide dropped from shots.json cannot linger here.
 if has frame; then
   for code in "${LANGS[@]}"; do
     store="$(node scripts/screenshots/langs.mjs "$code" | awk '{print $2}')"
     src="screenshots/appstore/$store"; dst="screenshots/Finals/$store"
     [[ -d "$src" ]] || continue
-    rm -rf "$dst"; mkdir -p "$dst/iphone" "$dst/ipad" "$dst/watch"
-    cp "$src"/iphone-6.5/*.png "$dst/iphone/" 2>/dev/null || true
+    rm -rf "$dst"; mkdir -p "$dst/iphone" "$dst/iphone-6.3" "$dst/ipad" "$dst/watch" "$dst/creative"
+    cp "$src"/iphone-6.9/*.png "$dst/iphone/" 2>/dev/null || true
+    cp "$src"/iphone-6.3/*.png "$dst/iphone-6.3/" 2>/dev/null || true
     cp "$src"/ipad-13/*.png "$dst/ipad/" 2>/dev/null || true
     cp "$src"/watch/*.png "$dst/watch/" 2>/dev/null || true
-    log "Finals: $dst ($(ls "$dst/iphone" | wc -l | tr -d ' ') iPhone, $(ls "$dst/ipad" | wc -l | tr -d ' ') iPad, $(ls "$dst/watch" | wc -l | tr -d ' ') watch)"
+    cp "$src"/creative/*.png "$dst/creative/" 2>/dev/null || true
+    log "Finals: $dst ($(ls "$dst/iphone" | wc -l | tr -d ' ') iPhone 6.9\", $(ls "$dst/iphone-6.3" | wc -l | tr -d ' ') iPhone 6.3\", $(ls "$dst/ipad" | wc -l | tr -d ' ') iPad, $(ls "$dst/watch" | wc -l | tr -d ' ') watch, $(ls "$dst/creative" | wc -l | tr -d ' ') creative)"
   done
 fi
