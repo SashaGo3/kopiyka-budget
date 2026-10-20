@@ -3,8 +3,8 @@
  * payment itself says — the shop (`payee`) and the bank's notification text (`bank_note`, DATA.md
  * rule 20) — goes underneath. With no note of yours, the payment's own words take the title.
  *
- * Nothing is said twice: when the bank's text already starts with the shop ("WROCLAWSKIE
- * PRZEDSIEBI, WROCLAW" for "WROCLAWSKIE PRZEDSIEBI"), that line stands for both, and a note that is
+ * Nothing is said twice: when the bank's text already starts with the shop ("CITY PARKING SP,
+ * LISBOA" for "CITY PARKING SP"), that line stands for both, and a note that is
  * just the shop's name (older entries were seeded that way) counts as no note at all.
  */
 export interface RowText {
