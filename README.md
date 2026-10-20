@@ -19,12 +19,31 @@ Free, open source, no account, no server, no trackers.
   <img src="site/img/shots/insights.webp" width="19%" alt="Insights you choose" />
 </p>
 
-## Why
+## Why this exists
 
-I have logged every expense for more than ten years. The last app I paid for had become slow, its
-bugs went unfixed and its Apple Watch app stopped working. I have built React Native apps for a
-living for years, so I made the one I wanted: free, local, quick, and pleasant to use. Your data is
-yours, and you can take it anywhere in a minute.
+Not knowing where I stood with money used to drive me mad, so more than ten years ago I started
+logging every expense. The first app I used was free when I began and later became a one-time
+purchase, which was fair enough. The habit stuck, but the app never gave me any real insight into
+where my money was actually going.
+
+For the last two years I used a budgeting app that cost quite a lot as a one-time purchase. The
+developer had gone quiet on known bugs, and the “native” iOS app had become painfully slow: I would
+wait a couple of seconds before I could type a single digit. The last straw was the Apple Watch app,
+which simply stopped working. The explanation was “Apple”, while everything else on the watch worked
+fine. It was not Apple.
+
+I have worked as a React Native developer for many years, shipping apps that real people use every
+day, and I had wanted for a long time to give something back to open source and fix this one
+problem: a free, local app for tracking money that is actually good and pleasant to use. I finally
+had the reason.
+
+I am happy with how it turned out. The Shortcuts automation alone removes almost all of the friction
+I used to have, and tags paired with categories feel so obvious that I still wonder why nobody did
+it. I built this with care and I intend to keep looking after it. Your data is yours, so if I ever
+get hit by a bus you can take it anywhere in a minute. I am not planning on that: I have a daughter,
+Olivia, on the way, and a lot to live for.
+
+Thank you for trying Kopiyka.
 
 ## What it does
 
