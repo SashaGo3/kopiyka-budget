@@ -120,6 +120,9 @@ struct KPWatchState: Codable {
   struct Tx: Codable, Identifiable, Hashable {
     let id: String; let date: String; let title: String; let sub: String; let amount: Double; let currency: String
     let account_id: String; let category_id: String?; let tag_ids: [String]; let pending: Bool; let transfer: Bool
+    /// For the watch's entry page; absent in older state files and on a row the watch just wrote.
+    var note: String? = nil; var bank_note: String? = nil; var place: String? = nil; var lat: Double? = nil; var lon: Double? = nil
+    var entered_amount: Double? = nil; var entered_currency: String? = nil
     var day: String { String(date.prefix(10)) }
     var time: String { date.count >= 16 ? String(date[date.index(date.startIndex, offsetBy: 11)..<date.index(date.startIndex, offsetBy: 16)]) : "" }
   }
@@ -674,7 +677,8 @@ enum KPStore {
     var stmt: OpaquePointer?
     let bankNote = hasColumn(db, "transactions", "bank_note") ? "t.bank_note" : "NULL"
     let sql = """
-      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets), \(bankNote)
+      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets), \(bankNote),
+        t.place, t.lat, t.lon, t.entered_amount_minor, t.entered_currency
       FROM transactions t JOIN accounts a ON a.id=t.account_id
       LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
       WHERE t.deleted=0 ORDER BY t.date DESC, t.updated_at DESC LIMIT ?
@@ -696,8 +700,14 @@ enum KPStore {
       let title = transfer ? L10n.Common.transfer : (payee ?? note ?? cat ?? parent ?? L10n.Common.uncategorized)
       let catLabel: String? = transfer ? nil : (cat != nil ? (parent != nil ? "\(parent!) › \(cat!)" : cat) : parent)
       let sub = [KPPreset.name(str(stmt, 4), preset: "account"), catLabel].compactMap { $0 }.joined(separator: " · ")
+      let real = { (i: Int32) in sqlite3_column_type(stmt, i) == SQLITE_NULL ? nil : sqlite3_column_double(stmt, i) }
+      let capped = { (s: String?) in s.map { String($0.trimmingCharacters(in: .whitespacesAndNewlines).prefix(300)) }.flatMap { $0.isEmpty ? nil : $0 } }
+      let enteredCurrency = opt(stmt, 21).flatMap { $0 == currency ? nil : $0 }
+      let enteredMinor = sqlite3_column_type(stmt, 20) == SQLITE_NULL ? nil : Int(sqlite3_column_int64(stmt, 20))
       out.append(.init(id: str(stmt, 0), date: str(stmt, 1), title: title, sub: sub, amount: KPFormat.major(Int(sqlite3_column_int64(stmt, 2)), currency), currency: currency,
-                       account_id: str(stmt, 5), category_id: opt(stmt, 6), tag_ids: jsonIds(str(stmt, 11)), pending: sqlite3_column_int(stmt, 12) == 1, transfer: transfer))
+                       account_id: str(stmt, 5), category_id: opt(stmt, 6), tag_ids: jsonIds(str(stmt, 11)), pending: sqlite3_column_int(stmt, 12) == 1, transfer: transfer,
+                       note: capped(notes), bank_note: capped(opt(stmt, 16)), place: opt(stmt, 17).flatMap { $0.isEmpty ? nil : $0 }, lat: real(18), lon: real(19),
+                       entered_amount: enteredCurrency != nil ? enteredMinor.map { KPFormat.major($0, enteredCurrency!) } : nil, entered_currency: enteredMinor != nil ? enteredCurrency : nil))
     }
     return out
   }

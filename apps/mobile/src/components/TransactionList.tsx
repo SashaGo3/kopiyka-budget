@@ -12,6 +12,7 @@ import { C, S, themed } from "@/constants/theme";
 import { dayLabel, humanDayTime, timeLabel } from "@/lib/dates";
 import { t } from "@/i18n";
 import { catName, acctName } from "@/lib/names";
+import { rowText } from "@/lib/rowText";
 
 interface TagRef { id: string; name: string; color: string | null }
 
@@ -247,23 +248,21 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
   tx: TxRow; tags: TagRef[]; flat: boolean; showAccount: boolean; first: boolean; last: boolean; mode: SelectMode; a11ySelecting: boolean; on: boolean; onToggle?: (id: string) => void; onSelect?: (id: string) => void;
 }) {
   const slide = useSelectStyles(mode.progress);
-  // Your note, and what the bank's notification said (`bank_note`, v23): two texts, never one.
-  // An older entry may hold the payee in its note (the entry sheet used to seed it), which says nothing twice.
-  const note = tx.notes?.trim() && tx.notes.trim() !== tx.payee ? tx.notes.trim() : null;
-  const bank = tx.bank_note?.trim() || null;
+  // Your note titles the row; the shop and the bank's words (`bank_note`, v23) go underneath, and
+  // take the title themselves only when there is no note (lib/rowText.ts).
+  const text = rowText(tx);
   const names = rowCategory(tx);
   // A debt payment has no category: what it pays is the debt, and it says whose.
   const debtLabel = tx.debt_id ? t("transactions.list.debt", { person: tx.debt_person ?? "?" }) : null;
-  // The shop names the row; without one, your note does, and without that the bank's words.
-  const titled = tx.transfer_id ? note : tx.payee ? null : note ?? bank;
-  const firstOf = (s: string | null) => s?.split("\n")[0] ?? "";
-  const title = tx.transfer_id ? (note ? t("transactions.list.transferNote", { note: firstOf(note) }) : t("transactions.list.transfer")) : tx.payee || firstOf(titled) || names.name || names.parent || debtLabel || t("common.noCategory");
-  // Under the title, at most two lines of each: whatever of it the title has not already said.
-  const under = (s: string | null) => { if (!s) return null; const lines = s.split("\n"); return (s === titled ? lines.slice(1) : lines).slice(0, 2).join("\n") || null; };
-  const noteSub = under(note), bankSub = under(bank);
+  // A transfer is titled as one, with your note in it; the payment's words still go underneath.
+  const note = tx.notes?.trim() && tx.notes.trim() !== tx.payee ? tx.notes.trim() : null;
+  const title = tx.transfer_id
+    ? (note ? t("transactions.list.transferNote", { note: note.split("\n")[0] ?? "" }) : t("transactions.list.transfer"))
+    : text.title || names.name || names.parent || debtLabel || t("common.noCategory");
+  const noteSub = text.noteSub;
+  const bankSub = tx.transfer_id && !note ? (text.title ? [text.title, text.detailSub].filter(Boolean).join("\n") : null) : text.detailSub;
   const category = names.name ? (names.parent ? `${names.parent} › ${names.name}` : names.name) : names.parent ?? debtLabel;
   const sub = [showAccount ? acctName({ name: tx.account_name }) : null, category].filter(Boolean).join(" · ");
-  const payeeLine = tx.payee && tx.payee !== title ? tx.payee : null;
   const crossCurrency = tx.entered_currency && tx.entered_currency !== tx.currency && tx.entered_amount_minor != null
     ? (tx.exchange_rate
       ? t("transactions.list.enteredRate", { amount: formatMinor(Math.abs(tx.entered_amount_minor), tx.entered_currency), currency: tx.entered_currency, rate: decimalText(tx.exchange_rate, 2) })
@@ -292,12 +291,11 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
         <Animated.View style={[styles.check, slide.check]} pointerEvents="none" importantForAccessibility="no-hide-descendants"><SymbolView name={on ? "checkmark.circle.fill" : "circle"} size={26} tintColor={on ? C.tint : C.tertiary} /></Animated.View>
       </View>
       <View style={styles.text}>
-        <Text style={styles.title} numberOfLines={1}>{title}</Text>
+        <Text style={styles.title} numberOfLines={2}>{title}</Text>
         {noteSub ? <Text style={styles.sub} numberOfLines={2}>{noteSub}</Text> : null}
         {bankSub ? <Text style={styles.sub} numberOfLines={2}>{bankSub}</Text> : null}
         <Text style={styles.sub}>{sub}</Text>
         {tags.length ? <View style={styles.tagRow}>{tags.map((tag) => <TagPill key={tag.id} name={tag.name} color={tag.color} />)}</View> : null}
-        {payeeLine ? <Text style={styles.sub}>{payeeLine}</Text> : null}
         {crossCurrency ? <Text style={styles.sub}>{crossCurrency}</Text> : null}
         {returned ? <Text style={[styles.sub, { color: C.green as unknown as string }]}>↩ {returned}</Text> : null}
         {tx.place || tx.lat != null ? <Text style={styles.sub}>📍 {tx.place ?? `${tx.lat!.toFixed(4)}, ${tx.lon!.toFixed(4)}`}</Text> : null}

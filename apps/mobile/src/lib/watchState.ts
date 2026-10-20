@@ -21,6 +21,10 @@ export interface WatchTag { id: string; name: string; color: string | null; cate
 export interface WatchTx {
   id: string; date: string; title: string; sub: string; amount: number; currency: string;
   account_id: string; category_id: string | null; tag_ids: string[]; pending: boolean; transfer: boolean;
+  /** For the entry's page; each left out when empty. `note` is the person's, `bank_note` the bank's (DATA.md rule 20). */
+  note?: string; bank_note?: string; place?: string; lat?: number; lon?: number;
+  /** What the bank charged in another currency (DATA.md rule 6), in major units. */
+  entered_amount?: number; entered_currency?: string;
 }
 
 export interface WatchState {
@@ -105,9 +109,11 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     id: string; date: string; amount_minor: number; currency: string; account_name: string; account_id: string;
     category_id: string | null; cat_name: string | null; cat_preset: string | null; parent_name: string | null; parent_preset: string | null; notes: string | null; bank_note: string | null; payee: string | null;
     tag_ids: string; pending: number; transfer_id: string | null; debt_id: string | null; debt_person: string | null;
+    place: string | null; lat: number | null; lon: number | null; entered_amount_minor: number | null; entered_currency: string | null;
   }>(
     `SELECT t.id, t.date, t.amount_minor, a.currency, a.name AS account_name, t.account_id, t.category_id,
-       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.bank_note, t.payee, t.tag_ids, t.pending, t.transfer_id, t.debt_id, d.person AS debt_person
+       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.bank_note, t.payee, t.tag_ids, t.pending, t.transfer_id, t.debt_id, d.person AS debt_person,
+       t.place, t.lat, t.lon, t.entered_amount_minor, t.entered_currency
      FROM transactions t JOIN accounts a ON a.id=t.account_id
      LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id LEFT JOIN debts d ON d.id=t.debt_id
      WHERE t.deleted=0 ORDER BY t.date DESC, t.updated_at DESC LIMIT 50`,
@@ -124,6 +130,11 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     return {
       id: r.id, date: r.date, title, sub, amount: fromMinor(r.amount_minor, r.currency), currency: r.currency,
       account_id: r.account_id, category_id: r.category_id, tag_ids: jsonIds(r.tag_ids), pending: r.pending === 1, transfer,
+      // Capped: the whole state travels in one WatchConnectivity message.
+      note: r.notes?.trim().slice(0, 300) || undefined, bank_note: r.bank_note?.trim().slice(0, 300) || undefined,
+      place: r.place || undefined, lat: r.lat ?? undefined, lon: r.lon ?? undefined,
+      ...(r.entered_amount_minor != null && r.entered_currency && r.entered_currency !== r.currency
+        ? { entered_amount: fromMinor(r.entered_amount_minor, r.entered_currency), entered_currency: r.entered_currency } : {}),
     };
   });
 

@@ -383,6 +383,11 @@ Three things are load-bearing:
 
 - **The key is forever.** It is what the rows hold on every phone; renaming a key in `presetData.ts`
   silently stops every category made from it being translated. Add new keys; never rename one.
+- **So is every name a preset was ever seeded under.** Changing a preset's translation (1.1.0 made
+  «Комунальні» «Комуналка» and «Платежі» «Обовʼязкові платежі») would turn every row still holding
+  the old name into the user's own. The old name goes on `FORMER_PRESET_NAMES`
+  (`packages/core/src/presetData.ts`) and `KPPreset.former` (`native/KPLocale.swift`), where it
+  counts as the preset's own.
 - **The v18 backfill matches by name, once per arrival.** Categories an earlier build seeded in
   English are tagged when their name and folder match the English preset exactly — by the v18
   migration, and again by `importBackup` after it writes the categories of a file from before v18
@@ -498,8 +503,10 @@ picker offers it under "No category" only while a debt is open, and choosing it 
 What a bank notification said about a payment — the reference, the shop and town as printed, the
 original currency — is `transactions.bank_note` (v23), written by the notification automation and
 never edited in the app. `notes` is the person's own, and starts empty on an automation row. The
-entry sheet shows the bank's text read-only under the note; the list is titled by the payee, then
-the note, then the bank's text, with whatever of them the title did not use underneath.
+entry sheet shows the bank's text read-only under the note; a list row is titled by your note, with
+the payment's own words — the shop and the bank's text — underneath, and by those words only when
+there is no note (`rowText`, `apps/mobile/src/lib/rowText.ts`). A bank line that already starts with
+the shop's name stands for both, so nothing is printed twice.
 
 - **Matching reads all three.** `payeeHistory`, recurring detection and `claimRecurring` look for a
   name in `payee`, `notes` and `bank_note`, so a row is still recognised by the bank's words after a

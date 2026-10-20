@@ -70,6 +70,14 @@ final class WatchSession: NSObject, ObservableObject {
     let tags: [TagChip]
     let queued: Bool
     let pending: Bool
+    // Only the entry's page shows these.
+    let account: String
+    let original: String?
+    let note: String?
+    let bankNote: String?
+    let place: String?
+    let lat: Double?
+    let lon: Double?
     var accessibility: String {
       [title, amount, queued ? L10n.Watch.History.a11yWaiting : path, pending ? L10n.Watch.History.a11yPending : nil,
        tags.isEmpty ? nil : L10n.Watch.History.a11yTags(list: tags.map(\.name).joined(separator: ", ")),
@@ -89,6 +97,7 @@ final class WatchSession: NSObject, ObservableObject {
   func rebuildHistory() {
     let cats = Dictionary(state.categories.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     let tagsById = Dictionary(state.tags.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    let accounts = Dictionary(state.accounts.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
     let queuedIds = Set(queued.map(\.id))
     let recent = Self.recentDays()
     var days: [HistoryDay] = []
@@ -101,7 +110,9 @@ final class WatchSession: NSObject, ObservableObject {
         id: t.id, transfer: t.transfer, icon: c?.icon ?? "tag.fill", color: c?.color, title: t.title,
         amount: KPFormat.money(t.amount, t.currency), income: t.amount > 0, time: t.time,
         path: isQueued ? L10n.Watch.History.waiting : path,
-        tags: t.tag_ids.compactMap { tagsById[$0] }.map { TagChip(id: $0.id, name: $0.name, color: $0.color) }, queued: isQueued, pending: t.pending)
+        tags: t.tag_ids.compactMap { tagsById[$0] }.map { TagChip(id: $0.id, name: $0.name, color: $0.color) }, queued: isQueued, pending: t.pending,
+        account: accounts[t.account_id] ?? "", original: t.entered_amount.flatMap { a in t.entered_currency.map { KPFormat.money(a, $0) } },
+        note: t.note, bankNote: t.bank_note, place: t.place, lat: t.lat, lon: t.lon)
       if days.last?.id == t.day { days[days.count - 1].rows.append(item) }
       else { days.append(HistoryDay(id: t.day, label: KPFormat.dayLabel(t.day), rows: [item])) }
     }
@@ -179,12 +190,6 @@ final class WatchSession: NSObject, ObservableObject {
     return row
   }
 
-  func delete(_ id: String) {
-    if let i = queued.firstIndex(where: { $0.id == id }) { queued.remove(at: i); saveQueued() }
-    state.history.removeAll { $0.id == id }
-    deliver(["type": "delete", "id": id], savedText: L10n.Watch.Write.deleted, queuedText: L10n.Watch.Write.deleteQueued)
-  }
-
   /// Take a pending entry out of the Pending queue, filed under `category` first when one is chosen.
   /// The row reads as approved at once; the phone's reply (or its next state) has the final word.
   func approve(_ id: String, category: KPWatchState.Category? = nil) {
@@ -192,7 +197,8 @@ final class WatchSession: NSObject, ObservableObject {
     state.history = state.history.map { r in
       guard r.id == id else { return r }
       return KPWatchState.Tx(id: r.id, date: r.date, title: r.title, sub: r.sub, amount: r.amount, currency: r.currency, account_id: r.account_id,
-                             category_id: r.transfer ? r.category_id : category?.id ?? r.category_id, tag_ids: r.tag_ids, pending: false, transfer: r.transfer)
+                             category_id: r.transfer ? r.category_id : category?.id ?? r.category_id, tag_ids: r.tag_ids, pending: false, transfer: r.transfer,
+                             note: r.note, bank_note: r.bank_note, place: r.place, lat: r.lat, lon: r.lon, entered_amount: r.entered_amount, entered_currency: r.entered_currency)
     }
     var m: [String: Any] = ["type": "approve", "id": id]
     if let c = category { m["category_id"] = c.id }

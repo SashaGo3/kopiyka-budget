@@ -134,13 +134,15 @@
   <string name="native_watch_history_a11yPending">pending</string>
   <string name="native_watch_history_a11yTags">tags %1$s</string>
   <string name="native_watch_history_a11yWaiting">waiting for iPhone</string>
+  <string name="native_watch_history_account">Account</string>
   <string name="native_watch_history_approve">Approve</string>
   <string name="native_watch_history_approveAs">Set category</string>
-  <string name="native_watch_history_cancel">Cancel</string>
-  <string name="native_watch_history_delete">Delete</string>
-  <string name="native_watch_history_deleteConfirm">Delete this entry?</string>
+  <string name="native_watch_history_bankNote">From the bank</string>
   <string name="native_watch_history_empty">Nothing today or yesterday.</string>
+  <string name="native_watch_history_note">Note</string>
+  <string name="native_watch_history_original">Charged</string>
   <string name="native_watch_history_pendingLabel">Pending</string>
+  <string name="native_watch_history_place">Place</string>
   <string name="native_watch_history_transferOnPhone">Change transfers on your iPhone.</string>
   <string name="native_watch_history_waiting">Waiting for iPhone</string>
   <string name="native_watch_intent_description">Open Kopiyka on the watch ready to type an amount.</string>
@@ -188,8 +190,6 @@
   <string name="native_watch_write_addedFor">Added %1$s for %2$s</string>
   <string name="native_watch_write_approveQueued">Approval queued for iPhone</string>
   <string name="native_watch_write_approved">Approved</string>
-  <string name="native_watch_write_deleteQueued">Delete queued for iPhone</string>
-  <string name="native_watch_write_deleted">Deleted</string>
   <string name="native_watch_write_failed">iPhone could not save</string>
   <string name="native_watch_write_failedWhy">iPhone could not save: %1$s</string>
   <string name="native_watch_write_notPaired">Not paired with an iPhone</string>

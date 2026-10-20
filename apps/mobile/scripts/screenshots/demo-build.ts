@@ -48,6 +48,8 @@ interface Profile {
   joint: { groceries: number; household: number };
   rules: { rent: number; icloud: number; spotify: number; netflix: number; gym: number; phone: number; energy: number; salary: number; carInsurance: number };
   pending: number;
+  /** Last period's insurance and tax payments: not paid yet this period, so the checklist has lines left. */
+  unpaid: { insurance: number; taxes: number };
   debts: [number, number, number, number, number, number, number, number];
   /** Rates written for every day the card was used, and for today only. */
   rates: { daily: [string, string, number][]; today: [string, string, number][] };
@@ -89,6 +91,7 @@ const PROFILES: Record<string, Profile> = {
     trip: { budget: 600, train: 32.6, hotel: 189, dinner: 38, tasting: 11, dinner2: 41, lunch: 14.5, extra: null },
     joint: { groceries: 64.5, household: 118 },
     rules: { rent: -1250, icloud: -2.99, spotify: -10.99, netflix: -15.99, gym: -39.9, phone: -29.9, energy: -62, salary: 3850, carInsurance: -380 },
+    unpaid: { insurance: -48.5, taxes: -95 },
     pending: 7.4,
     debts: [120, 350, 45, 80, 25, 200, 60, 40],
     rates: { daily: [["USD", "EUR", 0.92], ["EUR", "USD", 1.087]], today: [["EUR", "PLN", 4.28]] },
@@ -127,6 +130,7 @@ const PROFILES: Record<string, Profile> = {
     trip: { budget: 15000, train: 1250, hotel: 5400, dinner: 850, tasting: 150, dinner2: 980, lunch: 280, extra: 35 },
     joint: { groceries: 1450, household: 2300 },
     rules: { rent: -18000, icloud: -39, spotify: -149, netflix: -299, gym: -1200, phone: -250, energy: -2400, salary: 55000, carInsurance: -2600 },
+    unpaid: { insurance: -650, taxes: -1700 },
     pending: 186,
     debts: [3500, 12000, 45, 1600, 600, 4500, 1500, 900],
     rates: { daily: [["USD", "UAH", 41.3], ["UAH", "USD", 0.0242]], today: [["EUR", "UAH", 48.2]] },
@@ -644,7 +648,13 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
   createInsight(db, { kind: "free_money", sort: 0 });
   createInsight(db, { kind: "days_to_salary", sort: 1 });
   createInsight(db, { kind: "savings_goal", sort: 2, params: JSON.stringify({ title: m("goal"), account_id: savings.id, target_minor: toMinor(P.goal, CUR) }) });
-  createInsight(db, { kind: "checklist", sort: 3, params: JSON.stringify({ category_ids: [catRent.id, catUtilities.id, catInternet.id] }) });
+  // Insurance and taxes were paid last period and not yet in this one, so the checklist shows two
+  // lines still to pay, with the amounts last period's payments suggest, rather than "All paid".
+  const catInsurance = preset("bills.insurance");
+  const catTaxes = preset("bills.taxes");
+  createTransaction(db, { account_id: main.id, date: ts(addPeriod(PERIOD_START, "daily", -9), 10, 15), amount_minor: toMinor(P.unpaid.insurance, CUR), category_id: catInsurance.id });
+  createTransaction(db, { account_id: main.id, date: ts(addPeriod(PERIOD_START, "daily", -4), 11, 40), amount_minor: toMinor(P.unpaid.taxes, CUR), category_id: catTaxes.id });
+  createInsight(db, { kind: "checklist", sort: 3, params: JSON.stringify({ category_ids: [catRent.id, catUtilities.id, catInternet.id, catInsurance.id, catTaxes.id] }) });
   // Subscriptions per year counts every recurring expense unless told otherwise; rent, energy and
   // the car insurance are bills, and with them in the card shows a year's rent as "subscriptions".
   const ruleId = (key: RuleSpec["key"]) => rules[ruleSpecs.findIndex((r) => r.key === key)]!.id;

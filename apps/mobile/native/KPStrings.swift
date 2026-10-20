@@ -394,24 +394,33 @@ enum L10n {
       /// VoiceOver, inside a row's description.
       /// "waiting for iPhone"
       static var a11yWaiting: String { KPL.string("native.watch.history.a11yWaiting") }
+      /// Small label above the account's name on an entry's page.
+      /// "Account"
+      static var account: String { KPL.string("native.watch.history.account") }
       /// Button on a pending entry: take it out of the Pending queue as it is.
       /// "Approve"
       static var approve: String { KPL.string("native.watch.history.approve") }
       /// Button on a pending entry: choose its category, which approves it.
       /// "Set category"
       static var approveAs: String { KPL.string("native.watch.history.approveAs") }
-      /// "Cancel"
-      static var cancel: String { KPL.string("native.watch.history.cancel") }
-      /// "Delete"
-      static var delete: String { KPL.string("native.watch.history.delete") }
-      /// "Delete this entry?"
-      static var deleteConfirm: String { KPL.string("native.watch.history.deleteConfirm") }
+      /// Small label above what the bank notification said about the payment.
+      /// "From the bank"
+      static var bankNote: String { KPL.string("native.watch.history.bankNote") }
       /// "Nothing today or yesterday."
       static var empty: String { KPL.string("native.watch.history.empty") }
+      /// Small label above the person's own note on an entry's page.
+      /// "Note"
+      static var note: String { KPL.string("native.watch.history.note") }
+      /// Small label above the amount in the currency the bank charged, when the account is in another one.
+      /// "Charged"
+      static var original: String { KPL.string("native.watch.history.original") }
       /// Under the amount on an entry still in the Pending queue.
       /// "Pending"
       static var pendingLabel: String { KPL.string("native.watch.history.pendingLabel") }
-      /// On a transfer, which the watch can neither approve with a category nor delete.
+      /// Small label above where the entry was made, over a small map.
+      /// "Place"
+      static var place: String { KPL.string("native.watch.history.place") }
+      /// On a transfer, which the watch cannot approve with a category.
       /// "Change transfers on your iPhone."
       static var transferOnPhone: String { KPL.string("native.watch.history.transferOnPhone") }
       /// Under an entry the phone has not received yet.
@@ -511,10 +520,6 @@ enum L10n {
       static var approveQueued: String { KPL.string("native.watch.write.approveQueued") }
       /// "Approved"
       static var approved: String { KPL.string("native.watch.write.approved") }
-      /// "Delete queued for iPhone"
-      static var deleteQueued: String { KPL.string("native.watch.write.deleteQueued") }
-      /// "Deleted"
-      static var deleted: String { KPL.string("native.watch.write.deleted") }
       /// "iPhone could not save"
       static var failed: String { KPL.string("native.watch.write.failed") }
       /// reason is one of the native.writes messages, in the phone's app language.

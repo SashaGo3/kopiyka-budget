@@ -12,6 +12,7 @@ import { C, S, themed } from "@/constants/theme";
 import { timeLabel } from "@/lib/dates";
 import { Trans, t } from "@/i18n";
 import { acctName } from "@/lib/names";
+import { rowText } from "@/lib/rowText";
 
 /**
  * The queue behind the Pending row on Transactions: everything a Shortcut automation or a receipt
@@ -134,7 +135,8 @@ function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete
   if (tx.transfer_id) return <PendingTransfer tx={tx} partner={partner} first={first} last={last} onApprove={onApprove} onDelete={onDelete} />;
   const names = rowCategory(tx);
   const catLabel = names.name ?? names.parent;
-  const title = tx.payee || tx.notes?.split("\n")[0] || tx.bank_note?.split("\n")[0] || catLabel || t("common.noCategory");
+  // Your note first, else the payment's own words — the same rule as the transaction list (lib/rowText.ts).
+  const title = rowText(tx).title || catLabel || t("common.noCategory");
   // Where it came from matters here more than anywhere else in the app: a Shortcut authorisation
   // and a scanned receipt are both guesses in different ways, and that's worth a glance before approving.
   const origin = sourceLabel(tx.source);
@@ -150,7 +152,7 @@ function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete
         onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: tx.id } })}>
         <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={34} />
         <View style={styles.text}>
-          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          <Text style={styles.title} numberOfLines={2}>{title}</Text>
           <Text style={styles.sub} numberOfLines={1}>{where}{where ? " · " : ""}{timeLabel(tx.date)}</Text>
         </View>
         <AmountPill minor={tx.amount_minor} currency={tx.currency} />

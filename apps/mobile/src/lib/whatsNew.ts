@@ -54,7 +54,10 @@ export function markWhatsNewSeen(): void {
  * never told you anything, so here is the current release".
  */
 export function maybeShowWhatsNew(): void {
-  if (asked || needsOnboarding()) return;
+  if (asked) return;
+  // Stamped here, while onboarding is still on screen: left unstamped, the next launch — onboarding
+  // done, nothing ever seen — read as an update and opened this version's notes for a new user.
+  if (needsOnboarding()) { markWhatsNewSeen(); return; }
   const pending = pendingReleases();
   // A screenshot build tells nobody anything: the notes would be the picture of every slide that
   // opens without a link to land on (the iPad's do, behind iPadOS's "Open in …" prompt).

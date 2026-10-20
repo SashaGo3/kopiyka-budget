@@ -36,9 +36,12 @@ Raw captures are per language too: `screenshots/raw/<lang>/{iphone,ipad,watch}/�
 — `iphone/` (the 6.9" set), `iphone-6.3/`, `ipad/` (13"), `watch/` and `creative/` — rebuilt from
 scratch each time, so it holds the current slides and nothing else. It is a copy of the folders
 above, so it is gitignored. App Store Connect scales every other iPhone from the two iPhone sets
-(6.5" from 6.9", 6.1" from 6.3", and so on down). `bun run screenshots:upload` sends everything but
-`creative/`, which deliver has no API for: drag it into the version's **Header and Search Results**
-tab by hand.
+(6.5" from 6.9", 6.1" from 6.3", and so on down). `bun run screenshots:upload` sends all of it:
+fastlane deliver the screenshots and the text, then `scripts/screenshots/upload-creative.mjs` the
+header and search results files from `creative/`, through the App Store Connect API's asset library
+(deliver has no support for it yet), replacing whatever art the version had. It needs the API key in
+`.env`; `--no-creative` skips it, and `node scripts/screenshots/upload-creative.mjs --dry-run` shows
+what it would do without changing anything. The art goes to App Review with the version.
 
 ### Header and search results art
 
@@ -46,10 +49,16 @@ tab by hand.
 results. It is cropped differently on every device, so only the "Art Safe Area" of Apple's templates
 (developer.apple.com/app-store/asset-best-practices → Templates; the layer of that name, read with
 `magick identify`) is sure to be seen — `CREATIVE_SIZES` in `frame.mjs` carries those boxes. The
-layout is a row of phones with the watch beside the middle one, which is centred in the safe area;
-the rest run off the edges. Which captures, in what order, and the background are `creative` in
-`shots.json`. There are no words on it: the safe area is a sixth of the header, and the store prints
-the app's name beside it. `--no-creative` skips it.
+layout is three phones, each in one of the app's colour themes and standing on a band of that
+theme's colour, with a short label above each, left-aligned with its phone and all on one line, and
+the watch in front of the first. The group spans the middle of the canvas (`stage` in
+`CREATIVE_SIZES`), well past the safe area: an iPhone shows the header's full height and about two
+thirds of its width, and art kept to the safe area looked like a thumbnail there. Regenerate just
+this art with `bun run screenshots -- --creative` (seconds, from the existing captures) and upload
+just it with `bun run screenshots:upload -- --creative-only`. Which captures, themes and labels (`store.creative.*` in
+`store.json`) are `creative` in `shots.json`. The themed captures are shot apart from the rest:
+`scripts/screenshots/capture.sh --phone --lang <code> --palette <theme id> --theme light|dark --only <id>`
+writes `raw/<lang>/iphone/<theme id>-<light|dark>/` and puts the simulator back on the default theme. `--no-creative` skips it.
 
 **iPhone Duo** (1398 × 2034 outer, 2007 × 2853 inner) has no set yet: Xcode 27.0 has no simulator
 for it. App Store Connect requires it only for builds made with the iOS 27.1 SDK, from April 2027.
@@ -125,7 +134,7 @@ and only wraps further if a line does not fit, so break a translation where it r
 runs about a quarter longer than English. Every set has its devices start on one line, below its
 tallest caption, so one overlong caption pushes every slide of that language down: keep titles to
 three lines and subtitles to three. After editing, `bun run i18n`, then
-`bun run screenshots -- --frame --lang uk --contact-sheet` and look at the sheet.
+`bun run screenshots -- --frame --lang uk` and look at the contact sheet.
 
 `frame.mjs` wraps by measuring text with built-in advance widths, because it has no font library.
 The Latin ones are Helvetica's AFM metrics; Cyrillic (U+0400–U+04FF, plus ʼ « » – — ₴ №) came from

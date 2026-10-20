@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 import WatchKit
 
@@ -413,7 +414,6 @@ struct PageBar: ViewModifier {
 struct HistoryPage: View {
   @EnvironmentObject var session: WatchSession
   @EnvironmentObject var nav: WatchNav
-  @State private var deleting: String?
 
   var body: some View {
     List {
@@ -433,10 +433,6 @@ struct HistoryPage: View {
           ForEach(d.rows) { item in
             Button { nav.path.append(QuickStep.entry(item.id)) } label: { HistoryRow(item: item).equatable() }
               .buttonStyle(.plain)
-              // Delete is not offered on a transfer: half of one would leave the other account wrong.
-              .swipeActions(edge: .trailing) {
-                if !item.transfer { Button(role: .destructive) { deleting = item.id } label: { Label(L10n.Watch.History.delete, systemImage: "trash") } }
-              }
               .swipeActions(edge: .leading) {
                 if item.pending && !item.queued {
                   Button { session.approve(item.id); WKInterfaceDevice.current().play(.success) } label: { Label(L10n.Watch.History.approve, systemImage: "checkmark") }.tint(.green)
@@ -448,21 +444,17 @@ struct HistoryPage: View {
     }
     .modifier(PageBar())
     .refreshable { session.refresh(force: true) }
-    .confirmationDialog(L10n.Watch.History.deleteConfirm, isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
-      Button(L10n.Watch.History.delete, role: .destructive) { if let id = deleting { session.delete(id) }; deleting = nil }
-      Button(L10n.Watch.History.cancel, role: .cancel) { deleting = nil }
-    }
   }
 }
 
 /// One entry from History: what it is, and what can be done about it from the wrist — approving a
-/// pending one (as it is, or filed under a category first), and deleting one typed by mistake.
+/// pending one (as it is, or filed under a category first). Below that, the rest of what the phone
+/// knows about it: account, the bank's original amount, notes and the place. Nothing is deleted from the watch.
 struct EntryView: View {
   let id: String
   @EnvironmentObject var session: WatchSession
   @EnvironmentObject var nav: WatchNav
   @Environment(\.dismiss) private var dismiss
-  @State private var confirming = false
 
   var item: WatchSession.HistoryItem? { session.historyDays.lazy.flatMap(\.rows).first { $0.id == id } }
 
@@ -493,18 +485,46 @@ struct EntryView: View {
         }
         if item.transfer {
           Text(L10n.Watch.History.transferOnPhone).font(.footnote).foregroundStyle(.secondary).listRowBackground(Color.clear)
-        } else {
-          Button(role: .destructive) { confirming = true } label: { Label(L10n.Watch.History.delete, systemImage: "trash") }
+        }
+        if !item.account.isEmpty { EntryDetail(label: L10n.Watch.History.account, value: item.account) }
+        if let o = item.original { EntryDetail(label: L10n.Watch.History.original, value: o) }
+        // The title is already the note's first line when there is no payee; repeating it alone says nothing.
+        if let n = item.note, n != item.title { EntryDetail(label: L10n.Watch.History.note, value: n) }
+        if let b = item.bankNote, b != item.title { EntryDetail(label: L10n.Watch.History.bankNote, value: b) }
+        if item.place != nil || (item.lat != nil && item.lon != nil) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.Watch.History.place).font(.caption2).foregroundStyle(.secondary)
+            if let p = item.place { Text(p).font(.footnote) }
+            if let lat = item.lat, let lon = item.lon {
+              let at = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+              // Not interactive: dragging it would fight the list's scrolling.
+              Map(initialPosition: .camera(MapCamera(centerCoordinate: at, distance: 800)), interactionModes: []) {
+                Marker(item.place ?? "", systemImage: item.icon, coordinate: at).tint(item.color.map(Color.hex) ?? .gray)
+              }
+              .frame(height: 110)
+              .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+          }
+          .accessibilityElement(children: .combine)
         }
       }
-      .confirmationDialog(L10n.Watch.History.deleteConfirm, isPresented: $confirming) {
-        Button(L10n.Watch.History.delete, role: .destructive) { session.delete(id); dismiss() }
-        Button(L10n.Watch.History.cancel, role: .cancel) {}
-      }
     } else {
-      // Gone (deleted, or past yesterday) while open: nothing left to act on.
+      // Gone (deleted on the phone, or past yesterday) while open: nothing left to act on.
       Color.clear.onAppear { dismiss() }
     }
+  }
+}
+
+/// A small label over a value, on an entry's page.
+struct EntryDetail: View {
+  let label: String
+  let value: String
+  var body: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(label).font(.caption2).foregroundStyle(.secondary)
+      Text(value).font(.footnote)
+    }
+    .accessibilityElement(children: .combine)
   }
 }
 

@@ -31,7 +31,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ ще завантажується з iCloud. Спробуйте трохи згодом."
+            "value" : "%1$@ ще завантажується з iCloud. Спробуй трохи згодом."
           }
         }
       }
@@ -103,7 +103,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "залишилось %1$@"
+            "value" : "лишилося %1$@"
           }
         }
       }
@@ -121,7 +121,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@: залишилось %2$@"
+            "value" : "%1$@: лишилося %2$@"
           }
         }
       }
@@ -337,7 +337,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Запишіть витрату чи дохід: сума, потім категорія, потім теги — не відкриваючи застосунок."
+            "value" : "Запиши витрату чи дохід: сума, потім категорія, потім теги — не відкриваючи застосунок."
           }
         }
       }
@@ -658,7 +658,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Рахунків ще немає. Спершу відкрийте Копійку на iPhone."
+            "value" : "Рахунків ще немає. Спершу відкрий Копійку на iPhone."
           }
         }
       }
@@ -900,7 +900,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Необовʼязково. Додайте перед цією дією «Отримати поточне розташування» і передайте сюди її результат, щоб запис памʼятав, де ви платили."
+            "value" : "Необовʼязково. Додай перед цією дією «Отримати поточне розташування» і передай сюди її результат, щоб запис памʼятав, де була оплата."
           }
         }
       }
@@ -968,7 +968,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Очікує перевірки"
+            "value" : "Чекає на перевірку"
           }
         }
       }
@@ -1071,7 +1071,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Записує платіж зі сповіщення банку або Wallet. Для автоматизації «Коли я отримую сповіщення» у Швидких командах: передайте її змінну «Сповіщення»."
+            "value" : "Записує платіж зі сповіщення банку або Wallet. Для автоматизації «Коли я отримую сповіщення» у Швидких командах: передай її змінну «Сповіщення»."
           }
         }
       }
@@ -1088,7 +1088,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "У Копійці ще немає рахунків. Спершу відкрийте її на iPhone."
+            "value" : "У Копійці ще немає рахунків. Спершу відкрий її на iPhone."
           }
         }
       }
@@ -1106,7 +1106,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ — немає курсу, вкажіть суму"
+            "value" : "%1$@ — немає курсу, вкажи суму"
           }
         }
       }
@@ -1123,7 +1123,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Копійка не змогла зберегти цей платіж. Відкрийте застосунок і додайте його вручну."
+            "value" : "Копійка не змогла зберегти цей платіж. Відкрий застосунок і додай його вручну."
           }
         }
       }
@@ -1141,7 +1141,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Копійка не змогла зберегти цей платіж: %1$@. Відкрийте застосунок і додайте його вручну."
+            "value" : "Копійка не змогла зберегти цей платіж: %1$@. Відкрий застосунок і додай його вручну."
           }
         }
       }
@@ -1194,7 +1194,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не вдалося зберегти. Відкрийте Копійку і спробуйте ще раз."
+            "value" : "Не вдалося зберегти. Відкрий Копійку і спробуй ще раз."
           }
         }
       }
@@ -1212,7 +1212,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не вдалося зберегти: %1$@. Відкрийте Копійку і спробуйте ще раз."
+            "value" : "Не вдалося зберегти: %1$@. Відкрий Копійку і спробуй ще раз."
           }
         }
       }
@@ -1230,7 +1230,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сфотографуйте чек: сума, магазин, позиції й категорія розпізнаються на пристрої, а витрата зберігається як така, що очікує перевірки."
+            "value" : "Сфотографуй чек: сума, магазин, позиції й категорія розпізнаються на пристрої, а витрата зберігається й чекає на перевірку."
           }
         }
       }
@@ -1283,7 +1283,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Операція очікує перевірки — підтвердьте її в Копійці."
+            "value" : "Транзакція чекає на перевірку — підтверди її в Копійці."
           }
         }
       }
@@ -1422,7 +1422,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Розпізнано як «%1$@» — торкніться, щоб перевірити."
+            "value" : "Розпізнано як «%1$@» — натисни, щоб перевірити."
           }
         }
       }
@@ -1458,7 +1458,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Схоже на «%1$@» — торкніться, щоб підтвердити чи змінити."
+            "value" : "Схоже на «%1$@» — натисни, щоб підтвердити чи змінити."
           }
         }
       }
@@ -1530,7 +1530,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Другу сторону додано за вас — торкніться, щоб перевірити."
+            "value" : "Другу сторону додано за тебе — натисни, щоб перевірити."
           }
         }
       }
@@ -1548,7 +1548,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Обидві сторони знайдено — торкніться, щоб перевірити."
+            "value" : "Обидві сторони знайдено — натисни, щоб перевірити."
           }
         }
       }
@@ -1584,7 +1584,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не розпізнано — торкніться, щоб вибрати категорію."
+            "value" : "Не розпізнано — натисни, щоб обрати категорію."
           }
         }
       }
@@ -1690,7 +1690,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Текст не знайдено. Тримайте телефон рівно над чеком при доброму освітленні."
+            "value" : "Текст не знайдено. Тримай телефон рівно над чеком при доброму освітленні."
           }
         }
       }
@@ -1849,7 +1849,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@, залишилось %2$@"
+            "value" : "%1$@, лишилося %2$@"
           }
         }
       }
@@ -1866,7 +1866,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Бюджетів ще немає. Додайте на iPhone."
+            "value" : "Бюджетів ще немає. Додай на iPhone."
           }
         }
       }
@@ -1902,7 +1902,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подія %1$@, залишилось %2$@, %3$@"
+            "value" : "Подія %1$@, лишилося %2$@, %3$@"
           }
         }
       }
@@ -1956,7 +1956,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подорож %1$@, залишилось %2$@, %3$@"
+            "value" : "Подорож %1$@, лишилося %2$@, %3$@"
           }
         }
       }
@@ -2045,7 +2045,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вибрати цю категорію"
+            "value" : "Обрати цю категорію"
           }
         }
       }
@@ -2152,7 +2152,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Надиктуйте або напишіть нотатку до запису"
+            "value" : "Надиктуй або напиши нотатку до запису"
           }
         }
       }
@@ -2241,7 +2241,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Далі: виберіть категорію"
+            "value" : "Далі: обери категорію"
           }
         }
       }
@@ -2259,7 +2259,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Введіть суму на клавіатурі нижче"
+            "value" : "Введи суму на клавіатурі нижче"
           }
         }
       }
@@ -2336,6 +2336,24 @@
         }
       }
     },
+    "native.watch.history.account" : {
+      "comment" : "Small label above the account's name on an entry's page.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рахунок"
+          }
+        }
+      }
+    },
     "native.watch.history.approve" : {
       "comment" : "Button on a pending entry: take it out of the Pending queue as it is.",
       "extractionState" : "manual",
@@ -2367,58 +2385,25 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вибрати категорію"
+            "value" : "Обрати категорію"
           }
         }
       }
     },
-    "native.watch.history.cancel" : {
+    "native.watch.history.bankNote" : {
+      "comment" : "Small label above what the bank notification said about the payment.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cancel"
+            "value" : "From the bank"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скасувати"
-          }
-        }
-      }
-    },
-    "native.watch.history.delete" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Видалити"
-          }
-        }
-      }
-    },
-    "native.watch.history.deleteConfirm" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete this entry?"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Видалити цей запис?"
+            "value" : "Від банку"
           }
         }
       }
@@ -2436,6 +2421,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сьогодні й учора нічого."
+          }
+        }
+      }
+    },
+    "native.watch.history.note" : {
+      "comment" : "Small label above the person's own note on an entry's page.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нотатка"
+          }
+        }
+      }
+    },
+    "native.watch.history.original" : {
+      "comment" : "Small label above the amount in the currency the bank charged, when the account is in another one.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charged"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Списано"
           }
         }
       }
@@ -2458,8 +2479,26 @@
         }
       }
     },
+    "native.watch.history.place" : {
+      "comment" : "Small label above where the entry was made, over a small map.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Розташування"
+          }
+        }
+      }
+    },
     "native.watch.history.transferOnPhone" : {
-      "comment" : "On a transfer, which the watch can neither approve with a category nor delete.",
+      "comment" : "On a transfer, which the watch cannot approve with a category.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -2471,7 +2510,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Перекази змінюйте на iPhone."
+            "value" : "Перекази змінюй на iPhone."
           }
         }
       }
@@ -2835,7 +2874,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Відкрийте Копійку на iPhone для синхронізації."
+            "value" : "Відкрий Копійку на iPhone для синхронізації."
           }
         }
       }
@@ -2886,7 +2925,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%1$lld тега"
+                  "value" : "%1$lld тегу"
                 }
               }
             }
@@ -2924,7 +2963,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Торкніться двічі, щоб додати тег"
+            "value" : "Натисни двічі, щоб додати тег"
           }
         }
       }
@@ -2941,7 +2980,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Торкніться двічі, щоб прибрати тег"
+            "value" : "Натисни двічі, щоб прибрати тег"
           }
         }
       }
@@ -2977,7 +3016,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "не вибрано"
+            "value" : "не обрано"
           }
         }
       }
@@ -3063,7 +3102,7 @@
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Зберегти · %1$lld тега"
+                  "value" : "Зберегти · %1$lld тегу"
                 }
               }
             }
@@ -3102,7 +3141,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "вибрано"
+            "value" : "обрано"
           }
         }
       }
@@ -3230,40 +3269,6 @@
         }
       }
     },
-    "native.watch.write.deleteQueued" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete queued for iPhone"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Видалення в черзі для iPhone"
-          }
-        }
-      }
-    },
-    "native.watch.write.deleted" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deleted"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Видалено"
-          }
-        }
-      }
-    },
     "native.watch.write.failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3365,7 +3370,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скільки залишилось у кожному бюджеті цього місяця."
+            "value" : "Скільки лишилося в кожному бюджеті цього місяця."
           }
         }
       }
@@ -3418,7 +3423,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скільки залишилось у вашому першому бюджеті."
+            "value" : "Скільки лишилося у твоєму першому бюджеті."
           }
         }
       }
@@ -3454,7 +3459,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Баланси всіх ваших рахунків."
+            "value" : "Баланси всіх твоїх рахунків."
           }
         }
       }
@@ -3472,7 +3477,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Чисті активи"
+            "value" : "Статки"
           }
         }
       }
@@ -3489,7 +3494,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Чисті активи"
+            "value" : "Статки"
           }
         }
       }
@@ -3661,7 +3666,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Платежі"
+            "value" : "Обовʼязкові платежі"
           }
         }
       }
@@ -4358,7 +4363,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Комунальні"
+            "value" : "Комуналка"
           }
         }
       }

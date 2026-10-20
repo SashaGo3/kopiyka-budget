@@ -157,6 +157,13 @@ seed_demo() { # <code> <udid…>
   done
 }
 
+# The demo data again, in a colour theme (`graphite` is the default, and puts it back).
+seed_demo_theme() { # <code> <udid> <theme id>
+  log "Seeding the $1 demo data into $2 in the $3 theme"
+  (cd "$MOBILE_DIR" && bun scripts/screenshots/demo-data.ts --lang="$1" --apply="$2" --theme="$3") >/dev/null \
+    || die "demo-data.ts --lang=$1 --apply=$2 --theme=$3 failed"
+}
+
 # Pixel size of a PNG, "WxH".
 png_size() {
   python3 - "$1" <<'PY'

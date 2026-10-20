@@ -9,6 +9,8 @@
 #   scripts/screenshots/capture.sh --no-ipad       # everything except the iPad
 #   scripts/screenshots/capture.sh --only log,budgets --theme dark
 #   scripts/screenshots/capture.sh --lang uk       # one language (default: all of them, in turn)
+#   scripts/screenshots/capture.sh --phone --palette siri --theme light --only log
+#                                                  # in a colour theme: raw/<lang>/iphone/siri-light/
 #
 # Languages: each one is shot over its own demo data (demo-data.ts --lang), with the app's meta
 # `language` and iOS's own language set to it. With one --lang the simulators are expected to hold
@@ -35,7 +37,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # SETTLE: seconds from launch to shot. On the iOS 27 simulators a launch onto a link is drawn about
 # 4 s in (3 was enough on iOS 26), later while the other simulators are busy, so 6.
 DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-6}"
-LANG_SPEC="all"; SEED=auto
+LANG_SPEC="all"; SEED=auto; PALETTE=""
 pick() { [[ $PICKED == 1 ]] || { DO_PHONE=0; DO_WATCH=0; DO_IPAD=0; PICKED=1; }; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -49,6 +51,7 @@ while [[ $# -gt 0 ]]; do
     --lang) shift; LANG_SPEC="$1" ;;
     --lang=*) LANG_SPEC="${1#--lang=}" ;;
     --seed) SEED=yes ;;
+    --palette) shift; PALETTE="$1" ;;
     --no-seed) SEED=no ;;
     -h|--help) sed -n 2,29p "$0"; exit 0 ;;
     *) die "unknown flag $1" ;;
@@ -118,7 +121,7 @@ cold() {
 }
 
 shoot() { # <id>
-  local out="$RAW_DIR/$KIND/$THEME/$1.png" size
+  local out="$RAW_DIR/$KIND/${PALETTE:+$PALETTE-}$THEME/$1.png" size
   mkdir -p "$(dirname "$out")"
   xcrun simctl io "$SIM" screenshot "$out" >/dev/null 2>&1
   size="$(png_size "$out")"
@@ -170,6 +173,8 @@ capture_ios() { # <udid> <name> <kind: iphone|ipad> <expected WxH> <radio: cellu
     boot_sim "$SIM"
   fi
   pretty_status_bar "$SIM" "$radio"
+  # A colour theme is meta `theme`, so it is set the way the demo data is: re-seeded, app closed.
+  [[ -n "$PALETTE" ]] && seed_demo_theme "$LANG_CODE" "$SIM" "$PALETTE"
   # One launch off-camera first. A simulator's first start of a fresh install takes far longer than
   # the settle time (a just-created iOS 27 simulator drew the launch skeleton into every light shot);
   # every launch after it is quick.
@@ -182,6 +187,8 @@ capture_ios() { # <udid> <name> <kind: iphone|ipad> <expected WxH> <radio: cellu
     for id in "$@"; do wanted "$id" && ios_shot "$id" || true; done
   done
   xcrun simctl ui "$SIM" appearance light >/dev/null 2>&1 || true
+  [[ -n "$PALETTE" ]] && seed_demo_theme "$LANG_CODE" "$SIM" graphite
+  true
 }
 
 capture_phone_ipad() {

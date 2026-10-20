@@ -55,11 +55,13 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { languages } from "./langs.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS_DIR = path.resolve(HERE, "../../screenshots");
+// The app's colour themes, for the creative art's bands (Node 23.6+ reads the TypeScript as it is).
+const { THEMES } = await import(pathToFileURL(path.resolve(HERE, "../../../../packages/core/src/themes.ts")).href);
 const FRAMES_DIR = path.join(SHOTS_DIR, "frames");
 
 /* ------------------------------------------------------------------ binaries */
@@ -105,8 +107,9 @@ const ONLY = flag("only", null);
 const ONLY_SET = ONLY && ONLY !== true ? new Set(String(ONLY).split(",").map((s) => s.trim()).filter(Boolean)) : null;
 const CONTACT_SHEET = flag("contact-sheet", false); // true = the numbered set, "all" = + extras
 const KEEP_SVG = flag("keep-svg", false) === true;
-const IPAD = flag("no-ipad", false) !== true; // the 13" iPad set, on whenever raw/ipad has captures
-const BARE = flag("no-bare", false) !== true; // the transparent website set, on unless opted out
+const CREATIVE_ONLY = flag("creative-only", false) === true; // that art and nothing else
+const IPAD = flag("no-ipad", false) !== true && !CREATIVE_ONLY; // the 13" iPad set, on whenever raw/ipad has captures
+const BARE = flag("no-bare", false) !== true && !CREATIVE_ONLY; // the transparent website set, on unless opted out
 const CREATIVE = flag("no-creative", false) !== true; // header + search results art, on unless opted out
 
 /* -------------------------------------------------------------------- design */
@@ -325,7 +328,8 @@ function localize(shots, code, warnings) {
     for (const f of CAPTION_FIELDS) if (out[f] !== undefined) out[f] = text(out[f]);
     return out;
   });
-  return { ...shots, iphone: each(shots.iphone), extras: each(shots.extras), watch: each(shots.watch) };
+  const creative = shots.creative && { ...shots.creative, features: each(shots.creative.features) };
+  return { ...shots, iphone: each(shots.iphone), extras: each(shots.extras), watch: each(shots.watch), creative };
 }
 
 /* --------------------------------------------------------------------- color */
@@ -349,6 +353,13 @@ function shade(hex, amount) {
   const mix = (c) => Math.round(amount > 0 ? c + (255 - c) * amount : c * (1 + amount));
   const out = (mix((n >> 16) & 255) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255);
   return `#${out.toString(16).padStart(6, "0")}`;
+}
+
+/** `a` moved `t` of the way towards `b`. */
+function blend(a, b, t) {
+  const rgb = (h) => { const n = parseInt(h.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const [x, y] = [rgb(a), rgb(b)];
+  return `#${x.map((c, i) => Math.round(c + (y[i] - c) * t).toString(16).padStart(2, "0")).join("")}`;
 }
 
 /* ---------------------------------------------------------------- device art */
@@ -929,74 +940,88 @@ function buildSlide({ shot, W, H, device = PHONE_DEVICE, phoneImg, watchImg, dev
  * No alpha, like every App Store image; deliver cannot upload these, so they go in by hand.
  */
 const CREATIVE_SIZES = [
-  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, label: "product page header (21:9)" },
-  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, label: "search results (3:2)" },
-  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, label: "header or search results (16:9)" },
+  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, stage: { w: 0.6, top: 0.27 }, label: "product page header (21:9)" },
+  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, stage: { w: 0.72, top: 0 }, label: "search results (3:2)" },
+  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, stage: { w: 0.6, top: 0.15 }, label: "header or search results (16:9)" },
 ];
 
 /**
- * One row of devices across the whole canvas: the middle phone standing tallest in the safe area
- * with the watch beside it (the two centred together, nothing covering a screen), the other phones
- * stepping down towards both edges and running off them. No words: the safe area is a sixth of the
- * header, and the app's name is printed beside the art anyway. `phones` is centre first, then
- * right, left, right, left….
+ * Three phones, each in one of the app's colour themes and standing on a band of that theme's own
+ * background, the bands meeting edge to edge across the whole canvas. Above each phone a short label,
+ * left-aligned with the phone, all three on one baseline in one size. A watch, if a feature has one,
+ * stands in front of its phone's lower left corner.
+ *
+ * The three take the middle of the canvas (`stage.w`, a fraction of its width), not just the safe
+ * area: an iPhone shows the header's full height and about two thirds of its width, and a group kept
+ * inside the safe area (a sixth of the header) read as a thumbnail there. The labels start
+ * `stage.top` of the way down the safe area — on the header, below the back and share buttons the
+ * product page draws over its top corners; the phones run on below, off the bottom edge if need be.
  */
-function buildCreative({ size, phones, watchImg, frames, bg }) {
+function buildCreative({ size, features }) {
   const { w: W, h: H, safe } = size;
   const uid = `c-${W}x${H}`;
-  const dark = isDarkBg(bg);
-  const pw = safe.h * 1.3; // the phone's body width
-  const ph = phoneHeightFor(pw);
-  const gap = pw * 0.14;
-  const pitch = pw + gap;
-  const top = safe.y - ph * 0.04; // the top bezel may fall outside; the screen's header may not
-  const step = ph * 0.075;
-  const ww = watchImg ? pw * 0.62 : 0;
-  const wslot = watchImg ? ww + gap : 0; // the watch takes this much room right of the middle phone
-  const cx = safe.x + safe.w / 2 - wslot / 2; // the middle phone's centre
+  const n = features.length;
+  const stage = { x: (W * (1 - size.stage.w)) / 2, w: W * size.stage.w };
+  const col = stage.w / n;
+  const pw = col * 0.74;
+  const maxW = col * 0.84;
+  // The widths table is Helvetica's; SF Pro, and its Cyrillic most of all, sets wider, so measure
+  // with room to spare rather than let a label run into the next band.
+  const track = (ts) => -ts * 0.015;
+  const measure = (x, ts) => textWidth(x, ts, true, track(ts)) * 1.12;
+  const flat = (t) => t.replace(/\s*\n\s*/g, " ");
+  // One line each when that still reads at a good size; otherwise two, the same size for all three.
+  const top = col * 0.1;
+  const fits = (ts, rows) => features.every((f) => {
+    const l = rows === 1 ? [flat(f.title)] : balancedWrap(f.title, maxW, ts, true, track(ts));
+    return l.length <= rows && l.every((x) => measure(x, ts) <= maxW);
+  });
+  const largest = (rows) => { let ts = top; while (!fits(ts, rows) && ts > 1) ts *= 0.97; return ts; };
+  const one = largest(1);
+  const rows = one >= top * 0.7 ? 1 : 2;
+  const ts = rows === 1 ? one : largest(2);
+  const lines = features.map((f) => (rows === 1 ? [flat(f.title)] : balancedWrap(f.title, maxW, ts, true, track(ts))));
+  const lineH = ts * 1.15;
+  const height = Math.max(...lines.map((l) => l.length));
+  const barH = Math.max(4, ts * 0.09);
+  const labelTop = safe.y + safe.h * size.stage.top;
+  const textTop = labelTop + barH + ts * 0.55;
+  const phoneTop = textTop + height * lineH + ts * 0.6;
 
-  // Left edges outward from the middle until the canvas is covered; the right side starts past the
-  // watch. Drawn outermost first so each phone nearer the middle overlaps its neighbour's shadow.
-  const xOf = (i) => cx - pw / 2 + i * pitch + (i > 0 ? wslot : 0);
-  const slots = [{ i: 0 }];
-  for (let n = 1; xOf(-n) + pw > 0 || xOf(n) < W; n++) slots.push({ i: n }, { i: -n });
-  const body = [];
   const defs = [];
-  slots
-    .map((slot, k) => ({ ...slot, img: phones[k % phones.length] }))
-    .sort((a, b) => Math.abs(b.i) - Math.abs(a.i))
-    .forEach(({ i, img }) => {
-      const y = top + Math.abs(i) * step;
-      body.push(phone({ uid: `${uid}-p${i}`, x: xOf(i), y, w: pw, href: img.href, frameHref: frames.phone, imgW: img.w, imgH: img.h }).svg);
+  const bands = [];
+  const body = [];
+  features.forEach((f, i) => {
+    const { bg, text, accent } = f.colors;
+    const dark = isDarkBg(bg);
+    const band = dark ? bg : blend(bg, accent, 0.14); // a light theme's background alone is too near the next one's
+    const x0 = i === 0 ? 0 : stage.x + col * i;
+    const x1 = i === n - 1 ? W : stage.x + col * (i + 1);
+    defs.push(`<linearGradient id="g-band-${uid}-${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(band, dark ? 0.05 : 0.03)}"/><stop offset="1" stop-color="${shade(band, dark ? -0.2 : -0.08)}"/></linearGradient>`);
+    bands.push(`<rect x="${x0.toFixed(2)}" y="0" width="${(x1 - x0).toFixed(2)}" height="${H}" fill="url(#g-band-${uid}-${i})"/>`);
+
+    const px = stage.x + col * (i + 0.5) - pw / 2;
+    body.push(`<rect x="${px.toFixed(2)}" y="${labelTop.toFixed(2)}" width="${(ts * 0.9).toFixed(2)}" height="${barH.toFixed(2)}" rx="${(barH / 2).toFixed(2)}" fill="${accent}"/>`);
+    lines[i].forEach((line, k) => {
+      const y = textTop + (k + 0.8) * lineH;
+      body.push(`<text x="${px.toFixed(2)}" y="${y.toFixed(2)}" font-family="${FONT}" font-size="${ts.toFixed(2)}" font-weight="700" letter-spacing="${track(ts).toFixed(2)}" fill="${text}">${esc(line)}</text>`);
     });
+    body.push(phone({ uid: `${uid}-p${i}`, x: px, y: phoneTop, w: pw, href: f.img.href, frameHref: f.frame, imgW: f.img.w, imgH: f.img.h }).svg);
+    if (f.watch) {
+      const ww = pw * 0.58;
+      const wd = watchDevice({ uid: `${uid}-w${i}`, x: px - ww * 0.42, y: phoneTop + phoneHeightFor(pw) * 0.4, w: ww, href: f.watch.href, frameHref: f.watchFrame, imgW: f.watch.w, imgH: f.watch.h });
+      if (wd.defs) defs.push(wd.defs);
+      body.push(wd.svg);
+    }
+  });
 
-  if (watchImg) {
-    const probe = watchDevice({ uid: `${uid}-w`, x: 0, y: 0, w: ww, href: watchImg.href, frameHref: frames.watch, imgW: watchImg.w, imgH: watchImg.h });
-    const wx = cx + pw / 2 + gap;
-    const wy = safe.y + safe.h / 2 - probe.h / 2;
-    const wd = watchDevice({ uid: `${uid}-w`, x: wx, y: wy, w: ww, href: watchImg.href, frameHref: frames.watch, imgW: watchImg.w, imgH: watchImg.h });
-    if (wd.defs) defs.push(wd.defs);
-    body.push(wd.svg);
-  }
-
-  // A warm light behind the middle phone, so the eye lands in the safe area on every crop.
-  const glow = dark ? BRAND.gold : "#FFFFFF";
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>${defs.join("")}
-    <linearGradient id="g-bg-${uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${shade(bg, dark ? 0.06 : 0.03)}"/>
-      <stop offset="1" stop-color="${shade(bg, dark ? -0.25 : -0.06)}"/>
-    </linearGradient>
-    <radialGradient id="g-glow-${uid}" cx="${cx}" cy="${safe.y + safe.h / 2}" r="${(safe.w * 0.9).toFixed(2)}" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="${glow}" stop-opacity="${dark ? 0.22 : 0.7}"/>
-      <stop offset="1" stop-color="${glow}" stop-opacity="0"/>
-    </radialGradient>
     <filter id="f-shadow" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur stdDeviation="${(pw * 0.03).toFixed(2)}"/>
     </filter>
   </defs>
-  <rect width="${W}" height="${H}" fill="url(#g-bg-${uid})"/>
-  <rect width="${W}" height="${H}" fill="url(#g-glow-${uid})"/>
+  ${bands.join("\n  ")}
   ${body.join("\n  ")}
 </svg>`;
 }
@@ -1083,7 +1108,7 @@ function main() {
 function frameLanguage(shotList, lang) {
   const warnings = [];
   const shots = localize(shotList, lang.code, warnings);
-  const watchShots = (shots.watch || []).filter((s) => !ONLY_SET || ONLY_SET.has(s.id));
+  const watchShots = CREATIVE_ONLY ? [] : (shots.watch || []).filter((s) => !ONLY_SET || ONLY_SET.has(s.id));
 
   console.log(`lang  ${lang.code} (App Store: ${lang.store})`);
   console.log(`raw   ${RAW_DIR}`);
@@ -1117,6 +1142,7 @@ function frameLanguage(shotList, lang) {
    * set rather than renumbered around, so slide 05 is the same slide in whichever set has it.
    */
   function renderSet(list, { device = PHONE_DEVICE, sizes = IPHONE_SIZES, subdir = "", numbered = true, collect = null }) {
+    if (CREATIVE_ONLY) return;
     const entries = list
       .map((shot, i) => ({ shot, i }))
       .filter(({ shot }) => device.key === "phone" || shot.layout !== "phone-watch");
@@ -1304,29 +1330,30 @@ function frameLanguage(shotList, lang) {
   // Unnumbered and never part of an --only run: they show several captures at once.
   const creative = shots.creative;
   if (CREATIVE && creative && !ONLY_SET) {
-    const themeOf = new Map([...(shots.iphone || []), ...(shots.extras || [])].map((s) => [s.id, s.theme]));
-    const phones = [];
-    for (const entry of creative.phones || []) {
-      const { id, theme = themeOf.get(entry) } = typeof entry === "string" ? { id: entry } : entry;
-      const rawFile = path.join(RAW_DIR, "iphone", theme === "dark" ? "dark" : "light", `${id}.png`);
+    const features = [];
+    for (const { id, title, palette = "graphite", theme = "light", watch } of creative.features || []) {
+      const colors = THEMES[palette]?.[theme];
+      if (!colors) throw new Error(`creative: no colour theme "${palette}" (${theme}) in packages/core/src/themes.ts`);
+      const dir = palette === "graphite" ? theme : `${palette}-${theme}`;
+      const rawFile = path.join(RAW_DIR, "iphone", dir, `${id}.png`);
       if (!fs.existsSync(rawFile)) {
-        warnings.push(`creative: missing raw ${short(rawFile)}, left out`);
+        warnings.push(`creative: missing raw ${short(rawFile)} — capture.sh --phone --palette ${palette} --theme ${theme} --only ${id}; left out`);
         continue;
       }
       const { w, h } = readPngSize(rawFile);
-      phones.push({ href: dataUri(rawFile), w, h });
+      const watchImg = watch ? loadWatch(watch) : null;
+      if (watch && !watchImg) warnings.push(`creative: missing raw watch shot "${watch}", drawn without it`);
+      features.push({ title, colors, img: { href: dataUri(rawFile), w, h }, frame: frames.phone, watch: watchImg, watchFrame: frames.watch });
     }
-    const watchImg = creative.watch ? loadWatch(creative.watch) : null;
-    if (creative.watch && !watchImg) warnings.push(`creative: missing raw watch shot "${creative.watch}", drawn without it`);
-    if (!phones.length) {
+    if (!features.length) {
       warnings.push("creative assets skipped: none of their phone captures exist");
     } else {
       const outDir = path.join(OUT_DIR, "creative");
       fs.mkdirSync(outDir, { recursive: true });
       console.log("");
-      const bg = creative.bg || BRAND.ink;
+      const bg = features[0].colors.bg;
       for (const size of CREATIVE_SIZES) {
-        const svg = buildCreative({ size, phones, watchImg, frames, bg });
+        const svg = buildCreative({ size, features });
         const out = path.join(outDir, `${size.file}.png`);
         rasterize(svg, { W: size.w, H: size.h, out, bg, tag: `creative-${size.file}` });
         const v = verify(out, size.w, size.h);
@@ -1337,7 +1364,7 @@ function frameLanguage(shotList, lang) {
   }
 
   /* ----------------------------------------------------- contact sheet */
-  if (CONTACT_SHEET) {
+  if (CONTACT_SHEET && !CREATIVE_ONLY) {
     // The numbered ten only, unless --contact-sheet=all also pulls in the extras.
     const sheet = CONTACT_SHEET === "all" ? [...madeSixNine, ...madeExtras] : madeSixNine;
     if (!sheet.length) {

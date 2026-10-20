@@ -8,12 +8,14 @@
 #   bun run screenshots:upload -- 1.1.0               # that version (created if it does not exist yet)
 #   bun run screenshots:upload -- --screenshots-only  # leave the listing text alone
 #   bun run screenshots:upload -- --lang uk           # one language (en or en-US, uk); the others stay as they are
+#   bun run screenshots:upload -- --no-creative       # leave the header and search results art alone
+#   bun run screenshots:upload -- --creative-only     # only that art: no screenshots, no text
 #
 # The web uploader places files in whatever order they finish uploading; deliver uploads them one
 # by one, sorted by file name, so the numbers in the names become the order on the store.
-# Nothing else is touched: no binary, no URLs or age rating, no submission for review. Nor the
-# header and search results art in Finals/<lang>/creative: the API deliver uses has no place for
-# it, so it is dragged into App Store Connect by hand (the version → Header and Search Results).
+# Then the header and search results art in Finals/<lang>/creative, which deliver has no place for:
+# upload-creative.mjs puts it in the app's asset library and places it on the version (--no-creative
+# skips it). Nothing else is touched: no binary, no URLs or age rating, no submission for review.
 #
 # Login: an App Store Connect API key when apps/mobile/.env has ASC_KEY_PATH / ASC_KEY_ID /
 # ASC_ISSUER_ID (see .env.example), otherwise fastlane asks for your Apple ID and the 2FA code.
@@ -25,10 +27,12 @@ cd "$MOBILE_DIR"
 
 # No version given: deliver edits whichever version App Store Connect has open for editing (the
 # newest one not yet live or in review) and never creates one. A version given is used as named.
-VERSION=""; TEXT=true; ONLY_LANG=""
+VERSION=""; TEXT=true; ONLY_LANG=""; CREATIVE=true; CREATIVE_ONLY=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --screenshots-only) TEXT=false ;;
+    --no-creative) CREATIVE=false ;;
+    --creative-only) CREATIVE_ONLY=true ;;
     --lang) shift; ONLY_LANG="${1:?--lang needs a language}" ;;
     --lang=*) ONLY_LANG="${1#--lang=}" ;;
     *) VERSION="$1" ;;
@@ -42,6 +46,9 @@ if [[ -n "$ONLY_LANG" && ! -d "screenshots/Finals/$ONLY_LANG" ]]; then
 fi
 # deliver replaces only the languages it is handed, so leaving one out leaves it alone on the store.
 want_lang() { [[ -z "$ONLY_LANG" || "$1" == "$ONLY_LANG" ]]; }
+if $CREATIVE_ONLY; then
+  exec node "$MOBILE_DIR/scripts/screenshots/upload-creative.mjs" ${VERSION:+"$VERSION"} ${ONLY_LANG:+--lang "$ONLY_LANG"}
+fi
 if [[ -n "$VERSION" ]]; then
   VERSION_ARGS=(--app_version "$VERSION")
 else
@@ -66,7 +73,7 @@ for lang_dir in "$FINALS"/*/; do
       [[ -e "$f" ]] && cp "$f" "$WORK/shots/$lang/$set-$(basename "$f")"
     done
   done
-  echo "$lang: $(ls "$WORK/shots/$lang" | grep -c '^iphone-[0-9]') iPhone 6.9\", $(ls "$WORK/shots/$lang" | grep -c '^iphone-6.3-') iPhone 6.3\", $(ls "$WORK/shots/$lang" | grep -c '^ipad-') iPad, $(ls "$WORK/shots/$lang" | grep -c '^watch-') watch"
+  echo "$lang: $(ls "$WORK/shots/$lang" | grep -c '^iphone-[0-9][0-9]-') iPhone 6.9\", $(ls "$WORK/shots/$lang" | grep -c '^iphone-6.3-') iPhone 6.3\", $(ls "$WORK/shots/$lang" | grep -c '^ipad-') iPad, $(ls "$WORK/shots/$lang" | grep -c '^watch-') watch"
 done
 
 AUTH=()
@@ -112,3 +119,8 @@ FASTLANE_SKIP_UPDATE_CHECK=1 fastlane deliver \
   --run_precheck_before_submit false \
   --force true \
   "${AUTH[@]+"${AUTH[@]}"}"
+
+if $CREATIVE; then
+  [[ -n "${ASC_KEY_PATH:-}" ]] || { echo "Header and search results art skipped: it needs the API key (ASC_KEY_PATH in .env)" >&2; exit 0; }
+  node "$MOBILE_DIR/scripts/screenshots/upload-creative.mjs" ${VERSION:+"$VERSION"} ${ONLY_LANG:+--lang "$ONLY_LANG"}
+fi

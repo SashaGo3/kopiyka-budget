@@ -472,7 +472,10 @@ export default function TransactionSheet() {
   const signColor = kind === "expense" ? C.label : C.green;
   // The field is the answer, never the keystrokes: the sum itself goes on the line below (CalcLine).
   const shown = value !== null ? formatMinor(toMinor(value, currency), currency) : "0";
-  const decimalAt = caret.whole ? shown.lastIndexOf(numberFormat().decimal) : -1;
+  // The field always prints the decimals, so a number typed without a point ("20", shown 20,00) is
+  // still being typed in its whole units: the next digit makes it 200,00, and the caret says so.
+  const typingWhole = caret.whole || !(expr.split(/[+−×÷]/).pop() ?? "").includes(".");
+  const decimalAt = typingWhole ? shown.lastIndexOf(numberFormat().decimal) : -1;
   const caretMark = <Caret pulse={caret.pulse} color={C.tint as unknown as string} />;
   // A split is several entries with a category each, so Debt is only offered for a single one.
   const openCategory = () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: debtId ? `debt:${debtId}` : categoryId ?? "", ...(parts.length ? {} : { debts: "1" }) } });

@@ -14,8 +14,7 @@
     "kept out of the contact sheet unless you pass --contact-sheet=all. Promote one by moving it",
     "into iphone[] (and dropping one of the ten).",
     "creative = the product page header and search results art (appstore/<lang>/creative/, every size from frame.mjs CREATIVE_SIZES):",
-    "phones = shot ids (or {id, theme}; theme defaults to the shot's own), centre first, then alternately right and left; repeated to fill the row;",
-    "watch = the watch shot in front of the centre phone; bg = background. No captions: the art carries no words."
+    "features = three phones side by side, left to right: {id, title, palette, theme, watch?} — title a store.creative.* key; palette a colour theme id from packages/core/src/themes.ts and theme light|dark, which pick both the capture (raw/<lang>/iphone/<palette>-<theme>/, from capture.sh --palette) and the band behind it; watch = a watch shot in front of that phone."
   ],
   "iphone": [
     {
@@ -162,17 +161,10 @@
     }
   ],
   "creative": {
-    "phones": [
-      "log",
-      "insights",
-      "transactions",
-      "budgets",
-      "trip",
-      "recurring",
-      "debts",
-      "themes"
-    ],
-    "watch": "keypad",
-    "bg": "#141413"
+    "features": [
+      { "id": "log", "title": "store.creative.log", "palette": "tadeusz", "theme": "light", "watch": "keypad" },
+      { "id": "transactions", "title": "store.creative.categories", "palette": "siri", "theme": "light" },
+      { "id": "insights", "title": "store.creative.insights", "palette": "catppuccin", "theme": "dark" }
+    ]
   }
 }

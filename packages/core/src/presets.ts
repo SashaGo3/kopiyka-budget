@@ -17,15 +17,16 @@ import { LANGUAGES, SOURCE } from "@kopiyka/i18n/generated";
 import type { SqlDriver } from "./db";
 import type { Category } from "./models";
 import { createCategory, listRows } from "./repo";
-import { CATEGORY_PRESET, presetDescription, presetKey, presetName } from "./presetData";
+import { CATEGORY_PRESET, FORMER_PRESET_NAMES, presetDescription, presetKey, presetName } from "./presetData";
 
 export { CATEGORY_PRESET, presetDescription, presetKey, presetName, type PresetCategory, type PresetFolder } from "./presetData";
 
 const norm = (s: string) => s.trim().toLocaleLowerCase();
 
-/** Is `name` still one of this preset's own names, in any language? Case and spacing aside. */
+/** Is `name` still one of this preset's own names, in any language, current or former? Case and spacing aside. */
 export function isPresetName(preset: string, name: string): boolean {
   const n = norm(name);
+  if (FORMER_PRESET_NAMES[preset]?.some((f) => norm(f) === n)) return true;
   return LANGUAGES.some((l) => { const own = presetName(preset, l.code); return own !== null && norm(own) === n; });
 }
 
