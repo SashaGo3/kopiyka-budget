@@ -1,1 +1,19 @@
-Events: a birthday, a wedding or a night out gets its own budget, like a trip, and stays out of your monthly budgets (Settings → Trips & Events). Transfers between your own accounts are put together from your bank's two notifications, and a new transfer asks for both accounts on one screen. A payment logged from your bank’s notification keeps the bank’s words apart from your own note. On Apple Watch you can approve pending payments, add a note by voice, delete an entry and log from Control Center; the watch app opens faster and now needs watchOS 26. Plus fixes.
+Events: a birthday, a wedding or a night out gets its own budget, like a trip, and stays out of your monthly budgets (Settings → Trips & Events). A trip or event can also go without a limit and just count what was spent.
+
+Tap a budget or an insight to see what’s behind it, month by month. Insights adds a payments checklist that includes your recurring payments.
+
+Search has its own screen and finds by tags, trips, events, debts and more, typos and all.
+
+Pay a debt back in parts: pick Debt instead of a category, and the debt counts what has been paid.
+
+Recurring payments show the company’s logo, or an icon, emoji or picture you choose. Suggested regular payments you don’t want can be dismissed for good.
+
+Transfers: when your bank notifies both sides of a transfer between your own accounts, the two become one transfer to check. A new transfer asks for both accounts on one screen, and both amounts can be typed, so the bank’s rate or fee is kept as it was.
+
+A payment logged from your bank’s notification keeps the bank’s words apart from your own note.
+
+Themes named after cats: Pusik, Siri, Tadeusz & Kastuś and Una. Switching is instant, with stronger contrast.
+
+Apple Watch: approve pending payments, add a note by dictation, delete an entry, and log from Control Center, the Smart Stack or the Action button. The watch app opens faster and now needs watchOS 26.
+
+Plus fixes.
