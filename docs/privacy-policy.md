@@ -1,6 +1,6 @@
 # Kopiyka Budget — Privacy Policy
 
-_Last updated: 12 September 2026_
+_Last updated: 20 October 2026_
 
 Kopiyka Budget ("Kopiyka", the app) is an open-source app published by its maintainer ("the developer"). The source code and the issue tracker are at the repository linked below.
 
@@ -12,6 +12,10 @@ app asks your permission for.
 
 Kopiyka is a personal finance app for iPhone, iPad and Apple Watch. You record what you spend and earn,
 set budgets, and look at your own numbers. Everything happens on your device.
+
+It is a record-keeping tool, **not financial advice**. Nothing it shows you — a budget, an insight,
+a total — is a recommendation, and decisions about your money are yours. The
+[Terms of Use](terms-of-use.md) say more.
 
 ## What it stores, and where
 
