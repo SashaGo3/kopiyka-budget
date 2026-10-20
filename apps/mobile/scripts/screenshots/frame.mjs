@@ -940,9 +940,9 @@ function buildSlide({ shot, W, H, device = PHONE_DEVICE, phoneImg, watchImg, dev
  * No alpha, like every App Store image; deliver cannot upload these, so they go in by hand.
  */
 const CREATIVE_SIZES = [
-  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, stage: { w: 0.6, top: 0.27 }, label: "product page header (21:9)" },
-  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, stage: { w: 0.72, top: 0 }, label: "search results (3:2)" },
-  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, stage: { w: 0.6, top: 0.15 }, label: "header or search results (16:9)" },
+  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, stage: { w: 0.62, top: 0.3, phone: 0.94, watch: false }, label: "product page header (21:9)" },
+  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, stage: { w: 0.8, top: 0, phone: 0.9, watchAt: 0.3 }, label: "search results (3:2)" },
+  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, stage: { w: 0.66, top: 0.2, phone: 0.88, watchAt: 0.3 }, label: "header or search results (16:9)" },
 ];
 
 /**
@@ -955,7 +955,10 @@ const CREATIVE_SIZES = [
  * area: an iPhone shows the header's full height and about two thirds of its width, and a group kept
  * inside the safe area (a sixth of the header) read as a thumbnail there. The labels start
  * `stage.top` of the way down the safe area — on the header, below the back and share buttons the
- * product page draws over its top corners; the phones run on below, off the bottom edge if need be.
+ * product page draws over its top corners; the phones, `stage.phone` of their band wide, run on
+ * below, off the bottom edge if need be, so a small phone sees the tops of three screens up close.
+ * `stage.watchAt` is how far down its phone the watch stands; the header has none (`watch: false`):
+ * at that size it would hang off the edge of what a phone shows.
  */
 function buildCreative({ size, features }) {
   const { w: W, h: H, safe } = size;
@@ -963,7 +966,7 @@ function buildCreative({ size, features }) {
   const n = features.length;
   const stage = { x: (W * (1 - size.stage.w)) / 2, w: W * size.stage.w };
   const col = stage.w / n;
-  const pw = col * 0.74;
+  const pw = col * size.stage.phone;
   const maxW = col * 0.84;
   // The widths table is Helvetica's; SF Pro, and its Cyrillic most of all, sets wider, so measure
   // with room to spare rather than let a label run into the next band.
@@ -1007,9 +1010,9 @@ function buildCreative({ size, features }) {
       body.push(`<text x="${px.toFixed(2)}" y="${y.toFixed(2)}" font-family="${FONT}" font-size="${ts.toFixed(2)}" font-weight="700" letter-spacing="${track(ts).toFixed(2)}" fill="${text}">${esc(line)}</text>`);
     });
     body.push(phone({ uid: `${uid}-p${i}`, x: px, y: phoneTop, w: pw, href: f.img.href, frameHref: f.frame, imgW: f.img.w, imgH: f.img.h }).svg);
-    if (f.watch) {
+    if (f.watch && size.stage.watch !== false) {
       const ww = pw * 0.58;
-      const wd = watchDevice({ uid: `${uid}-w${i}`, x: px - ww * 0.42, y: phoneTop + phoneHeightFor(pw) * 0.4, w: ww, href: f.watch.href, frameHref: f.watchFrame, imgW: f.watch.w, imgH: f.watch.h });
+      const wd = watchDevice({ uid: `${uid}-w${i}`, x: px - ww * 0.42, y: phoneTop + phoneHeightFor(pw) * size.stage.watchAt, w: ww, href: f.watch.href, frameHref: f.watchFrame, imgW: f.watch.w, imgH: f.watch.h });
       if (wd.defs) defs.push(wd.defs);
       body.push(wd.svg);
     }
