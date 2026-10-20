@@ -940,9 +940,9 @@ function buildSlide({ shot, W, H, device = PHONE_DEVICE, phoneImg, watchImg, dev
  * No alpha, like every App Store image; deliver cannot upload these, so they go in by hand.
  */
 const CREATIVE_SIZES = [
-  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, stage: { w: 0.62, top: 0.3, phone: 0.94, watch: false }, label: "product page header (21:9)" },
-  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, stage: { w: 0.8, top: 0, phone: 0.9, watchAt: 0.3 }, label: "search results (3:2)" },
-  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, stage: { w: 0.66, top: 0.2, phone: 0.88, watchAt: 0.3 }, label: "header or search results (16:9)" },
+  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, stage: { w: 0.8, labelY: 0.25, phone: 0.92, watch: false }, label: "product page header (21:9)" },
+  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, stage: { w: 0.84, labelY: 0.1, phone: 0.92, watchAt: 0.3 }, label: "search results (3:2)" },
+  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, stage: { w: 0.8, labelY: 0.14, phone: 0.92, watchAt: 0.3 }, label: "header or search results (16:9)" },
 ];
 
 /**
@@ -951,12 +951,12 @@ const CREATIVE_SIZES = [
  * left-aligned with the phone, all three on one baseline in one size. A watch, if a feature has one,
  * stands in front of its phone's lower left corner.
  *
- * The three take the middle of the canvas (`stage.w`, a fraction of its width), not just the safe
- * area: an iPhone shows the header's full height and about two thirds of its width, and a group kept
- * inside the safe area (a sixth of the header) read as a thumbnail there. The labels start
- * `stage.top` of the way down the safe area — on the header, below the back and share buttons the
- * product page draws over its top corners; the phones, `stage.phone` of their band wide, run on
- * below, off the bottom edge if need be, so a small phone sees the tops of three screens up close.
+ * The three fill the canvas (`stage.w` of its width), not just the safe area: an iPhone's product
+ * page shows the header nearly whole — about 85% of its width at its full height, some 740 points
+ * across — so anything kept to the safe area (a sixth of the header) read as a thumbnail. The labels
+ * start `stage.labelY` of the way down the canvas — on the header, just below the back and share
+ * buttons the page draws over the top corners; the phones, `stage.phone` of their band wide, run on
+ * below and off the bottom edge, so a small phone sees the tops of three screens up close.
  * `stage.watchAt` is how far down its phone the watch stands; the header has none (`watch: false`):
  * at that size it would hang off the edge of what a phone shows.
  */
@@ -987,7 +987,7 @@ function buildCreative({ size, features }) {
   const lineH = ts * 1.15;
   const height = Math.max(...lines.map((l) => l.length));
   const barH = Math.max(4, ts * 0.09);
-  const labelTop = safe.y + safe.h * size.stage.top;
+  const labelTop = H * size.stage.labelY;
   const textTop = labelTop + barH + ts * 0.55;
   const phoneTop = textTop + height * lineH + ts * 0.6;
 
