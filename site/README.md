@@ -49,7 +49,7 @@ the other language.
 
 ## Colour themes
 
-The site has the same eight themes as the app, and `packages/core/src/themes.ts` is the only place
+The site has the same four themes as the app, and `packages/core/src/themes.ts` is the only place
 their colours are written. `build.mjs` imports that file (Node 23.6+ strips the types itself;
 otherwise it asks Bun) and writes `themes.css` from it, so a palette changed there reaches the site
 on the next `bun run site` — never edit `themes.css` or put a hex value in `styles.css`. If the file
