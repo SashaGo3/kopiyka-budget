@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Setting up the notification Shortcut — Kopiyka Budget</title>
+    <meta name="description" content="Step by step, with pictures: the Shortcuts automation that turns your bank's payment notification into a Kopiyka entry." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="canonical" href="https://sashago3.github.io/kopiyka-budget/shortcut.html" />
+    <link rel="alternate" hreflang="en" href="https://sashago3.github.io/kopiyka-budget/shortcut.html" />
+    <link rel="alternate" hreflang="uk" href="https://sashago3.github.io/kopiyka-budget/uk/shortcut.html" />
+    <link rel="alternate" hreflang="x-default" href="https://sashago3.github.io/kopiyka-budget/shortcut.html" />
+    <link rel="icon" href="img/icon-180.png" sizes="180x180" type="image/png" />
+    <link rel="apple-touch-icon" href="img/icon-180.png" />
+    <link rel="stylesheet" href="themes.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)" />
+    <script>
+      (function () {
+        var T = {"graphite":["#F4F4F1","#141413"],"siri":["#EEEAE5","#1A1715"],"tadeusz":["#FAEFE2","#1C120B"],"catppuccin":["#E6E9EF","#1E1E2E"]}, K = "kopiyka-budget.theme", D = "graphite";
+        function apply(id) {
+          if (!Object.prototype.hasOwnProperty.call(T, id)) id = D;
+          document.documentElement.setAttribute('data-theme', id);
+          var m = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < m.length; i++) m[i].setAttribute('content', T[id][/dark/.test(m[i].media) ? 1 : 0]);
+          return id;
+        }
+        var saved = null;
+        try { saved = localStorage.getItem(K); } catch (e) {}
+        apply(saved);
+        window.kopiykaTheme = function (id) {
+          id = apply(id);
+          try { localStorage.setItem(K, id); } catch (e) {}
+          return id;
+        };
+      })();
+    </script>
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Kopiyka Budget" />
+    <meta property="og:url" content="https://sashago3.github.io/kopiyka-budget/shortcut.html" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:locale:alternate" content="uk_UA" />
+    <meta property="og:title" content="Setting up the notification Shortcut — Kopiyka Budget" />
+    <meta property="og:description" content="Step by step, with pictures: the Shortcuts automation that turns your bank's payment notification into a Kopiyka entry." />
+    <meta property="og:image" content="https://sashago3.github.io/kopiyka-budget/img/og.png" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="img/icon-180.png" alt="" width="32" height="32" />
+          <span>Kopiyka Budget</span>
+        </a>
+        <nav class="site-nav" aria-label="Sections">
+          <a href="index.html#features">Features</a>
+          <a href="index.html#watch">Watch</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="index.html#open-source">Open source</a>
+        </nav>
+        <div class="brand-actions">
+          <nav class="lang-switch" aria-label="Language">
+            <a href="shortcut.html" hreflang="en" lang="en" title="English" aria-current="page">EN</a>
+            <a href="uk/shortcut.html" hreflang="uk" lang="uk" title="Українська">УКР</a>
+          </nav>
+          <a class="btn" href="https://apps.apple.com/us/app/kopiyka-budget/id6809896169" rel="noopener"
+            ><span class="long">Download on the App Store</span><span class="short">App Store</span></a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="doc">
+        <div class="wrap">
+          <a class="doc-back" href="index.html">&#8592; Kopiyka Budget</a>
+          <h1>Setting up the notification Shortcut</h1>
+          <p>Your bank already notifies you about every card payment. A Shortcuts automation can hand that notification to Kopiyka, which reads the amount and the shop on the phone and logs the payment. It needs iOS 27. You set it up once.</p>
+          <p>The simulator the pictures come from has no bank app, so Messages stands in for it.</p>
+          <h2>1. Shortcuts → +</h2>
+          <p>Open Shortcuts and tap + at the bottom. If it asks you to describe a shortcut, tap Edit.</p>
+          <p class="guide-shots"><img src="img/guide/en/01.webp" width="300" height="652" loading="lazy" alt="Step 1"><img src="img/guide/en/02.webp" width="300" height="652" loading="lazy" alt="Step 1"></p><h2>2. Automation → Notification</h2>
+          <p>Tap Automation under the search field, then search for Notification.</p>
+          <p class="guide-shots"><img src="img/guide/en/03.webp" width="300" height="652" loading="lazy" alt="Step 2"><img src="img/guide/en/04.webp" width="300" height="652" loading="lazy" alt="Step 2"></p><h2>3. Pick your bank’s app</h2>
+          <p>Tap App and search for it. No bank notifications? Pick Wallet (Apple Pay); + adds a second app.</p>
+          <p class="guide-shots"><img src="img/guide/en/05.webp" width="300" height="652" loading="lazy" alt="Step 3"><img src="img/guide/en/06.webp" width="300" height="652" loading="lazy" alt="Step 3"></p><h2>4. Filter: Message contains a word</h2>
+          <p>Add Filter, change Title to Message, and type a word every payment notification has, like “Amount”.</p>
+          <p class="guide-shots"><img src="img/guide/en/07.webp" width="300" height="652" loading="lazy" alt="Step 4"><img src="img/guide/en/08.webp" width="300" height="652" loading="lazy" alt="Step 4"><img src="img/guide/en/09.webp" width="300" height="652" loading="lazy" alt="Step 4"></p><h2>5. Let it run on its own</h2>
+          <p>Tap the arrow beside the app: keep Automation on and Notify off.</p>
+          <p class="guide-shots"><img src="img/guide/en/10.webp" width="300" height="652" loading="lazy" alt="Step 5"></p><h2>6. Add “Log payment from an app notification”</h2>
+          <p>Search for Kopiyka in the field at the bottom.</p>
+          <p class="guide-shots"><img src="img/guide/en/11.webp" width="300" height="652" loading="lazy" alt="Step 6"></p><h2>7. Put Notification in its field</h2>
+          <p>Tap Notification, then Select Variable, then the Notification under the trigger.</p>
+          <p class="guide-shots"><img src="img/guide/en/12.webp" width="300" height="652" loading="lazy" alt="Step 7"><img src="img/guide/en/13.webp" width="300" height="652" loading="lazy" alt="Step 7"><img src="img/guide/en/14.webp" width="300" height="652" loading="lazy" alt="Step 7"></p><h2>8. Optional: where you paid</h2>
+          <p>Tap the arrow, then Location → Choose → Current Location → ✓. Leave Account empty: Kopiyka picks it from the card or the currency.</p>
+          <p class="guide-shots"><img src="img/guide/en/15.webp" width="300" height="652" loading="lazy" alt="Step 8"><img src="img/guide/en/16.webp" width="300" height="652" loading="lazy" alt="Step 8"></p><h2>9. Tap ‹ and you’re done</h2>
+          <p>It saves itself. You’ll find it in Library → Automation, where its switch turns it off.</p>
+          <p class="guide-shots"><img src="img/guide/en/17.webp" width="300" height="652" loading="lazy" alt="Step 9"><img src="img/guide/en/18.webp" width="300" height="652" loading="lazy" alt="Step 9"></p><p>Then pay for something. A shop you have filed before files itself; a new one waits in Pending for a look. Notifications it cannot read are kept in Settings → Shortcut settings → Notification log, so the wording can be taught later.</p>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <a href="privacy.html">Privacy</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="terms.html">Terms</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://github.com/SashaGo3/kopiyka-budget">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="index.html#bug">Report a bug</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>© Kopiyka contributors</span>
+        <span class="made">Made with React Native and a little Swift.</span>
+        <div class="theme-switch" role="group" aria-label="Colour theme" hidden>
+          <button type="button" class="swatch" data-set-theme="graphite" aria-pressed="false" aria-label="Pusik" title="Pusik"><span data-palette="graphite"></span></button>
+          <button type="button" class="swatch" data-set-theme="siri" aria-pressed="false" aria-label="Siri" title="Siri"><span data-palette="siri"></span></button>
+          <button type="button" class="swatch" data-set-theme="tadeusz" aria-pressed="false" aria-label="Tadeusz &amp; Kastuś" title="Tadeusz &amp; Kastuś"><span data-palette="tadeusz"></span></button>
+          <button type="button" class="swatch" data-set-theme="catppuccin" aria-pressed="false" aria-label="Una" title="Una"><span data-palette="catppuccin"></span></button>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // The theme switcher: the footer swatches and the landing page's previews. Without JS there is
+      // nothing to press, so the swatches stay hidden and the page keeps the default theme.
+      (function () {
+        if (!window.kopiykaTheme) return;
+        var buttons = document.querySelectorAll('[data-set-theme]');
+        var sync = function () {
+          var current = document.documentElement.getAttribute('data-theme');
+          for (var i = 0; i < buttons.length; i++) {
+            buttons[i].setAttribute('aria-pressed', String(buttons[i].getAttribute('data-set-theme') === current));
+          }
+        };
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].addEventListener('click', function () {
+            window.kopiykaTheme(this.getAttribute('data-set-theme'));
+            sync();
+          });
+        }
+        var row = document.querySelectorAll('.theme-switch');
+        for (var j = 0; j < row.length; j++) row[j].hidden = false;
+        sync();
+      })();
+    </script>
+  </body>
+</html>

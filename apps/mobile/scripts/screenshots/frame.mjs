@@ -23,6 +23,7 @@
  *   --contact-sheet    also write <out>/contact-sheet.png (the numbered ten)
  *   --contact-sheet=all  ...with the extras appended
  *   --no-bare          skip the transparent <out>/bare set (it is built by default)
+ *   --no-creative      skip the <out>/creative header and search results art
  *   --no-ipad          skip the <out>/ipad-13 set (it is built whenever raw/ipad exists)
  *   --keep-svg         leave the intermediate .svg files next to the PNGs (debugging)
  *   --help
@@ -35,9 +36,11 @@
  * Every path below is per language: <out> means <out>/<App Store language>, and the raw captures
  * are read from <raw>/<lang>.
  *
- * Output: <out>/iphone-6.9, <out>/iphone-6.5, <out>/iphone-6.5-1242 (the numbered App Store set),
- * <out>/ipad-13 (the same slides, laid out for the 13" iPad, from raw/ipad), <out>/extras/…
- * (unnumbered spares) and <out>/watch (raw screens, which is what watchOS wants).
+ * Output: <out>/iphone-6.9, <out>/iphone-6.3, <out>/iphone-6.5, <out>/iphone-6.5-1242 (the
+ * numbered App Store set), <out>/ipad-13 (the same slides, laid out for the 13" iPad, from
+ * raw/ipad), <out>/extras/… (unnumbered spares), <out>/watch (raw screens, which is what watchOS
+ * wants) and <out>/creative (the product page header and search results art, from shots.json's
+ * `creative`; `--no-creative` skips it).
  *
  * It also writes a fourth, non-App-Store set: <out>/bare/iphone/<id>.png, <out>/bare/ipad/<id>.png
  * and <out>/bare/watch/<id>.png — the capture inside Apple's bezel on a TRANSPARENT canvas, with
@@ -52,11 +55,13 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { languages } from "./langs.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS_DIR = path.resolve(HERE, "../../screenshots");
+// The app's colour themes, for the creative art's bands (Node 23.6+ reads the TypeScript as it is).
+const { THEMES } = await import(pathToFileURL(path.resolve(HERE, "../../../../packages/core/src/themes.ts")).href);
 const FRAMES_DIR = path.join(SHOTS_DIR, "frames");
 
 /* ------------------------------------------------------------------ binaries */
@@ -102,8 +107,10 @@ const ONLY = flag("only", null);
 const ONLY_SET = ONLY && ONLY !== true ? new Set(String(ONLY).split(",").map((s) => s.trim()).filter(Boolean)) : null;
 const CONTACT_SHEET = flag("contact-sheet", false); // true = the numbered set, "all" = + extras
 const KEEP_SVG = flag("keep-svg", false) === true;
-const IPAD = flag("no-ipad", false) !== true; // the 13" iPad set, on whenever raw/ipad has captures
-const BARE = flag("no-bare", false) !== true; // the transparent website set, on unless opted out
+const CREATIVE_ONLY = flag("creative-only", false) === true; // that art and nothing else
+const IPAD = flag("no-ipad", false) !== true && !CREATIVE_ONLY; // the 13" iPad set, on whenever raw/ipad has captures
+const BARE = flag("no-bare", false) !== true && !CREATIVE_ONLY; // the transparent website set, on unless opted out
+const CREATIVE = flag("no-creative", false) !== true; // header + search results art, on unless opted out
 
 /* -------------------------------------------------------------------- design */
 
@@ -111,6 +118,9 @@ const BARE = flag("no-bare", false) !== true; // the transparent website set, on
  *  so type is laid out in the target coordinate space rather than resampled. */
 const IPHONE_SIZES = [
   { dir: "iphone-6.9", w: 1320, h: 2868, label: '6.9" (iPhone 17 Pro Max)' },
+  // "iPhone with Dynamic Island (medium display)": the one iPhone set App Store Connect requires
+  // since iOS 27. Laid out from the same 6.9" captures; the two screens are the same shape.
+  { dir: "iphone-6.3", w: 1206, h: 2622, label: '6.3" (iPhone 17 Pro / 17 / 18 Pro)' },
   { dir: "iphone-6.5", w: 1284, h: 2778, label: '6.5" (iPhone 14 Plus / 11 Pro Max)' },
   { dir: "iphone-6.5-1242", w: 1242, h: 2688, label: '6.5" legacy (iPhone 11 Pro Max / XS Max)' },
 ];
@@ -123,8 +133,8 @@ const IPAD_SIZES = [{ dir: "ipad-13", w: 2064, h: 2752, label: '13" (iPad Pro M4
 
 /** Sizes App Store Connect accepts for Apple Watch, newest first. */
 const WATCH_SIZES = [
-  { w: 422, h: 514, label: "Ultra 3 (49 mm)" },
-  { w: 416, h: 496, label: "Series 10 / 11 (46 mm)" },
+  { w: 422, h: 514, label: "Ultra 3 / 4 (49 mm)" },
+  { w: 416, h: 496, label: "Series 10–12 (46 mm)" },
   { w: 410, h: 502, label: "Ultra 2 (49 mm)" },
   { w: 396, h: 484, label: "Series 7–9 (45 mm)" },
   { w: 368, h: 448, label: "Series 4–6 / SE (44 mm)" },
@@ -318,7 +328,8 @@ function localize(shots, code, warnings) {
     for (const f of CAPTION_FIELDS) if (out[f] !== undefined) out[f] = text(out[f]);
     return out;
   });
-  return { ...shots, iphone: each(shots.iphone), extras: each(shots.extras), watch: each(shots.watch) };
+  const creative = shots.creative && { ...shots.creative, features: each(shots.creative.features) };
+  return { ...shots, iphone: each(shots.iphone), extras: each(shots.extras), watch: each(shots.watch), creative };
 }
 
 /* --------------------------------------------------------------------- color */
@@ -342,6 +353,13 @@ function shade(hex, amount) {
   const mix = (c) => Math.round(amount > 0 ? c + (255 - c) * amount : c * (1 + amount));
   const out = (mix((n >> 16) & 255) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255);
   return `#${out.toString(16).padStart(6, "0")}`;
+}
+
+/** `a` moved `t` of the way towards `b`. */
+function blend(a, b, t) {
+  const rgb = (h) => { const n = parseInt(h.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const [x, y] = [rgb(a), rgb(b)];
+  return `#${x.map((c, i) => Math.round(c + (y[i] - c) * t).toString(16).padStart(2, "0")).join("")}`;
 }
 
 /* ---------------------------------------------------------------- device art */
@@ -910,19 +928,145 @@ function buildSlide({ shot, W, H, device = PHONE_DEVICE, phoneImg, watchImg, dev
   };
 }
 
+/* ---------------------------------------------------------- creative assets */
+
+/**
+ * The product page header and the search results art App Store Connect added with iOS 27
+ * ("Header and Search Results" on the version page). Not screenshots: wide images that are cropped
+ * differently on every device, so only the "Art Safe Area" is sure to be seen. The safe areas are
+ * the layers of that name in Apple's own Photoshop templates (developer.apple.com/app-store/
+ * asset-best-practices → Templates), read with `magick identify` — they are centred except the
+ * universal one, which sits above the middle. The 16:9 universal file is accepted in both places.
+ * No alpha, like every App Store image; deliver cannot upload these, so they go in by hand.
+ */
+const CREATIVE_SIZES = [
+  { file: "header-21x9", w: 3840, h: 1646, safe: { x: 1097, y: 493, w: 1646, h: 661 }, stage: { w: 0.8, labelY: 0.25, phone: 0.92, watch: false }, label: "product page header (21:9)" },
+  { file: "search-results-3x2", w: 3840, h: 2560, safe: { x: 836, y: 765, w: 2168, h: 1030 }, stage: { w: 0.84, labelY: 0.1, phone: 0.92, watchAt: 0.3 }, label: "search results (3:2)" },
+  { file: "universal-16x9", w: 5244, h: 2950, safe: { x: 1921, y: 660, w: 1402, h: 962 }, stage: { w: 0.8, labelY: 0.14, phone: 0.92, watchAt: 0.3 }, label: "header or search results (16:9)" },
+];
+
+/**
+ * Three phones, each in one of the app's colour themes and standing on a band of that theme's own
+ * background, the bands meeting edge to edge across the whole canvas. Above each phone a short label,
+ * left-aligned with the phone, all three on one baseline in one size. A watch, if a feature has one,
+ * stands in front of its phone's lower left corner.
+ *
+ * The three fill the canvas (`stage.w` of its width), not just the safe area: an iPhone's product
+ * page shows the header nearly whole — about 85% of its width at its full height, some 740 points
+ * across — so anything kept to the safe area (a sixth of the header) read as a thumbnail. The labels
+ * start `stage.labelY` of the way down the canvas — on the header, just below the back and share
+ * buttons the page draws over the top corners; the phones, `stage.phone` of their band wide, run on
+ * below and off the bottom edge, so a small phone sees the tops of three screens up close.
+ * `stage.watchAt` is how far down its phone the watch stands; the header has none (`watch: false`):
+ * at that size it would hang off the edge of what a phone shows.
+ */
+function buildCreative({ size, features }) {
+  const { w: W, h: H, safe } = size;
+  const uid = `c-${W}x${H}`;
+  const n = features.length;
+  const stage = { x: (W * (1 - size.stage.w)) / 2, w: W * size.stage.w };
+  const col = stage.w / n;
+  const pw = col * size.stage.phone;
+  const maxW = col * 0.84;
+  // The widths table is Helvetica's; SF Pro, and its Cyrillic most of all, sets wider, so measure
+  // with room to spare rather than let a label run into the next band.
+  const track = (ts) => -ts * 0.015;
+  const measure = (x, ts) => textWidth(x, ts, true, track(ts)) * 1.12;
+  const flat = (t) => t.replace(/\s*\n\s*/g, " ");
+  // One line each when that still reads at a good size; otherwise two, the same size for all three.
+  const top = col * 0.1;
+  const fits = (ts, rows) => features.every((f) => {
+    const l = rows === 1 ? [flat(f.title)] : balancedWrap(f.title, maxW, ts, true, track(ts));
+    return l.length <= rows && l.every((x) => measure(x, ts) <= maxW);
+  });
+  const largest = (rows) => { let ts = top; while (!fits(ts, rows) && ts > 1) ts *= 0.97; return ts; };
+  const one = largest(1);
+  const rows = one >= top * 0.7 ? 1 : 2;
+  const ts = rows === 1 ? one : largest(2);
+  const lines = features.map((f) => (rows === 1 ? [flat(f.title)] : balancedWrap(f.title, maxW, ts, true, track(ts))));
+  const lineH = ts * 1.15;
+  const height = Math.max(...lines.map((l) => l.length));
+  const barH = Math.max(4, ts * 0.09);
+  const labelTop = H * size.stage.labelY;
+  const textTop = labelTop + barH + ts * 0.55;
+  const phoneTop = textTop + height * lineH + ts * 0.6;
+
+  const defs = [];
+  const bands = [];
+  const body = [];
+  features.forEach((f, i) => {
+    const { bg, text, accent } = f.colors;
+    const dark = isDarkBg(bg);
+    const band = dark ? bg : blend(bg, accent, 0.14); // a light theme's background alone is too near the next one's
+    const x0 = i === 0 ? 0 : stage.x + col * i;
+    const x1 = i === n - 1 ? W : stage.x + col * (i + 1);
+    defs.push(`<linearGradient id="g-band-${uid}-${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(band, dark ? 0.05 : 0.03)}"/><stop offset="1" stop-color="${shade(band, dark ? -0.2 : -0.08)}"/></linearGradient>`);
+    bands.push(`<rect x="${x0.toFixed(2)}" y="0" width="${(x1 - x0).toFixed(2)}" height="${H}" fill="url(#g-band-${uid}-${i})"/>`);
+
+    const px = stage.x + col * (i + 0.5) - pw / 2;
+    body.push(`<rect x="${px.toFixed(2)}" y="${labelTop.toFixed(2)}" width="${(ts * 0.9).toFixed(2)}" height="${barH.toFixed(2)}" rx="${(barH / 2).toFixed(2)}" fill="${accent}"/>`);
+    lines[i].forEach((line, k) => {
+      const y = textTop + (k + 0.8) * lineH;
+      body.push(`<text x="${px.toFixed(2)}" y="${y.toFixed(2)}" font-family="${FONT}" font-size="${ts.toFixed(2)}" font-weight="700" letter-spacing="${track(ts).toFixed(2)}" fill="${text}">${esc(line)}</text>`);
+    });
+    body.push(phone({ uid: `${uid}-p${i}`, x: px, y: phoneTop, w: pw, href: f.img.href, frameHref: f.frame, imgW: f.img.w, imgH: f.img.h }).svg);
+    if (f.watch && size.stage.watch !== false) {
+      const ww = pw * 0.58;
+      const wd = watchDevice({ uid: `${uid}-w${i}`, x: px - ww * 0.42, y: phoneTop + phoneHeightFor(pw) * size.stage.watchAt, w: ww, href: f.watch.href, frameHref: f.watchFrame, imgW: f.watch.w, imgH: f.watch.h });
+      if (wd.defs) defs.push(wd.defs);
+      body.push(wd.svg);
+    }
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>${defs.join("")}
+    <filter id="f-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="${(pw * 0.03).toFixed(2)}"/>
+    </filter>
+  </defs>
+  ${bands.join("\n  ")}
+  ${body.join("\n  ")}
+</svg>`;
+}
+
 /* ------------------------------------------------------------------- raster */
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "kopiyka-frame-"));
 
 function rasterize(svg, { W, H, out, bg, tag }) {
   const svgPath = KEEP_SVG ? out.replace(/\.png$/, ".svg") : path.join(TMP, `${tag}.svg`);
-  fs.writeFileSync(svgPath, svg);
+  const assets = externalize(svg, svgPath, tag);
+  fs.writeFileSync(svgPath, assets.svg);
   const rawPng = path.join(TMP, `${tag}.png`);
   execFileSync(RSVG, ["-w", String(W), "-h", String(H), "-b", bg, "--format", "png", "-o", rawPng, svgPath], { stdio: "pipe" });
   // App Store Connect rejects PNGs that carry an alpha channel.
   execFileSync(MAGICK, [rawPng, "-background", bg, "-flatten", "-alpha", "off", "-colorspace", "sRGB", "-strip", out], { stdio: "pipe" });
   fs.rmSync(rawPng, { force: true });
   if (!KEEP_SVG) fs.rmSync(svgPath, { force: true });
+  for (const f of assets.files) fs.rmSync(f, { force: true });
+}
+
+/**
+ * librsvg's XML parser gives up past ~10 MB of attribute text, and a canvas with several phones
+ * repeats the bezel's data URI in every one of them. So an SVG that big gets each distinct embedded
+ * PNG written once beside it and referenced by a relative name (librsvg only loads files from the
+ * SVG's own directory). Small SVGs — every slide — are written as they are.
+ */
+function externalize(svg, svgPath, tag) {
+  if (svg.length < 8e6) return { svg, files: [] };
+  const names = new Map();
+  const files = [];
+  const out = svg.replace(/data:image\/png;base64,[A-Za-z0-9+/=]+/g, (uri) => {
+    if (!names.has(uri)) {
+      const name = `${tag}-asset-${names.size}.png`;
+      const file = path.join(path.dirname(svgPath), name);
+      fs.writeFileSync(file, Buffer.from(uri.slice(uri.indexOf(",") + 1), "base64"));
+      names.set(uri, name);
+      files.push(file);
+    }
+    return names.get(uri);
+  });
+  return { svg: out, files };
 }
 
 /** The bare set is the one output that must KEEP its alpha, so it never goes near -flatten. */
@@ -967,7 +1111,7 @@ function main() {
 function frameLanguage(shotList, lang) {
   const warnings = [];
   const shots = localize(shotList, lang.code, warnings);
-  const watchShots = (shots.watch || []).filter((s) => !ONLY_SET || ONLY_SET.has(s.id));
+  const watchShots = CREATIVE_ONLY ? [] : (shots.watch || []).filter((s) => !ONLY_SET || ONLY_SET.has(s.id));
 
   console.log(`lang  ${lang.code} (App Store: ${lang.store})`);
   console.log(`raw   ${RAW_DIR}`);
@@ -1001,6 +1145,7 @@ function frameLanguage(shotList, lang) {
    * set rather than renumbered around, so slide 05 is the same slide in whichever set has it.
    */
   function renderSet(list, { device = PHONE_DEVICE, sizes = IPHONE_SIZES, subdir = "", numbered = true, collect = null }) {
+    if (CREATIVE_ONLY) return;
     const entries = list
       .map((shot, i) => ({ shot, i }))
       .filter(({ shot }) => device.key === "phone" || shot.layout !== "phone-watch");
@@ -1184,8 +1329,45 @@ function frameLanguage(shotList, lang) {
 
   if (BARE) renderBare();
 
+  /* --------------------------------------------------- creative assets */
+  // Unnumbered and never part of an --only run: they show several captures at once.
+  const creative = shots.creative;
+  if (CREATIVE && creative && !ONLY_SET) {
+    const features = [];
+    for (const { id, title, palette = "graphite", theme = "light", watch } of creative.features || []) {
+      const colors = THEMES[palette]?.[theme];
+      if (!colors) throw new Error(`creative: no colour theme "${palette}" (${theme}) in packages/core/src/themes.ts`);
+      const dir = palette === "graphite" ? theme : `${palette}-${theme}`;
+      const rawFile = path.join(RAW_DIR, "iphone", dir, `${id}.png`);
+      if (!fs.existsSync(rawFile)) {
+        warnings.push(`creative: missing raw ${short(rawFile)} — capture.sh --phone --palette ${palette} --theme ${theme} --only ${id}; left out`);
+        continue;
+      }
+      const { w, h } = readPngSize(rawFile);
+      const watchImg = watch ? loadWatch(watch) : null;
+      if (watch && !watchImg) warnings.push(`creative: missing raw watch shot "${watch}", drawn without it`);
+      features.push({ title, colors, img: { href: dataUri(rawFile), w, h }, frame: frames.phone, watch: watchImg, watchFrame: frames.watch });
+    }
+    if (!features.length) {
+      warnings.push("creative assets skipped: none of their phone captures exist");
+    } else {
+      const outDir = path.join(OUT_DIR, "creative");
+      fs.mkdirSync(outDir, { recursive: true });
+      console.log("");
+      const bg = features[0].colors.bg;
+      for (const size of CREATIVE_SIZES) {
+        const svg = buildCreative({ size, features });
+        const out = path.join(outDir, `${size.file}.png`);
+        rasterize(svg, { W: size.w, H: size.h, out, bg, tag: `creative-${size.file}` });
+        const v = verify(out, size.w, size.h);
+        console.log(`${v.ok ? "ok  " : "BAD "} creative/${size.file}.png  ${v.detail}  -> ${size.label}`);
+        if (!v.ok) warnings.push(`${out} is ${v.detail}`);
+      }
+    }
+  }
+
   /* ----------------------------------------------------- contact sheet */
-  if (CONTACT_SHEET) {
+  if (CONTACT_SHEET && !CREATIVE_ONLY) {
     // The numbered ten only, unless --contact-sheet=all also pulls in the extras.
     const sheet = CONTACT_SHEET === "all" ? [...madeSixNine, ...madeExtras] : madeSixNine;
     if (!sheet.length) {

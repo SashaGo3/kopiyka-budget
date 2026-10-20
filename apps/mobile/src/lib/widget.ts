@@ -6,13 +6,14 @@
 import { File, Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { KPBridge } from "@/lib/bridge";
-import { accountBalanceMinor, activeTrip, budgetCategoryIds, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
+import { accountBalanceMinor, activeTrip, tripKind, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
 import { db, APP_GROUP } from "@/db";
 import { currentPeriod } from "./period";
+import { todayLocal } from "./dates";
 import { getBudgetScope } from "./settings";
 import { scopeAccount, scopeAccountIds } from "./scope";
 import { buildWatchState } from "./watchState";
-import { catNameById } from "./names";
+import { budgetTitle, nameMaps } from "./budgetName";
 import { t } from "@/i18n";
 import { acctName } from "@/lib/names";
 
@@ -22,7 +23,7 @@ export interface WidgetSnapshot {
   net_worth: { currency: string; amount: number }[];
   budgets: { category_id: string | null; name: string; currency: string; limit: number; spent: number }[];
   /** Travel mode, when on: the trip budget and its daily allowance. The watch pre-ticks `tag_id` on new expenses. */
-  trip: { budget_id: string; tag_id: string; name: string; currency: string; limit: number; spent: number; day: number; days: number; days_left: number; allowance: number | null } | null;
+  trip: { budget_id: string; tag_id: string; kind: "trip" | "event"; name: string; currency: string; limit: number; spent: number; day: number; days: number; days_left: number; allowance: number | null } | null;
   month: string;
   /** Icon + colour per category exactly as the app draws them (watch and intents reuse this). */
   category_icons: Record<string, { icon: string; color: string }>;
@@ -37,18 +38,23 @@ export function buildSnapshot(): WidgetSnapshot {
   const period = currentPeriod();
   const scope = getBudgetScope();
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
+  const names = nameMaps(db);
   const scopeIds = scopeAccountIds(scope, listRows(db, "accounts", "deleted=0"));
   const out: WidgetSnapshot["budgets"] = budgetRows(db, { start: period.start, end: period.end, accountIds: scopeIds, budgetAccount: scopeAccount(scope) }).map((r) => ({
     category_id: r.budget.category_id,
-    name: budgetCategoryIds(r.budget).map((cid) => catNameById(cid, cats.get(cid)?.name ?? "?") ?? "?").join(", ") || t("misc.widget.everything"),
+    // Its own name when it has one (DATA.md rule 5), else what it covers — as the Budgets screen calls it.
+    name: budgetTitle(r.budget, names),
     currency: r.budget.currency,
     limit: fromMinor(r.budget.amount_minor, r.budget.currency), spent: fromMinor(r.spent_minor, r.budget.currency),
   }));
   const label = period.subtitle ? `${period.title} · ${period.subtitle}` : period.title;
-  const active = activeTrip(db);
+  // A trip set up ahead is not on the watch or the widgets until it begins: the watch ticks its tag
+  // on every new entry, and core tags nothing before the first day (`activeTripTagId`).
+  const running = activeTrip(db);
+  const active = running && running.starts <= todayLocal() ? running : null;
   const ts = active ? tripStats(db, active) : null;
   const trip: WidgetSnapshot["trip"] = active && ts && active.tag_id ? {
-    budget_id: active.id, tag_id: active.tag_id, name: ts.name ?? t("travel.untitled"), currency: ts.currency, limit: fromMinor(ts.limit_minor, ts.currency), spent: fromMinor(ts.spent_minor, ts.currency),
+    budget_id: active.id, tag_id: active.tag_id, kind: tripKind(active), name: ts.name ?? t("travel.untitled", { kind: tripKind(active) }), currency: ts.currency, limit: fromMinor(ts.limit_minor, ts.currency), spent: fromMinor(ts.spent_minor, ts.currency),
     day: ts.day, days: ts.days, days_left: ts.days_left, allowance: ts.allowance_minor === null ? null : fromMinor(ts.allowance_minor, ts.currency),
   } : null;
   const category_icons: WidgetSnapshot["category_icons"] = {};

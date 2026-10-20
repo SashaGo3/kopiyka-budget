@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
-import { createAccount, createDebt, getRow, listRows } from "../src/repo";
-import { debtTotals, isOverdue, listDebts, plannedDebtNotifications, settleDebt } from "../src/debts";
+import { categorySpend, createAccount, createDebt, createTransaction, getRow, listRows } from "../src/repo";
+import { debtChoices, debtPaid, debtTotals, isOverdue, listDebts, plannedDebtNotifications, settleDebt, settleIfPaid } from "../src/debts";
 import { DEFAULT_DEBT_NOTIFY_TIME } from "../src/models";
 
 function seed() {
@@ -107,5 +107,40 @@ describe("debts", () => {
     const due = createDebt(db, { person: "Alex", amount_minor: 1000, currency: "PLN", opened_date: "2026-08-01", due_date: "2026-09-10" });
     const planned = plannedDebtNotifications(listDebts(db), "2026-09-10");
     expect(planned).toEqual([{ debt_id: due.id, fire_day: "2026-09-10", kind: "due" }]);
+  });
+
+  test("payments pointed at a debt pay it off, and settle it once they cover it", () => {
+    const { db, acc } = seed();
+    const loan = createDebt(db, { person: "Bank", amount_minor: 10000, currency: "PLN", opened_date: "2026-08-01", direction: "i_owe" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-05T10:00:00Z", amount_minor: -4000, debt_id: loan.id });
+    expect(debtPaid(db, getRow(db, "debts", loan.id)!)).toBe(4000);
+    expect(settleIfPaid(db, loan.id, "2026-09-05")).toBe(false);
+    // Income on a debt you owe is not a payment of it.
+    createTransaction(db, { account_id: acc.id, date: "2026-09-06T10:00:00Z", amount_minor: 500, debt_id: loan.id });
+    expect(debtPaid(db, getRow(db, "debts", loan.id)!)).toBe(4000);
+    createTransaction(db, { account_id: acc.id, date: "2026-10-05T10:00:00Z", amount_minor: -6000, debt_id: loan.id });
+    expect(settleIfPaid(db, loan.id, "2026-10-05")).toBe(true);
+    expect(getRow(db, "debts", loan.id)!.settled_date).toBe("2026-10-05");
+    expect(debtChoices(db).map((d) => d.id)).toEqual([]);
+    expect(debtChoices(db, loan.id).map((d) => d.id)).toEqual([loan.id]);
+  });
+
+  test("settling writes only what the linked payments left, and links it", () => {
+    const { db, acc } = seed();
+    const lent = createDebt(db, { person: "Alex", amount_minor: 5000, currency: "PLN", opened_date: "2026-08-01", direction: "owed_to_me", account_id: acc.id });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00Z", amount_minor: 2000, debt_id: lent.id });
+    const done = settleDebt(db, lent.id, { day: "2026-09-10", writeTransaction: true })!;
+    const tx = getRow(db, "transactions", done.transaction_id!)!;
+    expect(tx.amount_minor).toBe(3000);
+    expect(tx.debt_id).toBe(lent.id);
+  });
+
+  test("categorySpend can leave debt payments out", () => {
+    const { db, acc } = seed();
+    const loan = createDebt(db, { person: "Bank", amount_minor: 10000, currency: "PLN", opened_date: "2026-08-01", direction: "i_owe" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-05T10:00:00Z", amount_minor: -4000, debt_id: loan.id });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-05T11:00:00Z", amount_minor: -1000 });
+    expect(categorySpend(db, "2026-09-01", "2026-10-01").reduce((a, s) => a + s.spent_minor, 0)).toBe(-5000);
+    expect(categorySpend(db, "2026-09-01", "2026-10-01", undefined, { exceptDebts: true }).reduce((a, s) => a + s.spent_minor, 0)).toBe(-1000);
   });
 });

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kopiyka",
     "slug": "kopiyka",
-    "version": "1.0.3",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kopiyka",
@@ -54,7 +54,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "54"
+      "buildNumber": "89"
     },
     "android": {
       "package": "dev.kopiyka.app",
@@ -68,6 +68,17 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "react-native-nano-icons",
+        {
+          "iconSets": [
+            {
+              "inputDir": "./assets/icons/logos",
+              "fontFamily": "kp-logos"
+            }
+          ]
+        }
+      ],
       [
         "./plugins/withSilhouetteLaunchScreen",
         {
@@ -128,6 +139,7 @@
       "@bacons/apple-targets",
       "expo-maps",
       "./plugins/withQuickLog",
+      "./plugins/withSceneLifecycle",
       "./plugins/withReleasePlistCleanup",
       "./plugins/withAppIcons"
     ],

@@ -49,5 +49,9 @@
     "expense": "Expense",
     "income": "Income",
     "transfer": "Transfer"
+  },
+  "numbers": {
+    "chip": { "message": "Bank number", "note": "Chip on the account sheet: the last four digits the bank prints for this account.", "max": 16 },
+    "title": { "message": "Last 4 digits, as the bank prints them", "note": "Placeholder of the text field for the account's numbers; several may be separated by commas." }
   }
 }

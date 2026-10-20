@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, folderIds, listRows, type Category } from "@kopiyka/core";
+import { archivedCategoryIds, debtChoices, folderIds, formatMinor, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon } from "@/components/ui";
@@ -33,11 +33,19 @@ type Item =
  * the list below, which stays complete rather than having holes punched in it where a shortcut
  * happens to point. Searching flattens all of that into plain matches, and typing three letters
  * that match exactly one category picks it straight away.
+ *
+ * With `debts=1` (the entry sheet) and a debt still open, "Debt" sits under "No category": a payment
+ * that pays one off, or the money coming back on one. It is not a category, so it is not answered
+ * here — choosing it turns the sheet into the list of debts, and the one picked comes back as
+ * `debt:<id>` (`transactions.debt_id`, packages/core/src/debts.ts).
  */
 export default function PickCategory() {
-  const { key, kind, selected, folders: withFolders } = useLocalSearchParams<{ key: string; kind?: string; selected?: string; folders?: string }>();
+  const { key, kind, selected, folders: withFolders, debts: withDebts } = useLocalSearchParams<{ key: string; kind?: string; selected?: string; folders?: string; debts?: string }>();
   const allowFolders = withFolders === "1";
   const [q, setQ] = useState("");
+  const chosenDebt = selected?.startsWith("debt:") ? selected.slice(5) : null;
+  const debts = useQuery((db) => (withDebts === "1" ? debtChoices(db, chosenDebt) : []), [withDebts, chosenDebt]);
+  const [debtStep, setDebtStep] = useState(false);
   const { pickable, sections } = useQuery((db) => {
     const all = listRows(db, "categories", "deleted=0", [], "sort, name");
     const byId = new Map(all.map((c) => [c.id, c]));
@@ -90,6 +98,7 @@ export default function PickCategory() {
 
   // Three matching letters, one category: pick it without another tap.
   useEffect(() => {
+    if (debtStep) return;
     if (ql.length < 3) return;
     // Never a folder: "the whole of Food" is a deliberate choice, not something to be jumped to.
     const leaves = pickable.filter((c) => !c.isFolder);
@@ -98,6 +107,33 @@ export default function PickCategory() {
     const hit = starts.length === 1 ? starts[0] : starts.length === 0 ? (inc.length === 1 ? inc[0] : undefined) : undefined;
     if (hit) choose(hit.id);
   }, [ql]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (debtStep) return (
+    <FlatList
+      style={{ flex: 1, backgroundColor: C.bgGrouped }}
+      data={debts}
+      keyExtractor={(d) => d.id}
+      contentContainerStyle={{ paddingBottom: 60 }}
+      ListHeaderComponent={
+        <View>
+          <Pressable onPress={() => setDebtStep(false)} style={styles.back} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("pick.category.debtBack")}>
+            <SymbolView name="chevron.left" size={14} tintColor={C.tint} /><Text style={styles.backText}>{t("pick.category.debtBack")}</Text>
+          </Pressable>
+          <Text style={styles.debtTitle}>{t("pick.category.whichDebt")}</Text>
+        </View>
+      }
+      renderItem={({ item: d }) => (
+        <Pressable onPress={() => choose(`debt:${d.id}`)} style={styles.row} accessibilityRole="button" accessibilityLabel={d.person} accessibilityState={{ selected: chosenDebt === d.id }}>
+          <View style={styles.noIcon}><SymbolView name={d.direction === "i_owe" ? "arrow.up.right" : "arrow.down.left"} size={14} tintColor={C.secondary} /></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.name} numberOfLines={1}>{d.person}</Text>
+            <Text style={styles.folder}>{t(d.direction === "i_owe" ? "pick.category.debtYouOwe" : "pick.category.debtOwedToYou", { amount: `${formatMinor(d.amount_minor, d.currency)} ${d.currency}` })}</Text>
+          </View>
+          {chosenDebt === d.id ? <Check /> : null}
+        </Pressable>
+      )}
+    />
+  );
 
   return (
     <FlatList
@@ -115,6 +151,16 @@ export default function PickCategory() {
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.category.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.category.search")} />
           </View>
           {!ql ? <Pressable onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("common.noCategory")}><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>{t("common.noCategory")}</Text>{!selected ? <Check /> : null}</Pressable> : null}
+          {!ql && debts.length ? (
+            <Pressable onPress={() => setDebtStep(true)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.category.debt")} accessibilityHint={t("pick.category.debtHint")}>
+              <View style={styles.noIcon}><SymbolView name="creditcard.and.123" size={14} tintColor={C.secondary} /></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.name}>{t("pick.category.debt")}</Text>
+                <Text style={styles.folder} numberOfLines={1}>{chosenDebt ? debts.find((d) => d.id === chosenDebt)?.person ?? "" : t("pick.category.debtSub")}</Text>
+              </View>
+              {chosenDebt ? <Check /> : <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />}
+            </Pressable>
+          ) : null}
         </View>
       }
       renderItem={({ item }) => {
@@ -163,4 +209,7 @@ const styles = themed(() => StyleSheet.create({
   folderRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
   folder: { fontSize: 12, color: C.secondary },
   empty: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingTop: S.xl },
+  back: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: S.xl, paddingTop: S.lg },
+  backText: { color: C.tint, fontSize: 17 },
+  debtTitle: { fontSize: 22, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm },
 }));

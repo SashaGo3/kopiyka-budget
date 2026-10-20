@@ -9,6 +9,8 @@
 #   scripts/screenshots/capture.sh --no-ipad       # everything except the iPad
 #   scripts/screenshots/capture.sh --only log,budgets --theme dark
 #   scripts/screenshots/capture.sh --lang uk       # one language (default: all of them, in turn)
+#   scripts/screenshots/capture.sh --phone --palette siri --theme light --only log
+#                                                  # in a colour theme: raw/<lang>/iphone/siri-light/
 #
 # Languages: each one is shot over its own demo data (demo-data.ts --lang), with the app's meta
 # `language` and iOS's own language set to it. With one --lang the simulators are expected to hold
@@ -22,17 +24,20 @@
 # screenshots/raw/<lang>/iphone/<theme>/<id>.png (1320×2868), screenshots/raw/<lang>/ipad/<theme>/<id>.png
 # (2064×2752) and screenshots/raw/<lang>/watch/<id>.png (422×514). frame.mjs turns them into App Store art.
 #
-# iPhone navigation is `xcrun simctl openurl` and nothing else — no taps, see the note below on why
-# agent-device must stay out of the way. The iPad opens the same links but has to have iPadOS's
-# "Open in …?" confirmation tapped away (see confirm_open). The watch has no accessibility bridge on
-# simulators, so it is driven by idb taps at points calibrated against a screenshot.
+# iPhone and iPad navigation is a launch with the shot's link as an argument (`-KPLink`) and nothing
+# else — no taps, see the note below on why agent-device must stay out of the way. (An openurl waits
+# behind iPadOS's "Open in …?" prompt, and stopped reaching a cold iPhone app on iOS 27.) The watch is
+# launched straight onto each screen (`-KPShot`). Nothing taps: idb's taps need a framework Xcode 27
+# moved, and its companion has not been updated since 2022.
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # No device flag means every device; one or more pick exactly those, so `--phone --watch` is the
 # old two-device run and `--ipad` on its own re-shoots the iPad set.
-DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-3}"
-LANG_SPEC="all"; SEED=auto
+# SETTLE: seconds from launch to shot. On the iOS 27 simulators a launch onto a link is drawn about
+# 4 s in (3 was enough on iOS 26), later while the other simulators are busy, so 6.
+DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-6}"
+LANG_SPEC="all"; SEED=auto; PALETTE=""
 pick() { [[ $PICKED == 1 ]] || { DO_PHONE=0; DO_WATCH=0; DO_IPAD=0; PICKED=1; }; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -46,6 +51,7 @@ while [[ $# -gt 0 ]]; do
     --lang) shift; LANG_SPEC="$1" ;;
     --lang=*) LANG_SPEC="${1#--lang=}" ;;
     --seed) SEED=yes ;;
+    --palette) shift; PALETTE="$1" ;;
     --no-seed) SEED=no ;;
     -h|--help) sed -n 2,29p "$0"; exit 0 ;;
     *) die "unknown flag $1" ;;
@@ -99,57 +105,23 @@ PHONE="$(ensure_sim "$PHONE_NAME" "$PHONE_TYPE" iOS)"
 # prompt" step silently did to all 16 shots. There is no such prompt to press anyway: it belongs to
 # links opened from another app, not to `simctl openurl`.
 
-# The iPhone and the iPad are shot by the same three lines — terminate, open the deep link, wait —
-# so there is one recipe list and capture_ios points it at whichever simulator is being shot. $SIM,
-# $KIND, $EXPECT and $THEME are set by capture_ios and read by the helpers below.
-open_url() { xcrun simctl openurl "$SIM" "$1"; }
-
-# iPadOS asks "Open in "Kopiyka Budget"?" before it hands a scheme over — every time, whether the
-# app is running or not, and on the iPad only: the same openurl on the iPhone goes straight into the
-# app. The prompt is SpringBoard's, so the app cannot turn it off, and a shot taken over it is a
-# picture of an alert on the home screen (which is what the whole iPad set came out as until this
-# was added). So it is tapped away.
-#
-# `idb ui tap` injects at the HID level — no XCTest runner, so nothing is pushed into the background,
-# unlike agent-device above. The button is looked up by its accessibility label rather than tapped at
-# a fixed point because the alert is still sliding in when the first look happens, and a point
-# measured mid-animation lands below it; the loop simply looks again until the alert is gone.
-confirm_open() {
-  local try pt
-  for try in 1 2 3 4; do
-    pt="$(idb ui describe-all --udid "$SIM" 2>/dev/null | python3 -c '
-import json, sys
-try:
-    els = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-# SpringBoard speaks the simulator language once it has restarted in it (set_sim_language).
-hit = [e for e in els if e.get("type") == "Button" and (e.get("AXLabel") or "") in ("Open", "Відкрити")]
-if hit:
-    f = hit[-1]["frame"]
-    print(int(f["x"] + f["width"] / 2), int(f["y"] + f["height"] / 2))
-' || true)"
-    [[ -n "$pt" ]] || return 0      # no confirmation on screen: nothing to do
-    idb ui tap --udid "$SIM" $pt >/dev/null 2>&1 || true   # unquoted on purpose: "<x> <y>"
-    sleep 1.2
-  done
-  warn "    the \"Open in …\" confirmation would not go away — the shot may be of the alert"
-}
+# The iPhone and the iPad are shot by the same three lines — terminate, launch onto the deep link,
+# wait — so there is one recipe list and capture_ios points it at whichever simulator is being shot.
+# $SIM, $KIND, $EXPECT and $THEME are set by capture_ios and read by the helpers below.
 
 # Cold start straight into a deep link: a clean stack every time.
 cold() {
   xcrun simctl terminate "$SIM" "$APP_ID" 2>/dev/null || true
   sleep 0.5
-  open_url "$1"
-  if [[ "$CONFIRM" == 1 ]]; then
-    sleep 1.5      # let the alert finish sliding in before looking for it
-    confirm_open
-  fi
+  # Launched with the link as an argument (`openLaunchLink`, src/lib/launchLink.ts). An openurl
+  # waits behind iPadOS's "Open in …" prompt, and on the iOS 27 simulators a cold openurl started
+  # the iPhone app on Transactions without handing it the link at all.
+  xcrun simctl launch "$SIM" "$APP_ID" -KPLink "$1" >/dev/null
   sleep "$SETTLE"
 }
 
 shoot() { # <id>
-  local out="$RAW_DIR/$KIND/$THEME/$1.png" size
+  local out="$RAW_DIR/$KIND/${PALETTE:+$PALETTE-}$THEME/$1.png" size
   mkdir -p "$(dirname "$out")"
   xcrun simctl io "$SIM" screenshot "$out" >/dev/null 2>&1
   size="$(png_size "$out")"
@@ -190,23 +162,33 @@ IPAD_SHOTS=(); for id in "${IOS_SHOTS[@]}"; do [[ "$id" == watch ]] || IPAD_SHOT
 
 capture_ios() { # <udid> <name> <kind: iphone|ipad> <expected WxH> <radio: cellular|wifi> <id…>
   SIM="$1"; SIM_NAME="$2"; KIND="$3"; EXPECT="$4"; local radio="$5"; shift 5
-  CONFIRM=0; [[ "$KIND" == ipad ]] && CONFIRM=1
   boot_sim "$SIM"
   xcrun simctl get_app_container "$SIM" "$APP_ID" >/dev/null 2>&1 \
     || die "Kopiyka is not installed on \"$SIM_NAME\" — run scripts/screenshots/run.sh --install"
-  if [[ "$CONFIRM" == 1 ]]; then
-    idb connect "$SIM" >/dev/null 2>&1 \
-      || { idb kill >/dev/null 2>&1 || true; idb connect "$SIM" >/dev/null 2>&1 \
-           || die "idb cannot connect to \"$SIM_NAME\" (brew install idb-companion; pipx install fb-idb) — the iPad needs it to tap away iPadOS's \"Open in …\" prompt"; }
+  set_sim_language "$SIM" "$LANG_CODE"
+  if [[ "$KIND" == ipad ]]; then
+    # The iPad's status bar prints the date, and SpringBoard reads the language only when it starts:
+    # without a restart the English slides carried the Ukrainian date of the run before.
+    xcrun simctl shutdown "$SIM" >/dev/null 2>&1 || true
+    boot_sim "$SIM"
   fi
   pretty_status_bar "$SIM" "$radio"
-  set_sim_language "$SIM" "$LANG_CODE"
+  # A colour theme is meta `theme`, so it is set the way the demo data is: re-seeded, app closed.
+  [[ -n "$PALETTE" ]] && seed_demo_theme "$LANG_CODE" "$SIM" "$PALETTE"
+  # One launch off-camera first. A simulator's first start of a fresh install takes far longer than
+  # the settle time (a just-created iOS 27 simulator drew the launch skeleton into every light shot);
+  # every launch after it is quick.
+  xcrun simctl launch "$SIM" "$APP_ID" >/dev/null 2>&1 || true
+  sleep "${SHOTS_WARMUP:-15}"
+  xcrun simctl terminate "$SIM" "$APP_ID" 2>/dev/null || true
   for THEME in "${THEMES[@]}"; do
     log "$SIM_NAME · $LANG_CODE · $THEME"
     xcrun simctl ui "$SIM" appearance "$THEME" >/dev/null 2>&1 || true
     for id in "$@"; do wanted "$id" && ios_shot "$id" || true; done
   done
   xcrun simctl ui "$SIM" appearance light >/dev/null 2>&1 || true
+  [[ -n "$PALETTE" ]] && seed_demo_theme "$LANG_CODE" "$SIM" graphite
+  true
 }
 
 capture_phone_ipad() {
@@ -220,35 +202,34 @@ capture_phone_ipad() {
 }
 
 # ---------------------------------------------------------------- watch
-# Points on the 49 mm Ultra (211×257 pt, 2× scale). Calibrated against the Release build on
-# 2026-09-12; re-check with a screenshot (px / 2 = pt) after any keypad layout change.
-# The keypad's top row is 7-8-9 and its bottom row is .-0-⌫ (see LogPage in
-# targets/watch/ContentView.swift) — the old table had the rows upside down and every point ~40 pt
-# too high, so "14.50" came out as another number or as taps on the amount field.
-KEY_COLS=(38 105 172)            # x of the three keypad columns
-KEY_ROWS=(121 157 194 230)       # y of rows 7-8-9 / 4-5-6 / 1-2-3 / .-0-⌫
-AMOUNT_ROW_Y=77                  # the amount row doubles as "Next"
-FIRST_ROW_Y=96                   # first list row on the category / tag pages
-
-wtap()   { idb ui tap --udid "$WATCH" "$1" "$2" >/dev/null 2>&1; sleep 0.7; }
-wswipe() { idb ui swipe --udid "$WATCH" "$1" "$2" "$3" "$4" --duration 0.25 >/dev/null 2>&1; sleep 1.2; }
+# No taps: the watch app opens the screen it is launched with (`-KPShot`, `WatchShot` in
+# targets/watch/KopiykaWatchApp.swift), the amount already typed. idb's taps need SimulatorKit where
+# Xcode kept it until 26, and coordinates broke whenever a row was added above the one they hit.
 wshoot() { mkdir -p "$RAW_DIR/watch"; xcrun simctl io "$WATCH" screenshot "$RAW_DIR/watch/$1.png" >/dev/null 2>&1; log "  $LANG_CODE/watch/$1  $(png_size "$RAW_DIR/watch/$1.png")"; }
-wkey() { # digit or "." or "⌫"
-  local k="$1" col row
-  case "$k" in
-    7|8|9) row=0; col=$((k - 7)) ;;
-    4|5|6) row=1; col=$((k - 4)) ;;
-    1|2|3) row=2; col=$((k - 1)) ;;
-    .) row=3; col=0 ;;  0) row=3; col=1 ;;  ⌫) row=3; col=2 ;;
-  esac
-  wtap "${KEY_COLS[$col]}" "${KEY_ROWS[$row]}"
+# Wait until the watch holds the phone's state in this language (watch-state.json in its App Group,
+# written when the state arrives), launching the watch app so it asks. A new watch has none, and a
+# shot taken before it lands is the "Open Kopiyka on your iPhone" keypad over an empty list.
+wait_watch_state() {
+  local group file try
+  group="$(xcrun simctl get_app_container "$WATCH" "$WATCH_APP_ID" groups 2>/dev/null | awk '$1 == "group.dev.kopiyka" { print $2 }')"
+  file="$group/watch-state.json"
+  xcrun simctl launch "$WATCH" "$WATCH_APP_ID" $(lang_launch_args "$LANG_CODE") >/dev/null 2>&1 || true
+  for try in $(seq 1 45); do
+    if [[ -f "$file" ]] && grep -q "\"language\":\"$LANG_CODE\"" "$file" && ! grep -q '"accounts":\[\]' "$file"; then return 0; fi
+    sleep 2
+  done
+  warn "    the watch has no $LANG_CODE data from the phone after 90 s — the shots may be empty"
 }
-wrelaunch() {
+
+# Open one screen and photograph it.
+wscreen() {
+  wanted "$1" || return 0
   xcrun simctl terminate "$WATCH" "$WATCH_APP_ID" 2>/dev/null || true
   sleep 0.5
   # shellcheck disable=SC2046 # one argument per line, none with spaces
-  xcrun simctl launch "$WATCH" "$WATCH_APP_ID" $(lang_launch_args "$LANG_CODE") >/dev/null
+  xcrun simctl launch "$WATCH" "$WATCH_APP_ID" $(lang_launch_args "$LANG_CODE") -KPShot "$1" -KPShotAmount "$LOG_AMOUNT" >/dev/null
   sleep 5
+  wshoot "$1"
 }
 
 capture_watch() {
@@ -263,30 +244,12 @@ capture_watch() {
   xcrun simctl terminate "$PHONE" "$APP_ID" 2>/dev/null || true
   # shellcheck disable=SC2046
   xcrun simctl launch "$PHONE" "$APP_ID" $(lang_launch_args "$LANG_CODE") >/dev/null; sleep 4
-  idb connect "$WATCH" >/dev/null 2>&1 || { idb kill >/dev/null 2>&1 || true; idb connect "$WATCH" >/dev/null 2>&1 || die "idb cannot connect to the watch (brew install idb-companion; pipx install fb-idb)"; }
 
   log "Watch · $LANG_CODE"
-  wrelaunch
-  local i
-  for ((i = 0; i < ${#LOG_AMOUNT}; i++)); do wkey "${LOG_AMOUNT:i:1}"; done
-  wanted keypad && wshoot keypad || true
-  wtap 105 "$AMOUNT_ROW_Y"; sleep 1
-  wanted categories && wshoot categories || true
-  wtap 105 "$FIRST_ROW_Y"; sleep 1
-  wanted tags && wshoot tags || true
-
-  # One horizontal pager holds all four pages — Log (the keypad, page 0), History, Budgets, Status
-  # (the TabView in targets/watch/ContentView.swift). Each right-to-left swipe moves on by one;
-  # there is no vertical gesture, and a vertical swipe near the top opens Notification Centre.
-  # The swipe runs at mid-height across almost the full width so it is read as a page turn and not
-  # as a tap on whatever list row it starts on.
-  wrelaunch
-  wswipe 200 128 15 128
-  wanted history && wshoot history || true
-  wswipe 200 128 15 128
-  wanted budgets && wshoot budgets || true
-  wswipe 200 128 15 128
-  wanted status && wshoot status || true
+  wait_watch_state
+  wscreen keypad
+  local screen
+  for screen in categories tags history budgets status; do wscreen "$screen"; done
   xcrun simctl terminate "$WATCH" "$WATCH_APP_ID" 2>/dev/null || true
 }
 

@@ -300,6 +300,16 @@ section:first-of-type {
 .hero-shot {
   max-width: 340px;
   margin-left: auto;
+  position: relative;
+}
+
+/* Stands at the phone's lower left, half over its edge, as if leaning on it. */
+.hero-mascot img {
+  position: absolute;
+  left: -38%;
+  bottom: -4%;
+  width: 62%;
+  height: auto;
 }
 
 .hero-actions {
@@ -772,6 +782,19 @@ section:first-of-type {
   margin-top: 1.6em;
 }
 
+/* The Shortcut guide: a step's pictures side by side, three to a row at most. */
+.doc .guide-shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  max-width: 640px;
+}
+
+.doc .guide-shots img {
+  border-radius: 14px;
+  border: 1px solid var(--rule);
+}
+
 .doc p,
 .doc li {
   color: var(--text);
@@ -917,6 +940,13 @@ section:first-of-type {
   .hero-shot {
     max-width: 320px;
     margin-left: 0;
+  }
+
+  /* One column: the phone sits at the left, so the cat moves to its right, where there is room. */
+  .hero-mascot img {
+    left: auto;
+    right: -30%;
+    width: 55%;
   }
 
   .site-footer .made {

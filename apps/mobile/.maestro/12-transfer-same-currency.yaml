@@ -1,0 +1,39 @@
+appId: dev.kopiyka.app
+name: "Transfer, one currency: both accounts first, then the amount; the received side follows and can be changed"
+# Needs the test accounts: bun apps/mobile/.maestro/seed/transfers.ts <udid>  (and --clean afterwards)
+---
+- runFlow: _launch.yaml
+- tapOn: "Log a transaction"
+- tapOn: "Transfer"
+- assertVisible: "Make this a transfer?"
+- tapOn: "Make transfer"
+- waitForAnimationToEnd
+# Nothing is guessed: the From picker opens by itself, then To.
+- assertVisible: "Account"
+- tapOn: "E2E PLN"
+- waitForAnimationToEnd
+- assertVisible: "Account"
+# The account already chosen as From is not offered as To.
+- assertNotVisible: "E2E USD, .*E2E PLN,.*"
+- tapOn: "E2E PLN 2"
+- waitForAnimationToEnd
+- tapOn: "1"
+- tapOn: "2"
+- tapOn: "0"
+- assertVisible: "From E2E PLN: 120.00 PLN"
+# One currency: the received amount follows the sent one…
+- assertVisible: "To E2E PLN 2: 120.00 PLN"
+# …until it is typed itself (a fee taken on the way): then it stands.
+- tapOn: "To E2E PLN 2: .*"
+- tapOn: "1"
+- tapOn: "1"
+- tapOn: "8"
+- assertVisible: "To E2E PLN 2: 118.00 PLN"
+- assertVisible: "From E2E PLN: 120.00 PLN"
+- assertVisible: "2.00 PLN less arrived than was sent."
+# Back to one figure.
+- tapOn: "Same amount"
+- assertVisible: "To E2E PLN 2: 120.00 PLN"
+- tapOn: "Tap to transfer.*"
+- waitForAnimationToEnd
+- assertVisible: "Log a transaction"

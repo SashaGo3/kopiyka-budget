@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Host, DatePicker } from "@expo/ui/swift-ui";
-import { datePickerStyle, environment } from "@expo/ui/swift-ui/modifiers";
+import { datePickerStyle, environment, frame } from "@expo/ui/swift-ui/modifiers";
 import { resolvePick } from "@/store/pick";
 import { BigButton, Chip } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
@@ -23,8 +23,9 @@ export default function PickDate() {
         <Chip label={t("common.today")} active={day === todayLocal()} onPress={() => pick(todayLocal())} />
         <Chip label={t("common.yesterday")} active={day === yesterday()} onPress={() => pick(yesterday())} />
       </View>
-      <Host matchContents style={styles.host}>
-        <DatePicker selection={new Date(day + "T12:00:00")} displayedComponents={["date"]} modifiers={[datePickerStyle("graphical"), environment("locale", getLocale())]}
+      {/* Height from SwiftUI, width from the sheet: the calendar fills the card instead of hugging the left edge. */}
+      <Host matchContents={{ vertical: true }} style={styles.host}>
+        <DatePicker selection={new Date(day + "T12:00:00")} displayedComponents={["date"]} modifiers={[datePickerStyle("graphical"), environment("locale", getLocale()), frame({ maxWidth: 10000, alignment: "center" })]}
           onDateChange={(d) => { const v = todayLocal(d); setDay(v); if (v !== day) pick(v); }} />
       </Host>
       <BigButton label={t("pick.date.use")} onPress={() => pick(day)} />

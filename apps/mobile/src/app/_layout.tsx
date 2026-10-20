@@ -2,20 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import "@/db"; // opens + migrates synchronously before first render
-import { C, R, S, themed } from "@/constants/theme";
-import { themeOf, type ThemeId } from "@kopiyka/core";
-import { useTheme } from "@/lib/theme";
+import { C, NAMED_COLORS, R, S, layoutColor, themed } from "@/constants/theme";
+import { themeColors, themeOf, type ThemeId } from "@kopiyka/core";
+import { themeMounted, useTheme } from "@/lib/theme";
 import { onAfterWrite } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
 import { writeWidgetSnapshot } from "@/lib/widget";
 import { KPBridge } from "@/lib/bridge";
-import { themeKeyedLayoutExcept } from "@/components/ThemeKeyed";
 import { notifyChange } from "@/store";
 import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markBooted, markRootLayoutRender, onBooted } from "@/lib/boot";
 import { maybeShowWhatsNew } from "@/lib/whatsNew";
+import { openLaunchLink } from "@/lib/launchLink";
 import { needsOnboarding } from "@/lib/onboarding";
 import { isPad, screenContentStyle } from "@/constants/layout";
 import { t, useLanguage } from "@/i18n";
@@ -43,12 +43,14 @@ export const unstable_settings = { anchor: "(tabs)" };
  * content fits inside, and the content is pinned to its bottom edge so the room that is left over
  * appears above it, where the design already puts empty space.
  */
-// Both take the theme as an argument although they read it through `C`: no layout remounts on a
-// theme switch (only each screen's content does, src/lib/theme.ts), and the React Compiler memoises a
-// call on its arguments — a call with none (or only `dark`) kept handing back an earlier theme's colours.
-function sheetOptions(_theme: ThemeId) {
-  const sheetContent: ViewStyle = { backgroundColor: C.bgGrouped, ...(isPad ? { justifyContent: "flex-end" as const } : null) };
-  const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, sheetCornerRadius: 24, contentStyle: sheetContent };
+// Takes the theme and draws it in plain colours of exactly that theme (`layoutColor`): no layout
+// re-mounts on a theme switch, and the React Compiler memoises a call on its arguments.
+function sheetOptions(theme: ThemeId) {
+  const sheetContent: ViewStyle = { backgroundColor: layoutColor(theme, "bgGrouped"), ...(isPad ? { justifyContent: "flex-end" as const } : null) };
+  // No `sheetCornerRadius`: iOS 26 floats a sheet a few points in from the screen and rounds its
+  // corners to follow the screen's own. A fixed 24 is far tighter than an iPhone's corners, so the
+  // sheet's bottom corners ran under the curve of the display and were cut off.
+  const sheet = { presentation: (isPad ? "modal" : "formSheet") as "modal" | "formSheet", headerShown: false, sheetGrabberVisible: true, contentStyle: sheetContent };
   return {
     /** Entry sheets hug their content: no dead space above the amount (a phone sheet; see `sheet`). */
     fit: { ...sheet, sheetAllowedDetents: "fitToContents" as const },
@@ -56,7 +58,7 @@ function sheetOptions(_theme: ThemeId) {
     /** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
     picker: { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 },
     /** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
-    modal: { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: C.bgGrouped } },
+    modal: { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: layoutColor(theme, "bgGrouped") } },
   };
 }
 /**
@@ -66,20 +68,16 @@ function sheetOptions(_theme: ThemeId) {
  */
 const pushed = { contentStyle: screenContentStyle };
 /**
- * A theme switch re-mounts each screen's content (`ThemeKeyed`) but never a navigator: `(tabs)` holds
- * the selected tab and every tab's stack, `onboarding` the welcome flow's step — their own stacks
- * re-key their screens instead.
- */
-const rootScreenLayout = themeKeyedLayoutExcept(["(tabs)", "onboarding"]);
-
-/**
  * Navigation colours that match the theme's backgrounds, so native headers never differ from the
  * content. Built at render from the theme passed in, so a switch re-renders them in place.
  */
 function navigationTheme(dark: boolean, theme: ThemeId) {
   const s = themeOf(theme)[dark ? "dark" : "light"];
   const base = dark ? DarkTheme : DefaultTheme;
-  return { ...base, colors: { ...base.colors, background: s.bg, card: s.bg, primary: s.accent, border: s.border, text: s.text } };
+  // Header titles in the body text's colour as the app draws it (held to its contrast floor), not the
+  // palette's raw value, which on several themes is the faded grey the floor exists to fix.
+  const label = themeColors(themeOf(theme)).label[dark ? 1 : 0];
+  return { ...base, colors: { ...base.colors, background: s.bg, card: s.bg, primary: s.accent, border: s.border, text: label } };
 }
 
 export default function RootLayout() {
@@ -95,26 +93,28 @@ export default function RootLayout() {
   // What this layout wrote outside the tree is in the old language too: the widget snapshot and the
   // watch state carry names, and JS-scheduled reminders carry their text.
   const lang = useLanguage();
-  // A new theme does not: the navigators stay, with every tab and stack where it was, and only each
-  // screen's content mounts again (`rootScreenLayout` here, `themeKeyedLayout` in the other layouts;
-  // src/lib/theme.ts). What this layout draws itself takes the theme and re-renders in place.
+  // A new theme does not: nothing re-mounts or even re-renders, because every colour is named and
+  // resolved natively (src/lib/theme.ts). What this layout draws itself takes the theme and
+  // re-renders in place. Only where named colours are unavailable does a theme re-mount the tree too.
   const theme = useTheme();
-  // The language the tree on screen was mounted in. When it differs the tree is "parked": one render
-  // with no navigator at all, so the old one's state is gone (it clears it on unmount) before the new
+  const tree = NAMED_COLORS ? lang : `${lang}:${theme}`;
+  // The tree on screen was mounted for `shown`. When it differs the tree is "parked": one render with
+  // no navigator at all, so the old one's state is gone (it clears it on unmount) before the new
   // navigator mounts.
-  const [shown, setShown] = useState(lang);
-  const parked = shown !== lang;
+  const [shown, setShown] = useState(tree);
+  const parked = shown !== tree;
   const remounted = useRef(false);
   useEffect(() => {
     if (!parked) return;
     remounted.current = true;
     // Deliberately a second commit: the parked one had to land first (see `shown`).
-    setShown(lang); // eslint-disable-line react-hooks/set-state-in-effect
-  }, [parked, lang]);
+    setShown(tree); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [parked, tree]);
   useEffect(() => {
     if (!remounted.current) return;
     remounted.current = false;
     const id = setTimeout(() => {
+      themeMounted();
       if (needsOnboarding()) { router.navigate("/onboarding"); return; }
       router.navigate("/settings");
     }, 0);
@@ -136,12 +136,14 @@ export default function RootLayout() {
     const notifications = require("@/lib/notifications") as typeof import("@/lib/notifications"); // eslint-disable-line @typescript-eslint/no-require-imports
     const Notifications = require("expo-notifications") as typeof import("expo-notifications"); // eslint-disable-line @typescript-eslint/no-require-imports
     const offBoot = onBooted(() => {
+      openLaunchLink();
       InteractionManager.runAfterInteractions(() => {
         installBackupTriggers();
         writeWidgetSnapshot();
         maybeShowWhatsNew();
         void notifications.runAutoPosting().then(() => notifications.rescheduleRecurringNotifications());
         void notifications.syncBadge();
+        void notifications.dismissSettledPaymentNotices();
       });
     });
     // Coming back to the foreground: post anything that fell due, and re-read the database. A
@@ -149,10 +151,11 @@ export default function RootLayout() {
     // nothing in JS ever hears about those — without this the entry only appears on a cold start.
     // A Shortcut automation sets the badge itself while the app is away; coming back re-reads it
     // from the database, so a queue approved on another device does not leave a number behind.
-    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); void notifications.syncBadge(); } });
+    const appState = AppState.addEventListener("change", (s) => { if (s === "active") { notifyChange(); void notifications.runAutoPosting(); void notifications.syncBadge(); void notifications.dismissSettledPaymentNotices(); } });
     // The badge is derived, never incremented: approving the queue here, on the watch or on another
-    // phone all end at the same recount.
-    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); void notifications.syncBadge(); });
+    // phone all end at the same recount. So is the automation's notification: once its entry is
+    // approved or deleted there is nothing left on it to act on, and it goes.
+    const off = onAfterWrite(() => { writeWidgetSnapshot(); void notifications.rescheduleRecurringNotifications(); void notifications.syncBadge(); void notifications.dismissSettledPaymentNotices(); });
     // A tapped reminder goes where it is about: this debt, this recurring occurrence. The same
     // response can arrive twice — once cached from the cold launch that the tap caused, once live —
     // so each notification is followed only once.
@@ -176,13 +179,14 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={navigationTheme(scheme === "dark", theme)}>
       {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={shown} style={{ flex: 1 }}>
-        <Stack screenLayout={rootScreenLayout} screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
+        <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="log" options={{ headerShown: false, presentation: "transparentModal", animation: "none" }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
           {/* A short read of variable length: a half sheet that can be dragged up, not a full card. */}
           <Stack.Screen name="whats-new" options={medium} />
           <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: t("common.back") }} />
+          <Stack.Screen name="search" options={{ ...pushed, title: t("transactions.searchTitle"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="pending" options={{ ...pushed, title: t("layout.pending"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
           <Stack.Screen name="transaction/split" options={modal} />
@@ -212,8 +216,10 @@ export default function RootLayout() {
           <Stack.Screen name="recurring/due" options={{ ...pushed, title: t("layout.recurringDue"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="pick/category" options={picker} />
           <Stack.Screen name="pick/icon" options={picker} />
+          <Stack.Screen name="pick/payicon" options={picker} />
           <Stack.Screen name="pick/color" options={picker} />
           <Stack.Screen name="pick/account" options={picker} />
+          <Stack.Screen name="pick/transfer" options={picker} />
           <Stack.Screen name="pick/currency" options={picker} />
           <Stack.Screen name="pick/tags" options={picker} />
           <Stack.Screen name="pick/group" options={picker} />

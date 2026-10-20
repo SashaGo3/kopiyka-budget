@@ -2,9 +2,9 @@ import { useRef } from "react";
 import type { NativeScrollEvent, NativeSyntheticEvent, ScrollView } from "react-native";
 
 /**
- * Where each kept list was scrolled to, by slot. Module state, so it outlives the screen: a theme
- * switch re-mounts a screen's content (components/ThemeKeyed.tsx), and a picker that jumps back to
- * the top under the finger that just tapped it reads as the tap having gone wrong.
+ * Where each kept list was scrolled to, by slot. Module state, so it outlives the screen: where a
+ * theme switch has to re-mount the tree (no named colours, src/lib/theme.ts) a picker that jumps back
+ * to the top under the finger that just tapped it reads as the tap having gone wrong.
  */
 const offsets = new Map<string, number>();
 /** How long a re-mounted list keeps putting itself back while its content is still growing. */

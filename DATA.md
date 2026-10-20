@@ -98,6 +98,18 @@ a row read by an older build is a narrower budget than intended rather than an "
 which would have silently suppressed every other budget of that currency in `freeMoney`. Keep the two
 in step with `scopedBudget` before every save.
 
+An **event** — a birthday party, a wedding, a day out — is the same row as a trip with `budgets.kind
+= 'event'` (v20; NULL or `'trip'` is a trip, and anything else is read as a trip too). Everything
+below holds for both, word for word: the kind changes the app's words, icon and colour (pink, a
+party popper) and the calendar's default of one day, never a number. Read it through `tripKind`;
+Settings → Trips & Events starts either, and only one of the two runs at a time. A backup from before
+v20 has no `kind` and is not in `ROW_DEFAULTS`, so it leaves the phone's answer alone.
+
+A trip or an event may have **no limit**: `amount_minor = 0` means "only count what was spent", read
+through `tripLimited` — `tripStats` then reports `limited: false` with no remaining, allowance or
+over, and the card, widget and watch show the total instead of what is left. It changes nothing else:
+the money is still the trip's and still out of the monthly budgets.
+
 A trip's money is the trip's. Travel mode is a one-off budget on a tag (`packages/core/src/trips.ts`),
 and whatever carries a trip tag (`tripTagIds`) is left out of every monthly budget — `budgetRows`,
 so `freeMoney` and the budget suggestion too — except a budget on that very tag; the Budgets screen's
@@ -106,6 +118,17 @@ never counts is a **recurring payment** (`recurring_id` set): rent and subscript
 `tripStats` skips them, they stay in the month's budgets even carrying the tag, earlier purchases
 cannot be added to a trip from among them, and a charge that claims a rule's occurrence
 (`claimRecurring`) drops the trip tag travel mode put on it.
+
+A trip tag is never **inherited**. It says when the money was spent, not what the shop is, so history —
+`payeeHistory`, `payeeOptions`, the Shortcut's Swift copy, the watch's tag ranking — hands on
+nothing that `uncarriedTagIds` (`packages/core/src/trips.ts`) names: every tag a trip was ever run on,
+a deleted trip's included, and every archived tag. Otherwise the café visited on a trip last spring
+files every coffee bought there since under that trip, and so out of the month's budgets. The one
+way a trip tag reaches a new entry is travel mode, while that trip runs (`withTripTag`) — and only
+from its first day: a trip or event added with a later start is the running one already, but
+`activeTripTagId` (and its Swift copy) hands out nothing before `starts`, and the watch and widgets
+do not show it until then. Whether one is added running or finished is decided by its dates: a
+last day before today is born ended (`addPastTrip`).
 
 Everything carrying a trip's tag counts against its budget unless it was chosen to stay **outside**
 it: `budgets.outside_ids` (v17, trips only) is a JSON list of transaction ids — the flights booked
@@ -142,10 +165,16 @@ migration deletes `meta.language` (nothing in 1.0.2 wrote it, and a 1.0.3 choice
 already past v18), and a backup's `language` is applied only when the file's `schema` (written from
 1.0.3 on) is 18 or later. `theme` joined on 2026-10-02 with the colour themes: an id from
 `THEME_IDS` (`packages/core/src/themes.ts`), absent or unknown meaning the default (`graphite`;
-pre-release 1.0.3 builds stored it as `kopiyka`, which `themeOf` still reads), and a restore
+pre-release 1.0.3 builds stored it as `kopiyka`, which `themeOf` still reads; 1.1.0 dropped six of
+1.0.3's themes — `solarized`, `gruvbox`, `nord`, `tokyonight`, `rosepine`, `github` — and a phone or
+backup still holding one reads as the default, with nothing rewritten; ids keep their first names, so
+`catppuccin` is the theme now called Una), and a restore
 that carries one recolours the screens where they are (each screen's content re-mounts; the navigation stays). `appearance` joined on 2026-10-03:
 `light` or `dark` keeps the theme on one side whatever the phone says, `""` (or absent) follows the
-phone. `backup.test.ts` pins the list so the
+phone. `recurring_dismissed` joined on 2026-10-15: the suggested regular payments a person said no
+to, as a JSON list of suggestion keys (`dismissSuggestion`, `packages/core/src/detect.ts`) — the
+account and the normalised name, so the same charge next month stays dismissed. A row pointed at on
+purpose ("from a past payment") still builds its rule. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -164,8 +193,9 @@ that a merge will read — the deletion would be forgotten and the row would com
 
 `"shortcut"` (a notification automation), `"shortcut-guess"` (the same, but its category was guessed
 from the shop's name rather than filed before — the Pending queue shows it in the tint colour with
-"· guess"), `"receipt"`, `"watch"`, `"siri"`, or `null` for hand-entered. A guess never skips the
-Pending queue; only history does.
+"· guess"), `"shortcut-transfer"` (the other leg of a transfer the app wrote itself, because the
+bank only ever notified one side — rule 18), `"receipt"`, `"watch"`, `"siri"`, or `null` for
+hand-entered. A guess never skips the Pending queue; only history does.
 
 ## 10. Never write the database file from outside the running app
 
@@ -255,6 +285,23 @@ Three things are load-bearing:
   that already happened and learned from the first charge that claims an occurrence. With a name the
   charge is recognised whatever it costs this time; without one only the exact amount identifies it.
 
+A rule also says what it is drawn with: `recurring_rules.icon` (v21) — `logo:<slug>`, `img:<data
+URI>`, `emoji:<text>`, `sf:<name>`, or `category` for the category's icon on purpose. NULL means
+nobody chose, and the payee (then `match_payee`) is matched against the built-in brand marks
+(`packages/core/src/logos.ts`, generated by `packages/core/scripts/logos.ts`). Read it through
+`shownPaymentIcon` / `resolvePaymentIcon`, never off the column; a value they do not know reads as
+NULL. Three things follow:
+
+- **A slug is a key, like a preset's (rule 16).** Dropping a mark from the generated list turns the
+  rules wearing it back into a guess, never into an error — but renaming one does the same, silently.
+- **A picture lives in the row.** `img:` is a 120×120 PNG or JPEG as a data URI (a few KB) — a
+  website's own icon or a crop from Photos — fetched or shrunk once, when it was chosen
+  (`apps/mobile/src/lib/siteIcon.ts`, `iconImage.ts`). Unlike a photo (rule 4) there is no file to
+  mirror or orphan: it travels with backups and the other device as part of the row. Anything else
+  under `img:` (another format, more than `MAX_IMG_CHARS`) reads as NULL, so a hand-made backup
+  cannot feed the image decoder something the app would never have written.
+- **Not in `ROW_DEFAULTS`**, so a backup from before v21 leaves the phone's choice alone.
+
 ## 14. Archived is not deleted
 
 A category or a tag can be retired (`archived=1`) instead of deleted, because what was filed under it
@@ -292,9 +339,9 @@ never off the column — the same arrangement as `archivedCategoryIds` (rule 14)
 reason: a folder-level mark honoured by three callers and ignored by the fourth is worse than no
 mark at all.
 
-The flow that sets it (`app/category/importance.tsx`) asks two questions — what you could not live
-without, then, of what is left, what you could stop tomorrow — and everything neither answer claimed
-is Medium. Medium is deliberately not askable: as a third question it is where everything you did
+The flow that sets it (`app/category/importance.tsx`) asks two questions — what you could stop
+tomorrow, then, of what is left, what you could not live without — and everything neither answer
+claimed is Medium. Ticking a category on the first question takes it out of the second's answer. Medium is deliberately not askable: as a third question it is where everything you did
 not want to think about goes, and by elimination it honestly means "the things in between". It also
 makes High-and-Low-at-once unreachable rather than a contradiction settled by some arbitrary rule.
 
@@ -336,6 +383,11 @@ Three things are load-bearing:
 
 - **The key is forever.** It is what the rows hold on every phone; renaming a key in `presetData.ts`
   silently stops every category made from it being translated. Add new keys; never rename one.
+- **So is every name a preset was ever seeded under.** Changing a preset's translation (1.1.0 made
+  «Комунальні» «Комуналка» and «Платежі» «Обовʼязкові платежі») would turn every row still holding
+  the old name into the user's own. The old name goes on `FORMER_PRESET_NAMES`
+  (`packages/core/src/presetData.ts`) and `KPPreset.former` (`native/KPLocale.swift`), where it
+  counts as the preset's own.
 - **The v18 backfill matches by name, once per arrival.** Categories an earlier build seeded in
   English are tagged when their name and folder match the English preset exactly — by the v18
   migration, and again by `importBackup` after it writes the categories of a file from before v18
@@ -375,6 +427,98 @@ app `acctName` / `groupName` (`apps/mobile/src/lib/names.ts`), and in Swift `KPP
   (`account/edit.tsx`, as `category/edit.tsx` does for presets), or opening and saving an account
   would quietly make "Основний" the user's own and stop it following the language.
 
+## 18. One transfer, two notifications: paired by account numbers, never by name
+
+A transfer between two of your own accounts reaches the notification automation as two messages —
+the debit ("Obciążenie konta −500,00 USD … Konto odbiorcy: 27..5837 … Na koncie: 84..3203") and the
+credit ("Uznanie konta +1882,75 PLN … Konto nadawcy: 84..3203 … Na koncie: 27..5837") — minutes
+apart, in either order. Each is logged as it arrives, pending; `pairTransferLeg`
+(`packages/core/src/transferPair.ts`) then makes the two one **pending transfer**, both rows keeping
+their ids, payees and notes (rule 1), so it can be checked and corrected before it counts.
+
+Two columns carry it (v19):
+
+- `transactions.bank_ref` — JSON `{"own":"3203","other":"5837","balance":300000}`: the last four
+  digits of the account the notification was about, of the one on the other end, and the balance
+  the bank printed afterwards (minor units). Written only by the automation; NULL everywhere else.
+- `accounts.numbers` — JSON list of the last four digits a bank prints for the account. Learned when
+  a notification-logged row is approved (`approvePending`, `learnFromRow`), or typed on the account
+  sheet; the automation uses it to pick the account, and pairing uses it when only one side arrives.
+
+What is load-bearing:
+
+- **Numbers are the evidence, nothing else.** Two legs pair only when every number both print agrees
+  (one's `other` is the other's `own`) and at least one does; opposite directions, different
+  accounts, within `PAIR_WINDOW_MINUTES`. A name proves nothing — a third party paying you can share
+  it — and a third party's account number is not yours, so their payment stays income.
+- **Only pending rows start a pairing.** A leg already approved is still *found* by its other half,
+  and the pair goes back to pending: an expense and an income that are really one transfer would
+  otherwise count the money twice. A row a recurring rule claimed is that rule's (rule 13) and is
+  never paired. The automation keeps any notification naming the other account in the queue.
+- **One leg only** becomes a transfer when its `other` is an account's number (and only one account
+  claims it); the app writes the missing leg (`source = "shortcut-transfer"`), at the cached rate
+  or at **0** when there is none (rule 6), and the real leg replaces it if it arrives after all.
+- **A repeat is dropped only on the balance.** The same notification delivered twice has the same
+  closing balance; a second identical transfer does not. Without a balance on both, both are kept.
+- **Pairing happens in JS.** A forwarded write pairs at once; legs the automation wrote straight into
+  the file while the app was closed (rule 10) are paired by a sweep when the app comes up, which
+  counts as a write only if it changed something (rule 12).
+- **A number outranks the automation's guess.** A pending leg whose `own` number names another
+  account (and only that one) is moved there before pairing, at the bank's own figure — the amount
+  as written when the currencies match, the kept original when it was converted — or left where it
+  is when neither is to hand (`rehome`). Otherwise a USD debit filed on the PLN account cannot pair
+  with the PLN credit beside it, and one transfer becomes three rows. The automation, for its part,
+  believes a number or a card only for an account in a currency the notification named, when you
+  hold one in it — and asks none of this when its Account field names an account. Shortcuts used
+  to fill that field with the usual account the moment the action was added, pinning every payment
+  to it; since 1.1.0 the field has no default (`KPPaymentAccountEntity`) and a new name, so
+  automations built before it lose the pin.
+- **Learning writes only what changes** (rule 15's lesson), and never gives a number to a second
+  account — except that a payment in the account's own currency takes a number back from an account
+  in another currency, which can only have learned it from a payment filed on the wrong account. A
+  payment the automation converted teaches nothing. Neither column is in `ROW_DEFAULTS`: a backup from before v19 keeps what the phone knows.
+
+## 19. A payment can be pointed at a debt, and the debt counts what it was paid
+
+A debt is not a transaction (`packages/core/src/debts.ts`): lending someone cash has already moved the
+money. But paying a loan back in parts, or a friend handing back what they borrowed, *is* money moving,
+and it is logged like any other entry — with **Debt** picked in place of a category. The category
+picker offers it under "No category" only while a debt is open, and choosing it asks which one
+(`pick/category.tsx`). The row then carries `transactions.debt_id` (v22) and, as a rule, no category.
+
+- **What a debt has been paid is what its rows add up to** (`debtPaid`): money going out for one you
+  owe, money coming in for one owed to you, in the debt's currency — a row on an account in another
+  currency counts by its entered original when that is in the debt's currency, and not at all
+  otherwise. There is no running balance stored on the debt to keep in step.
+- **The payment that covers it settles it** (`settleIfPaid`, called by the entry sheet on save). Marking
+  a debt paid by hand writes a transaction only for what the linked rows left, and links that too.
+- **Budgets show it as its own line.** Debt payments are a "Debts" line in Spending, one row per debt,
+  not "Uncategorized" (`categorySpend(…, { exceptDebts: true })` leaves them out of the folders). They
+  still count against an overall budget: it is money spent this month.
+- **Not in `ROW_DEFAULTS`**: a backup from before v22 leaves the phone's link alone, and an older build
+  ignores the column.
+
+## 20. The bank's words and yours are two fields
+
+What a bank notification said about a payment — the reference, the shop and town as printed, the
+original currency — is `transactions.bank_note` (v23), written by the notification automation and
+never edited in the app. `notes` is the person's own, and starts empty on an automation row. The
+entry sheet shows the bank's text read-only under the note; a list row is titled by your note, with
+the payment's own words — the shop and the bank's text — underneath, and by those words only when
+there is no note (`rowText`, `apps/mobile/src/lib/rowText.ts`). A bank line that already starts with
+the shop's name stands for both, so nothing is printed twice.
+
+- **Matching reads all three.** `payeeHistory`, recurring detection and `claimRecurring` look for a
+  name in `payee`, `notes` and `bank_note`, so a row is still recognised by the bank's words after a
+  note has been added to it.
+- **Rows from before v23 are left alone.** They hold the bank's text in `notes`, possibly with the
+  person's words typed into it, and there is no telling the two apart; rewriting them would also
+  move `updated_at` and win merges nobody made (rule 15's lesson).
+- **Before the app has migrated**, the automation writes the bank's text into `notes` as it always
+  did (`KPStore.addTransaction` checks for the column), so nothing is lost on the way.
+- **Not in `ROW_DEFAULTS`**: a backup from before v23 leaves the phone's text alone, and an older
+  build ignores the column.
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import
@@ -385,6 +529,9 @@ back. What to tell it:
    category with children (rule 5).
 3. Do not touch `rates`, `settings`, or any `photo` field (rules 3, 4, 7). Leave `preset` as it is: a
    renamed category stops being translated on its own (rule 16), so there is never a reason to edit it.
+   Leave `bank_ref` and an account's `numbers` alone too: they are how bank notifications find
+   accounts and pair transfers (rule 18). And `debt_id`: it is what a debt counts as paid (rule 19).
+   And `bank_note`: it is what the bank said, which nothing else records (rule 20).
 4. Leave `amount_minor` and every transaction alone unless the point of the pass is the transactions.
    Leave `importance` alone too, or say nothing about it: a column the file omits keeps whatever the
    phone already had, but an `importance: 0` written over a marked category erases an answer only a

@@ -16,7 +16,7 @@ describe("backup", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
       "appearance", "backup_keep_days", "base_currency", "budget_scope", "budgets_sections", "current_account",
       "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled",
-      "period_start_day", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
+      "period_start_day", "recurring_dismissed", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
       "shortcut_notify", "show_balance", "theme",
     ]);
     // These describe the install, not the data, and must never travel with a backup.

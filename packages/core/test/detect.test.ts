@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createRecurring, createTransaction } from "../src/repo";
-import { adoptCandidate, detectRecurring } from "../src/detect";
+import { adoptCandidate, candidateFromTransaction, detectRecurring, dismissSuggestion, restoreDismissedSuggestions } from "../src/detect";
 
 function fresh() { const db = openBunDb(); migrate(db); return db; }
 
@@ -100,5 +100,23 @@ describe("adopt", () => {
     expect(rule).toMatchObject({ payee: "Disney+ subscription", frequency: "monthly", next_date: "2026-10-06", notify: 1, notify_days_before: 1, auto_post: 1, time_of_day: "17:36" });
     expect(db.get<{ deleted: number }>(`SELECT deleted FROM transactions WHERE id=?`, [planned.id])?.deleted).toBe(1);
     expect(detectRecurring(db, { today: "2026-09-07" }).length).toBe(0);
+  });
+
+  test("a dismissed suggestion stays gone, still answers a row pointed at, and can come back", () => {
+    const db = fresh();
+    const acc = createAccount(db, { name: "A", currency: "PLN" });
+    let last = "";
+    for (const d of ["2026-03-06", "2026-04-06", "2026-05-06", "2026-06-06", "2026-07-06"])
+      last = createTransaction(db, { account_id: acc.id, date: `${d}T10:00:00+02:00`, amount_minor: -4200, notes: "Polish lessons" }).id;
+    const [c] = detectRecurring(db, { today: "2026-07-15" });
+    expect(c?.title).toBe("Polish lessons");
+    dismissSuggestion(db, c!.key);
+    expect(detectRecurring(db, { today: "2026-07-15" })).toEqual([]);
+    // another month of the same charge does not bring it back
+    createTransaction(db, { account_id: acc.id, date: "2026-08-06T10:00:00+02:00", amount_minor: -4200, notes: "Polish lessons" });
+    expect(detectRecurring(db, { today: "2026-08-15" })).toEqual([]);
+    expect(candidateFromTransaction(db, last, "2026-08-15")?.frequency).toBe("monthly");
+    restoreDismissedSuggestions(db);
+    expect(detectRecurring(db, { today: "2026-08-15" }).length).toBe(1);
   });
 });

@@ -12,7 +12,9 @@
     "iphone[] is the numbered App Store set, in order; max 10.",
     "extras[] uses the same schema but renders to appstore/<lang>/extras/ instead: unnumbered spares,",
     "kept out of the contact sheet unless you pass --contact-sheet=all. Promote one by moving it",
-    "into iphone[] (and dropping one of the ten)."
+    "into iphone[] (and dropping one of the ten).",
+    "creative = the product page header and search results art (appstore/<lang>/creative/, every size from frame.mjs CREATIVE_SIZES):",
+    "features = three phones side by side, left to right: {id, title, palette, theme, watch?} — title a store.creative.* key; palette a colour theme id from packages/core/src/themes.ts and theme light|dark, which pick both the capture (raw/<lang>/iphone/<palette>-<theme>/, from capture.sh --palette) and the band behind it; watch = a watch shot in front of that phone."
   ],
   "iphone": [
     {
@@ -157,5 +159,12 @@
       "id": "budgets",
       "title": "store.watch.budgets"
     }
-  ]
+  ],
+  "creative": {
+    "features": [
+      { "id": "log", "title": "store.creative.log", "palette": "tadeusz", "theme": "light", "watch": "keypad" },
+      { "id": "transactions", "title": "store.creative.categories", "palette": "siri", "theme": "light" },
+      { "id": "insights", "title": "store.creative.insights", "palette": "catppuccin", "theme": "dark" }
+    ]
+  }
 }

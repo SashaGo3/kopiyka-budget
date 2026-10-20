@@ -10,6 +10,7 @@ import type { SqlDriver } from "./db";
 import type { Frequency } from "./models";
 import { addPeriod } from "./recurring";
 import { createRecurring, listRows, remove } from "./repo";
+import { getMeta, setMeta } from "./schema";
 
 export interface RecurringCandidate {
   key: string;
@@ -36,7 +37,7 @@ export interface RecurringCandidate {
   source: "planned" | "history";
 }
 
-interface Tx { id: string; account_id: string; category_id: string | null; category_name: string | null; payee: string | null; notes: string | null; amount_minor: number; date: string; tag_ids: string; currency: string }
+interface Tx { id: string; account_id: string; category_id: string | null; category_name: string | null; payee: string | null; notes: string | null; bank_note: string | null; amount_minor: number; date: string; tag_ids: string; currency: string }
 
 const PERIODS: { frequency: Frequency; interval: number; days: number; tol: number; min: number }[] = [
   { frequency: "weekly", interval: 1, days: 7, tol: 2, min: 4 },
@@ -51,11 +52,11 @@ const PERIODS: { frequency: Frequency; interval: number; days: number; tol: numb
 export function normTitle(s: string | null | undefined): string {
   return (s ?? "").split("\n")[0]!.toLowerCase().replace(/\s+/g, " ").replace(/[^\p{L}\p{N} +]/gu, "").trim();
 }
-function titleOf(t: Tx): string | null { return t.payee?.trim() || t.notes?.split("\n")[0]?.trim() || null; }
+function titleOf(t: Tx): string | null { return t.payee?.trim() || t.notes?.split("\n")[0]?.trim() || t.bank_note?.split("\n")[0]?.trim() || null; }
 /** The shop as it was written on this row — the payee only: a note is a sentence, not a name. */
 function matchName(t: Tx): string | null { return t.payee?.trim() || null; }
 function groupKey(t: Tx): string {
-  const title = normTitle(t.payee) || normTitle(t.notes);
+  const title = normTitle(t.payee) || normTitle(t.notes) || normTitle(t.bank_note);
   return title ? `${t.account_id}|t:${title}` : `${t.account_id}|c:${t.category_id ?? "-"}|${t.amount_minor}`;
 }
 function daysBetween(a: string, b: string): number {
@@ -85,11 +86,38 @@ export interface DetectOptions {
   skipExisting?: boolean;
   /** Amount tolerance as a fraction when grouping by title (premiums drift). Default 0.15. */
   amountTolerance?: number;
+  /** Also return suggestions that were dismissed (`dismissSuggestion`). Off by default. */
+  includeDismissed?: boolean;
+}
+
+/**
+ * Suggestions a person said no to, by `RecurringCandidate.key` (the account and the normalised
+ * name, or the category and amount), in `meta.recurring_dismissed` as a JSON list. A key is the
+ * series, not one guess at it: the same charge going on next month stays dismissed, while the same
+ * name on another account is a different question. It travels with backups (DATA.md rule 7).
+ */
+export const DISMISSED_META_KEY = "recurring_dismissed";
+
+export function dismissedSuggestions(db: SqlDriver): Set<string> {
+  try { const v = JSON.parse(getMeta(db, DISMISSED_META_KEY) ?? "[]"); return new Set(Array.isArray(v) ? v.filter((x) => typeof x === "string") : []); }
+  catch { return new Set(); }
+}
+
+export function dismissSuggestion(db: SqlDriver, key: string): void {
+  const keys = dismissedSuggestions(db);
+  if (keys.has(key)) return;
+  keys.add(key);
+  setMeta(db, DISMISSED_META_KEY, JSON.stringify([...keys]));
+}
+
+/** Brings every dismissed suggestion back. */
+export function restoreDismissedSuggestions(db: SqlDriver): void {
+  setMeta(db, DISMISSED_META_KEY, "[]");
 }
 
 export function detectRecurring(db: SqlDriver, opts: DetectOptions): RecurringCandidate[] {
   const txs = db.all(
-    `SELECT t.id, t.account_id, t.category_id, c.name AS category_name, t.payee, t.notes, t.amount_minor, t.date, t.tag_ids, a.currency
+    `SELECT t.id, t.account_id, t.category_id, c.name AS category_name, t.payee, t.notes, t.bank_note, t.amount_minor, t.date, t.tag_ids, a.currency
      FROM transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN categories c ON c.id=t.category_id
      WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.pending=0 AND t.recurring_id IS NULL ORDER BY t.date`) as unknown as Tx[];
   const tol = opts.amountTolerance ?? 0.15;
@@ -170,7 +198,8 @@ export function detectRecurring(db: SqlDriver, opts: DetectOptions): RecurringCa
       match_payee: matchName(last),
     });
   }
-  return out.sort((a, b) => (a.source === b.source ? 0 : a.source === "planned" ? -1 : 1) || a.next_date.localeCompare(b.next_date));
+  const dismissed = opts.includeDismissed ? null : dismissedSuggestions(db);
+  return out.filter((c) => !dismissed?.has(c.key)).sort((a, b) => (a.source === b.source ? 0 : a.source === "planned" ? -1 : 1) || a.next_date.localeCompare(b.next_date));
 }
 
 /**
@@ -199,7 +228,8 @@ export function candidateFromTransaction(db: SqlDriver, txId: string, today: str
   const t = db.get(`SELECT t.*, a.currency, c.name AS category_name FROM transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN categories c ON c.id=t.category_id WHERE t.id=?`, [txId]) as unknown as Tx | undefined;
   if (!t) return null;
   const key = groupKey(t);
-  const found = detectRecurring(db, { today, skipExisting: false }).find((c) => c.key === key);
+  // A row pointed at on purpose is a rule wanted, whatever was dismissed as a suggestion.
+  const found = detectRecurring(db, { today, skipExisting: false, includeDismissed: true }).find((c) => c.key === key);
   // The row the user pointed at is the better example of how this charge is written, whatever
   // occurrence the series happened to be summarised from.
   if (found) return { ...found, match_payee: matchName(t) ?? found.match_payee };

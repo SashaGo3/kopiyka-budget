@@ -3,7 +3,7 @@ import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createBudget, createCategory, createTag, createTransaction, createTransfer, listRows, tagIdsOf } from "../src/repo";
 import { activeBudgets, budgetRows } from "../src/insights";
-import { activeTrip, activeTripTagId, addPastTrip, daysBetween, defaultTripEnd, endTrip, listTrips, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
+import { activeTrip, activeTripTagId, addPastTrip, tripKind, daysBetween, defaultTripEnd, endTrip, listTrips, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
 import { getRow, save } from "../src/repo";
 
 function seed() {
@@ -68,7 +68,9 @@ describe("travel mode", () => {
     createTransaction(db, { account_id: pln.id, date: "2026-09-09T12:00:00+02:00", amount_minor: -10000, category_id: food.id, tag_ids: JSON.stringify([tag.id]) });
     // Everything with the tag counts until it is chosen otherwise, whenever it was paid.
     expect(tripStats(db, budget, { today: "2026-09-09" })).toMatchObject({ spent_minor: 70000, outside_minor: 0, remaining_minor: 30000 });
-    const chosen = save(db, "budgets", { ...getRow(db, "budgets", budget.id)!, outside_ids: JSON.stringify([flight.id]) });
+    save(db, "budgets", { ...getRow(db, "budgets", budget.id)!, outside_ids: JSON.stringify([flight.id]) });
+    // Read back from the database: the choice has to survive the write, not just the returned object.
+    const chosen = getRow(db, "budgets", budget.id)!;
     const s = tripStats(db, chosen, { today: "2026-09-09" });
     expect(s).toMatchObject({ spent_minor: 10000, outside_minor: 60000, remaining_minor: 90000 });
     expect(s.by_category).toEqual([{ category_id: food.id, spent_minor: 10000 }]);
@@ -83,6 +85,27 @@ describe("travel mode", () => {
     expect(budget).toMatchObject({ period: "once", starts: "2026-05-01", ends: "2026-05-07", ended: "2026-05-07" });
     expect(activeTrip(db)?.id).toBe(running.budget.id);
     expect(listTrips(db)).toHaveLength(2);
+  });
+
+  test("a trip set up ahead tags nothing until its first day", () => {
+    const { db } = seed();
+    const { budget, tag } = startTrip(db, { name: "Wedding", kind: "event", currency: "PLN", amount_minor: 30000, starts: "2026-09-20", ends: "2026-09-20", today: "2026-09-08" });
+    expect(activeTrip(db)?.id).toBe(budget.id);
+    expect(activeTripTagId(db, "2026-09-08")).toBeNull();
+    expect(withTripTag(db, [], "2026-09-19")).toEqual([]);
+    expect(withTripTag(db, [], "2026-09-20")).toEqual([tag.id]);
+    // All of its days are still to come, so the allowance is spread over them, not over the wait.
+    expect(tripStats(db, budget, { today: "2026-09-08" })).toMatchObject({ days: 1, days_left: 1, allowance_minor: 30000 });
+  });
+
+  test("a trip without a limit only counts what was spent", () => {
+    const { db, pln, food } = seed();
+    const { budget, tag } = addPastTrip(db, { name: "Wedding", kind: "event", currency: "PLN", amount_minor: 0, starts: "2026-05-01", ends: "2026-05-01" });
+    createTransaction(db, { account_id: pln.id, amount_minor: -25000, category_id: food.id, date: "2026-05-01T18:00:00", tag_ids: JSON.stringify([tag.id]) });
+    const s = tripStats(db, budget, { today: "2026-05-02" });
+    expect(s).toMatchObject({ limited: false, spent_minor: 25000, remaining_minor: 0, allowance_minor: null, over: false });
+    const running = startTrip(db, { name: "Rome", currency: "PLN", amount_minor: 0, ends: "2026-09-14", today: "2026-09-08" });
+    expect(tripStats(db, running.budget, { today: "2026-09-08" })).toMatchObject({ limited: false, allowance_minor: null, over: false });
   });
 
   test("an existing tag with the same name is reused, case-insensitively", () => {
@@ -164,5 +187,30 @@ describe("travel mode", () => {
     expect(daysBetween("2026-09-08", "2026-09-14")).toBe(6);
     expect(daysBetween("2026-09-14", "2026-09-08")).toBe(-6);
     expect(defaultTripEnd("2026-09-28")).toBe("2026-09-28");
+  });
+});
+
+describe("events", () => {
+  test("an event is a trip in every number, and only its kind tells them apart", () => {
+    const { db, pln, food } = seed();
+    const { budget, tag } = startTrip(db, { name: "Birthday", kind: "event", currency: "PLN", amount_minor: 50000, starts: "2026-09-12", ends: "2026-09-12", today: "2026-09-12" });
+    createTransaction(db, { account_id: pln.id, date: "2026-09-12T20:00:00+02:00", amount_minor: -30000, category_id: food.id, tag_ids: JSON.stringify([tag.id]) });
+    const stored = getRow(db, "budgets", budget.id)!;
+    expect(tripKind(stored)).toBe("event");
+    expect(activeTrip(db)?.id).toBe(budget.id);
+    expect(tripStats(db, stored, { today: "2026-09-12" })).toMatchObject({ spent_minor: 30000, remaining_minor: 20000, days: 1 });
+    // Kept out of the month's budgets exactly as a trip's money is.
+    const month = createBudget(db, { currency: "PLN", amount_minor: 100000, starts: "2026-09-01" });
+    const row = budgetRows(db, { start: "2026-09-01", end: "2026-10-01", budgetAccount: null }).find((r) => r.budget.id === month.id);
+    expect(Math.abs(row!.spent_minor)).toBe(0);
+  });
+
+  test("a trip from before kinds existed, or one saved without a kind, is a trip", () => {
+    const { db } = seed();
+    const { budget } = startTrip(db, { name: "Rome", currency: "EUR", amount_minor: 1, ends: "2026-09-14", today: "2026-09-08" });
+    expect(getRow(db, "budgets", budget.id)!.kind).toBe("trip");
+    expect(tripKind({ kind: null })).toBe("trip");
+    expect(tripKind({ kind: "something-newer" })).toBe("trip");
+    expect(tripKind(addPastTrip(db, { name: "Party", kind: "event", currency: "EUR", amount_minor: 1, starts: "2026-05-01", ends: "2026-05-01" }).budget)).toBe("event");
   });
 });

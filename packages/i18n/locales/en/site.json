@@ -55,23 +55,24 @@
         "note": "Small badge beside the title: the automation needs iOS 27 and is in beta."
       },
       "text": "Pay by card and a Shortcuts automation reads the amount and the shop from your bank's notification, right on the phone. A shop you've filed before files itself; a new one waits for a quick look.",
-      "alt": "The Shortcuts setup that turns a bank notification into an entry"
+      "alt": "The Shortcuts setup that turns a bank notification into an entry",
+      "link": "How to set it up →"
     },
     "recurring": {
       "text": "Tell it about Netflix once and it posts itself every month. Rent, which changes, asks first. A rule can also wait for the bank's real charge, so a price rise is caught rather than guessed.",
       "alt": "Recurring payments: some post themselves, some wait for a tap"
     },
     "trip": {
-      "text": "Start a trip, give it a budget and a last day. Everything you buy is tagged and counted against it, in any currency, and your monthly budgets stay as they were.",
-      "alt": "A trip with its own budget, daily allowance and tagged expenses"
+      "text": "Start a trip or an event (a birthday, a wedding), give it a budget and its days. Everything you buy is tagged and counted against it, in any currency, and your monthly budgets stay as they were.",
+      "alt": "A trip or an event with its own budget, daily allowance and tagged expenses"
     },
     "insights": {
       "text": "What's free to spend until payday, what's still unpaid this month, what your subscriptions cost a year, how much goes on essentials. Add the cards you care about and skip the rest.",
       "alt": "Insight cards: free to spend, a payments checklist, subscriptions per year"
     },
     "design": {
-      "text": "Big numbers, few buttons, no ads, nothing to unlock. Eight colour themes if you want a change, each with a light and a dark side.",
-      "alt": "The theme picker with eight colour themes"
+      "text": "Big numbers, few buttons, no ads, nothing to unlock. Four colour themes if you want a change, each with a light and a dark side.",
+      "alt": "The theme picker with four colour themes"
     }
   },
   "features": {
@@ -161,29 +162,25 @@
     }
   },
   "themes": {
-    "title": "Eight themes, light and dark",
-    "intro": "Graphite is the app's own. The other seven come from code editors: Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub. Each has a light side, a dark side and a matching icon.",
+    "title": "Four themes, light and dark",
+    "intro": "Each one is named after a cat: Pusik, Siri, Tadeusz & Kastuś, and Una. Each has a light side, a dark side and a matching icon.",
     "hint": "Tap one to try it on this page.",
     "switcher": {
       "message": "Colour theme",
       "note": "aria-label of the row of theme swatches in the footer"
     },
     "credits": {
-      "message": "Palettes after Solarized, Catppuccin, Gruvbox, Nord, Tokyo Night, Rosé Pine and GitHub Primer, all under the MIT licence. Thanks to their authors.",
-      "note": "Small print under the theme previews. Keep the project names in Latin script."
+      "message": "Una's palette is after Catppuccin, under the MIT licence. Thanks to its authors.",
+      "note": "Small print under the theme previews. Keep the project name Catppuccin in Latin script."
     },
     "name": {
       "graphite": {
-        "message": "Graphite",
-        "note": "The app's own default theme, graphite grey on off-white: translate the colour name. The other seven are the names of code-editor themes and stay as they are in every language"
+        "message": "Pusik",
+        "note": "The app's own default theme, graphite grey on off-white, named after a cat. Every theme is named after a cat; write the names as they sound"
       },
-      "solarized": "Solarized",
-      "catppuccin": "Catppuccin",
-      "gruvbox": "Gruvbox",
-      "nord": "Nord",
-      "tokyonight": "Tokyo Night",
-      "rosepine": "Rosé Pine",
-      "github": "GitHub"
+      "siri": { "message": "Siri", "note": "A theme named after a grey-fawn tabby cat called Siri (not Apple's assistant)." },
+      "tadeusz": { "message": "Tadeusz & Kastuś", "note": "A theme named after two ginger cats, Tadeusz and Kastuś." },
+      "catppuccin": { "message": "Una", "note": "A theme named after a cat called Una (the Catppuccin palette)." }
     }
   },
   "privacy": {
@@ -220,6 +217,10 @@
     "migrate": {
       "title": "Migrating from another app",
       "description": "Export from your old budget app, hand the file and this prompt to an AI assistant, and import the result into Kopiyka Budget."
+    },
+    "shortcut": {
+      "title": "Setting up the notification Shortcut",
+      "description": "Step by step, with pictures: the Shortcuts automation that turns your bank's payment notification into a Kopiyka entry."
     },
     "copy": {
       "message": "Copy",

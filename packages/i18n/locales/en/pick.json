@@ -50,6 +50,13 @@
     }
   },
   "category": {
+    "debt": { "message": "Debt", "note": "Row under No category: the payment is on a debt." },
+    "debtSub": { "message": "Paying one off, or one paid back to you" },
+    "debtHint": { "message": "Shows your open debts" },
+    "whichDebt": { "message": "Which debt?" },
+    "debtBack": { "message": "Categories", "note": "Back from the list of debts to the categories." },
+    "debtYouOwe": { "message": "You owe {amount}", "note": "amount is \"500.00 PLN\"." },
+    "debtOwedToYou": { "message": "Owes you {amount}", "note": "amount is \"500.00 PLN\"." },
     "search": "Search categories",
     "assigned": {
       "message": "Assigned",
@@ -243,7 +250,7 @@
     "usedWith": "Used with this category",
     "other": "Other tags",
     "travel": {
-      "message": "Travel",
+      "message": "Trips & Events",
       "note": "Section of trip tags."
     },
     "empty": "No tags yet. Type a name above to create one."
@@ -277,5 +284,21 @@
     },
     "none": "Nothing matches.",
     "noneReturn": "Nothing here is big enough to take this back. Try a smaller amount."
+  },
+  "payIcon": {
+    "credit": { "message": "Logos: Simple Icons (CC0) and Arcticons by Donnnno (CC BY-SA 4.0). Each is its owner's trademark.", "note": "Attribution under the logo grid; keep the names and licences as they are." },
+    "photo": "Choose a picture",
+    "photoFailed": "That picture could not be used. Try another one.",
+    "pictures": "Pictures",
+    "webHint": "Only a website is asked: one written in the payment's name, or one you type here, for its own icon. Nothing else leaves the phone.",
+    "search": "Search logos and symbols",
+    "logos": "Logos",
+    "symbols": "Symbols",
+    "automaticFound": {
+      "message": "Automatic · {name}",
+      "note": "name is the brand found in the payment's name, e.g. Netflix."
+    },
+    "category": "The category's icon",
+    "emoji": "Type an emoji"
   }
 }

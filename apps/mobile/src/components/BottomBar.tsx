@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Animated, Pressable, StyleSheet, Text, useColorScheme, useWindowDimensions, type ColorValue, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, Pressable, StyleSheet, useColorScheme, useWindowDimensions, type ColorValue, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
 import { router } from "expo-router";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import MaskedView from "@react-native-masked-view/masked-view";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import { Brand, C, Elevation, R, themed } from "@/constants/theme";
+import { C, Elevation, R, themed } from "@/constants/theme";
+import { THEMES, type ThemeId } from "@kopiyka/core";
+import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
+import { ButtonText } from "@/components/ui";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { PAD_BUTTON_WIDTH, columnOverhang, isPad } from "@/constants/layout";
@@ -37,8 +43,14 @@ export function BottomBar({ children, above, style, visible = true }: { children
   // switches the material off natively and it does not come back. The bar is translated clear
   // of the screen anyway, so the floor is never visible.
   const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [glass ? 0.02 : 0, 1] });
+  // How far up the fade reaches: the bar's own height (it wraps onto a second line in selection
+  // mode) on a phone; on an iPad the column is tall, so only as high as Log at its foot.
+  const [barHeight, setBarHeight] = useState<number>(TAB_BUTTON);
+  const bottom = (StyleSheet.flatten([styles.wrap, style]).bottom as number | undefined) ?? 0;
   return (
-    <Animated.View pointerEvents={visible ? "box-none" : "none"} style={[styles.wrap, isPad ? styles.alignRight : styles.alignLeft,
+    <>
+    <BottomFade height={bottom + (isPad ? 56 : barHeight) + FADE_ABOVE} visible={visible} anim={anim} />
+    <Animated.View onLayout={(e) => setBarHeight(Math.round(e.nativeEvent.layout.height))} pointerEvents={visible ? "box-none" : "none"} style={[styles.wrap, isPad ? styles.alignRight : styles.alignLeft,
       isPad ? { right: EDGE - columnOverhang(width) } : null, style,
       // Far enough to clear a column of five buttons, so scrolling down slides it away rather than
       // leaving the top of it hanging on screen.
@@ -46,6 +58,27 @@ export function BottomBar({ children, above, style, visible = true }: { children
       {above}
       {/* Grouped so buttons that come within `spacing` of each other bleed into one capsule, the way an iOS 26 toolbar does. */}
       <GlassGroup spacing={14} style={isPad ? styles.column : styles.row}>{children}</GlassGroup>
+    </Animated.View>
+    </>
+  );
+}
+
+/** How far above the top of the bar the fade still reaches. */
+const FADE_ABOVE = 16;
+
+/**
+ * The band behind the bar: a blur that is full at the foot of the screen and gone by the top of the
+ * bar, so rows slide under the buttons and the tab bar instead of sitting beside them in plain view.
+ * It also catches taps. A row half-visible between the buttons, or just above the tab bar, opened on
+ * a tap meant for the bar. It hides with the bar, and the rows underneath can be tapped again.
+ */
+function BottomFade({ height, visible, anim }: { height: number; visible: boolean; anim: Animated.Value }) {
+  return (
+    <Animated.View pointerEvents={visible ? "auto" : "none"} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+      style={[styles.fade, { height, opacity: anim }]}>
+      <MaskedView style={StyleSheet.absoluteFill} maskElement={<LinearGradient colors={["transparent", "black"]} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />}>
+        <BlurView tint="systemUltraThinMaterial" intensity={60} style={StyleSheet.absoluteFill} />
+      </MaskedView>
     </Animated.View>
   );
 }
@@ -75,11 +108,15 @@ export function useScrollHide(): { visible: boolean; onScroll: (e: NativeSynthet
  * entry sheet (Expense / Income / Transfer is chosen there). With the receipt scanner enabled a
  * long press photographs a receipt first and opens the sheet prefilled from it.
  */
+/** The theme's accent as a plain string; takes the theme so the React Compiler re-computes it on a switch. */
+function glassTint(theme: ThemeId, dark: boolean): string { return THEMES[theme][dark ? "dark" : "light"].accent; }
+
 export function LogButton({ account }: { account?: string } = {}) {
-  // Glass takes a plain colour, so the accent is resolved by hand here rather than through
-  // C.tint, which is a DynamicColorIOS value. Tinted this strongly it keeps the pill reading as the
-  // theme's accent, and only gains the glass edge and refraction.
-  const tint = useColorScheme() === "dark" ? Brand.accentDark : Brand.accent;
+  // Glass takes a plain colour, so the accent is resolved by hand here rather than through C.tint
+  // (a named colour). Tinted this strongly it keeps the pill reading as the theme's accent, and only
+  // gains the glass edge and refraction. A plain colour does not follow a theme switch natively, so
+  // this one re-renders with it.
+  const tint = glassTint(useTheme(), useColorScheme() === "dark");
   const [key] = useState(() => newPickKey("logreceipt"));
   usePickResult<ReceiptParse>(key, useCallback((r: ReceiptParse) => {
     setTimeout(() => router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", receipt: JSON.stringify(r), ...(account ? { account } : {}) } }), 350);
@@ -95,7 +132,7 @@ export function LogButton({ account }: { account?: string } = {}) {
       style={({ pressed }) => [styles.fab, isPad ? { width: PAD_BUTTON_WIDTH } : styles.fabPhone, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ui.logA11y")} accessibilityHint={scan ? t("ui.logHint") : undefined}>
       <Glass style={styles.fabFill} solid={styles.fabSolid} tint={tint} interactive />
       <SymbolView name="plus" size={22} tintColor={C.onTint} weight="bold" />
-      <Text style={styles.text} maxFontSizeMultiplier={1.4}>{t("ui.log")}</Text>
+      <ButtonText fit={1} style={styles.text} maxFontSizeMultiplier={1.4}>{t("ui.log")}</ButtonText>
     </Pressable>
   );
 }
@@ -124,7 +161,7 @@ export function BarButton({ icon, label, onPress, onLongPress, active, a11y, a11
       style={({ pressed }) => [styles.btn, isPad && styles.btnPad, pressed && styles.pressed]}>
       <Glass style={styles.btnFill} solid={styles.btnSolid} interactive />
       <SymbolView name={icon} size={20} tintColor={tint} weight="semibold" />
-      {label ? <Text numberOfLines={1} style={[styles.btnText, { color: tint }, active && styles.btnTextActive]} maxFontSizeMultiplier={1.4}>{label}</Text> : null}
+      {label ? <ButtonText fit={2} style={[styles.btnText, { color: tint }, active && styles.btnTextActive]} maxFontSizeMultiplier={1.4}>{label}</ButtonText> : null}
     </Pressable>
   );
 }
@@ -139,6 +176,7 @@ const TAB_BUTTON = 48;
 
 const styles = themed(() => StyleSheet.create({
   wrap: { position: "absolute", left: EDGE, right: EDGE, bottom: 96, gap: 10 },
+  fade: { position: "absolute", left: 0, right: 0, bottom: 0 },
   alignLeft: { alignItems: "flex-start" },
   alignRight: { alignItems: "flex-end" },
   // Stretched across the bar so Log can grow to its right edge; buttons that do not grow stay left.

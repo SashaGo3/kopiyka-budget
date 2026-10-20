@@ -9,6 +9,7 @@
  *   bun apps/mobile/scripts/screenshots/demo-data.ts --lang=uk          # the Ukrainian set: kopiyka-demo-uk.json
  *   bun apps/mobile/scripts/screenshots/demo-data.ts --today=2026-09-12 # pin "today" (default: local today)
  *   bun apps/mobile/scripts/screenshots/demo-data.ts --apply=<udid>     # also install into that simulator
+ *   bun apps/mobile/scripts/screenshots/demo-data.ts --apply=<udid> --theme=siri  # …in that colour theme (default graphite)
  *
  * The dataset is a small seeded PRNG over `today`, so the same --today always produces the same
  * file. Nothing here reads apps/mobile/data or any personal export — it is entirely invented.
@@ -36,7 +37,7 @@ const args = process.argv.slice(2);
 const flagList = args.filter((a) => a.startsWith("--")).map((a) => { const i = a.indexOf("="); return i < 0 ? [a.slice(2), "true"] as const : [a.slice(2, i), a.slice(i + 1)] as const; });
 const flags = new Map(flagList);
 if (flags.has("help")) {
-  console.error("usage: bun apps/mobile/scripts/screenshots/demo-data.ts [--lang=en|uk] [--today=YYYY-MM-DD] [--apply=<simulator udid>]");
+  console.error("usage: bun apps/mobile/scripts/screenshots/demo-data.ts [--lang=en|uk] [--today=YYYY-MM-DD] [--apply=<simulator udid> [--theme=<theme id>]]");
   process.exit(0);
 }
 const TODAY = (flags.get("today") as string | undefined) ?? localToday();
@@ -110,6 +111,8 @@ if (applyUdid) {
   const report = importBackup(target, backup, { mode: "replace", applySettings: true });
   setMeta(target, "onboarded", "1");
   setMeta(target, "language", LANG);   // already in the file's settings; said again so it cannot drift
+  // Always written, so a seed after a themed capture (capture.sh --palette) puts the default back.
+  setMeta(target, "theme", (flags.get("theme") as string | undefined) ?? "graphite");
   target.raw.run("PRAGMA wal_checkpoint(TRUNCATE)");
   target.close();
 

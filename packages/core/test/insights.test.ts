@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { budgetCategoryIds, createAccount, createBudget, createCategory, createRecurring, createTag, createTransaction } from "../src/repo";
-import { accountLeftover, budgetRows, categoryChecklist, checklistTotals, daysToSalary, freeMoney, regularSpending, savingsGoal, subscriptionsPerYear, templateFromTransaction, upcomingPayments } from "../src/insights";
+import { accountLeftover, budgetRows, categoryChecklist, checklistTotals, withChecklistTick, daysToSalary, freeMoney, regularSpending, savingsGoal, subscriptionsPerYear, templateFromTransaction, upcomingPayments } from "../src/insights";
 import { candidateFromTransaction } from "../src/detect";
 
 function seed() {
@@ -53,6 +53,23 @@ describe("insights", () => {
     const { db, sav } = seed();
     expect(savingsGoal(db, { account_id: sav.id, target_minor: 800000 })).toEqual({ balance: 400000, target: 800000, currency: "PLN", ratio: 0.5 });
   });
+  test("a checklist line ticked by hand is done for its period only", () => {
+    const { db, food, rent } = seed();
+    const base = { category_ids: [food.id, rent.id] };
+    const rentKey = categoryChecklist(db, base, period).find((c) => c.name === "Rent")!.key;
+    const p = withChecklistTick(base, period.start, rentKey, true);
+    const rentLine = categoryChecklist(db, p, period).find((c) => c.name === "Rent")!;
+    expect(rentLine).toMatchObject({ done: true, ticked: true, expected_minor: null, spent_minor: 0 });
+    // A line a payment closed is the payment's, whatever the ticks say.
+    const coffeeKey = categoryChecklist(db, base, period).find((c) => c.name === "Coffee")!.key;
+    expect(categoryChecklist(db, withChecklistTick(p, period.start, coffeeKey, true), period).find((c) => c.name === "Coffee")!.ticked).toBe(false);
+    // The next period starts clean, and ticking in it forgets the old one.
+    expect(categoryChecklist(db, p, { start: "2026-10-01", end: "2026-11-01" }).find((c) => c.name === "Rent")!.done).toBe(false);
+    expect(withChecklistTick(p, "2026-10-01", rentKey, true).ticked).toEqual({ period: "2026-10-01", keys: [rentKey] });
+    // Unticking the last one leaves no trace in the params.
+    expect(withChecklistTick(p, period.start, rentKey, false)).toEqual(base);
+  });
+
   test("checklist, subscriptions, templates, regular spending", () => {
     const { db, acc, food, rent, coffee, tag } = seed();
     expect(categoryChecklist(db, { category_ids: [food.id, rent.id] }, period).map((c) => [c.name, c.done])).toEqual([["Coffee", true], ["Rent", false]]);
@@ -77,6 +94,9 @@ describe("insights", () => {
     expect(up[0]!.tag_names).toEqual(["work"]);
     const reg = regularSpending(db, { category_ids: [food.id] }, { today: "2026-09-20" });
     expect(reg).toEqual([{ currency: "PLN", average_minor: 10000, periods: 6, last_minor: 20000, frequency: "monthly" }]);
+    // A window chosen in months: three months is three periods, or thirteen weeks.
+    expect(regularSpending(db, { category_ids: [food.id], window_months: 3 }, { today: "2026-09-20" })[0]!.periods).toBe(3);
+    expect(regularSpending(db, { category_ids: [food.id], window_months: 3, frequency: "weekly" }, { today: "2026-09-20" })[0]!.periods).toBe(13);
   });
   test("rule from a transaction picks up the monthly series", () => {
     const { db } = seed();
@@ -199,6 +219,22 @@ describe("payments checklist", () => {
     // 3 Sep paid, 10 Sep skipped (next_date moved past it), 17 and 24 Sep still owed
     const line = categoryChecklist(db, { include_recurring: true }, period).find((i) => i.rule_id === lessons.id)!;
     expect([line.occurrences, line.due, line.expected_minor, line.done]).toEqual([{ paid: 1, total: 3 }, "2026-09-17", 20000, false]);
+  });
+  test("a line paid several times last month expects last month's total", () => {
+    const { db, acc } = seed();
+    const lessons = createCategory(db, { name: "Lessons" });
+    for (const day of ["05", "12", "19"]) createTransaction(db, { account_id: acc.id, date: `2026-08-${day}T10:00:00+02:00`, amount_minor: -7000, category_id: lessons.id });
+    const line = categoryChecklist(db, { category_ids: [lessons.id] }, period)[0]!;
+    expect([line.previous, line.expected_minor]).toEqual([{ total_minor: 21000, count: 3, currency: "PLN" }, 21000]);
+  });
+  test("a category a recurring payment is filed under is listed once, as the payment", () => {
+    const { db, acc } = seed();
+    const rent = createCategory(db, { name: "Rent" });
+    createRecurring(db, { account_id: acc.id, amount_minor: -400000, frequency: "monthly", start_date: "2026-09-02", payee: "LANDLORD", category_id: rent.id });
+    const items = categoryChecklist(db, { category_ids: [rent.id], include_recurring: true }, period);
+    expect(items.filter((i) => i.category_id === rent.id).map((i) => i.name)).toEqual(["LANDLORD"]);
+    // Without the payments, the category is still asked for.
+    expect(categoryChecklist(db, { category_ids: [rent.id] }, period).map((i) => i.name)).toEqual(["Rent"]);
   });
   test("a rule left out of the checklist is not waited for", () => {
     const { db } = seed();

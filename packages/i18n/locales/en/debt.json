@@ -1,4 +1,5 @@
 {
+  "paidSoFar": { "message": "Paid {paid} so far · {left} to go", "note": "By the payments pointed at this debt; amounts are \"500.00 PLN\"." },
   "$comment": "The debt sheet (app/debt/edit.tsx).",
   "direction": {
     "owedToMe": { "message": "They owe me", "note": "Segmented control." },

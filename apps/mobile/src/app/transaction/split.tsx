@@ -8,7 +8,7 @@ import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
 import type { AmountPick } from "@/app/pick/amount";
-import { ModalHeader, TagPill } from "@/components/ui";
+import { ButtonText, ModalHeader, TagPill } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
@@ -126,9 +126,9 @@ export default function SplitEditor() {
     ) };
   };
   const money = (minor: number, missing: boolean, red?: boolean) => (
-    <Text style={[styles.amount, missing && styles.missing, red && { color: C.red }]} numberOfLines={1}>
+    <ButtonText fit={1} style={[styles.amount, missing && styles.missing, red && { color: C.red }]}>
       {formatMinor(minor, currency)} <Text style={styles.cur}>{currency}</Text>
-    </Text>
+    </ButtonText>
   );
   const mainIcon = catIcon(main.category_id);
 
@@ -146,7 +146,7 @@ export default function SplitEditor() {
             <View style={styles.middle}>
               <Pressable onPress={() => openCat(null, main.category_id)} hitSlop={4} accessibilityRole="button"
                 accessibilityLabel={mainIcon.cat ? t("transaction.split.restCategoryA11y", { name: catName(mainIcon.cat) }) : t("transaction.split.chooseRestCategory")}>
-                <Text style={[styles.catText, !mainIcon.cat && styles.missing]} numberOfLines={1}>{mainIcon.cat ? catName(mainIcon.cat) : t("transaction.split.chooseCategory")}</Text>
+                <Text style={[styles.catText, !mainIcon.cat && styles.missing]}>{mainIcon.cat ? catName(mainIcon.cat) : t("transaction.split.chooseCategory")}</Text>
               </Pressable>
               <Pressable onPress={() => openTags(null, main.tag_ids, main.category_id)} hitSlop={4} accessibilityRole="button"
                 accessibilityLabel={main.tag_ids.length ? t("transaction.split.restTagsA11y", { names: main.tag_ids.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ") }) : t("transaction.split.addRestTags")}>
@@ -167,7 +167,7 @@ export default function SplitEditor() {
                 accessibilityRole="button" accessibilityLabel={t("transaction.split.partA11y", { n: i + 2, amount: formatMinor(r.amount_minor, currency), currency, category: icon.cat ? catName(icon.cat) : t("transaction.split.noCategory") })}>
                 {icon.view}
                 <View style={styles.middle}>
-                  <Text style={[styles.catText, !icon.cat && styles.missing]} numberOfLines={1}>{icon.cat ? catName(icon.cat) : t("transaction.split.chooseCategory")}</Text>
+                  <Text style={[styles.catText, !icon.cat && styles.missing]}>{icon.cat ? catName(icon.cat) : t("transaction.split.chooseCategory")}</Text>
                   {tagLine(r.tag_ids)}
                 </View>
                 <View style={styles.right}>{money(r.amount_minor, !r.amount_minor)}</View>

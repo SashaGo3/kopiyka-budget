@@ -77,7 +77,7 @@ export default function OnboardingAccount() {
     finally { setBusy(false); }
   };
   return (
-    <OnboardingFrame step={4} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
+    <OnboardingFrame step={4} scroll={false} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
       primary={{ label: expr ? t("onboarding.account.continueWith", { amount: shown, currency }) : t("onboarding.account.continueZero"), onPress: next, disabled: !valid }}
       secondary={{ label: busy ? t("onboarding.restore.busy") : t("onboarding.account.restore"), onPress: () => void restore() }}>
       <View style={styles.form}>
@@ -93,8 +93,10 @@ export default function OnboardingAccount() {
         </View>
       </View>
       <View style={{ height: S.md }} />
-      {/* What is on the first account is money you have; a card in debt can be added later, where ± is. */}
-      <Keypad value={expr} onChange={setExpr} allowSign={false} />
+      {/* What is on the first account is money you have; a card in debt can be added later, where ± is.
+          The keypad fills what is left rather than scrolling: a last row hidden under Continue is a 0
+          nobody can find. */}
+      <Keypad value={expr} onChange={setExpr} allowSign={false} fill />
     </OnboardingFrame>
   );
 }

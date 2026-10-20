@@ -58,6 +58,11 @@ describe("a preset category is translated only while it keeps the preset's name"
     expect(categoryName({ ...groceries, name: "продукти " }, "en")).toBe("Groceries");
   });
 
+  test("seeded under a name the translation has since dropped: still follows the language", () => {
+    expect(categoryName({ name: "Комунальні", preset: "home.utilities" }, "uk")).toBe(presetName("home.utilities", "uk")!);
+    expect(categoryName({ name: "Платежі", preset: "bills" }, "en")).toBe("Bills");
+  });
+
   test("renamed, or made by the user: shown exactly as written", () => {
     expect(categoryName({ ...groceries, name: "Їжа вдома" }, "en")).toBe("Їжа вдома");
     expect(categoryName({ name: "Groceries", preset: null }, "uk")).toBe("Groceries");

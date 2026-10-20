@@ -16,6 +16,7 @@ import { APP_MARKETING_VERSION } from "@/constants/app";
 import { RELEASES } from "@/constants/releases";
 import { needsOnboarding } from "@/lib/onboarding";
 import { launchHadTarget } from "@/lib/boot";
+import { SCREENSHOT_BUILD } from "@/constants/features";
 
 const KEY = "whats_new_seen";
 /** Asked at most once per launch: a language change re-mounts the root layout and boots it again. */
@@ -53,9 +54,14 @@ export function markWhatsNewSeen(): void {
  * never told you anything, so here is the current release".
  */
 export function maybeShowWhatsNew(): void {
-  if (asked || needsOnboarding()) return;
+  if (asked) return;
+  // Stamped here, while onboarding is still on screen: left unstamped, the next launch — onboarding
+  // done, nothing ever seen — read as an update and opened this version's notes for a new user.
+  if (needsOnboarding()) { markWhatsNewSeen(); return; }
   const pending = pendingReleases();
-  if (!pending.length) { markWhatsNewSeen(); return; }
+  // A screenshot build tells nobody anything: the notes would be the picture of every slide that
+  // opens without a link to land on (the iPad's do, behind iPadOS's "Open in …" prompt).
+  if (!pending.length || SCREENSHOT_BUILD) { markWhatsNewSeen(); return; }
   if (launchHadTarget()) return; // not now, but not stamped either — it is still news next time
   asked = true;
   router.push("/whats-new");

@@ -17,11 +17,15 @@ language has its own folder, named with App Store Connect's code for it (`en` �
 
 | Folder | Size | Upload as |
 |---|---|---|
-| `iphone-6.9/` | 1320 × 2868 | iPhone 6.9" display (required) |
+| `iphone-6.9/` | 1320 × 2868 | iPhone with Dynamic Island (large display), 6.9" |
+| `iphone-6.3/` | 1206 × 2622 | iPhone with Dynamic Island (medium display), 6.3" — **the one iPhone set App Store Connect requires** since iOS 27; laid out from the 6.9" captures (the screens are the same shape) |
 | `iphone-6.5/` | 1284 × 2778 | iPhone 6.5" display (App Store Connect accepts 1284 × 2778 or 1242 × 2688 here) |
 | `iphone-6.5-1242/` | 1242 × 2688 | the same slides at the other accepted 6.5" size |
 | `ipad-13/` | 2064 × 2752 | iPad 13" display (required as long as the build is offered on iPad) |
-| `watch/` | 422 × 514 | Apple Watch Ultra 3 (raw screen, no frame — what Apple wants for watchOS) |
+| `watch/` | 422 × 514 | Apple Watch Ultra 3 / Ultra 4 (raw screen, no frame — what Apple wants for watchOS) |
+| `creative/header-21x9.png` | 3840 × 1646 | product page header |
+| `creative/search-results-3x2.png` | 3840 × 2560 | search results |
+| `creative/universal-16x9.png` | 5244 × 2950 | either of the two (App Store Connect takes the 16:9 file in both places) |
 | `bare/iphone/` | 1470 × 3000 | **not for the App Store** — the capture in Apple's bezel on a transparent canvas, no headline, no background |
 | `bare/watch/` | 600 × 960 | the same for the watch, band faded out at both ends |
 | `contact-sheet.png` | — | all iPhone slides in a row, for a quick look |
@@ -29,8 +33,35 @@ language has its own folder, named with App Store Connect's code for it (`en` �
 Raw captures are per language too: `screenshots/raw/<lang>/{iphone,ipad,watch}/…`.
 
 **What to upload** is gathered after every `--frame` into `screenshots/Finals/<App Store language>/`
-— `iphone/` (the 6.5" set), `ipad/` (13") and `watch/` — rebuilt from scratch each time, so it
-holds the current slides and nothing else. It is a copy of the folders above, so it is gitignored.
+— `iphone/` (the 6.9" set), `iphone-6.3/`, `ipad/` (13"), `watch/` and `creative/` — rebuilt from
+scratch each time, so it holds the current slides and nothing else. It is a copy of the folders
+above, so it is gitignored. App Store Connect scales every other iPhone from the two iPhone sets
+(6.5" from 6.9", 6.1" from 6.3", and so on down). `bun run screenshots:upload` sends all of it:
+fastlane deliver the screenshots and the text, then `scripts/screenshots/upload-creative.mjs` the
+header and search results files from `creative/`, through the App Store Connect API's asset library
+(deliver has no support for it yet), replacing whatever art the version had. It needs the API key in
+`.env`; `--no-creative` skips it, and `node scripts/screenshots/upload-creative.mjs --dry-run` shows
+what it would do without changing anything. The art goes to App Review with the version.
+
+### Header and search results art
+
+`creative/` is the art App Store Connect added with iOS 27 above the product page and in search
+results. It is cropped differently on every device, so only the "Art Safe Area" of Apple's templates
+(developer.apple.com/app-store/asset-best-practices → Templates; the layer of that name, read with
+`magick identify`) is sure to be seen — `CREATIVE_SIZES` in `frame.mjs` carries those boxes. The
+layout is three phones, each in one of the app's colour themes and standing on a band of that
+theme's colour, with a short label above each, left-aligned with its phone and all on one line, and
+the watch in front of the first. The group spans the middle of the canvas (`stage` in
+`CREATIVE_SIZES`), well past the safe area: an iPhone shows the header's full height and about two
+thirds of its width, and art kept to the safe area looked like a thumbnail there. Regenerate just
+this art with `bun run screenshots -- --creative` (seconds, from the existing captures) and upload
+just it with `bun run screenshots:upload -- --creative-only`. Which captures, themes and labels (`store.creative.*` in
+`store.json`) are `creative` in `shots.json`. The themed captures are shot apart from the rest:
+`scripts/screenshots/capture.sh --phone --lang <code> --palette <theme id> --theme light|dark --only <id>`
+writes `raw/<lang>/iphone/<theme id>-<light|dark>/` and puts the simulator back on the default theme. `--no-creative` skips it.
+
+**iPhone Duo** (1398 × 2034 outer, 2007 × 2853 inner) has no set yet: Xcode 27.0 has no simulator
+for it. App Store Connect requires it only for builds made with the iOS 27.1 SDK, from April 2027.
 
 `bare/` exists for the promo site in `site/`, which supplies its own words: a slide's baked-in
 headline next to the page's own heading is the same sentence printed twice. It is the only output
@@ -56,7 +87,7 @@ real device or App Store Connect.
 |---|---|
 | `scripts/screenshots/run.sh` | orchestration; pick steps with `--build --install --seed --capture --frame` |
 | `scripts/screenshots/demo-data.ts` | invents the demo dataset for one language (`--lang`; English: Lisbon, EUR — Ukrainian: Kyiv, UAH; 5 months of history, budgets, trip, debts, insights) and writes `screenshots/demo/kopiyka-demo-<lang>.json`; `--apply=<udid>` installs it into a simulator |
-| `scripts/screenshots/capture.sh` | cold-starts the app into a deep link per shot and screenshots it (light + dark) on the iPhone and the iPad; drives the watch with idb |
+| `scripts/screenshots/capture.sh` | cold-starts the app into a deep link per shot and screenshots it (light + dark) on the iPhone and the iPad; launches the watch straight onto each screen |
 | `scripts/screenshots/frame.mjs` | composes the raw shots into App Store art from `shots.json` (headline, subtitle, device bezel) |
 | `scripts/screenshots/langs.mjs` | the language list and each language's App Store code, for the other three |
 | `scripts/screenshots/font-widths.mjs` | one-off: measures the Cyrillic advance widths `frame.mjs` wraps with (see below) |
@@ -103,7 +134,7 @@ and only wraps further if a line does not fit, so break a translation where it r
 runs about a quarter longer than English. Every set has its devices start on one line, below its
 tallest caption, so one overlong caption pushes every slide of that language down: keep titles to
 three lines and subtitles to three. After editing, `bun run i18n`, then
-`bun run screenshots -- --frame --lang uk --contact-sheet` and look at the sheet.
+`bun run screenshots -- --frame --lang uk` and look at the contact sheet.
 
 `frame.mjs` wraps by measuring text with built-in advance widths, because it has no font library.
 The Latin ones are Helvetica's AFM metrics; Cyrillic (U+0400–U+04FF, plus ʼ « » – — ₴ №) came from
@@ -132,10 +163,15 @@ wraps wrongly, extend that script's character list and paste its output over `W_
 
 ## Requirements
 
-Xcode with the iOS 26 + watchOS 26 simulator runtimes, `idb` (`brew install idb-companion &&
-pipx install fb-idb`; watch taps and the iPad's confirmation prompt) and `rsvg-convert`
-(`brew install librsvg`) for the framing. The phone needs nothing beyond `simctl`: every shot is a
-deep link.
+Xcode 27 with its iOS 27 + watchOS 27 simulator runtimes and `rsvg-convert` (`brew install librsvg`)
+for the framing. Nothing beyond `simctl` drives the simulators: every iPhone shot is a deep link, every
+iPad shot a launch with the same link as an argument, every watch shot a launch onto that screen. idb
+is no longer needed — its taps load SimulatorKit from where Xcode kept it until 26.
+
+The three "Kopiyka Shots" simulators always run the newest iOS and watchOS runtime installed: one
+left on an older runtime by a previous Xcode is deleted and created again on the first run
+(`ensure_sim` in `lib.sh`), so the screenshots show the OS the current Xcode ships.
+`SHOTS_KEEP_RUNTIME=1` keeps them as they are.
 ImageMagick (`brew install imagemagick`) is used for the contact sheet and size checks.
 
 ## Gotchas
@@ -147,15 +183,17 @@ ImageMagick (`brew install imagemagick`) is used for the contact sheet and size 
   `--capture --watch`.
 - **iPadOS confirms every deep link.** `simctl openurl` on the iPad raises "Open in “Kopiyka
   Budget”?" whether or not the app is running, and a shot taken over it is a picture of an alert on
-  the home screen. `confirm_open` in `capture.sh` finds the Open button through idb’s accessibility
-  bridge and taps it — by label, not by a fixed point, because the alert is still animating in when
-  the first look happens. The iPhone does not ask, and pays none of this.
+  the home screen. So the iPad is launched with the link as an argument instead (`-KPLink`), which a
+  screenshot build opens as if it had arrived while running (`src/lib/launchLink.ts`). The iPhone
+  does not ask, and keeps using `openurl`.
+- A screenshot build never shows What's New (`maybeShowWhatsNew`): otherwise every slide that opens
+  without a link to land on is the release notes.
 - The iPad is drawn rather than composited into an Apple product bezel: there is no 13" iPad bezel in
   Apple’s Product Bezels download and frameit’s set stops at the 12.9" Pro of 2020. `ipadDrawn` in
   `frame.mjs` has the geometry (and where the numbers come from) if one ever turns up.
-- The watch tap points in `capture.sh` (`KEY_COLS`, `KEY_ROWS`, `AMOUNT_ROW_Y`) are in points
-  (px ÷ 2 on the 49 mm). Re-calibrate from a screenshot if the keypad layout changes. The keypad's
-  top row is 7-8-9, not 1-2-3.
+- The watch is launched with `-KPShot <screen> -KPShotAmount <amount>` (`WatchShot` in
+  `targets/watch/KopiykaWatchApp.swift`): keypad, categories, tags, history, budgets, status. A new
+  watch shot is a new case there and a name in `capture.sh`'s list.
 - If you add a shot that needs a tap: `agent-device` runs every command through an XCTest runner
   app, and launching that runner puts Kopiyka in the background, so a shot taken right after one
   comes out as the home screen. Open the session once before the loop, never between the deep link
@@ -165,9 +203,6 @@ ImageMagick (`brew install imagemagick`) is used for the contact sheet and size 
 - `demo-data.ts` seeds row ids from its own PRNG (it overrides `crypto.randomUUID`), so the JSON can
   be regenerated without invalidating the ids `capture.sh` puts in deep links. Change that and the
   `log` and `trip` shots break the next time the file is rebuilt without `--seed`.
-- The iPad's "Open in …?" button is found by label, `Open` or `Відкрити` — SpringBoard switches to
-  the simulator's language once it restarts in it. Add the label if another language is added.
-- The watch types the same amount as the entry sheet shows (`demo.capture.logAmount`), one key at a
-  time: digits and a dot only.
+- The watch shows the same amount as the entry sheet (`demo.capture.logAmount`).
 - Everything under `screenshots/raw/` and `screenshots/appstore/` is generated; commit it if you want
   the history, regenerate it if not.

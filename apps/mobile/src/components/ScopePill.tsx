@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import { C, R, themed } from "@/constants/theme";
 import { Glass } from "@/components/glass";
+import { ButtonText } from "@/components/ui";
 import { t } from "@/i18n";
 
 /** Header pill showing which accounts Budgets (and Transactions) are looking at; tap to change. */
@@ -12,7 +13,7 @@ export function ScopePill({ label, active, onPress }: { label: string; active: b
       {/* Active (a specific account chosen) is an opaque tint pill, so it reads as a committed filter rather than chrome. */}
       {active ? <View style={[styles.fill, styles.activeFill]} /> : <Glass style={styles.fill} solid={styles.solid} interactive />}
       <SymbolView name="creditcard" size={14} tintColor={active ? C.onTint : C.tint} weight="semibold" />
-      <Text numberOfLines={1} style={[styles.text, active && { color: C.onTint }]} maxFontSizeMultiplier={1.3}>{label}</Text>
+      <ButtonText fit={1} style={[styles.text, active && { color: C.onTint }]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
       <SymbolView name="chevron.down" size={10} tintColor={active ? C.onTint : C.tertiary} />
     </Pressable>
   );

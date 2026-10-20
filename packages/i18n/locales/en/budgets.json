@@ -8,17 +8,29 @@
   "plannedOf": { "message": "Planned · {counted} of {total}", "note": "Stat label when some budgets are left out of Planned.", "max": 24 },
   "exceeded": { "message": "{count, plural, one {One budget has gone over} other {# budgets have gone over}} — worth keeping in mind for the rest of the month.", "note": "Note above the budgets, current period." },
   "exceededEnded": { "message": "{count, plural, one {One budget went over} other {# budgets went over}} — something to keep in mind next time.", "note": "Note above the budgets, a period that is over." },
+  "allKept": { "message": "Every budget kept this period. Nicely done.", "note": "Note above the budgets with the mascot, a period that is over and no budget went over." },
   "empty": "No budgets yet",
   "emptyFor": { "message": "No budgets for {account} yet", "note": "account is an account name." },
   "emptyHint": "Set a limit for a category or for everything; it renews every period.",
   "monthly": { "message": "Monthly · {period}", "note": "Section header; period is \"Aug 2026\" or \"15 Aug – 14 Sep\"." },
   "monthlyScoped": { "message": "Monthly · {period} · {scope}", "note": "Same, with the account or group being shown." },
-  "editLabel": { "message": "Edit budget {name}", "note": "VoiceOver label of a budget row." },
-  "reorderHint": "Long press to reorder the budgets",
   "notInPlanned": { "message": "not in Planned", "note": "Lowercase, after a dot in a budget subtitle: this budget is left out of the Planned total." },
   "spentOf": { "message": "{spent} of {limit} {currency}", "note": "Under a budget bar: \"1 200 of 3 000 EUR\"." },
-  "showCategories": { "message": "Show the {count, plural, one {# category} other {# categories}} it was spent on", "note": "VoiceOver, the fold under a budget." },
-  "hideCategories": { "message": "Hide the {count, plural, one {# category} other {# categories}} it was spent on", "note": "VoiceOver, the fold under a budget." },
+  "openLabel": { "message": "{name}, open details", "note": "VoiceOver label of a budget card." },
+  "detail": {
+    "goneTitle": "This budget is gone",
+    "goneHint": "It was deleted, here or on another device.",
+    "left": { "message": "Left · {period}", "note": "Under the big amount on a budget's details." },
+    "over": { "message": "Over the limit · {period}", "note": "Under the big amount when the budget went over." },
+    "perDay": { "message": "{amount} a day for the {count, plural, one {# day} other {# days}} left", "note": "What can still be spent per day until the period ends; amount is \"42.00 PLN\"." },
+    "spentOn": { "message": "Spent on · {period}", "note": "Section header: the categories the budget's money went on." },
+    "nothing": "Nothing spent on it in {period} yet.",
+    "history": { "message": "Month by month · {currency}", "note": "Section header over the chart of what the budget counted each period." },
+    "kept": { "message": "Kept within the limit", "note": "Row label; the value is \"4 of 6 months\"." },
+    "keptValue": { "message": "{kept} of {count, plural, one {# month} other {# months}}", "note": "kept is a number." },
+    "keptHint": { "message": "Complete months, against today's limit of {limit}.", "note": "limit is \"1 500.00 PLN\"." },
+    "noHistory": "No history yet: nothing has been spent on this budget."
+  },
   "childLabel": { "message": "{name} transactions", "note": "VoiceOver label of a category line; name is a category." },
   "childTaggedLabel": { "message": "{name} transactions tagged {tag}", "note": "VoiceOver label of a category line under a tag budget." },
   "add": "Add budget",
@@ -31,6 +43,7 @@
     "keptLabel": { "message": "Budget kept, {amount} saved", "note": "VoiceOver; amount is \"120.00 EUR\"." }
   },
   "spending": {
+    "debts": { "message": "Debts", "note": "Spending line: payments made on debts this period." },
     "title": { "message": "Spending", "note": "Name of the Spending section (reorder sheet)." },
     "header": { "message": "Spending · {period}", "note": "Section header; period is \"Aug 2026\"." },
     "headerScoped": { "message": "Spending · {period} · {scope}", "note": "Same, with the account or group being shown." },
@@ -41,11 +54,11 @@
     "noRate": { "message": "No rate yet for {currencies}, so it is left out of the total.", "note": "currencies is a list of codes." }
   },
   "travelHistory": {
-    "title": "Travel history",
+    "title": "Past trips & events",
     "show": { "message": "Show {count}", "note": "Button on the Travel history header; count is the number of past trips.", "max": 16 },
     "hide": { "message": "Hide", "max": 16 },
-    "showLabel": "Show travel history",
-    "hideLabel": "Hide travel history"
+    "showLabel": "Show past trips and events",
+    "hideLabel": "Hide past trips and events"
   },
   "title": {
     "everything": { "message": "Everything", "note": "Name of a budget that covers all spending." },
@@ -53,6 +66,8 @@
     "tag": { "message": "tag", "note": "Fallback after # when a budget's tag is gone." }
   },
   "edit": {
+    "noTag": { "message": "No tag", "note": "First option of the tag picker on a tag budget: back to categories." },
+    "noTagSubtitle": { "message": "Count categories instead" },
     "categoriesCount": "{count, plural, one {# category} other {# categories}}",
     "noTagsTitle": "No tags yet",
     "noTagsBody": "Create a tag in Settings → Tags first.",
@@ -72,7 +87,6 @@
     "categories": { "message": "Categories", "note": "Chip: choose the categories the budget covers.", "max": 18 },
     "categoryPickerTitle": { "message": "Budget for", "note": "Title of the category picker." },
     "tag": { "message": "Tag", "max": 18 },
-    "allSpending": { "message": "All spending", "max": 18 },
     "name": { "message": "Name", "note": "Chip: give the budget a name of its own.", "max": 18 },
     "nameTitle": "Budget name",
     "inPlanned": { "message": "In Planned", "max": 18 },
@@ -94,11 +108,11 @@
   "reorder": {
     "title": "Reorder budgets",
     "button": { "message": "Reorder", "max": 16 },
-    "hint": "Drag by the grip on the right. Spending and Travel history move as whole sections.",
+    "hint": "Drag by the grip on the right. Spending and Past trips & events move as whole sections.",
     "emptyTitle": "No budgets",
     "emptyHint": "Add one on the Budgets screen first.",
     "amountOff": { "message": "{amount} · not in Planned", "note": "amount is \"300.00 EUR\"." },
     "spendingSection": "Section · what each category cost",
-    "travelSection": "Section · past travel budgets"
+    "travelSection": "Section · past trip and event budgets"
   }
 }

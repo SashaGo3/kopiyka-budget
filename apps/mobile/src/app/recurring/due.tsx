@@ -5,7 +5,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { advanceRule, dueManualRules, listRows, postOccurrence, ruleWaitDays, waitingRules, type DueRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { BarButton, BottomBar } from "@/components/BottomBar";
-import { AmountPill, CategoryIcon, Empty, Money } from "@/components/ui";
+import { AmountPill, ButtonText, CategoryIcon, Empty, Money } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { waitDefaultDays } from "@/lib/settings";
@@ -168,7 +168,7 @@ function Action({ icon, label, color, onPress, grow }: { icon: SFSymbol; label: 
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.action, grow && { flex: 1 }, pressed && { backgroundColor: C.fill }]}>
       <SymbolView name={icon} size={16} tintColor={color} />
-      <Text style={[styles.actionText, { color }]} numberOfLines={1}>{label}</Text>
+      <ButtonText style={[styles.actionText, { color }]}>{label}</ButtonText>
     </Pressable>
   );
 }

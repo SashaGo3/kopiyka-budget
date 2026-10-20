@@ -1,12 +1,13 @@
-import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Card, Row, SectionHeader } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED, IOS_VERSION } from "@/constants/features";
-import { t } from "@/i18n";
+import { t, useLanguage } from "@/i18n";
+import { guideImages } from "@/lib/guideImages";
 
-/** Setup steps, worded as what you actually tap, in the order the Shortcuts app puts them in. */
+/** Setup steps, worded as what you actually tap, in the order the Shortcuts app (iOS 27) puts them in. */
 const steps = (): { title: string; subtitle: string }[] => [
   { title: t("automation.shortcut.step1"), subtitle: t("automation.shortcut.step1Sub") },
   { title: t("automation.shortcut.step2"), subtitle: t("automation.shortcut.step2Sub") },
@@ -14,7 +15,14 @@ const steps = (): { title: string; subtitle: string }[] => [
   { title: t("automation.shortcut.step4"), subtitle: t("automation.shortcut.step4Sub") },
   { title: t("automation.shortcut.step5"), subtitle: t("automation.shortcut.step5Sub") },
   { title: t("automation.shortcut.step6"), subtitle: t("automation.shortcut.step6Sub") },
+  { title: t("automation.shortcut.step7"), subtitle: t("automation.shortcut.step7Sub") },
+  { title: t("automation.shortcut.step8"), subtitle: t("automation.shortcut.step8Sub") },
+  { title: t("automation.shortcut.step9"), subtitle: t("automation.shortcut.step9Sub") },
 ];
+
+/** Width of a step's picture; the captures are an iPhone screen, 1206 × 2622. */
+const PIC_W = 180;
+const PIC_H = Math.round((PIC_W * 2622) / 1206);
 
 /**
  * Card payments are not an API: iOS never hands Wallet transactions to apps, and iOS 26 dropped the
@@ -24,6 +32,7 @@ const steps = (): { title: string; subtitle: string }[] => [
  * native/KopiykaIntents.swift; this screen only explains the setup.
  */
 export default function ShortcutScreen() {
+  const pictures = guideImages(useLanguage());
   const openShortcuts = () => {
     Linking.openURL("shortcuts://").catch(() => Alert.alert(t("automation.shortcut.unavailableTitle"), t("automation.shortcut.unavailableMessage")));
   };
@@ -46,12 +55,21 @@ export default function ShortcutScreen() {
         <SectionHeader>{t("automation.shortcut.setUp")}</SectionHeader>
         <Card>
           {steps().map((s, i) => (
-            <View key={s.title} style={[styles.step, i ? styles.divider : undefined]}>
-              <View style={styles.num}><Text style={styles.numText}>{i + 1}</Text></View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.stepTitle}>{s.title}</Text>
-                <Text style={styles.stepSub}>{s.subtitle}</Text>
+            <View key={s.title} style={i ? styles.divider : undefined}>
+              <View style={styles.step}>
+                <View style={styles.num}><Text style={styles.numText}>{i + 1}</Text></View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.stepTitle}>{s.title}</Text>
+                  <Text style={styles.stepSub}>{s.subtitle}</Text>
+                </View>
               </View>
+              {/* The card's whole width, not the text column's: the pictures are what you follow. */}
+              {pictures[i]?.length ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.picsContent}
+                  accessible accessibilityRole="image" accessibilityLabel={t("automation.shortcut.guide.step", { n: i + 1 })}>
+                  {pictures[i]!.map((src, k) => <Image key={k} source={src} style={styles.pic} resizeMode="cover" />)}
+                </ScrollView>
+              ) : null}
             </View>
           ))}
         </Card>
@@ -87,4 +105,6 @@ const styles = themed(() => StyleSheet.create({
   numText: { color: C.onTint, fontSize: 13, fontWeight: "600" },
   stepTitle: { color: C.label, fontSize: 16 },
   stepSub: { color: C.secondary, fontSize: 13, marginTop: 2, lineHeight: 18 },
+  picsContent: { gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs, paddingBottom: S.lg },
+  pic: { width: PIC_W, height: PIC_H, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator },
 }));

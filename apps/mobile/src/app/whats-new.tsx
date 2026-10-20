@@ -40,12 +40,15 @@ export default function WhatsNew() {
   // says something else — notes for more than one release, or an older one's opened from Settings.
   const headings = releases.length > 1 || releases.some((r) => r.version !== APP_MARKETING_VERSION);
   return (
-    <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      {/* No Done up here: the one at the bottom is where a reader arrives, and two buttons for the
+    <>
+      {/* A form sheet takes a ScrollView as its own scroller and wants it first, with at most one
+          sibling (react-native-screens): a header above it was hidden, and a View wrapped round it
+          drew over it. So the title rides inside the list, and Done is the one sibling.
+          No Done up here: the one at the bottom is where a reader arrives, and two buttons for the
           same thing on one short sheet is one too many. */}
-      <ModalHeader title={t("whatsNew.title")} />
-      <Text style={styles.subtitle}>{t("whatsNew.version", { version: APP_MARKETING_VERSION })}</Text>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: C.bgGrouped }} contentContainerStyle={{ paddingBottom: 120 }}>
+        <ModalHeader title={t("whatsNew.title")} />
+        <Text style={styles.subtitle}>{t("whatsNew.version", { version: APP_MARKETING_VERSION })}</Text>
         {releases.map((r, i) => (
           <View key={r.version}>
             {headings ? (
@@ -84,7 +87,7 @@ export default function WhatsNew() {
         ))}
       </ScrollView>
       <View style={styles.bar}><BigButton label={t("common.done")} onPress={close} /></View>
-    </View>
+    </>
   );
 }
 
@@ -101,5 +104,6 @@ const styles = themed(() => StyleSheet.create({
   bullet: { fontSize: 15, color: C.tertiary, lineHeight: 21, width: 24, textAlign: "center" },
   icon: { width: 24, height: 21, alignItems: "center", justifyContent: "center" },
   line: { flex: 1, fontSize: 15, color: C.label, lineHeight: 21 },
-  bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: S.xxl, paddingTop: S.sm, backgroundColor: C.bgGrouped },
+  // A half sheet floats inset with corners that follow the phone's: the button keeps clear of them.
+  bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: S.md, paddingBottom: S.xxl + S.md, paddingTop: S.sm, backgroundColor: C.bgGrouped },
 }));

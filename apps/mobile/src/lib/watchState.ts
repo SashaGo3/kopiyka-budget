@@ -5,7 +5,7 @@
  * and native/KPShared.swift `KPStore`/`KPWatchState`, which this mirrors field-for-field).
  * Rebuilt after every write, so this stays a handful of grouped queries — no per-row round-trips.
  */
-import { accountName, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds } from "@kopiyka/core";
+import { accountName, accountNumbers, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds, uncarriedTagIds } from "@kopiyka/core";
 import { db } from "@/db";
 import { getLanguage, t, type LanguageCode } from "@/i18n";
 import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
@@ -21,6 +21,10 @@ export interface WatchTag { id: string; name: string; color: string | null; cate
 export interface WatchTx {
   id: string; date: string; title: string; sub: string; amount: number; currency: string;
   account_id: string; category_id: string | null; tag_ids: string[]; pending: boolean; transfer: boolean;
+  /** For the entry's page; each left out when empty. `note` is the person's, `bank_note` the bank's (DATA.md rule 20). */
+  note?: string; bank_note?: string; place?: string; lat?: number; lon?: number;
+  /** What the bank charged in another currency (DATA.md rule 6), in major units. */
+  entered_amount?: number; entered_currency?: string;
 }
 
 export interface WatchState {
@@ -28,7 +32,8 @@ export interface WatchState {
   /** The app's language ("uk"): what the names below are in. Swift keeps it beside the state (KPWatchState.language). */
   language: LanguageCode;
   current_account: string;
-  accounts: WidgetSnapshot["accounts"];
+  /** `numbers`: the last four digits a bank prints for each (DATA.md rule 18), so a notification can name its account. */
+  accounts: (WidgetSnapshot["accounts"][number] & { numbers: string[] })[];
   categories: WatchCategory[];
   tags: WatchTag[];
   /** category_id -> tag_id -> count, over all non-deleted transactions with tags (no date limit). */
@@ -84,13 +89,16 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   // One pass over every tagged transaction: last-180-day usage per tag, all-time category<->tag co-occurrence.
   const tagUses = new Map<string, number>();
   const together: WatchState["together"] = {};
+  // A trip's tag went with everything bought on it, so it is not a tag that goes with a category
+  // (`uncarriedTagIds`): counted here, last spring's trip would head the watch's tag list for coffee.
+  const notTogether = uncarriedTagIds(db);
   for (const r of db.all<{ category_id: string | null; tag_ids: string; date: string }>(
     `SELECT category_id, tag_ids, date FROM transactions WHERE deleted=0 AND tag_ids<>'[]'`,
   )) {
     const recent = r.date >= since;
     for (const id of jsonIds(r.tag_ids)) {
       if (recent) tagUses.set(id, (tagUses.get(id) ?? 0) + 1);
-      if (r.category_id) { const byTag = (together[r.category_id] ??= {}); byTag[id] = (byTag[id] ?? 0) + 1; }
+      if (r.category_id && !notTogether.has(id)) { const byTag = (together[r.category_id] ??= {}); byTag[id] = (byTag[id] ?? 0) + 1; }
     }
   }
   const tags: WatchTag[] = db.all<{ id: string; name: string; color: string | null; category_ids: string; archived: number }>(
@@ -99,25 +107,34 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
 
   const history: WatchTx[] = db.all<{
     id: string; date: string; amount_minor: number; currency: string; account_name: string; account_id: string;
-    category_id: string | null; cat_name: string | null; cat_preset: string | null; parent_name: string | null; parent_preset: string | null; notes: string | null; payee: string | null;
-    tag_ids: string; pending: number; transfer_id: string | null;
+    category_id: string | null; cat_name: string | null; cat_preset: string | null; parent_name: string | null; parent_preset: string | null; notes: string | null; bank_note: string | null; payee: string | null;
+    tag_ids: string; pending: number; transfer_id: string | null; debt_id: string | null; debt_person: string | null;
+    place: string | null; lat: number | null; lon: number | null; entered_amount_minor: number | null; entered_currency: string | null;
   }>(
     `SELECT t.id, t.date, t.amount_minor, a.currency, a.name AS account_name, t.account_id, t.category_id,
-       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id
+       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.bank_note, t.payee, t.tag_ids, t.pending, t.transfer_id, t.debt_id, d.person AS debt_person,
+       t.place, t.lat, t.lon, t.entered_amount_minor, t.entered_currency
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
+     LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id LEFT JOIN debts d ON d.id=t.debt_id
      WHERE t.deleted=0 ORDER BY t.date DESC, t.updated_at DESC LIMIT 50`,
   ).map((r) => {
     const transfer = r.transfer_id != null;
-    const note = r.notes?.split("\n")[0] ?? "";
+    // A debt payment has no category: it is named after whose debt it pays, as in the app's list.
+    const debtLabel = r.debt_id ? t("transactions.list.debt", { person: r.debt_person ?? "?" }) : null;
+    const note = r.notes?.split("\n")[0] || r.bank_note?.split("\n")[0] || "";
     const catName = r.cat_name === null ? null : name(r.cat_name, r.cat_preset);
     const parentName = r.parent_name === null ? null : name(r.parent_name, r.parent_preset);
-    const title = transfer ? t("misc.watch.transfer") : note || r.payee || catName || parentName || t("misc.watch.uncategorized");
+    const title = transfer ? t("misc.watch.transfer") : r.payee || note || catName || parentName || debtLabel || t("misc.watch.uncategorized");
     const catLabel = transfer ? null : catName ? (parentName ? `${parentName} › ${catName}` : catName) : parentName;
     const sub = [accountName({ name: r.account_name }, lang), catLabel].filter((x): x is string => !!x).join(" · ");
     return {
       id: r.id, date: r.date, title, sub, amount: fromMinor(r.amount_minor, r.currency), currency: r.currency,
       account_id: r.account_id, category_id: r.category_id, tag_ids: jsonIds(r.tag_ids), pending: r.pending === 1, transfer,
+      // Capped: the whole state travels in one WatchConnectivity message.
+      note: r.notes?.trim().slice(0, 300) || undefined, bank_note: r.bank_note?.trim().slice(0, 300) || undefined,
+      place: r.place || undefined, lat: r.lat ?? undefined, lon: r.lon ?? undefined,
+      ...(r.entered_amount_minor != null && r.entered_currency && r.entered_currency !== r.currency
+        ? { entered_amount: fromMinor(r.entered_amount_minor, r.entered_currency), entered_currency: r.entered_currency } : {}),
     };
   });
 
@@ -133,7 +150,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     generated_at: new Date().toISOString(),
     language: lang,
     current_account: getCurrentAccount(),
-    accounts: snapshot.accounts,
+    accounts: withNumbers(snapshot.accounts),
     categories, tags, together, history, snapshot,
     location_enabled: getLocationEnabled(),
     shortcut_notify: getShortcutNotify(),
@@ -142,4 +159,10 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   };
   if (__DEV__) console.log(`[watchState] built in ${Date.now() - t0}ms (${categories.length} categories, ${tags.length} tags, ${history.length} history rows)`);
   return state;
+}
+
+/** The widget's account list plus the digits each is known by (KPWatchState.Account.numbers). */
+function withNumbers(accounts: WidgetSnapshot["accounts"]): WatchState["accounts"] {
+  const known = new Map(db.all<{ id: string; numbers: string }>(`SELECT id, numbers FROM accounts`).map((a) => [a.id, accountNumbers(a)]));
+  return accounts.map((a) => ({ ...a, numbers: known.get(a.id) ?? [] }));
 }

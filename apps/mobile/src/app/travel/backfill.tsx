@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { tagTransactions } from "@kopiyka/core";
+import { tagTransactions, tripKind } from "@kopiyka/core";
 import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { TransactionList, useTransactions } from "@/components/TransactionList";
@@ -11,6 +11,7 @@ import { ConfirmBar } from "@/components/Keypad";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, S, themed } from "@/constants/theme";
 import { EMPTY_FILTER, activeCount, buildWhere, type TxFilter } from "@/lib/filters";
+import { useSearchIds } from "@/lib/search";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 
@@ -28,13 +29,15 @@ import { t } from "@/i18n";
  * the list to find the hotel does not forget the flight.
  */
 export default function TravelBackfill() {
-  const { tag, name, from, to } = useLocalSearchParams<{ tag: string; name?: string; from?: string; to?: string }>();
+  const { tag, name, from, to, kind: kindParam } = useLocalSearchParams<{ tag: string; name?: string; from?: string; to?: string; kind?: string }>();
+  const kind = tripKind({ kind: kindParam });
   const [since] = useState(() => new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10));
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<TxFilter>(EMPTY_FILTER);
   const key = useMemo(() => newPickKey("bfilter"), []);
   usePickResult<TxFilter>(key, useCallback((f: TxFilter) => setFilter(f), []));
-  const { where, params } = buildWhere({ ...filter, q, ...(!filter.from && !filter.to ? (from ? { from, to: to ?? null } : { from: since }) : {}) }, null);
+  const searchIds = useSearchIds(q);
+  const { where, params } = buildWhere({ ...filter, q, ...(!filter.from && !filter.to ? (from ? { from, to: to ?? null } : { from: since }) : {}) }, null, undefined, searchIds);
   const rows = useTransactions(`t.transfer_id IS NULL AND t.amount_minor<0 AND t.recurring_id IS NULL AND t.tag_ids NOT LIKE ? AND ${where}`, [`%"${tag}"%`, ...params], 400);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   // Ticks are work too: leaving with some and without adding them asks first (lib/discard.ts).
@@ -64,9 +67,9 @@ export default function TravelBackfill() {
         </Pressable>
       </View>
       <TransactionList rows={rows} selected={selected} onToggle={toggle}
-        header={<Text style={styles.hint}>{from ? t("travel.backfill.hintPast") : t("travel.backfill.hint")}</Text>} />
+        header={<Text style={styles.hint}>{from ? t("travel.backfill.hintPast", { kind }) : t("travel.backfill.hint", { kind })}</Text>} />
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, S.md) }]}>
-        <ConfirmBar amount={n ? t("travel.backfill.selected", { count: n }) : t("travel.backfill.noneSelected")} label={n ? (name ? t("travel.backfill.addToName", { name }) : t("travel.backfill.addTo")) : t("travel.backfill.tick")} onPress={apply} disabled={!n} />
+        <ConfirmBar amount={n ? t("travel.backfill.selected", { count: n }) : t("travel.backfill.noneSelected")} label={n ? (name ? t("travel.backfill.addToName", { name }) : t("travel.backfill.addTo", { kind })) : t("travel.backfill.tick")} onPress={apply} disabled={!n} />
       </View>
     </View>
   );

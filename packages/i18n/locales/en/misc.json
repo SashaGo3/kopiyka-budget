@@ -12,8 +12,5 @@
   "watch": {
     "transfer": { "message": "Transfer", "note": "Title of a transfer in the watch's history list.", "max": 20 },
     "uncategorized": { "message": "Uncategorized", "note": "Title of a history row on the watch with no note, shop or category.", "max": 20 }
-  },
-  "widget": {
-    "everything": { "message": "Everything", "note": "Name of a budget that covers all categories, on the widget and the watch.", "max": 20 }
   }
 }

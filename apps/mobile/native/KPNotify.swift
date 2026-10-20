@@ -8,7 +8,8 @@ import UserNotifications
  list days later. One notification per payment, then — but never a pile of them: a bank that reports
  a busy Saturday leaves ten notices nobody reads, and Notification Center is not a transaction log.
  So every one of these carries the same `threadIdentifier`, and posting a new one removes the
- delivered ones first. The last payment is the one on screen.
+ delivered ones first. The last payment is the one on screen, and it goes once its entry has been
+ dealt with — approved, deleted or opened — which the app does, since only it sees that happen.
 
  Deliberately not a fixed identifier for the request itself, which would also replace the banner:
  the app follows a tapped notification by identifier and remembers the last one it followed
@@ -22,8 +23,10 @@ enum KPNotify {
   static let paymentThread = "kopiyka.shortcut"
 
   /// Post the one payment notification, replacing whatever the automation last put on screen.
-  /// `badge` is how many entries are waiting in the Pending queue; nil leaves the badge alone.
-  static func payment(id: String, title: String, body: String, badge: Int?) async {
+  /// `id` is the row it is about, `link` the route a tap opens (`transaction/<id>`, or
+  /// `transfer/<id>` once the row became one side of a transfer). `badge` is how many entries are
+  /// waiting in the Pending queue; nil leaves the badge alone.
+  static func payment(id: String, link: String, title: String, body: String, badge: Int?) async {
     let center = UNUserNotificationCenter.current()
     guard await center.notificationSettings().authorizationStatus == .authorized else { return }
 
@@ -35,8 +38,10 @@ enum KPNotify {
     content.title = title
     content.body = body
     content.threadIdentifier = paymentThread
-    // Tapping goes to the entry itself, which is the only thing there is to do about it.
-    content.userInfo = ["url": "\(KP.scheme)://transaction/\(id)"]
+    // Tapping goes to the entry itself, which is the only thing there is to do about it. The row's
+    // id rides along on its own: the app takes the notification away once that row is approved,
+    // deleted or opened (`dismissSettledPaymentNotices`, src/lib/notifications.ts).
+    content.userInfo = ["url": "\(KP.scheme)://\(link)", "transaction_id": id]
     if let badge { content.badge = NSNumber(value: badge) }
     content.sound = nil   // it is a receipt, not an alarm; the bank already made the noise
 

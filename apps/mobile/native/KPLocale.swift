@@ -105,11 +105,18 @@ enum KPPreset {
   }
   private static func norm(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 
+  /// Names a preset was seeded under before its translation changed (core `FORMER_PRESET_NAMES`).
+  private static let former: [String: [String]] = [
+    "home.utilities": ["Комунальні"],
+    "bills": ["Платежі"],
+  ]
+
   /// The name to show: the preset's, in the app's language, while unrenamed; otherwise as stored.
   static func name(_ stored: String, preset: String?) -> String {
     guard let p = preset, !p.isEmpty else { return stored }
     let key = "preset.\(p).name"
-    guard own(key).contains(where: { norm($0) == norm(stored) }) else { return stored }
+    let names = own(key) + (former[p] ?? [])
+    guard names.contains(where: { norm($0) == norm(stored) }) else { return stored }
     let shown = KPL.string(key)
     return shown == key ? stored : shown
   }

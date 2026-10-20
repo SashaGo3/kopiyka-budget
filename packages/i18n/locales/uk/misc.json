@@ -11,8 +11,5 @@
   "watch": {
     "transfer": "Переказ",
     "uncategorized": "Без категорії"
-  },
-  "widget": {
-    "everything": "Усе"
   }
 }

@@ -15,6 +15,18 @@ describe("migrate", () => {
     expect(db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info('budgets') WHERE name='tag_id'`)?.n).toBe(1);
   });
 
+  test("a column missing below the recorded version is put back, and nothing else re-runs", () => {
+    const db = openBunDb(":memory:");
+    migrate(db);
+    // A tester's phone: at the latest version, without the v17 column — every new trip failed to save.
+    db.run(`ALTER TABLE budgets DROP COLUMN outside_ids`);
+    db.run(`INSERT INTO meta(key, value) VALUES ('language', 'uk')`);
+    migrate(db);
+    expect(db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info('budgets') WHERE name='outside_ids'`)?.n).toBe(1);
+    // v18 deletes meta.language; a repair must not repeat that, or a choice made since would go.
+    expect(db.get<{ value: string }>(`SELECT value FROM meta WHERE key='language'`)?.value).toBe("uk");
+  });
+
   test("v9 moves groupless accounts into the default group and leaves the others alone", () => {
     const db = openBunDb(":memory:");
     migrate(db);

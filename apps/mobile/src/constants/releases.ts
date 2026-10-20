@@ -27,6 +27,39 @@ const note = (key: MessageKey & `whatsNew.notes.${string}`, icon?: string) => ({
 // dropped on 2026-09-28.
 export const RELEASES: Release[] = [
   {
+    version: "1.1.0",
+    date: "2026-10-17",
+    added: [
+      note("whatsNew.notes.v1_1_0.events", "party.popper"),
+      note("whatsNew.notes.v1_1_0.transferPairs", "arrow.left.arrow.right"),
+      note("whatsNew.notes.v1_1_0.checklist", "checklist"),
+      note("whatsNew.notes.v1_1_0.catThemes", "cat"),
+      note("whatsNew.notes.v1_1_0.insightDetails", "chart.bar"),
+      note("whatsNew.notes.v1_1_0.budgetDetails", "chart.pie"),
+      note("whatsNew.notes.v1_1_0.debtPayments", "person.2"),
+      note("whatsNew.notes.v1_1_0.paymentIcons", "app.badge"),
+      note("whatsNew.notes.v1_1_0.bankNote", "building.columns"),
+      note("whatsNew.notes.v1_1_0.watchPending", "applewatch"),
+      note("whatsNew.notes.v1_1_0.watchNote", "mic"),
+      note("whatsNew.notes.v1_1_0.watchControl", "plus.circle"),
+    ],
+    improved: [
+      note("whatsNew.notes.v1_1_0.search", "magnifyingglass"),
+      note("whatsNew.notes.v1_1_0.transferAccounts", "arrow.up.arrow.down"),
+      note("whatsNew.notes.v1_1_0.transferAmounts", "keyboard"),
+      note("whatsNew.notes.v1_1_0.themes", "paintpalette"),
+      note("whatsNew.notes.v1_1_0.tripLimit", "airplane"),
+      note("whatsNew.notes.v1_1_0.suggestions", "repeat"),
+      note("whatsNew.notes.v1_1_0.listTitles", "list.bullet"),
+      note("whatsNew.notes.v1_1_0.watchFaster", "bolt"),
+    ],
+    fixed: [
+      note("whatsNew.notes.v1_1_0.outside", "rectangle.portrait.and.arrow.right"),
+      note("whatsNew.notes.v1_1_0.tripTag", "tag"),
+      note("whatsNew.notes.v1_1_0.watchBudgetNames", "chart.pie"),
+    ],
+  },
+  {
     version: "1.0.3",
     date: "2026-10-01",
     added: [

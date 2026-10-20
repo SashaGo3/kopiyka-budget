@@ -19,10 +19,11 @@ export interface ReceiptParse {
 }
 
 /** A write native code (watch, Shortcuts) asks JS to make on its behalf — see native/KPWrites.swift. */
-export interface NativeWrite { request: string; op: "addTransaction" | "delete" | "updatePlace" | "suggest" | "payee" | "payment" | "fillIn"; [key: string]: unknown }
+export interface NativeWrite { request: string; op: "addTransaction" | "delete" | "updatePlace" | "suggest" | "payee" | "payment" | "fillIn" | "approve"; [key: string]: unknown }
 
 type Bridge = {
   reloadWidgets(): void; updateWatch(): Promise<string>; isWatchPaired(): boolean;
+  launchLink?(): string | null;
   scanReceipt(uri: string): Promise<ReceiptParse>;
   claimDatabase(): void;
   setLanguage(code: string): void;
@@ -31,11 +32,38 @@ type Bridge = {
   beginThemeTransition(x: number | null, y: number | null): Promise<boolean>;
   endThemeTransition(duration: number): Promise<void>;
   setWindowBackground(light: string, dark: string): void;
+  defineThemeColors(table: ThemeColorTable): boolean;
+  setThemeColors(id: string): void;
+  signalThemeColors(): Promise<void>;
   finishNativeWrite(request: string, ok: boolean, error: string | null, reply: Record<string, unknown>): void;
+  backgroundWorkDone(): void;
   addListener(event: "externalChange", cb: () => void): { remove(): void };
   addListener(event: "nativeWrite", cb: (w: NativeWrite) => void): { remove(): void };
 };
 const native = requireOptionalNativeModule<Bridge>("KPBridge");
+
+/** Colours by name, then theme id: `[light, dark]`, each "#RRGGBB(AA)" or "@systemColorName". */
+export type ThemeColorTable = Record<string, Record<string, [string, string]>>;
+
+/**
+ * Hand every theme's colours to native under their names (native/KPThemeColors.swift), so a style can
+ * name one — `PlatformColor("kp.label")` — and native resolves it in whatever theme is current. False
+ * off iOS, on a build without it, or if native could not read a value: the caller then keeps plain
+ * colours.
+ */
+export function defineThemeColors(table: ThemeColorTable): boolean {
+  if (Platform.OS !== "ios" || typeof native?.defineThemeColors !== "function") return false;
+  try { return native.defineThemeColors(table) === true; } catch { return false; }
+}
+
+/** The theme named colours resolve in. `signal` (a switch, with things on screen) makes everything re-resolve. */
+export async function setThemeColors(id: string, signal: boolean): Promise<void> {
+  if (Platform.OS !== "ios" || typeof native?.setThemeColors !== "function") return;
+  try {
+    native.setThemeColors(id);
+    if (signal) await native.signalThemeColors();
+  } catch { /* the colours keep the theme they had */ }
+}
 
 /**
  * Tell Swift which language the app is in (native/KPLocale.swift), so the watch, the widgets, the App
@@ -98,6 +126,8 @@ export const KPBridge = {
   /** Rebuild the watch state from the database and push it (application context, last value wins). */
   updateWatch: () => { void native?.updateWatch(); },
   isWatchPaired: () => native?.isWatchPaired() ?? false,
+  /** The `-KPLink` launch argument a screenshot capture passed, if any (see lib/launchLink.ts). */
+  launchLink: (): string | null => { try { return native?.launchLink?.() ?? null; } catch { return null; } },
   /** OCR + on-device understanding of a receipt photo; nothing is saved. */
   scanReceipt: (uri: string): Promise<ReceiptParse> => native ? native.scanReceipt(uri) : Promise.reject(new Error("Receipt scanning needs the native build")),
   /** Fires when a Shortcut, Siri or the watch wrote a transaction directly into the database. */
@@ -121,4 +151,6 @@ export const KPBridge = {
   finishNativeWrite: (request: string, ok: boolean, error: string | null = null, reply: Record<string, unknown> = {}) => {
     if (typeof native?.finishNativeWrite === "function") native.finishNativeWrite(request, ok, error, reply);
   },
+  /** Nothing is left to write after leaving the app: the background time native asked for can go. */
+  backgroundWorkDone: () => { if (typeof native?.backgroundWorkDone === "function") native.backgroundWorkDone(); },
 };

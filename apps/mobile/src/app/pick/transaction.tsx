@@ -39,8 +39,8 @@ export default function PickTransaction() {
   const shownIds = useQuery((d) => (ql ? listRows(d, "categories", "deleted=0").filter((c) => catName(c).toLowerCase().includes(ql)).map((c) => c.id) : []), [ql]);
   if (q.trim()) {
     const ids = shownIds.length ? ` OR t.category_id IN (${shownIds.map(() => "?").join(",")}) OR c.parent_id IN (${shownIds.map(() => "?").join(",")})` : "";
-    conds.push(`(t.notes LIKE ? OR t.payee LIKE ? OR c.name LIKE ? OR p.name LIKE ?${ids})`);
-    params.push(like, like, like, like, ...shownIds, ...shownIds);
+    conds.push(`(t.notes LIKE ? OR t.bank_note LIKE ? OR t.payee LIKE ? OR c.name LIKE ? OR p.name LIKE ?${ids})`);
+    params.push(like, like, like, like, like, ...shownIds, ...shownIds);
   }
   const rows = useTransactions(conds.join(" AND "), params, 300);
   return (
@@ -57,7 +57,7 @@ export default function PickTransaction() {
       }
       renderItem={({ item: tx }) => {
         const shown = rowCategory(tx);
-        const name = tx.notes?.split("\n")[0] || tx.payee || shown.name || shown.parent || t("pick.transaction.uncategorized");
+        const name = tx.payee || tx.notes?.split("\n")[0] || tx.bank_note?.split("\n")[0] || shown.name || shown.parent || t("pick.transaction.uncategorized");
         // Towards zero, whichever way the row points, exactly as the entry sheet books it.
         const after = forReturn ? tx.amount_minor + (tx.amount_minor < 0 ? back : -back) : null;
         return (

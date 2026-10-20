@@ -34,6 +34,12 @@ export interface Account extends Synced {
   include_in_net_worth: 0 | 1;
   /** Balance before the first recorded transaction, in minor units. */
   opening_balance_minor: number;
+  /**
+   * JSON array of the last four digits a bank prints for this account or its card ("Na koncie:
+   * 27..5837" → "5837"), learned when a notification-logged row is approved or typed in the account
+   * sheet. What lets a bank notification name the account, and a transfer's other side be one of yours.
+   */
+  numbers: string;
 }
 
 export interface Category extends Synced {
@@ -119,6 +125,25 @@ export interface Transaction extends Synced {
    * remember it. 0 on everything that never had a return (see `packages/core/src/returns.ts`).
    */
   refunded_minor: number;
+  /**
+   * What a bank notification said about the accounts this row moved between, as JSON
+   * `{"own":"5837","other":"3203"}` (last four digits each, either may be missing). Only rows a
+   * notification wrote carry it; it is how the two notifications of one transfer find each other
+   * (packages/core/src/transferPair.ts). NULL for everything else.
+   */
+  bank_ref: string | null;
+  /**
+   * The debt this row pays off, or the repayment of one (`packages/core/src/debts.ts`): picked as
+   * "Debt" in the category picker, so a row carrying it usually has no category. NULL otherwise.
+   */
+  debt_id: string | null;
+  /**
+   * What the bank's notification said about this payment — the reference, the shop and town as
+   * printed, the original currency — written by the notification automation and never edited in the
+   * app. `notes` is the person's own words. NULL on everything else, and on automation rows written
+   * before v23, which carry the bank's text in `notes`.
+   */
+  bank_note: string | null;
 }
 
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
@@ -163,7 +188,17 @@ export interface RecurringRule extends Synced {
    * rule is still called `payee`.
    */
   match_payee: string | null;
+  /**
+   * What the payment is drawn with: `logo:<slug>`, `emoji:<text>`, `sf:<name>` or `category`
+   * (v21). NULL means nobody chose, and the payee is matched against the built-in marks — read it
+   * through `resolvePaymentIcon` (logos.ts), never off the column. Absent from a backup written
+   * before v21, which leaves the phone's answer alone (not in `ROW_DEFAULTS`).
+   */
+  icon?: string | null;
 }
+
+/** What a one-off budget on a tag is about (`Budget.kind`). */
+export type TripKind = "trip" | "event";
 
 export interface Budget extends Synced {
   /**
@@ -200,6 +235,12 @@ export interface Budget extends Synced {
    * one by one; everything carrying the tag counts unless it is here.
    */
   outside_ids: string;
+  /**
+   * One-off budgets on a tag only: "event" for a party, a wedding, a day out; NULL (or "trip") for a
+   * trip. Nothing is counted differently — it changes the words, the icon and the default length.
+   * Read it through `tripKind`.
+   */
+  kind: TripKind | null;
   /** "monthly" renews every period; "once" is a one-off pot (a trip) that runs from `starts` until it is ended. */
   period: "monthly" | "once";
   /** YYYY-MM-DD, budget applies from this month on until superseded (monthly), or the first day of the trip (once). */

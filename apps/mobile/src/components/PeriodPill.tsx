@@ -10,23 +10,42 @@ import { t } from "@/i18n";
  * picker, long-press returns to today. Glass in both homes it has — floating over the Budgets
  * list, and in the Transactions nav bar, where the native header buttons beside it are glass
  * capsules themselves and a solid pill reads as a flat white blob next to them.
+ *
+ * The arrows are buttons of their own, round and a thumb wide, with a gap between them and the
+ * month: inside the pill they were small chevrons a few points from the label, and a tap meant for
+ * the next month opened the picker as often as not. Leave `onPrev`/`onNext` out for a pill that only
+ * picks (Insights, where stepping month by month is not what the screen is for).
  */
-export function PeriodPill({ period, onPrev, onNext, onReset, onPick, disabled }: { period: Period; onPrev: () => void; onNext: () => void; onReset?: () => void; onPick?: () => void; disabled?: boolean }) {
+export function PeriodPill({ period, onPrev, onNext, onReset, onPick, disabled }: { period: Period; onPrev?: () => void; onNext?: () => void; onReset?: () => void; onPick?: () => void; disabled?: boolean }) {
+  const arrow = (dir: "left" | "right", onPress: () => void) => (
+    <Pressable onPress={onPress} disabled={disabled} hitSlop={4} accessibilityRole="button" accessibilityLabel={dir === "left" ? t("period.pill.previous") : t("period.pill.next")}
+      style={({ pressed }) => [styles.arrow, pressed && { opacity: 0.6 }]}>
+      <Glass style={styles.round} solid={styles.solid} interactive />
+      <SymbolView name={dir === "left" ? "chevron.left" : "chevron.right"} size={15} tintColor={C.tint} weight="semibold" />
+    </Pressable>
+  );
+  const arrows = !!(onPrev && onNext);
   return (
-    <View style={[styles.pill, disabled && { opacity: 0.4 }]} accessibilityRole="adjustable" accessibilityLabel={period.subtitle ? t("period.pill.labelRange", { title: period.title, range: period.subtitle }) : t("period.pill.label", { title: period.title })}>
-      <Glass style={styles.fill} solid={styles.solid} />
-      <Pressable onPress={onPrev} disabled={disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("period.pill.previous")}><SymbolView name="chevron.left" size={14} tintColor={C.tint} /></Pressable>
-      <Pressable onPress={onPick} onLongPress={onReset} disabled={disabled} style={{ alignItems: "center" }} accessibilityRole="button" accessibilityLabel={t("period.pill.choose", { title: period.title })} accessibilityHint={t("period.pill.chooseHint")}>
-        <Text style={styles.title} maxFontSizeMultiplier={1.3}>{period.title}</Text>
-        {period.subtitle ? <Text style={styles.sub} maxFontSizeMultiplier={1.3}>{period.subtitle}</Text> : null}
+    <View style={[styles.row, disabled && { opacity: 0.4 }]} accessibilityLabel={period.subtitle ? t("period.pill.labelRange", { title: period.title, range: period.subtitle }) : t("period.pill.label", { title: period.title })}>
+      {onPrev ? arrow("left", onPrev) : null}
+      <Pressable onPress={onPick} onLongPress={onReset} disabled={disabled} style={({ pressed }) => [styles.pill, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("period.pill.choose", { title: period.title })} accessibilityHint={t("period.pill.chooseHint")}>
+        <Glass style={styles.fill} solid={styles.solid} interactive />
+        <View style={{ alignItems: "center" }}>
+          <Text style={styles.title} maxFontSizeMultiplier={1.3}>{period.title}</Text>
+          {period.subtitle ? <Text style={styles.sub} maxFontSizeMultiplier={1.3}>{period.subtitle}</Text> : null}
+        </View>
+        {arrows ? null : <SymbolView name="chevron.down" size={10} tintColor={C.tertiary} />}
       </Pressable>
-      <Pressable onPress={onNext} disabled={disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("period.pill.next")}><SymbolView name="chevron.right" size={14} tintColor={C.tint} /></Pressable>
+      {onNext ? arrow("right", onNext) : null}
     </View>
   );
 }
 
 const styles = themed(() => StyleSheet.create({
-  pill: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: R.pill, paddingHorizontal: 10, minHeight: 34, paddingVertical: 3, maxWidth: 260 },
+  row: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+  arrow: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  round: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: 19 },
+  pill: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: R.pill, paddingHorizontal: 14, minHeight: 38, paddingVertical: 3, maxWidth: 200, flexShrink: 1 },
   fill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: R.pill },
   solid: { backgroundColor: C.fill },
   title: { fontSize: 15, fontWeight: "600", color: C.label },

@@ -29,6 +29,9 @@ enum L10n {
     /// Travel mode: what may be spent per day; amount is formatted money.
     /// "{amount}/day"
     static func perDay(amount: String) -> String { KPL.string("native.budget.perDay", amount) }
+    /// A trip or event with no budget limit, on the watch and in the widgets: what was spent so far.
+    /// "{amount} spent"
+    static func spent(amount: String) -> String { KPL.string("native.budget.spent", amount) }
   }
   enum Common {
     /// Why a Siri / Shortcut / watch entry could not be saved: the app has never been opened.
@@ -237,18 +240,36 @@ enum L10n {
     }
   }
   enum Notify {
-    /// In the notification body, after the category: the category was guessed. Lowercase, one word if possible.
-    /// "guess"
-    static var guess: String { KPL.string("native.notify.guess") }
+    /// Second line of the notification: the category comes from an earlier entry, but the entry still waits for approval (converted currency, a shop filed several ways).
+    /// "Recognised as {category} — tap to check."
+    static func check(category: String) -> String { KPL.string("native.notify.check", category) }
+    /// Second line of the notification: the shop was filed under this category before, and the entry is saved as it is.
+    /// "Recognised: {category}."
+    static func filed(category: String) -> String { KPL.string("native.notify.filed", category) }
+    /// Second line of the notification: the category was guessed from the shop's name or location, not filed before.
+    /// "Guessed {category} — tap to confirm or change."
+    static func guess(category: String) -> String { KPL.string("native.notify.guess", category) }
     /// Notification title after the automation logged a payment, when no shop name was read.
     /// "Payment logged"
     static var logged: String { KPL.string("native.notify.logged") }
-    /// In the notification body: the entry waits in the Pending queue. Lowercase.
-    /// "pending"
-    static var pending: String { KPL.string("native.notify.pending") }
     /// Notification title after the automation logged income, when no payer name was read.
     /// "Payment received"
     static var received: String { KPL.string("native.notify.received") }
+    /// Notification title after the automation logged one side of a transfer between the user's own accounts.
+    /// "Transfer"
+    static var transfer: String { KPL.string("native.notify.transfer") }
+    /// Second line of the notification: only one side of the transfer was notified, so the app wrote the other.
+    /// "The other side was added for you — tap to check."
+    static var transferInferred: String { KPL.string("native.notify.transferInferred") }
+    /// Second line of the notification: the debit and the credit notifications of one transfer were matched by account numbers.
+    /// "Both sides matched — tap to check."
+    static var transferPaired: String { KPL.string("native.notify.transferPaired") }
+    /// Second line of the notification: the bank named another account; the other notification has not arrived yet.
+    /// "Looks like a transfer — waiting for the other side."
+    static var transferWaiting: String { KPL.string("native.notify.transferWaiting") }
+    /// Second line of the notification: nothing is known about this shop; the entry has no category.
+    /// "Not recognised — tap to choose a category."
+    static var unknown: String { KPL.string("native.notify.unknown") }
   }
   enum Receipt {
     /// In the note a scanned receipt writes: "Żabka · 2 items: …".
@@ -306,14 +327,29 @@ enum L10n {
       static func budgetA11y(name: String, amount: String) -> String { KPL.string("native.watch.budgets.budgetA11y", name, amount) }
       /// "No budgets yet. Add one on your iPhone."
       static var empty: String { KPL.string("native.watch.budgets.empty") }
+      /// Section heading while an event (a birthday, a wedding) is on.
+      /// "Event"
+      static var event: String { KPL.string("native.watch.budgets.event") }
+      /// VoiceOver; name is the event, day is "Day 1 of 1".
+      /// "Event {name}, {amount} left, {day}"
+      static func eventA11y(name: String, amount: String, day: String) -> String { KPL.string("native.watch.budgets.eventA11y", name, amount, day) }
+      /// VoiceOver, an event with no budget limit; day is "Day 1 of 1".
+      /// "Event {name}, {amount} spent, {day}"
+      static func eventSpentA11y(name: String, amount: String, day: String) -> String { KPL.string("native.watch.budgets.eventSpentA11y", name, amount, day) }
       /// Section heading.
       /// "Travel mode"
       static var travel: String { KPL.string("native.watch.budgets.travel") }
       /// VoiceOver; name is the trip, day is "Day 3 of 7".
       /// "Travel {name}, {amount} left, {day}"
       static func travelA11y(name: String, amount: String, day: String) -> String { KPL.string("native.watch.budgets.travelA11y", name, amount, day) }
+      /// VoiceOver, a trip with no budget limit; day is "Day 3 of 7".
+      /// "Travel {name}, {amount} spent, {day}"
+      static func travelSpentA11y(name: String, amount: String, day: String) -> String { KPL.string("native.watch.budgets.travelSpentA11y", name, amount, day) }
     }
     enum Category {
+      /// First row of the watch category list: dictate or scribble a note for the entry.
+      /// "Add note"
+      static var addNote: String { KPL.string("native.watch.category.addNote") }
       /// "Categories sync from your iPhone."
       static var empty: String { KPL.string("native.watch.category.empty") }
       /// Under a category that is itself a folder.
@@ -336,6 +372,12 @@ enum L10n {
       /// VoiceOver hint.
       /// "Save without a category"
       static var noneHint: String { KPL.string("native.watch.category.noneHint") }
+      /// VoiceOver hint.
+      /// "Dictate or scribble a note for this entry"
+      static var noteHint: String { KPL.string("native.watch.category.noteHint") }
+      /// Prompt of the text field the watch opens for the note.
+      /// "Note"
+      static var notePrompt: String { KPL.string("native.watch.category.notePrompt") }
       /// "Category"
       static var title: String { KPL.string("native.watch.category.title") }
     }
@@ -343,14 +385,44 @@ enum L10n {
       /// VoiceOver, inside a row's description; time like 14:05.
       /// "at {time}"
       static func a11yAt(time: String) -> String { KPL.string("native.watch.history.a11yAt", time) }
+      /// VoiceOver, inside a row's description.
+      /// "pending"
+      static var a11yPending: String { KPL.string("native.watch.history.a11yPending") }
       /// VoiceOver, inside a row's description; list is comma-separated.
       /// "tags {list}"
       static func a11yTags(list: String) -> String { KPL.string("native.watch.history.a11yTags", list) }
       /// VoiceOver, inside a row's description.
       /// "waiting for iPhone"
       static var a11yWaiting: String { KPL.string("native.watch.history.a11yWaiting") }
+      /// Small label above the account's name on an entry's page.
+      /// "Account"
+      static var account: String { KPL.string("native.watch.history.account") }
+      /// Button on a pending entry: take it out of the Pending queue as it is.
+      /// "Approve"
+      static var approve: String { KPL.string("native.watch.history.approve") }
+      /// Button on a pending entry: choose its category, which approves it.
+      /// "Set category"
+      static var approveAs: String { KPL.string("native.watch.history.approveAs") }
+      /// Small label above what the bank notification said about the payment.
+      /// "From the bank"
+      static var bankNote: String { KPL.string("native.watch.history.bankNote") }
       /// "Nothing today or yesterday."
       static var empty: String { KPL.string("native.watch.history.empty") }
+      /// Small label above the person's own note on an entry's page.
+      /// "Note"
+      static var note: String { KPL.string("native.watch.history.note") }
+      /// Small label above the amount in the currency the bank charged, when the account is in another one.
+      /// "Charged"
+      static var original: String { KPL.string("native.watch.history.original") }
+      /// Under the amount on an entry still in the Pending queue.
+      /// "Pending"
+      static var pendingLabel: String { KPL.string("native.watch.history.pendingLabel") }
+      /// Small label above where the entry was made, over a small map.
+      /// "Place"
+      static var place: String { KPL.string("native.watch.history.place") }
+      /// On a transfer, which the watch cannot approve with a category.
+      /// "Change transfers on your iPhone."
+      static var transferOnPhone: String { KPL.string("native.watch.history.transferOnPhone") }
       /// Under an entry the phone has not received yet.
       /// "Waiting for iPhone"
       static var waiting: String { KPL.string("native.watch.history.waiting") }
@@ -401,6 +473,9 @@ enum L10n {
       /// VoiceOver, after the save hint.
       /// "{count, plural, one {# tag} other {# tags}}"
       static func count(count: Int) -> String { KPL.string("native.watch.tags.count", count) }
+      /// First row while an event is on: save with only the event's tag.
+      /// "Just the event tag"
+      static var eventOnly: String { KPL.string("native.watch.tags.eventOnly") }
       /// "Double tap to add this tag"
       static var hintAdd: String { KPL.string("native.watch.tags.hintAdd") }
       /// "Double tap to remove this tag"
@@ -441,10 +516,10 @@ enum L10n {
       /// Status page after an entry was saved.
       /// "Added {amount} for {category}"
       static func addedFor(amount: String, category: String) -> String { KPL.string("native.watch.write.addedFor", amount, category) }
-      /// "Delete queued for iPhone"
-      static var deleteQueued: String { KPL.string("native.watch.write.deleteQueued") }
-      /// "Deleted"
-      static var deleted: String { KPL.string("native.watch.write.deleted") }
+      /// "Approval queued for iPhone"
+      static var approveQueued: String { KPL.string("native.watch.write.approveQueued") }
+      /// "Approved"
+      static var approved: String { KPL.string("native.watch.write.approved") }
       /// "iPhone could not save"
       static var failed: String { KPL.string("native.watch.write.failed") }
       /// reason is one of the native.writes messages, in the phone's app language.

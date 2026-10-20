@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 import WatchKit
 
@@ -44,13 +45,22 @@ struct ContentView: View {
           let session = WatchSession.shared
           switch step {
           case .category:
-            CategoryPickView { cat in
+            CategoryPickView(noteRow: true) { cat in
               // Skip the tags step when nothing could be picked anyway.
               let ranked = KPRank.tags(session.state.tags, category: cat, categories: session.state.categories, together: session.state.together)
               if ranked.isEmpty { save(category: cat, tags: []) } else { nav.path.append(QuickStep.tags(cat?.id)) }
             }
           case .tags(let catId):
             TagsPickView(category: session.state.category(catId), amountLabel: amountLabel) { tags in save(category: session.state.category(catId), tags: tags) }
+          case .entry(let id):
+            EntryView(id: id)
+          case .approveCategory(let id):
+            // Choosing the category is the approval: back to History with the entry filed.
+            CategoryPickView(noteRow: false) { cat in
+              session.approve(id, category: cat)
+              WKInterfaceDevice.current().play(.success)
+              nav.path = NavigationPath()
+            }
           }
         }
       }
@@ -66,22 +76,25 @@ struct ContentView: View {
     let session = WatchSession.shared, draft = WatchDraft.shared
     guard let acc = session.state.defaultAccount, draft.value > 0 else { return }
     let minor = KPFormat.minor(draft.value, acc.currency)
-    session.add(amountMinor: -minor, account: acc, category: category, tagIds: tags)
+    session.add(amountMinor: -minor, account: acc, category: category, tagIds: tags, note: draft.note.trimmingCharacters(in: .whitespacesAndNewlines))
     WKInterfaceDevice.current().play(.success)
     nav.path = NavigationPath()
     draft.text = ""
+    draft.note = ""
     nav.page = 1
   }
 }
 
 // MARK: - Log page (amount keypad)
 
-enum QuickStep: Hashable { case category, tags(String?) }
+/// What the outer stack can push: the logging flow, and an entry tapped in History.
+enum QuickStep: Hashable { case category, tags(String?), entry(String), approveCategory(String) }
 
 /// Big amount row that doubles as "Next", 3×4 keypad filling the rest of the screen.
 /// No ScrollView and no lazy grid (twelve fixed keys), so it always sits below the clock and
-/// nothing can scroll under the status bar. The bottom row keeps a little distance from the
-/// curved screen edge so "." and "⌫" are not clipped by the corners.
+/// nothing can scroll under the status bar. Every key is a `ConcentricRectangle`: in the middle
+/// it is an ordinary rounded key, and at the bottom corners it follows the screen's own curve, so
+/// "." and "⌫" are never cut by it on any size of watch.
 ///
 /// It takes `room` from `ContentView` rather than measuring itself, and hangs off the bottom
 /// edge: inside the pager a page's top safe-area inset changes while the swipe animates, so a
@@ -101,8 +114,12 @@ struct LogPage: View {
 
   private let amountHeight: CGFloat = 44
   private let gap: CGFloat = 4
-  /// Clearance above the curved bottom edge.
-  static let bottomInset: CGFloat = 10
+  /// Clearance above the curved bottom edge. More than the curve alone needs: a key can round its
+  /// corner only to half its height, so the bottom row sits high enough that this still follows the
+  /// screen's on the roundest watch (the Ultra).
+  static let bottomInset: CGFloat = 16
+  /// Space either side of the keypad.
+  static let sideInset: CGFloat = 5
   var shown: String { draft.text.isEmpty ? "0" : draft.text }
   var hasAmount: Bool { draft.value > 0 }
 
@@ -122,6 +139,8 @@ struct LogPage: View {
       }
       .buttonStyle(.plain)
       .disabled(!hasAmount || account == nil)
+      // Double Tap goes on to the category once there is an amount.
+      .handGestureShortcut(.primaryAction, isEnabled: hasAmount && account != nil)
       .accessibilityLabel(L10n.Watch.amount(amount: "\(shown) \(account?.currency ?? "")"))
       .accessibilityHint(hasAmount ? L10n.Watch.hintNext : L10n.Watch.hintType)
       .accessibilityAddTraits(.isHeader)
@@ -134,7 +153,7 @@ struct LogPage: View {
     }
     // Bottom-aligned: the page's top inset moves during a swipe, its bottom edge does not.
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-    .padding(.horizontal, 4)
+    .padding(.horizontal, Self.sideInset)
     .padding(.bottom, Self.bottomInset)
     .ignoresSafeArea(edges: .bottom)
     .accessibilityElement(children: .contain)
@@ -190,6 +209,8 @@ struct KeyButton: View {
   let key: String
   let height: CGFloat
   let action: () -> Void
+  /// Concentric with the screen where a key meets its corner, 11 everywhere else.
+  private static let shape = ConcentricRectangle(corners: .concentric(minimum: .fixed(11)), isUniform: false)
   var body: some View {
     Button(action: action) {
       Group {
@@ -197,7 +218,8 @@ struct KeyButton: View {
       }
       .font(.system(.title2, design: .rounded).weight(.medium))
       .frame(maxWidth: .infinity).frame(height: height)
-      .background(key == "⌫" ? Color.red.opacity(0.2) : Color.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+      .background(key == "⌫" ? Color.red.opacity(0.2) : Color.white.opacity(0.15),
+                  in: Self.shape)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
@@ -231,6 +253,9 @@ struct CategoryIconView: View {
 /// When the phone knows this spot, its suggestion sits on top marked "Near here".
 struct CategoryPickView: View {
   @EnvironmentObject var session: WatchSession
+  @EnvironmentObject var draft: WatchDraft
+  /// The "Add note" row on top: only when logging, not when filing an entry that is being approved.
+  var noteRow = false
   let pick: (KPWatchState.Category?) -> Void
 
   var items: [KPWatchState.Category] {
@@ -242,6 +267,18 @@ struct CategoryPickView: View {
   var body: some View {
     let near = session.suggestedCategoryId
     List {
+      // A note only sometimes, so it is one optional row rather than a step: dictation or Scribble,
+      // and the category is still picked below as always.
+      if noteRow {
+        TextFieldLink(prompt: Text(L10n.Watch.Category.notePrompt)) {
+          HStack(spacing: 8) {
+            Image(systemName: draft.note.isEmpty ? "mic.fill" : "text.alignleft").font(.body).foregroundStyle(.secondary).frame(width: 30)
+            Text(draft.note.isEmpty ? L10n.Watch.Category.addNote : draft.note).font(.body).lineLimit(2)
+              .foregroundStyle(draft.note.isEmpty ? Color.secondary : Color.primary)
+          }
+        } onSubmit: { draft.note = $0 }
+        .accessibilityHint(L10n.Watch.Category.noteHint)
+      }
       if items.isEmpty { Text(L10n.Watch.Category.empty).foregroundStyle(.secondary) }
       ForEach(items) { c in
         CategoryRow(category: c, near: c.id == near) { pick(c) }
@@ -295,6 +332,7 @@ struct TagsPickView: View {
   @State private var ranked: [KPRank.RankedTag] = []
   /// Travel mode: the trip tag starts ticked (the phone adds it anyway; this shows it).
   private let tripTag: String? = WatchSession.shared.state.snapshot?.trip?.tag_id
+  private let tripIsEvent = WatchSession.shared.state.snapshot?.trip?.isEvent ?? false
 
   var saveLabel: String { category.map { L10n.Watch.Tags.saveFor(amount: amountLabel, category: $0.name) } ?? L10n.Watch.Tags.save(amount: amountLabel) }
 
@@ -305,13 +343,15 @@ struct TagsPickView: View {
         HStack(spacing: 8) {
           Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(.green)
           VStack(alignment: .leading, spacing: 1) {
-            Text(tripTag == nil ? L10n.Watch.Tags.none : L10n.Watch.Tags.tripOnly).font(.body.weight(.semibold))
+            Text(tripTag == nil ? L10n.Watch.Tags.none : tripIsEvent ? L10n.Watch.Tags.eventOnly : L10n.Watch.Tags.tripOnly).font(.body.weight(.semibold))
             Text(amountLabel).font(.caption2).foregroundStyle(.secondary)
           }
         }
       }
       .accessibilityLabel(L10n.Watch.Tags.none)
       .accessibilityHint(saveLabel)
+      // Double Tap saves: as it is, until a tag is ticked and the Save button below takes over.
+      .handGestureShortcut(.primaryAction, isEnabled: chosen.isEmpty)
       if category != nil && !first.isEmpty {
         Section(L10n.Watch.Tags.usedWith(category: category!.name)) { ForEach(first) { r in tagRow(r) } }
         if !rest.isEmpty { Section(L10n.Watch.Tags.other) { ForEach(rest) { r in tagRow(r) } } }
@@ -328,6 +368,7 @@ struct TagsPickView: View {
           Button { save(ranked.map(\.tag.id).filter { chosen.contains($0) }) } label: { Label(L10n.Watch.Tags.saveCount(count: chosen.count), systemImage: "checkmark").font(.caption.weight(.semibold)) }
             .buttonStyle(.borderedProminent).tint(.green).controlSize(.small)
             .fixedSize()
+            .handGestureShortcut(.primaryAction)
             .accessibilityLabel(saveLabel + ", " + L10n.Watch.Tags.count(count: chosen.count))
         }
       }
@@ -372,6 +413,7 @@ struct PageBar: ViewModifier {
 
 struct HistoryPage: View {
   @EnvironmentObject var session: WatchSession
+  @EnvironmentObject var nav: WatchNav
 
   var body: some View {
     List {
@@ -388,12 +430,101 @@ struct HistoryPage: View {
         Section(d.label) {
           // `.equatable()`: a row whose item did not change is not re-rendered when the session
           // publishes (a reachability flip, a location fix) — including during a page swipe.
-          ForEach(d.rows) { HistoryRow(item: $0).equatable() }
+          ForEach(d.rows) { item in
+            Button { nav.path.append(QuickStep.entry(item.id)) } label: { HistoryRow(item: item).equatable() }
+              .buttonStyle(.plain)
+              .swipeActions(edge: .leading) {
+                if item.pending && !item.queued {
+                  Button { session.approve(item.id); WKInterfaceDevice.current().play(.success) } label: { Label(L10n.Watch.History.approve, systemImage: "checkmark") }.tint(.green)
+                }
+              }
+          }
         }
       }
     }
     .modifier(PageBar())
-    .refreshable { session.refresh() }
+    .refreshable { session.refresh(force: true) }
+  }
+}
+
+/// One entry from History: what it is, and what can be done about it from the wrist — approving a
+/// pending one (as it is, or filed under a category first). Below that, the rest of what the phone
+/// knows about it: account, the bank's original amount, notes and the place. Nothing is deleted from the watch.
+struct EntryView: View {
+  let id: String
+  @EnvironmentObject var session: WatchSession
+  @EnvironmentObject var nav: WatchNav
+  @Environment(\.dismiss) private var dismiss
+
+  var item: WatchSession.HistoryItem? { session.historyDays.lazy.flatMap(\.rows).first { $0.id == id } }
+
+  var body: some View {
+    if let item {
+      List {
+        VStack(alignment: .leading, spacing: 3) {
+          Text(item.amount).font(.system(.title2, design: .rounded).weight(.semibold)).monospacedDigit()
+            .foregroundStyle(item.transfer ? Color.secondary : item.income ? Color.green : Color.primary)
+            .lineLimit(1).minimumScaleFactor(0.6)
+          Text(item.title).font(.footnote.weight(.semibold)).lineLimit(3)
+          Text([item.path, item.time].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+          if item.pending { Label(L10n.Watch.History.pendingLabel, systemImage: "hourglass").font(.caption2.weight(.semibold)).foregroundStyle(.orange) }
+          if !item.tags.isEmpty { TagPills(tags: item.tags) }
+        }
+        .listRowBackground(Color.clear)
+        .accessibilityElement(children: .combine)
+
+        if item.pending && !item.queued {
+          Button { session.approve(id); WKInterfaceDevice.current().play(.success); dismiss() } label: {
+            Label(L10n.Watch.History.approve, systemImage: "checkmark.circle.fill").font(.body.weight(.semibold))
+          }
+          .tint(.green)
+          .handGestureShortcut(.primaryAction)
+          if !item.transfer {
+            Button { nav.path.append(QuickStep.approveCategory(id)) } label: { Label(L10n.Watch.History.approveAs, systemImage: "folder") }
+          }
+        }
+        if item.transfer {
+          Text(L10n.Watch.History.transferOnPhone).font(.footnote).foregroundStyle(.secondary).listRowBackground(Color.clear)
+        }
+        if !item.account.isEmpty { EntryDetail(label: L10n.Watch.History.account, value: item.account) }
+        if let o = item.original { EntryDetail(label: L10n.Watch.History.original, value: o) }
+        // The title is already the note's first line when there is no payee; repeating it alone says nothing.
+        if let n = item.note, n != item.title { EntryDetail(label: L10n.Watch.History.note, value: n) }
+        if let b = item.bankNote, b != item.title { EntryDetail(label: L10n.Watch.History.bankNote, value: b) }
+        if item.place != nil || (item.lat != nil && item.lon != nil) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.Watch.History.place).font(.caption2).foregroundStyle(.secondary)
+            if let p = item.place { Text(p).font(.footnote) }
+            if let lat = item.lat, let lon = item.lon {
+              let at = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+              // Not interactive: dragging it would fight the list's scrolling.
+              Map(initialPosition: .camera(MapCamera(centerCoordinate: at, distance: 800)), interactionModes: []) {
+                Marker(item.place ?? "", systemImage: item.icon, coordinate: at).tint(item.color.map(Color.hex) ?? .gray)
+              }
+              .frame(height: 110)
+              .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+          }
+          .accessibilityElement(children: .combine)
+        }
+      }
+    } else {
+      // Gone (deleted on the phone, or past yesterday) while open: nothing left to act on.
+      Color.clear.onAppear { dismiss() }
+    }
+  }
+}
+
+/// A small label over a value, on an entry's page.
+struct EntryDetail: View {
+  let label: String
+  let value: String
+  var body: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(label).font(.caption2).foregroundStyle(.secondary)
+      Text(value).font(.footnote)
+    }
+    .accessibilityElement(children: .combine)
   }
 }
 
@@ -457,18 +588,29 @@ struct BudgetsPage: View {
   var body: some View {
     List {
       if let t = snapshot?.trip {
-        Section(L10n.Watch.Budgets.travel) {
+        Section(t.isEvent ? L10n.Watch.Budgets.event : L10n.Watch.Budgets.travel) {
           VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-              Image(systemName: "airplane").font(.caption2).foregroundStyle(.blue)
+              Image(systemName: t.symbol).font(.caption2).foregroundStyle(t.isEvent ? .pink : .blue)
               Text(t.name).font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.5)
             }
-            Text(L10n.Budget.left(amount: KPFormat.money(t.remaining, t.currency, decimals: 0))).font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(t.remaining < 0 ? Color.red : Color.primary)
-            ProgressView(value: t.ratio).tint(t.remaining < 0 ? .red : t.ratio > 0.85 ? .orange : .blue)
+            // No limit: only the total, with nothing to fill a bar against (core `tripLimited`).
+            if t.limited {
+              Text(L10n.Budget.left(amount: KPFormat.money(t.remaining, t.currency, decimals: 0))).font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(t.remaining < 0 ? Color.red : Color.primary)
+              BudgetGauge(ratio: t.ratio, tint: t.remaining < 0 ? .red : t.ratio > 0.85 ? .orange : t.isEvent ? .pink : .blue)
+            } else {
+              Text(L10n.Budget.spent(amount: KPFormat.money(t.spent, t.currency, decimals: 0))).font(.body.weight(.semibold)).monospacedDigit()
+            }
             Text(t.allowance.map { "\(t.dayLabel) · " + L10n.Budget.perDay(amount: KPFormat.money(max(0, $0), t.currency, decimals: 0)) } ?? t.dayLabel).font(.caption2).foregroundStyle(.secondary)
           }
           .accessibilityElement(children: .ignore)
-          .accessibilityLabel(L10n.Watch.Budgets.travelA11y(name: t.name, amount: KPFormat.money(t.remaining, t.currency, decimals: 0), day: t.dayLabel))
+          .accessibilityLabel(!t.limited
+            ? (t.isEvent
+              ? L10n.Watch.Budgets.eventSpentA11y(name: t.name, amount: KPFormat.money(t.spent, t.currency, decimals: 0), day: t.dayLabel)
+              : L10n.Watch.Budgets.travelSpentA11y(name: t.name, amount: KPFormat.money(t.spent, t.currency, decimals: 0), day: t.dayLabel))
+            : t.isEvent
+            ? L10n.Watch.Budgets.eventA11y(name: t.name, amount: KPFormat.money(t.remaining, t.currency, decimals: 0), day: t.dayLabel)
+            : L10n.Watch.Budgets.travelA11y(name: t.name, amount: KPFormat.money(t.remaining, t.currency, decimals: 0), day: t.dayLabel))
         }
       }
       if let s = snapshot, !s.budgets.isEmpty {
@@ -477,7 +619,7 @@ struct BudgetsPage: View {
             VStack(alignment: .leading, spacing: 4) {
               Text(b.name).font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.5).allowsTightening(true)
               Text(L10n.Budget.left(amount: KPFormat.money(b.remaining, b.currency, decimals: 0))).font(.body.weight(.semibold)).monospacedDigit().foregroundStyle(b.remaining < 0 ? Color.red : Color.primary)
-              ProgressView(value: b.ratio).tint(b.remaining < 0 ? .red : b.ratio > 0.85 ? .orange : .green)
+              BudgetGauge(ratio: b.ratio, tint: b.remaining < 0 ? .red : b.ratio > 0.85 ? .orange : .green)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L10n.Watch.Budgets.budgetA11y(name: b.name, amount: KPFormat.money(b.remaining, b.currency, decimals: 0)))
@@ -488,6 +630,18 @@ struct BudgetsPage: View {
       }
     }
     .modifier(PageBar())
+  }
+}
+
+/// How much of a budget is spent, as the system's capacity gauge. Full once it is over: the amount
+/// above it already says by how much, in red.
+struct BudgetGauge: View {
+  let ratio: Double
+  let tint: Color
+  var body: some View {
+    Gauge(value: min(max(ratio, 0), 1)) { EmptyView() }
+      .gaugeStyle(.linearCapacity).tint(tint)
+      .accessibilityHidden(true)
   }
 }
 
@@ -507,7 +661,7 @@ struct StatusPage: View {
     List {
       HStack {
         Spacer(minLength: 0)
-        Button { session.refresh() } label: {
+        Button { session.refresh(force: true) } label: {
           HStack(spacing: 8) {
             if session.loading { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.triangle.2.circlepath").font(.title3) }
             Text(session.loading ? L10n.Watch.Status.refreshing : L10n.Watch.Status.refresh).font(.body.weight(.semibold))

@@ -99,7 +99,7 @@ export default function BulkPreview() {
           return (
             <Card style={styles.row}>
               <View style={styles.head}>
-                <Text style={styles.name} numberOfLines={1}>{item.row.payee || item.row.notes?.split("\n")[0] || catName(item.row.category_id)}</Text>
+                <Text style={styles.name} numberOfLines={1}>{item.row.payee || item.row.notes?.split("\n")[0] || item.row.bank_note?.split("\n")[0] || catName(item.row.category_id)}</Text>
                 <Text style={styles.amount}>{acc ? `${formatMinor(item.row.amount_minor, acc.currency)} ${acc.currency}` : ""}</Text>
               </View>
               <View style={styles.change}>

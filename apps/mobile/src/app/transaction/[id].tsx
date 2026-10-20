@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, LayoutAnimation, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, getRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, fromMinor, formatMinor, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Keypad, CalcLine, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
-import { Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
+import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
+import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
@@ -20,6 +20,7 @@ import { ensureLocationPermission, placeName, quickLocation, type Coords } from 
 import { getCurrentAccount, getLocationEnabled, getShowBalance, setLocationEnabled, waitDefaultDays } from "@/lib/settings";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { markSheetPainted } from "@/lib/boot";
+import { dismissSettledPaymentNotices } from "@/lib/notifications";
 import { deletePhoto, keepPhoto, photoUri } from "@/lib/photos";
 import type { ReceiptParse } from "@/lib/bridge";
 import type { SplitResult } from "./split";
@@ -33,7 +34,7 @@ type Params = { id: string; account?: string; category?: string; amount?: string
 
 /**
  * Entry sheet: amount hero, a left-aligned details column (date, note, place, tags), the
- * account pill (icon + name; the balance before → after stays folded until unwrapped, so
+ * account pill (icon + name) with the balance before → after beside it, hidden behind dots so
  * screenshots show no numbers, unless Settings → Show balance when logging says otherwise),
  * type control, chips, keypad with Category + Tags keys and
  * the tap-to-add bar. Closing with an amount typed asks first. Saving a row that arrived pending
@@ -61,16 +62,19 @@ export default function TransactionSheet() {
     return defaultMode === "expense" ? `−${p.amount}` : p.amount; // prefilled amount is a magnitude
   });
   const [categoryId, setCategoryId] = useState<string | null>(existing?.category_id ?? p.category ?? null);
+  // The debt this pays off or settles, picked as "Debt" in place of a category (pick/category.tsx).
+  // The two are one answer: choosing either clears the other.
+  const [debtId, setDebtId] = useState<string | null>(existing?.debt_id ?? null);
+  const debt = useQuery((d) => (debtId ? getRow(d, "debts", debtId) ?? null : null), [debtId]);
   const [suggested, setSuggested] = useState(false);
   // Travel mode: new entries start with the trip tag (removable like any other).
   const [tagIds, setTagIds] = useState<string[]>(() => existing ? jsonIds(existing.tag_ids) : withTripTag(db, p.tags ? p.tags.split(",").filter(Boolean) : []));
   const [date, setDate] = useState(existing?.date ?? p.date ?? localIso());
-  // A row logged by a Shortcut carries its shop in `payee` and nothing in `notes`, so the Note field
-  // would open empty on the one kind of entry that always has something to say. The list shows the
-  // note first and falls back to the payee (components/TransactionList.tsx), so seeding the note with
-  // the payee puts the same words in the field that the row is already listed under — and renaming it
-  // from here now changes the row's title, with the shop kept underneath it as the payee line.
-  const [note, setNote] = useState(existing?.notes ?? existing?.payee ?? p.note ?? "");
+  // The note is yours alone. What the bank's notification said is `bank_note` (v23), shown under it
+  // and never edited here, so a note can be added to a logged payment without typing around the
+  // bank's text, and nothing typed can lose it. The shop is the payee, which titles the row.
+  const [note, setNote] = useState(existing?.notes ?? p.note ?? "");
+  const bankNote = existing?.bank_note?.trim() || null;
   const [noteOpen, setNoteOpen] = useState(false);
   // iOS drops the caret at the end of the text when a field takes focus, which opens a long note
   // scrolled past its first words. So the first time the note opens, the caret is moved to its start
@@ -107,7 +111,6 @@ export default function TransactionSheet() {
   const noteRef = useRef<TextInput>(null);
   // Unwrapped from the start when the preference says so (Settings → Preferences → Show balance
   // when logging); the chevron still folds it back for this one entry without changing the setting.
-  const [expanded, setExpanded] = useState(getShowBalance);   // balance numbers unwrapped
   const [done, setDone] = useState(false);       // saved or discarded: no prompt on close
   const [stacked, setStacked] = useState(false); // transfer sheet on top: its save closes both
 
@@ -130,7 +133,7 @@ export default function TransactionSheet() {
   // key is right there for anything new.
   const catNames = useQuery((d) => new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, catName(c)])), []);
   const tagNames = useQuery((d) => new Map(listRows(d, "tags", "deleted=0").map((x) => [x.id, x.name])), []);
-  const filed = useQuery((d) => payeeOptions(d, payee, note.trim() || null), [payee, note.trim()]);
+  const filed = useQuery((d) => payeeOptions(d, payee, note.trim() || bankNote), [payee, note.trim(), bankNote]);
   // A category or tag that has since been deleted is not an option any more: the tag is dropped from
   // the pairing, and a pairing whose category is gone is dropped whole. Two pairings that differ only
   // by a tag nobody kept are then the same pairing, and are shown once.
@@ -145,8 +148,12 @@ export default function TransactionSheet() {
       return [{ ...o, tag_ids, key }];
     });
   }, [filed, catNames, tagNames]);
+  // The trip's tag travel mode put on this entry is not part of any option (`uncarriedTagIds`): picking
+  // one keeps it, and it does not stop the option reading as the one that is chosen.
+  const tripTags = useQuery((d) => uncarriedTagIds(d), []);
+  const ownTags = tagIds.filter((x) => !tripTags.has(x));
   const sameAsNow = (o: { category_id: string | null; tag_ids: string[] }) =>
-    o.category_id === categoryId && o.tag_ids.length === tagIds.length && o.tag_ids.every((x) => tagIds.includes(x));
+    o.category_id === categoryId && o.tag_ids.length === ownTags.length && o.tag_ids.every((x) => ownTags.includes(x));
 
   // The expression is the signed amount; `kind` follows its sign, falling back to the stored default
   // while it is empty. `evalPartial` rather than `evalExpr`, because with no "=" key the field has to
@@ -172,7 +179,7 @@ export default function TransactionSheet() {
   // A photographed receipt fills amount, category, note and place; the amount converts when the receipt is in another currency.
   const applyReceipt = (r: ReceiptParse) => {
     const apply = (amount: number) => setExpr(`−${Math.round(amount * 100) / 100}`); // a receipt is always an expense
-    if (r.category_id) { setCategoryId(r.category_id); setSuggested(false); }
+    if (r.category_id) { setCategoryId(r.category_id); setDebtId(null); setSuggested(false); }
     if (r.merchant) setPlace((cur) => cur ?? r.merchant);
     if (r.summary) setNote(r.summary);
     if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date !== todayLocal()) setDate(dayWithNow(r.date));
@@ -184,7 +191,10 @@ export default function TransactionSheet() {
   usePickResult<ReceiptParse>(keys.receipt, applyReceipt);
   // Opened from the Log button's long press with the receipt already read.
   useEffect(() => { if (isNew && p.receipt) { try { applyReceipt(JSON.parse(p.receipt) as ReceiptParse); } catch { /* ignore */ } } }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  usePickResult<string | null>(keys.cat, useCallback((v: string | null) => { setCategoryId(v); setSuggested(false); }, []));
+  usePickResult<string | null>(keys.cat, useCallback((v: string | null) => {
+    if (v?.startsWith("debt:")) { setDebtId(v.slice(5)); setCategoryId(null); } else { setCategoryId(v); setDebtId(null); }
+    setSuggested(false);
+  }, []));
   usePickResult<string>(keys.acc, (v: string) => {
     const next = accounts.find((a) => a.id === v), prev = account;
     setAccountId(v);
@@ -232,7 +242,7 @@ export default function TransactionSheet() {
     const delta = target.amount_minor < 0 ? returnMinor : -returnMinor;
     const check = checkReturn(db, id, delta);
     if (!check.ok) { Alert.alert(t("transaction.entry.returnCannot"), returnReason(check.reason)); return; }
-    const name = target.notes?.split("\n")[0] || target.payee || t("transaction.entry.returnThatEntry");
+    const name = target.payee || target.notes?.split("\n")[0] || target.bank_note?.split("\n")[0] || t("transaction.entry.returnThatEntry");
     const cur = getRow(db, "accounts", target.account_id)?.currency ?? currency;
     Alert.alert(t("transaction.entry.returnConfirmTitle", { amount: formatMinor(returnMinor, currency), currency }),
       `${name}: ${formatMinor(target.amount_minor, cur)} → ${formatMinor(check.amount_minor, cur)} ${cur}`, [
@@ -274,7 +284,11 @@ export default function TransactionSheet() {
     return () => cancelAnimationFrame(id);
   }, []);
   useFocusEffect(useCallback(() => { setStacked(false); }, []));
-  const unwrap = () => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpanded((v) => !v); };
+  // Opening the entry is dealing with it: the automation's notification about it has done its job.
+  useEffect(() => { if (!isNew) void dismissSettledPaymentNotices(p.id); }, [isNew, p.id]);
+  /** The caret's restart counter and where it stands: after the last digit, or before the decimals. */
+  const [caret, setCaret] = useState({ pulse: 0, whole: false });
+  const onEdit = useCallback((whole: boolean) => setCaret((c) => ({ pulse: c.pulse + 1, whole })), []);
 
   /** What the category field holds, for the async suggestion below to read without going stale. */
   const chosenCategory = useRef(categoryId);
@@ -328,12 +342,20 @@ export default function TransactionSheet() {
     if (shot) { try { photoName = keepPhoto(shot); if (existing?.photo) releasePhoto(existing.photo, existing.id); } catch { photoName = photo; } }
     else if (existing?.photo && !photo) releasePhoto(existing.photo, existing.id);
     mutate((d) => {
-      const base = { account_id: account.id, date, amount_minor: minor, category_id: cat, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagList), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
+      const base = { account_id: account.id, date, amount_minor: minor, category_id: cat, debt_id: debtId, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagList), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
       if (!partList.length || !minors) {
-        if (existing) { save(d, "transactions", { ...existing, ...base } as Transaction); return; }
+        if (existing) {
+          const saved = save(d, "transactions", { ...existing, ...base } as Transaction);
+          // Approving a notification-logged row teaches its account the digits the bank printed for it.
+          if (existing.pending && !saved.pending) learnFromRow(d, saved);
+          if (debtId) settleIfPaid(d, debtId, todayLocal());
+          return;
+        }
         // A payment typed in by hand can be the charge a recurring rule is waiting for just as much
         // as one the automation logged — the rule takes it and stops expecting a second.
         claimRecurring(d, createTransaction(d, base), { today: todayLocal(), waitDefault: waitDefaultDays() });
+        // The payment that finishes paying a debt off settles it.
+        if (debtId) settleIfPaid(d, debtId, todayLocal());
         return;
       }
       // A split is several ordinary entries: the one being edited keeps its id and what the parts
@@ -342,11 +364,11 @@ export default function TransactionSheet() {
       // out in the same proportions, so a part still shows what the bank actually charged for it.
       const sign = kind === "expense" ? -1 : 1;
       const entered = existing?.entered_amount_minor ? shareEntered(existing.entered_amount_minor, minors) : null;
-      const shared = { account_id: base.account_id, date, payee, notes: base.notes, pending: base.pending, lat: base.lat, lon: base.lon, place, photo: photoName, source: existing?.source ?? null } as const;
+      const shared = { account_id: base.account_id, date, payee, notes: base.notes, bank_note: existing?.bank_note ?? null, pending: base.pending, lat: base.lat, lon: base.lon, place, photo: photoName, source: existing?.source ?? null } as const;
       minors.forEach((magnitude, i) => {
         const money = { amount_minor: magnitude * sign, ...(entered ? { entered_amount_minor: entered[i]!, entered_currency: existing!.entered_currency, exchange_rate: existing!.exchange_rate } : {}) };
         if (i === 0) {
-          const first = { ...shared, ...money, category_id: cat, tag_ids: JSON.stringify(tagList) };
+          const first = { ...shared, ...money, category_id: cat, debt_id: debtId, tag_ids: JSON.stringify(tagList) };
           if (existing) save(d, "transactions", { ...existing, ...first } as Transaction);
           else createTransaction(d, first);
           return;
@@ -354,6 +376,7 @@ export default function TransactionSheet() {
         const part = partList[i - 1]!;
         createTransaction(d, { ...shared, ...money, category_id: part.category_id, tag_ids: JSON.stringify(part.tag_ids) });
       });
+      if (debtId) settleIfPaid(d, debtId, todayLocal());
     });
     setDone(true);
     return true;
@@ -419,7 +442,9 @@ export default function TransactionSheet() {
       // Nothing is written until the transfer sheet saves, and Back returns here unchanged.
       const params = existing
         ? { convert: existing.id, [kind === "income" ? "to" : "from"]: accountId, date, ...(note.trim() ? { note: note.trim() } : {}), ...(categoryId ? { category: categoryId } : {}), ...(tagIds.length ? { tags: tagIds.join(",") } : {}) }
-        : { from: accountId, date, ...(note.trim() ? { note: note.trim() } : {}) };
+        // A new entry names no side: the account it was being typed on is a default, not a choice
+        // about where the money left, so the transfer sheet asks for both accounts.
+        : { date, ...(note.trim() ? { note: note.trim() } : {}) };
       const go = () => { setStacked(true); router.push({ pathname: "/transfer/[id]", params: { id: "new", ...params, amount: value !== null ? String(value) : "", stacked: "1" } }); };
       Alert.alert(t("transaction.entry.makeTransfer.title"), existing ? t("transaction.entry.makeTransfer.convert") : value !== null ? t("transaction.entry.makeTransfer.moved", { amount: formatMinor(toMinor(value, currency), currency), currency }) : t("transaction.entry.makeTransfer.empty"), [
         { text: t("common.cancel"), style: "cancel" },
@@ -447,8 +472,20 @@ export default function TransactionSheet() {
   const signColor = kind === "expense" ? C.label : C.green;
   // The field is the answer, never the keystrokes: the sum itself goes on the line below (CalcLine).
   const shown = value !== null ? formatMinor(toMinor(value, currency), currency) : "0";
+  // The field always prints the decimals, so a number typed without a point ("20", shown 20,00) is
+  // still being typed in its whole units: the next digit makes it 200,00, and the caret says so.
+  const typingWhole = caret.whole || !(expr.split(/[+−×÷]/).pop() ?? "").includes(".");
+  const decimalAt = typingWhole ? shown.lastIndexOf(numberFormat().decimal) : -1;
+  const caretMark = <Caret pulse={caret.pulse} color={C.tint as unknown as string} />;
+  // A split is several entries with a category each, so Debt is only offered for a single one.
+  const openCategory = () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: debtId ? `debt:${debtId}` : categoryId ?? "", ...(parts.length ? {} : { debts: "1" }) } });
   const catIcon = category ? iconFor(category.name, { icon: category.icon, color: category.color }) : null;
 
+  const oneAccount = accounts.length <= 1 && !!account;
+  const balanceToggle = (start?: boolean) => (
+    <BalanceToggle start={start} balance={balance} after={valid && after !== balance ? after : null} currency={currency}
+      afterColor={(after < 0 ? C.red : kind === "income" ? C.green : C.label) as unknown as string} />
+  );
   return (
     <SheetFrame
       top={
@@ -459,7 +496,7 @@ export default function TransactionSheet() {
           {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("transaction.entry.deleteA11y")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
           <Pressable onPress={copyAmount} disabled={value === null} style={styles.amountRow} accessibilityRole="button"
             accessibilityLabel={t("transaction.entry.amountA11y", { amount: `${expr ? signChar : ""}${shown}`, currency })}>
-            <Text style={[styles.amount, { color: expr ? signColor : C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{expr ? signChar : ""}{shown}</Text>
+            <Text style={[styles.amount, { color: expr ? signColor : C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{expr ? signChar : ""}{decimalAt > 0 ? <>{shown.slice(0, decimalAt)}{caretMark}{shown.slice(decimalAt)}</> : <>{shown}{caretMark}</>}</Text>
             <Text style={styles.currency}>{currency}</Text>
           </Pressable>
           {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("transaction.entry.copied")}</Text> : <CalcLine expr={expr} style={styles.result} />}
@@ -470,19 +507,29 @@ export default function TransactionSheet() {
                 cost of a row a small phone takes out of the keypad. */}
             {note ? (
               <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
-                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4} ellipsizeMode="tail">{note}</Text>
+                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4}>{note}</Text>
               </Pressable>
+            ) : null}
+            {/* What the bank said, under your note and apart from it: read here, never edited. */}
+            {bankNote ? (
+              <View style={[styles.line, styles.noteLine]} accessible accessibilityLabel={t("transaction.entry.bankNoteA11y", { note: bankNote })}>
+                <SymbolView name="building.columns" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, styles.bankText]} numberOfLines={4} selectable>{bankNote}</Text>
+              </View>
             ) : null}
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
                 payment or a scanned receipt names the shop without ever pinning it on the map. */}
-            {coords || place || locationOn ? (
-              <Pressable onPress={openLocation} style={styles.line} accessibilityRole="button" accessibilityLabel={place ?? (coords ? t("transaction.entry.locationPinned") : t("transaction.entry.addLocation"))}>
-                <SymbolView name="mappin.and.ellipse" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, !coords && !place && styles.placeholder]} numberOfLines={1}>{(() => {
-                  const where = place ?? (coords ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` : null);
-                  if (!where) return t("transaction.entry.addLocation");
-                  return suggested ? t("transaction.entry.placeSuggested", { place: where }) : where;
-                })()}</Text>
-              </Pressable>
+            {/* Only once there is a place: an "Add a place" line did what the Place key does, in a row the
+                keypad needs. With one account the balance shares this line rather than taking its own. */}
+            {coords || place ? (
+              <View style={styles.line}>
+                <Pressable onPress={openLocation} style={[styles.line, { flex: 1 }]} accessibilityRole="button" accessibilityLabel={place ?? t("transaction.entry.locationPinned")}>
+                  <SymbolView name="mappin.and.ellipse" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={1}>{(() => {
+                    const where = place ?? (coords ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` : "");
+                    return suggested ? t("transaction.entry.placeSuggested", { place: where }) : where;
+                  })()}</Text>
+                </Pressable>
+                {oneAccount ? balanceToggle() : null}
+              </View>
             ) : null}
             {parts.length && splitMinors ? (
               <Pressable onPress={openSplit} style={styles.line} accessibilityRole="button"
@@ -512,26 +559,20 @@ export default function TransactionSheet() {
               </View>
             ) : null}
           </View>
-          <View style={styles.accountRow}>
-            {/* With one account there is nothing to choose between, so the pill goes; the balance stays. */}
-            {accounts.length > 1 || !account ? <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
-              <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
-              <Text style={styles.accountText} numberOfLines={1}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</Text>
-              <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
-            </Pressable> : null}
-            <Pressable onPress={unwrap} hitSlop={8} style={styles.unwrap} accessibilityRole="button" accessibilityLabel={expanded ? t("transaction.entry.hideBalance") : t("transaction.entry.showBalance")} accessibilityState={{ expanded }}>
-              <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
-              <Text style={styles.accountBal}>{t("transaction.entry.balance")}</Text>
-            </Pressable>
-          </View>
-          {/* Numbers on their own line so a long account name and both balances all fit; the currency is printed once. */}
-          {expanded ? (
-            <View style={styles.balanceLine} accessibilityLabel={valid && after !== balance ? t("transaction.entry.balanceAfterA11y", { balance: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("transaction.entry.balanceA11y", { balance: formatMinor(balance, currency), currency })}>
-              <Text style={styles.accountBal}>{formatMinor(balance, currency)}</Text>
-              {valid && after !== balance ? <><SymbolView name="arrow.right" size={11} tintColor={C.tertiary} /><Text style={[styles.accountBal, { fontWeight: "600", color: after < 0 ? C.red : kind === "income" ? C.green : C.label }]}>{formatMinor(after, currency)}</Text></> : null}
-              <Text style={styles.accountBal}>{currency}</Text>
+          {/* With one account there is nothing to choose between, so the pill goes and the balance rides
+              on the place line — or, with no place, on a line of its own no taller than the text. With
+              several, the balance sits under the pill: beside it, a long name and a long balance overlapped. */}
+          {!oneAccount ? (
+            <View style={styles.accountRow}>
+              <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
+                <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
+                {/* One line that shrinks to fit: unclipped, a long name ran under the balance. */}
+                <ButtonText fit={1} style={styles.accountText} maxFontSizeMultiplier={1.3}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</ButtonText>
+                <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
+              </Pressable>
+              {balanceToggle(true)}
             </View>
-          ) : null}
+          ) : !(coords || place) ? <View style={[styles.line, { justifyContent: "flex-end" }]}>{balanceToggle()}</View> : null}
         </View>
       }
       bottom={noteOpen ? (
@@ -542,7 +583,7 @@ export default function TransactionSheet() {
           <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder={t("transaction.entry.notePlaceholder")} placeholderTextColor={C.tertiary} style={styles.noteInput}
             onFocus={noteFocused}
             onBlur={() => setNoteOpen(false)} accessibilityLabel={t("transaction.entry.notePlaceholder")} />
-          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><Text style={styles.noteDone} numberOfLines={1} maxFontSizeMultiplier={1.3}>{t("common.done")}</Text></Pressable>
+          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><ButtonText style={styles.noteDone} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Pressable>
         </View>
       ) : (
         <>
@@ -559,7 +600,7 @@ export default function TransactionSheet() {
               {options.map((o) => {
                 const label = [o.category_id ? catNames.get(o.category_id)! : t("common.noCategory"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
                 return <Chip key={o.key} icon="clock.arrow.circlepath" label={label} active={sameAsNow(o)}
-                  onPress={() => { setCategoryId(o.category_id); setTagIds(o.tag_ids); setSuggested(false); }} />;
+                  onPress={() => { setCategoryId(o.category_id); setDebtId(null); setTagIds((ids) => [...o.tag_ids, ...ids.filter((x) => tripTags.has(x) && !o.tag_ids.includes(x))]); setSuggested(false); }} />;
               })}
             </ChipRow>
           ) : null}
@@ -581,14 +622,42 @@ export default function TransactionSheet() {
               : <Chip cell icon="plus.square.on.square" label={t("transaction.entry.chip.duplicate")} onPress={duplicate} />}
             {isNew && RECEIPT_SCANNER_ENABLED ? <Chip cell icon="doc.text.viewfinder" label={t("transaction.entry.chip.receipt")} onPress={() => router.push({ pathname: "/receipt/scan", params: { key: keys.receipt } })} /> : null}
           </ChipGrid>
-          <Keypad value={expr} onChange={onKeypadChange} onToggleSign={negate}
-            extra={{ label: category ? catName(category) : t("keypad.category"), a11y: category ? t("keypad.categoryA11y", { name: catName(category) }) : t("keypad.categoryNone"), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) }}
+          <Keypad value={expr} onChange={onKeypadChange} onEdit={onEdit} onToggleSign={negate}
+            extra={debt
+              ? { label: t("transaction.entry.debtKey", { person: debt.person }), a11y: t("transaction.entry.debtKeyA11y", { person: debt.person }), icon: "creditcard.and.123", active: true, onPress: openCategory }
+              : { label: category ? catName(category) : t("keypad.category"), a11y: category ? t("keypad.categoryA11y", { name: catName(category) }) : t("keypad.categoryNone"), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: openCategory }}
             extra2={{ a11y: tags.length ? t("keypad.tagsA11y", { names: tags.map((tag) => tag.name).join(", ") }) : t("keypad.tags"), icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) }} />
           <ConfirmBar amount={`${value !== null ? signChar + formatMinor(toMinor(value, currency), currency) : formatMinor(0, currency)} ${currency}`}
             label={valid ? (existing ? t("transaction.entry.tapToSave") : t("transaction.entry.tapToAdd")) : t("transaction.entry.enterAmount")} onPress={commit} disabled={!valid} color={pending ? (C.orange as unknown as string) : kind === "income" ? (C.green as unknown as string) : undefined} />
         </>
       )}
     />
+  );
+}
+
+/**
+ * The balance as plain text, on the right of the account pill (or of the place line, with one
+ * account) — before → after, the currency once. Tapping the balance hides it behind dots (an eye says it can come back), so a
+ * screenshot shows no numbers unless Settings → Show balance when logging says otherwise. It used to
+ * be a second pill that unwrapped a third line, which was a lot of furniture for one number.
+ *
+ * The switch keeps its own state, so showing it re-renders this row and not the whole sheet. The
+ * numbers shrink to fit the line rather than wrap. `start` lines them up on the left, under the account pill.
+ */
+function BalanceToggle({ start, balance, after, afterColor, currency }: { start?: boolean; balance: number; after: number | null; afterColor: string; currency: string }) {
+  const [shown, setShown] = useState(getShowBalance);
+  return (
+      <Pressable onPress={() => setShown((v) => !v)} hitSlop={10} style={[styles.balance, start && styles.balanceStart]} accessibilityRole="button"
+        accessibilityHint={shown ? t("transaction.entry.hideBalance") : t("transaction.entry.showBalance")}
+        accessibilityLabel={!shown ? t("transaction.entry.balance") : after !== null ? t("transaction.entry.balanceAfterA11y", { balance: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("transaction.entry.balanceA11y", { balance: formatMinor(balance, currency), currency })}>
+        <SymbolView name={shown ? "eye" : "eye.slash"} size={14} tintColor={C.tertiary} />
+        {/* Shrinks rather than ending in "…": an ellipsis in an amount hides digits. */}
+        <ButtonText fit={1} style={styles.accountBal}>
+          {shown ? formatMinor(balance, currency) : "•••••"}
+          {shown && after !== null ? <>{" → "}<Text style={{ fontWeight: "600", color: afterColor }}>{formatMinor(after, currency)}</Text></> : null}
+          {` ${currency}`}
+        </ButtonText>
+      </Pressable>
   );
 }
 
@@ -601,16 +670,17 @@ const styles = themed(() => StyleSheet.create({
   details: { alignSelf: "stretch", gap: 4, paddingHorizontal: S.xs },
   line: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 24 },
   noteLine: { alignItems: "flex-start", paddingVertical: 4 },
+  bankText: { color: C.secondary },
   lineText: { color: C.label, fontSize: 15, flexShrink: 1 },
   placeholder: { color: C.tertiary },
   thumb: { width: 28, height: 28, borderRadius: 6, backgroundColor: C.fill },
-  accountRow: { flexDirection: "row", alignItems: "center", gap: S.sm, alignSelf: "stretch", marginTop: 2 },
-  accountPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.fill, borderRadius: 22, paddingHorizontal: 12, minHeight: 40, paddingVertical: 6, flexShrink: 1 },
+  accountRow: { alignItems: "flex-start", gap: 6, alignSelf: "stretch", marginTop: 2 },
+  accountPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.fill, borderRadius: 22, paddingHorizontal: 12, minHeight: 40, paddingVertical: 6, maxWidth: "100%" },
   accountIcon: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   accountText: { fontSize: 15, color: C.label, flexShrink: 1 },
-  accountBal: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"] },
-  balanceLine: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: S.xs, marginTop: 2 },
-  unwrap: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 40, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: C.fill, flexShrink: 1 },
+  accountBal: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"], flexShrink: 1 },
+  balance: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, minHeight: 24, minWidth: 90 },
+  balanceStart: { flex: 0, alignSelf: "stretch", justifyContent: "flex-start", paddingHorizontal: S.xs },
   trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
   noteBox: { flexDirection: "row", alignItems: "flex-end", gap: S.md, marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, paddingVertical: 8, minHeight: 50 },
   noteInput: { flex: 1, fontSize: 17, color: C.label, minHeight: 34, maxHeight: 176, paddingTop: 7, paddingBottom: 7 },

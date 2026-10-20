@@ -3,6 +3,7 @@ import SwiftUI
 import WatchConnectivity
 import WidgetKit
 import CoreLocation
+import MapKit
 
 /// Watch side of the phone bridge. Holds the last `KPWatchState` the phone sent
 /// (cached in the watch's App Group so it survives relaunches and feeds the
@@ -37,6 +38,11 @@ final class WatchSession: NSObject, ObservableObject {
 
   private static let defaults = UserDefaults(suiteName: KP.appGroup) ?? .standard
   private var problemTask: Task<Void, Never>?
+  /// The last state applied, without its timestamp: a reply that says nothing new is not applied again.
+  private var appliedKey: String?
+  /// When the phone was last asked. Launch alone asks twice (the scene turning active, the session
+  /// activating); within a few seconds the second ask would only fetch the same state again.
+  private var askedAt: Date?
   private let location = WatchLocation()
 
   var hasData: Bool { !state.accounts.isEmpty }
@@ -64,8 +70,16 @@ final class WatchSession: NSObject, ObservableObject {
     let tags: [TagChip]
     let queued: Bool
     let pending: Bool
+    // Only the entry's page shows these.
+    let account: String
+    let original: String?
+    let note: String?
+    let bankNote: String?
+    let place: String?
+    let lat: Double?
+    let lon: Double?
     var accessibility: String {
-      [title, amount, queued ? L10n.Watch.History.a11yWaiting : path,
+      [title, amount, queued ? L10n.Watch.History.a11yWaiting : path, pending ? L10n.Watch.History.a11yPending : nil,
        tags.isEmpty ? nil : L10n.Watch.History.a11yTags(list: tags.map(\.name).joined(separator: ", ")),
        time.isEmpty ? nil : L10n.Watch.History.a11yAt(time: time)].compactMap { $0 }.joined(separator: ", ")
     }
@@ -83,6 +97,7 @@ final class WatchSession: NSObject, ObservableObject {
   func rebuildHistory() {
     let cats = Dictionary(state.categories.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     let tagsById = Dictionary(state.tags.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    let accounts = Dictionary(state.accounts.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
     let queuedIds = Set(queued.map(\.id))
     let recent = Self.recentDays()
     var days: [HistoryDay] = []
@@ -95,7 +110,9 @@ final class WatchSession: NSObject, ObservableObject {
         id: t.id, transfer: t.transfer, icon: c?.icon ?? "tag.fill", color: c?.color, title: t.title,
         amount: KPFormat.money(t.amount, t.currency), income: t.amount > 0, time: t.time,
         path: isQueued ? L10n.Watch.History.waiting : path,
-        tags: t.tag_ids.compactMap { tagsById[$0] }.map { TagChip(id: $0.id, name: $0.name, color: $0.color) }, queued: isQueued, pending: t.pending)
+        tags: t.tag_ids.compactMap { tagsById[$0] }.map { TagChip(id: $0.id, name: $0.name, color: $0.color) }, queued: isQueued, pending: t.pending,
+        account: accounts[t.account_id] ?? "", original: t.entered_amount.flatMap { a in t.entered_currency.map { KPFormat.money(a, $0) } },
+        note: t.note, bankNote: t.bank_note, place: t.place, lat: t.lat, lon: t.lon)
       if days.last?.id == t.day { days[days.count - 1].rows.append(item) }
       else { days.append(HistoryDay(id: t.day, label: KPFormat.dayLabel(t.day), rows: [item])) }
     }
@@ -109,10 +126,13 @@ final class WatchSession: NSObject, ObservableObject {
   }
 
   /// Ask the phone for the latest state (no-op when it is not reachable; the application context covers that).
-  func refresh() {
+  /// `force` is a person asking (pull to refresh, the Refresh button); anything else skips a repeat ask.
+  func refresh(force: Bool = false) {
     rebuildHistory()
     prepareLocation()
     guard WCSession.default.activationState == .activated, WCSession.default.isReachable else { return }
+    if !force, loading || askedAt.map({ Date().timeIntervalSince($0) < 5 }) == true { return }
+    askedAt = Date()
     loading = true
     send(["type": "state"]) { [weak self] reply in
       self?.loading = false
@@ -136,13 +156,15 @@ final class WatchSession: NSObject, ObservableObject {
     }
   }
 
-  /// Same naming rule as the app's `placeName`: venue name, else street + number, district or city.
+  /// Same naming rule as the app's `placeName`: the place's own name, else street and number, else
+  /// the city. MapKit's request (watchOS 26) gives no district, so a street-less spot reads as its city.
   private func reverseGeocode(_ loc: CLLocation) {
-    CLGeocoder().reverseGeocodeLocation(loc) { [weak self] marks, _ in
-      guard let p = marks?.first else { return }
-      let name = (p.name != nil && p.name != p.thoroughfare) ? p.name : [p.thoroughfare, p.subThoroughfare].compactMap { $0 }.joined(separator: " ")
-      let place = (name?.isEmpty == false ? name : nil) ?? p.subLocality ?? p.locality
-      Task { @MainActor in if let place, self?.fix != nil { self?.fix?.place = place } }
+    guard let request = MKReverseGeocodingRequest(location: loc) else { return }
+    Task { @MainActor [weak self] in
+      guard let item = try? await request.mapItems.first else { return }
+      let street = item.address?.shortAddress?.split(separator: ",").first.map { $0.trimmingCharacters(in: .whitespaces) }
+      let name = item.name.flatMap { $0.isEmpty || $0 == street ? nil : $0 }
+      if let place = name ?? street ?? item.addressRepresentations?.cityName, self?.fix != nil { self?.fix?.place = place }
     }
   }
 
@@ -168,10 +190,19 @@ final class WatchSession: NSObject, ObservableObject {
     return row
   }
 
-  func delete(_ id: String) {
-    if let i = queued.firstIndex(where: { $0.id == id }) { queued.remove(at: i); saveQueued() }
-    state.history.removeAll { $0.id == id }
-    deliver(["type": "delete", "id": id], savedText: L10n.Watch.Write.deleted, queuedText: L10n.Watch.Write.deleteQueued)
+  /// Take a pending entry out of the Pending queue, filed under `category` first when one is chosen.
+  /// The row reads as approved at once; the phone's reply (or its next state) has the final word.
+  func approve(_ id: String, category: KPWatchState.Category? = nil) {
+    // This row at once; the other leg of a transfer comes back approved with the phone's reply.
+    state.history = state.history.map { r in
+      guard r.id == id else { return r }
+      return KPWatchState.Tx(id: r.id, date: r.date, title: r.title, sub: r.sub, amount: r.amount, currency: r.currency, account_id: r.account_id,
+                             category_id: r.transfer ? r.category_id : category?.id ?? r.category_id, tag_ids: r.tag_ids, pending: false, transfer: r.transfer,
+                             note: r.note, bank_note: r.bank_note, place: r.place, lat: r.lat, lon: r.lon, entered_amount: r.entered_amount, entered_currency: r.entered_currency)
+    }
+    var m: [String: Any] = ["type": "approve", "id": id]
+    if let c = category { m["category_id"] = c.id }
+    deliver(m, savedText: L10n.Watch.Write.approved, queuedText: L10n.Watch.Write.approveQueued)
   }
 
   /// sendMessage when the phone is reachable (instant, reply carries the new state), else a queued transfer.
@@ -216,15 +247,24 @@ final class WatchSession: NSObject, ObservableObject {
 
   private func apply(json: String) {
     guard let s = KPWatchState.from(json: json) else { return }
+    // The same state again (most replies to an ask): only the time it was checked moves. Nothing to
+    // write to disk, no history to rebuild.
+    var probe = s; probe.generated_at = ""
+    let key = probe.json()
+    if appliedKey == nil { var mine = state; mine.generated_at = ""; appliedKey = mine.json() }
+    if key == appliedKey { state.generated_at = s.generated_at; return }
+    appliedKey = key
     let wasEnabled = state.location_enabled == true
     // The app's language rides along with the state. Stored before `state` is set, so the rebuilt
-    // history rows ("Today", "Transfer") are already in it; the complication reloads just below.
+    // history rows ("Today", "Transfer") are already in it. The complication draws only the app's
+    // mark and one word, so it is reloaded for the language and for nothing else.
+    let languageChanged = s.language != nil && s.language != state.language
     if let language = s.language { KPL.store(language) }
     state = s
     s.save()
     let known = Set(s.history.map(\.id))
     if queued.contains(where: { known.contains($0.id) }) { queued.removeAll { known.contains($0.id) }; saveQueued() }
-    WidgetCenter.shared.reloadAllTimelines()
+    if languageChanged { WidgetCenter.shared.reloadAllTimelines() }
     if (s.location_enabled == true) != wasEnabled { prepareLocation() }
   }
 

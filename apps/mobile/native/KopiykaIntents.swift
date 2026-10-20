@@ -58,6 +58,27 @@ struct KPAccountQuery: EntityQuery {
   func defaultResult() async -> KPAccountEntity? { KPStore.buildState().defaultAccount.map(KPAccountEntity.init) }
 }
 
+/// The same accounts for the notification automation, with no default. Shortcuts fills a parameter
+/// with its query's `defaultResult()` the moment the action is added, and offers no way to empty it
+/// again, so with `KPAccountEntity` every payment was pinned to the usual account and the card, the
+/// account number and the currency were never asked (`resolveAccount`). Left empty, they are.
+struct KPPaymentAccountEntity: AppEntity {
+  let id: String
+  let name: String
+  let currency: String
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "native.intents.entity.account"
+  static var defaultQuery = KPPaymentAccountQuery()
+  var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)", subtitle: "\(currency)") }
+  init(_ a: KPWatchState.Account) { id = a.id; name = a.name; currency = a.currency }
+}
+
+struct KPPaymentAccountQuery: EntityQuery {
+  func entities(for identifiers: [String]) async throws -> [KPPaymentAccountEntity] {
+    KPStore.buildState().accounts.filter { identifiers.contains($0.id) }.map(KPPaymentAccountEntity.init)
+  }
+  func suggestedEntities() async throws -> [KPPaymentAccountEntity] { KPStore.buildState().accounts.map(KPPaymentAccountEntity.init) }
+}
+
 struct KPCategoryEntity: AppEntity {
   let id: String
   let name: String
@@ -361,8 +382,11 @@ struct LogPaymentIntent: AppIntent {
   @Parameter(title: "native.intents.param.card")
   var card: String?
 
+  /// Empty unless chosen: see `KPPaymentAccountEntity`. Not called `account`, which is where
+  /// automations built before 1.1.0 keep the account Shortcuts filled in for them; under a new name
+  /// that pin is left behind.
   @Parameter(title: "native.intents.param.account")
-  var account: KPAccountEntity?
+  var chosenAccount: KPPaymentAccountEntity?
 
   /// Where the phone is, handed over by the automation. The intent never takes a fix of its own: it
   /// runs in the background on a notification, where when-in-use permission buys nothing, and a
@@ -382,7 +406,7 @@ struct LogPaymentIntent: AppIntent {
       \.$amount
       \.$merchant
       \.$card
-      \.$account
+      \.$chosenAccount
       \.$location
       \.$pending
     }
@@ -521,7 +545,11 @@ struct LogPaymentIntent: AppIntent {
     if let fix, let hlat = history.lat, let hlon = history.lon {
       movedTown = KPStore.distanceMeters(fix.latitude, fix.longitude, hlat, hlon) > KPStore.samePlaceRadiusM
     }
-    let known = history.trusted && !converted && !history.ambiguous && !movedTown
+    // A notification that names the account on the other end is a transfer, or half of one: it waits
+    // in the queue whatever history knows about the name, so its other half can still pair with it
+    // (core transferPair.ts only pairs what is pending) and a person sees it before it counts.
+    let transferLike = parsed?.otherAccount != nil
+    let known = history.trusted && !converted && !history.ambiguous && !movedTown && !transferLike
 
     // The same amount on the same account, minutes ago, from a shop whose name is compatible: one tap,
     // two notifications (Wallet's and the bank app's), or iOS re-delivering one. Never a second entry.
@@ -546,7 +574,8 @@ struct LogPaymentIntent: AppIntent {
     // the row is named after the purchase rather than after a town on its own.
     var printedPlace: String? = nil
     if let town = parsed?.place { printedPlace = [shop, town].compactMap { $0 }.joined(separator: ", ") }
-    let note = [parsed?.reference, printedPlace, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
+    // What the bank said goes to `bank_note`, never the note: the note is for the person to write.
+    let bankNote = [parsed?.reference, printedPlace, shop == nil ? parsed?.text : nil, currencyNote].compactMap { $0 }.joined(separator: " · ")
     // The bank's own timestamp, so a notification that arrives late still lands on the right day.
     // Only a day a payment could actually have happened on: a notification about something scheduled
     // would otherwise file the entry in the future, where it sits invisible until the day comes.
@@ -557,11 +586,16 @@ struct LogPaymentIntent: AppIntent {
     // The id is minted here rather than inside `addTransaction`, because the notification below has
     // to link to this exact row and there is no second way to find it afterwards.
     let rowId = UUID().uuidString.lowercased()
+    // The account numbers the bank printed, and the balance after: how the debit and the credit of one
+    // transfer between your own accounts find each other once the app reads them.
+    let bank = KPBankRef(own: parsed?.ownAccount, other: parsed?.otherAccount,
+                         balanceMinor: parsed?.balance.map { KPFormat.minor($0, parsed?.currency ?? acc.currency) })
     let saved = await KPWrites.addTransaction(id: rowId, accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
-                                              note: note.isEmpty ? nil : note, payee: shop, lat: lat, lon: lon,
+                                              note: nil, payee: shop, lat: lat, lon: lon,
                                               place: place, pending: pending && !known, date: date,
                                               source: guessed ? "shortcut-guess" : "shortcut",
-                                              enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, timeout: 4)
+                                              enteredMinor: enteredMinor, enteredCurrency: enteredCurrency, rate: usedRate, bank: bank,
+                                              bankNote: bankNote.isEmpty ? nil : bankNote, timeout: 4)
     guard saved.ok else {
       KPParseLog.record(.failed, text: raw, parse: parsed, account: acc.name, note: saved.error ?? "the app refused the write")
       throw KPIntentError(saved.error.map { L10n.Intents.Payment.saveFailedWhy(reason: $0) } ?? L10n.Intents.Payment.saveFailed)
@@ -569,16 +603,40 @@ struct LogPaymentIntent: AppIntent {
 
     // Say so, unless the user has turned it off. The automation runs with the app closed and used to
     // be silent by design; what that actually bought was purchases turning up in a list days later.
-    // One notification, replacing the last one it posted (KPNotify), naming what was filed and how
-    // sure it is — a guess and a pending row are exactly what wants a second pair of eyes.
-    if KPStore.meta("shortcut_notify") != "0" {
-      let name = categoryId.flatMap { id in KPStore.categories().first { $0.id == id }?.name }
-      let marks = [name, guessed ? L10n.Notify.guess : nil, pending && !known ? L10n.Notify.pending : nil].compactMap { $0 }
-      // `money` already ends in the currency code.
-      let body = ([KPFormat.money(abs(KPFormat.major(minor, acc.currency)), acc.currency), acc.name] + marks).joined(separator: " · ")
-      await KPNotify.payment(id: rowId,
-                             title: shop ?? (income ? L10n.Notify.received : L10n.Notify.logged),
-                             body: body,
+    // One notification, replacing the last one it posted (KPNotify): what was logged on the first
+    // line, and on the second whether the app recognised it — filed, guessed, or not known at all —
+    // because that is the difference between a notice to glance at and one to tap.
+    //
+    // A transfer between your own accounts is said as one: the app paired this side with the other
+    // (`pairTransferLeg`, in the reply), wrote the missing side itself, or is still waiting for it.
+    // A repeat of a notification already logged was deleted by the pairing and says nothing at all.
+    if KPStore.meta("shortcut_notify") != "0", saved.reply["duplicate"] as? Bool != true {
+      // `money` already ends in the currency code. The app may have moved the row to the account the
+      // bank printed (`moved`, core transferPair.ts `rehome`), and then that is what the notice says.
+      let moved = saved.reply["moved"] as? [String: Any]
+      let shownCurrency = moved?["currency"] as? String ?? acc.currency
+      let shownMinor = (moved?["amount_minor"] as? NSNumber)?.intValue ?? minor
+      let accountName = moved?["account"] as? String ?? acc.name
+      let money = KPFormat.money(abs(KPFormat.major(shownMinor, shownCurrency)), shownCurrency)
+      let held = pending && !known
+      let title: String, body: String, link: String
+      if let transfer = saved.reply["transfer"] as? [String: Any], let tid = transfer["id"] as? String {
+        let from = transfer["from"] as? String ?? "", to = transfer["to"] as? String ?? ""
+        let route = from.isEmpty || to.isEmpty ? accountName : "\(from) → \(to)"
+        title = L10n.Notify.transfer
+        body = "\(money) · \(route)\n" + (transfer["kind"] as? String == "inferred" ? L10n.Notify.transferInferred : L10n.Notify.transferPaired)
+        link = "transfer/\(tid)"
+      } else {
+        let name = categoryId.flatMap { id in KPStore.categories().first { $0.id == id }?.name }
+        let verdict: String
+        if transferLike { verdict = L10n.Notify.transferWaiting }
+        else if let name { verdict = guessed ? L10n.Notify.guess(category: name) : held ? L10n.Notify.check(category: name) : L10n.Notify.filed(category: name) }
+        else { verdict = L10n.Notify.unknown }
+        title = shop ?? (income ? L10n.Notify.received : L10n.Notify.logged)
+        body = "\(money) · \(accountName)\n\(verdict)"
+        link = "transaction/\(rowId)"
+      }
+      await KPNotify.payment(id: rowId, link: link, title: title, body: body,
                              badge: saved.reply["pending"] as? Int ?? KPStore.pendingCount())
     }
     WidgetCenter.shared.reloadAllTimelines()
@@ -602,13 +660,20 @@ struct LogPaymentIntent: AppIntent {
   /// The currency step is what keeps a foreign charge off the home account: a notification in EUR
   /// belongs on the EUR account if there is one, and then no exchange rate has to be guessed at.
   private func resolveAccount(_ accounts: [KPWatchState.Account], current: String, parsed: KPPaymentText.Parse?) -> KPWatchState.Account? {
-    if let a = account.flatMap({ a in accounts.first { $0.id == a.id } }) { return a }
-    if let hit = LogPaymentIntent.matchCard(trimmed(card) ?? parsed?.card, accounts) { return hit }
+    if let a = chosenAccount.flatMap({ a in accounts.first { $0.id == a.id } }) { return a }
     // Every currency the text named, not only the winning amount's: "36,00 EUR (154,80 PLN)" names
     // both, and the one the money really moved in is whichever the user actually holds. Two matches
     // would be a guess between them, so that falls through to the usual account instead.
     let named = ([parsed?.currency] + (parsed?.amounts.map(\.currency) ?? [])).compactMap { $0 }
     let held = accounts.filter { named.contains($0.currency) }
+    // A number or a card name is only believed when its account could hold the money: a USD credit
+    // whose digits the PLN account learned (from an older build filing one there) belongs on the USD
+    // account, not converted onto the PLN one for ever after. With no account in that currency the
+    // match stands, and the amount is converted as before.
+    let fits = { (a: KPWatchState.Account) in held.isEmpty || held.contains { $0.id == a.id } }
+    // The digits the bank prints for the account, once an approval has taught them (DATA.md rule 18).
+    if let own = parsed?.ownAccount, let hit = LogPaymentIntent.matchNumber(own, accounts), fits(hit) { return hit }
+    if let hit = LogPaymentIntent.matchCard(trimmed(card) ?? parsed?.card, accounts), fits(hit) { return hit }
     if !held.isEmpty, Set(held.map(\.currency)).count == 1 {
       // The usual account first, so a second PLN account does not steal every PLN payment.
       if let d = KPStore.defaultAccount(accounts, current: current), held.contains(where: { $0.id == d.id }) { return d }
@@ -635,6 +700,12 @@ struct LogPaymentIntent: AppIntent {
       if best == nil || hit.count > best!.length || (hit.count == best!.length && ref.uses > best!.ref.uses) { best = (ref, hit.count) }
     }
     return best?.ref
+  }
+
+  /// The one account known by these four digits; nil when none is, or more than one claims them.
+  static func matchNumber(_ digits: String, _ accounts: [KPWatchState.Account]) -> KPWatchState.Account? {
+    let hits = accounts.filter { ($0.numbers ?? []).contains(digits) }
+    return hits.count == 1 ? hits[0] : nil
   }
 
   /// An account named after the card the notification names: either name containing the other, or

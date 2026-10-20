@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { DEFAULT_ACCOUNT_GROUP, accountBalanceMinor, createAccount, formatMinor, getRow, remove, save, toMinor, fromMinor, type Account, type AccountType } from "@kopiyka/core";
+import { DEFAULT_ACCOUNT_GROUP, accountBalanceMinor, accountNumbers, createAccount, formatMinor, getRow, remove, save, toMinor, fromMinor, type Account, type AccountType } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
@@ -37,14 +37,19 @@ export default function AccountEdit() {
   const balanceNow = useMemo(() => (existing ? accountBalanceMinor(db, existing.id) : 0), [existing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [amount, setAmount] = useState(existing ? String(fromMinor(balanceNow, existing.currency)).replace("-", "−") : "");
   const [untouched, setUntouched] = useState(!!existing);
-  const keys = useMemo(() => ({ name: newPickKey("aname"), group: newPickKey("agroup"), currency: newPickKey("acur") }), []);
+  // The last four digits the bank prints for this account ("Na koncie: 27..5837"), so a payment
+  // notification lands on it and a transfer between two of your accounts is recognised as one
+  // (DATA.md rule 18). Usually learned by approving such a payment; typed here for the first time.
+  const [numbers, setNumbers] = useState<string[]>(existing ? accountNumbers(existing) : []);
+  const keys = useMemo(() => ({ name: newPickKey("aname"), group: newPickKey("agroup"), currency: newPickKey("acur"), numbers: newPickKey("anum") }), []);
+  usePickResult<string>(keys.numbers, useCallback((v: string) => setNumbers(parseNumbers(v)), []));
   usePickResult<string>(keys.currency, useCallback((v: string) => setCurrency(v), []));
   usePickResult<string>(keys.name, useCallback((v: string) => setName(v), []));
   usePickResult<string>(keys.group, useCallback((v: string) => setGroup(v), []));
   const [inNet, setInNet] = useState(existing ? existing.include_in_net_worth === 1 : true);
   const [current, setCurrent] = useState(!!existing && getCurrentAccount() === existing.id);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
-  const exit = useDiscardGuard(useDirty([name, currency, type, group, amount, inNet, current]));
+  const exit = useDiscardGuard(useDirty([name, currency, type, group, amount, inNet, current, numbers]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   // `evalPartial`, as on the entry sheet: the big number is where the sum stands, the sum is spelled out under it.
   const partial = evalPartial(amount);
@@ -67,7 +72,7 @@ export default function AccountEdit() {
     if (!valid) return;
     const saved = mutate((d) => {
       const opening = existing ? existing.opening_balance_minor + (toMinor(value, currency) - balanceNow) : toMinor(value, currency);
-      const base = { name: nameToSave(), currency, type, group_name: group.trim() || DEFAULT_ACCOUNT_GROUP, opening_balance_minor: opening, include_in_net_worth: inNet ? 1 : 0 } as const;
+      const base = { name: nameToSave(), currency, type, group_name: group.trim() || DEFAULT_ACCOUNT_GROUP, opening_balance_minor: opening, include_in_net_worth: inNet ? 1 : 0, numbers: JSON.stringify(numbers) } as const;
       return existing ? save(d, "accounts", { ...existing, ...base } as Account) : createAccount(d, base);
     });
     if (current) setCurrentAccount(saved.id); else if (getCurrentAccount() === saved.id) setCurrentAccount("");
@@ -121,6 +126,8 @@ export default function AccountEdit() {
           <ChipRow>
             <Chip icon="textformat" label={name || t("account.name")} active={!!name} onPress={pickName} />
             <Chip icon="folder" label={groupName(group)} active onPress={() => router.push({ pathname: "/pick/group", params: { key: keys.group, selected: group } })} />
+            <Chip icon="number" label={numbers.length ? numbers.map((n) => `••${n}`).join(" ") : t("account.numbers.chip")} active={numbers.length > 0}
+              onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.numbers, title: t("account.numbers.title"), value: numbers.join(", ") } })} />
           </ChipRow>
           <Keypad value={amount} onChange={onKeypad} onToggleSign={toggleSign} />
           {/* Nameless is not a dead end: the bar opens the name field instead of sitting there greyed out. */}
@@ -131,6 +138,16 @@ export default function AccountEdit() {
       }
     />
   );
+}
+
+/** "27..5837, ••1234" → ["5837", "1234"]: the last four digits of each number typed, once each. */
+function parseNumbers(text: string): string[] {
+  const out: string[] = [];
+  for (const part of text.split(/[,;\n]+/)) {
+    const digits = part.replace(/\D/g, "");
+    if (digits.length >= 4 && !out.includes(digits.slice(-4))) out.push(digits.slice(-4));
+  }
+  return out;
 }
 
 const styles = themed(() => StyleSheet.create({

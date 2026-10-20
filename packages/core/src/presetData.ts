@@ -88,6 +88,17 @@ export function presetName(preset: string, lang: string): string | null { return
 export function presetDescription(preset: string, lang: string): string | null { return text(lang, `preset.${preset}.description`); }
 
 /**
+ * Names a preset was seeded under before its translation changed. A row still holding one is as
+ * untouched as one holding the current name, so it keeps following the language (DATA.md rule 16).
+ * Changing a preset's name in any language means adding the old one here, and to `KPPreset.former`
+ * in native/KPLocale.swift.
+ */
+export const FORMER_PRESET_NAMES: Record<string, readonly string[]> = {
+  "home.utilities": ["Комунальні"],
+  bills: ["Платежі"],
+};
+
+/**
  * v18: tag the categories an earlier build seeded in English with their preset key, so they start
  * following the app's language. Matched on the English name under the matching folder — matching by
  * name is otherwise off limits (DATA.md rule 1), and is allowed here only because it labels a row and

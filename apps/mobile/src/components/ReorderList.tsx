@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, LayoutAnimation, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
+import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
@@ -11,7 +12,8 @@ import { t } from "@/i18n";
 /** Every row the same height, which is what lets a drag be arithmetic rather than a measurement. */
 const H = 60;
 
-export type ReorderItem = { id: string; title: string; subtitle?: string; icon?: ReactNode };
+/** `deletable` rows can be swiped left to reveal Delete; a row standing for a whole section cannot. */
+export type ReorderItem = { id: string; title: string; subtitle?: string; icon?: ReactNode; deletable?: boolean };
 
 /**
  * A screen for dragging rows into the order you want them somewhere else — budgets on Budgets,
@@ -24,6 +26,8 @@ export type ReorderItem = { id: string; title: string; subtitle?: string; icon?:
  * anywhere else), and where a row lands is `round(dy / H)` away from where it started.
  *
  * `onDone` gets the whole order once, on Done, not per drag: one write, and Cancel really cancels.
+ * The same goes for deleting: a row swiped left shows Delete, as in any iOS list, and a row deleted
+ * leaves the list at once but is only gone once Done hands it to `onDone` in `removed`.
  *
  * The drag is a gesture-handler Pan rather than a `PanResponder`. This screen is a card modal, and
  * a card modal on iOS is a sheet with a vertical swipe of its own: React Native's responder system
@@ -41,7 +45,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
   items: ReorderItem[];
   hint: string;
   empty: { title: string; hint: string };
-  onDone: (ids: string[]) => void;
+  onDone: (ids: string[], removed: string[]) => void;
 }) {
   const byId = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
   const [order, setOrder] = useState<string[]>(() => items.map((x) => x.id));
@@ -52,7 +56,16 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
   const [dragId, setDragId] = useState<string | null>(null);
   const [pan] = useState(() => new Animated.Value(0));
 
-  const commit = () => { onDone(orderRef.current); router.back(); };
+  const [removed, setRemoved] = useState<string[]>([]);
+  const commit = () => { onDone(orderRef.current, removed); router.back(); };
+  const del = useCallback((id: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOrderBoth(orderRef.current.filter((x) => x !== id));
+    setRemoved((r) => [...r, id]);
+  }, [setOrderBoth]);
+  /** Each swipeable row, so opening one closes the others, the way Mail and Reminders do. */
+  const rowRefs = useRef(new Map<string, SwipeableMethods>());
 
   /**
    * Where the dragged row started and where it has got to, in refs rather than in the closure: every
@@ -104,6 +117,8 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
   const gestures = useMemo(() => new Map(items.map(({ id }) => [id, Gesture.Pan()
     .runOnJS(true)
     .activeOffsetY([-4, 4])
+    // A sideways finger on the grip is the row's swipe to Delete, not a drag.
+    .failOffsetX([-12, 12])
     .blocksExternalGesture(scrolling)
     .onStart(() => grab(id))
     .onUpdate((e) => drag(e.translationY))
@@ -122,8 +137,8 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
             const row = byId.get(id), grip = gestures.get(id);
             if (!row || !grip) return null;
             const dragging = dragId === id;
-            return (
-              <Animated.View key={id} style={[styles.row, dragging && styles.dragging, dragging && { transform: [{ translateY: pan }] }]}>
+            const content = (
+              <View style={styles.rowInner}>
                 {row.icon}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.name} numberOfLines={1}>{row.title}</Text>
@@ -134,6 +149,26 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
                     <SymbolView name="line.3.horizontal" size={18} tintColor={C.tertiary} />
                   </View>
                 </GestureDetector>
+              </View>
+            );
+            return (
+              <Animated.View key={id} style={[styles.row, dragging && styles.dragging, dragging && { transform: [{ translateY: pan }] }]}
+                accessibilityActions={row.deletable ? [{ name: "delete", label: t("common.delete") }] : undefined}
+                onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === "delete") del(id); }}>
+                {row.deletable ? (
+                  <ReanimatedSwipeable friction={1.6} rightThreshold={40} overshootRight={false} enabled={!dragId} containerStyle={styles.swipe}
+                    simultaneousWithExternalGesture={scrolling}
+                    ref={(m) => { if (m) rowRefs.current.set(id, m); else rowRefs.current.delete(id); }}
+                    onSwipeableWillOpen={() => { void Haptics.selectionAsync(); rowRefs.current.forEach((m, k) => { if (k !== id) m.close(); }); }}
+                    renderRightActions={() => (
+                      <Pressable onPress={() => del(id)} style={({ pressed }) => [styles.delete, pressed && { opacity: 0.8 }]} accessibilityRole="button" accessibilityLabel={t("ui.reorderDeleteA11y", { title: row.title })}>
+                        <SymbolView name="trash" size={18} tintColor="#FFFFFF" />
+                        <Text style={styles.deleteText}>{t("common.delete")}</Text>
+                      </Pressable>
+                    )}>
+                    {content}
+                  </ReanimatedSwipeable>
+                ) : content}
               </Animated.View>
             );
           })}
@@ -145,7 +180,12 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
 
 const styles = themed(() => StyleSheet.create({
   hint: { color: C.secondary, fontSize: 13, paddingBottom: S.sm },
-  row: { height: H, flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card, marginBottom: S.xs },
+  row: { height: H, marginBottom: S.xs, borderRadius: R.card, backgroundColor: C.card },
+  rowInner: { height: H, flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card },
+  // Clipped to the row's corners, so Delete comes out from under the row rather than beside it.
+  swipe: { borderRadius: R.card, overflow: "hidden", backgroundColor: C.red },
+  delete: { width: 88, height: H, backgroundColor: C.red, alignItems: "center", justifyContent: "center", gap: 2 },
+  deleteText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
   // Lifted off the list while it is in the hand, and drawn last so it passes over its neighbours.
   dragging: { zIndex: 10, elevation: 6, shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   name: { fontSize: 16, color: C.label },

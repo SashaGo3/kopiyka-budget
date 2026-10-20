@@ -1,19 +1,24 @@
 import { DynamicColorIOS, Platform, PlatformColor, type ColorValue, type ViewStyle } from "react-native";
-import { DEFAULT_THEME, THEMES, themeOf, type ExtraHue, type Theme, type ThemeId, type ThemeSide } from "@kopiyka/core";
+import { DEFAULT_THEME, SYSTEM_FALLBACK, THEMES, THEME_IDS, isHexColor, themeColors, themeOf, toneColors, type ColorPair, type ColorRole, type Theme, type ThemeId } from "@kopiyka/core";
+import { defineThemeColors, type ThemeColorTable } from "@/lib/bridge";
 import { t } from "@/i18n";
 
 /**
- * Colours come from the current theme (packages/core/src/themes.ts). A theme is a palette with a
- * light and a dark side; every colour here is a DynamicColorIOS of the two, so the phone's appearance
- * is still followed natively.
+ * Colours come from the current theme. What each role is drawn in — every theme, light and dark,
+ * contrast floors applied — is data in @kopiyka/core (themeColors.ts); this file turns it into
+ * values React Native draws.
  *
- * The names (`C`, `Brand`, `ValueRamp`) are read through getters, so a call site reads the theme that
- * is current *when it reads*. Screens do not repaint in place: a change of theme re-mounts every
- * screen's content (`ThemeKeyed`, src/lib/theme.ts) while the navigators around them stay. What
- * follows is the one rule: never capture a colour at module scope. Styles go through `themed`, which
- * rebuilds them for the theme that is current. The few things drawn outside a screen — by a
- * `_layout` — are not re-mounted, so they compute their colours in a function that takes the theme
- * id (the React Compiler memoises on arguments) and call `useTheme()`.
+ * On iOS every colour is *named*: the whole table is handed to native once, at import, and `C.label`
+ * is `PlatformColor("kp.label")`, which native resolves in whatever theme is current
+ * (native/KPThemeColors.swift). A theme switch changes that, natively, and nothing in React renders
+ * or re-mounts at all — the same way the phone's light/dark switch has always worked. That is what
+ * keeps a switch from ever leaving a screen empty: there is no re-mount to go wrong.
+ *
+ * Off iOS, or on a build whose native side cannot do it (`NAMED_COLORS` false), colours are plain
+ * values of the current theme and a switch re-mounts the tree instead (src/app/_layout.tsx).
+ *
+ * The one rule either way: never capture a colour at module scope. Styles go through `themed`, and
+ * the few things a `_layout` draws take the theme as an argument (`layoutColor`).
  */
 let current: Theme = THEMES[DEFAULT_THEME];
 
@@ -22,106 +27,56 @@ export function currentTheme(): Theme { return current; }
 /** Set by src/lib/theme.ts, which owns the stored choice; anything else calls `setTheme` there. */
 export function applyThemePalette(id: string | null | undefined): void { current = themeOf(id); }
 
-const dyn = (light: string, dark: string): ColorValue => (Platform.OS === "ios" ? DynamicColorIOS({ light, dark }) : light);
-const sys = (name: string, fallback: string): ColorValue => (Platform.OS === "ios" ? PlatformColor(name) : fallback);
+const isSystem = (v: string) => v.startsWith("@");
+const fallback = (v: string, dark: boolean) => (isSystem(v) ? SYSTEM_FALLBACK[v.slice(1)]?.[dark ? 1 : 0] ?? "#00000000" : v);
 
-const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-/** `a` moved `amount` of the way towards `b`, as an opaque hex colour. */
-export function mixHex(a: string, b: string, amount: number): string {
-  const [x, y] = [rgb(a), rgb(b)];
-  return `#${x.map((v, i) => Math.round(v + ((y[i] ?? v) - v) * amount).toString(16).padStart(2, "0")).join("")}`;
+/** A light/dark pair as one plain value: DynamicColorIOS, a system colour, or the light side off iOS. */
+function plain([light, dark]: ColorPair): ColorValue {
+  if (Platform.OS !== "ios") return fallback(light, false);
+  if (isSystem(light) && light === dark) return PlatformColor(light.slice(1));
+  return DynamicColorIOS({ light: fallback(light, false), dark: fallback(dark, true) });
 }
-/**
- * `fg`, taken towards black (on a light side) or white (on a dark one) just far enough to reach `min`
- * against every background it is drawn on. Keeps the theme's hue — Tokyo Night's blue text stays
- * blue, only deeper — and leaves a colour that already passes exactly as it was.
- */
-export function legible(fg: string, backgrounds: string[], min: number, dark: boolean): string {
-  const worst = (c: string) => Math.min(...backgrounds.map((b) => contrast(c, b)));
-  if (worst(fg) >= min) return fg;
-  const towards = dark ? "#FFFFFF" : "#000000";
-  for (let step = 1; step <= 20; step++) {
-    const c = mixHex(fg, towards, step / 20);
-    if (worst(c) >= min) return c;
+
+/** Every role of every theme, under the names `C` asks for. */
+function table(): ThemeColorTable {
+  const out: ThemeColorTable = {};
+  for (const id of THEME_IDS) {
+    for (const [role, pair] of Object.entries(themeColors(THEMES[id]))) {
+      (out[`kp.${role}`] ??= {})[id] = [pair[0], pair[1]];
+    }
   }
-  return towards;
-}
-/**
- * The floors text is held to, against both `bg` and `card`. Several editor palettes were drawn for a
- * code editor on a big monitor — Tokyo Night's light body text is 4.5:1, Catppuccin's and Rosé Pine's
- * about 6.6:1 — and their coloured text lower still: Nord's red, Catppuccin's orange and iOS's own
- * green on white are 2–2.5:1. On a phone, at 13–15 pt, that reads as soft, slightly blurred text.
- *
- * So every colour drawn as text has a floor: body text near black (or white), secondary text well
- * above AA, the tertiary grey (placeholders, captions) at AA itself, and the accent and the status
- * colours — links, amounts, the red of an overspent budget — at AA as well. Each is only darkened (or
- * lightened) within its own hue, so a theme still looks like itself; one that already passes is left
- * exactly as it was. Fills, separators and the soft washes behind text keep the palette's own colours.
- */
-const TEXT_MIN = { label: 12, secondary: 7, tertiary: 4.5, coloured: 4.5 };
-/** What text on the accent (a filled button) must keep: the accent is not moved past this. */
-const ON_ACCENT_MIN = 4.5;
-
-/** `hex` at `alpha` (0–1), as #RRGGBBAA. */
-const alpha = (hex: string, a: number) => `${hex.slice(0, 7)}${Math.round(a * 255).toString(16).padStart(2, "0")}`;
-
-interface Palette { C: Record<keyof typeof C, ColorValue>; ramp: Record<0 | 1 | 2 | 3, ColorValue> }
-
-function build(theme: Theme): Palette {
-  const { light: l, dark: d } = theme;
-  const both = (f: (s: ThemeSide) => string) => dyn(f(l), f(d));
-  // The default theme is the graphite the app shipped with, which leans on iOS's own semantic colours
-  // for fills and separators; keeping them means Graphite stays the app people already know. Its text
-  // colours, though, come from its palette like every other theme's, held to the same floors: iOS's
-  // secondary label and its green, orange and red on white fall short of them.
-  const native = theme.id === DEFAULT_THEME;
-  const text = (side: ThemeSide, fg: string, min: number, dark: boolean) => legible(fg, [side.bg, side.card], min, dark);
-  const role = (min: number, pick: (s: ThemeSide) => string) => dyn(text(l, pick(l), min, false), text(d, pick(d), min, true));
-  // The accent is text (links, ticks, the header buttons) and a fill under `onAccent`. It is taken
-  // towards legible as far as the button text on it still allows — GitHub's dark side, white on
-  // green, would lose its button text if its green were lightened all the way.
-  const accent = (s: ThemeSide, dark: boolean) => {
-    const c = text(s, s.accent, TEXT_MIN.coloured, dark);
-    return contrast(s.onAccent, c) >= ON_ACCENT_MIN ? c : s.accent;
-  };
-  const fill = native ? sys("tertiarySystemFill", "#eee") : dyn(alpha(l.text, 0.07), alpha(d.text, 0.13));
-  return {
-    C: {
-      label: role(TEXT_MIN.label, (s) => s.text),
-      secondary: role(TEXT_MIN.secondary, (s) => s.muted),
-      tertiary: role(TEXT_MIN.tertiary, (s) => mixHex(s.muted, s.bg, 0.4)),
-      bg: both((s) => s.bg),
-      bgGrouped: both((s) => s.bg),
-      card: both((s) => s.card),
-      fill,
-      fill2: native ? sys("secondarySystemFill", "#e5e5ea") : dyn(alpha(l.text, 0.11), alpha(d.text, 0.2)),
-      separator: native ? sys("separator", "#ccc") : both((s) => s.border),
-      tint: dyn(accent(l, false), accent(d, true)),
-      onTint: both((s) => s.onAccent),
-      red: role(TEXT_MIN.coloured, (s) => s.red),
-      green: role(TEXT_MIN.coloured, (s) => s.green),
-      orange: role(TEXT_MIN.coloured, (s) => s.orange),
-      redSoft: native ? "rgba(255,59,48,0.14)" : dyn(alpha(l.red, 0.14), alpha(d.red, 0.18)),
-      greenSoft: native ? "rgba(52,199,89,0.14)" : dyn(alpha(l.green, 0.14), alpha(d.green, 0.18)),
-      orangeSoft: native ? "rgba(255,149,0,0.16)" : dyn(alpha(l.orange, 0.16), alpha(d.orange, 0.2)),
-    },
-    ramp: {
-      3: both((s) => s.accent),
-      2: both((s) => mixHex(s.accent, s.card, 0.35)),
-      1: both((s) => mixHex(s.accent, s.card, 0.68)),
-      0: fill,
-    },
-  };
+  return out;
 }
 
-// One set of colour objects per theme, built on first use: the same DynamicColorIOS value every time
-// it is read, rather than a new one per access.
-const built = new Map<ThemeId, Palette>();
-const palette = (): Palette => {
-  let p = built.get(current.id);
-  if (!p) { p = build(current); built.set(current.id, p); }
-  return p;
+/** Whether colours are named and resolved natively (see above). Decided once, before anything renders. */
+export const NAMED_COLORS: boolean = defineThemeColors(table());
+
+const namedCache = new Map<string, ColorValue>();
+const named = (name: string): ColorValue => {
+  let v = namedCache.get(name);
+  if (!v) { v = PlatformColor(name); namedCache.set(name, v); }
+  return v;
 };
+
+// One set of plain values per theme, built on first use: the same object every time it is read.
+const plainCache = new Map<ThemeId, Record<ColorRole, ColorValue>>();
+function plainColors(id: ThemeId): Record<ColorRole, ColorValue> {
+  let p = plainCache.get(id);
+  if (!p) {
+    const c = themeColors(THEMES[id]);
+    p = Object.fromEntries(Object.entries(c).map(([k, pair]) => [k, plain(pair)])) as Record<ColorRole, ColorValue>;
+    plainCache.set(id, p);
+  }
+  return p;
+}
+
+const role = (r: ColorRole): ColorValue => (NAMED_COLORS ? named(`kp.${r}`) : plainColors(current.id)[r]);
+
+/**
+ * A colour for something a `_layout` draws (the tab tint, sheet backgrounds), which re-renders on a
+ * switch rather than relying on native re-resolution: a plain value of exactly that theme.
+ */
+export function layoutColor(theme: ThemeId, r: ColorRole): ColorValue { return plainColors(theme)[r]; }
 
 /** The theme's own colours as plain hex, for the few places that need a string rather than a ColorValue. */
 export const Brand = {
@@ -133,101 +88,63 @@ export const Brand = {
 
 /** The app's semantic colours, in the current theme. */
 export const C = {
-  get label(): ColorValue { return palette().C.label; },
-  get secondary(): ColorValue { return palette().C.secondary; },
-  get tertiary(): ColorValue { return palette().C.tertiary; },
-  get bg(): ColorValue { return palette().C.bg; },
-  get bgGrouped(): ColorValue { return palette().C.bgGrouped; },
-  get card(): ColorValue { return palette().C.card; },
-  get fill(): ColorValue { return palette().C.fill; },
-  get fill2(): ColorValue { return palette().C.fill2; },
-  get separator(): ColorValue { return palette().C.separator; },
-  get tint(): ColorValue { return palette().C.tint; },
+  get label(): ColorValue { return role("label"); },
+  get secondary(): ColorValue { return role("secondary"); },
+  get tertiary(): ColorValue { return role("tertiary"); },
+  get bg(): ColorValue { return role("bg"); },
+  get bgGrouped(): ColorValue { return role("bgGrouped"); },
+  get card(): ColorValue { return role("card"); },
+  get fill(): ColorValue { return role("fill"); },
+  get fill2(): ColorValue { return role("fill2"); },
+  get separator(): ColorValue { return role("separator"); },
+  get tint(): ColorValue { return role("tint"); },
   /** Text and icons drawn on top of `tint`. */
-  get onTint(): ColorValue { return palette().C.onTint; },
-  get red(): ColorValue { return palette().C.red; },
-  get green(): ColorValue { return palette().C.green; },
-  get orange(): ColorValue { return palette().C.orange; },
+  get onTint(): ColorValue { return role("onTint"); },
+  get red(): ColorValue { return role("red"); },
+  get green(): ColorValue { return role("green"); },
+  get orange(): ColorValue { return role("orange"); },
   /** The status colours as a wash behind text: amount pills, banners. */
-  get redSoft(): ColorValue { return palette().C.redSoft; },
-  get greenSoft(): ColorValue { return palette().C.greenSoft; },
-  get orangeSoft(): ColorValue { return palette().C.orangeSoft; },
+  get redSoft(): ColorValue { return role("redSoft"); },
+  get greenSoft(): ColorValue { return role("greenSoft"); },
+  get orangeSoft(): ColorValue { return role("orangeSoft"); },
 };
-
-/**
- * Icon colours for UI chrome — the filled squares on Settings, automation and data rows, insight
- * kinds, the travel blue. Call sites name them in iOS's own system hexes ("#FF9F0A", "#5E5CE6",
- * "#30D158", …), which is exactly right in the default Graphite theme, the iOS look the app shipped
- * with, and clashes in every other one: an iOS indigo square on Gruvbox's warm cream is a stranger
- * on the page. So the hex is read as a *role* rather than a colour — red/pink, orange/yellow/brown,
- * green/mint, grey, or anything blue-to-purple (which becomes the theme's accent) — and drawn in the
- * theme's own colour for that role. Default theme: the hex as given, untouched. A theme that names
- * finer hues (`ThemeSide.hues`: pink, yellow, teal, blue, purple) has those drawn in its own instead.
- *
- * Only for chrome. Category, tag and account colours are the user's data (DATA.md) and are drawn as
- * chosen; never pass one through here.
- */
-type HueRole = "red" | "orange" | "green" | "accent" | "muted";
-
-function hueRole(hex: string): HueRole {
-  const [r, g, b] = rgb(hex).map((v) => v / 255) as [number, number, number];
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const d = max - min;
-  const l = (max + min) / 2;
-  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
-  if (s < 0.2) return "muted"; // #8E8E93 and other greys (#A2845E brown is ~0.27 and stays orange)
-  const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
-  if (h >= 330 || h < 15) return "red"; // red, pink (#FF375F, #FF2D55)
-  if (h < 70) return "orange"; // orange, yellow, brown
-  if (h < 180) return "green"; // green, mint
-  return "accent"; // teal, cyan, blue, indigo, purple
-}
-
-/** The finer hue a theme may name for `hex` (`ThemeSide.hues`), or null for red, orange, green and grey. */
-function extraHue(hex: string): ExtraHue | null {
-  const [r, g, b] = rgb(hex).map((v) => v / 255) as [number, number, number];
-  const max = Math.max(r, g, b);
-  const d = max - Math.min(r, g, b);
-  const l = (max + Math.min(r, g, b)) / 2;
-  if (d === 0 || d / (1 - Math.abs(2 * l - 1)) < 0.2) return null;
-  const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
-  if (h >= 320 && h < 355) return "pink"; // #FF375F, #FF2D55
-  if (h >= 40 && h < 70) return "yellow"; // #FFD60A, #FFCC00
-  if (h >= 160 && h < 200) return "teal"; // mint, teal, cyan
-  if (h >= 200 && h < 235) return "blue"; // #0A84FF, #007AFF
-  if (h >= 235 && h < 320) return "purple"; // indigo #5E5CE6, purple #BF5AF2
-  return null;
-}
-
-/** WCAG relative luminance of an opaque hex colour. */
-function luminance(hex: string): number {
-  const [r, g, b] = rgb(hex).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }) as [number, number, number];
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-/** WCAG contrast ratio between two opaque hex colours, 1–21. */
-function contrast(a: string, b: string): number { const [x, y] = [luminance(a), luminance(b)]; return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
-/** White or the page background on `fill`, whichever reads better: dark themes' greens and oranges are pale. */
-const glyphOn = (fill: string, side: ThemeSide) => (contrast("#FFFFFF", fill) >= contrast(side.bg, fill) ? "#FFFFFF" : side.bg);
 
 interface Tone { fill: ColorValue; glyph: ColorValue }
 const tones = new Map<string, Tone>();
 
-/** `hex` as the current theme draws it: the fill of an icon square, and the glyph on top of it. */
+/**
+ * `hex` as the current theme draws it in UI chrome: the fill of an icon square, and the glyph on top
+ * of it (core's `toneColors` says how a hex is read as a role). Only for chrome — category, tag and
+ * account colours are the user's data and are drawn as chosen; never pass one through here.
+ */
 export function themeTone(hex: string): Tone {
-  if (current.id === DEFAULT_THEME || !/^#[0-9a-f]{6}/i.test(hex)) return { fill: hex, glyph: "#FFFFFF" };
-  const role = hueRole(hex);
-  const extra = extraHue(hex);
-  const key = `${current.id}:${extra ?? role}`;
-  let tone = tones.get(key);
+  if (!isHexColor(hex)) return { fill: hex, glyph: "#FFFFFF" };
+  const key = hex.toUpperCase();
+  if (NAMED_COLORS) {
+    let tone = tones.get(key);
+    if (!tone) {
+      const fill = `kp.tone.${key.slice(1)}.fill`;
+      const glyph = `kp.tone.${key.slice(1)}.glyph`;
+      const entries: ThemeColorTable = { [fill]: {}, [glyph]: {} };
+      for (const id of THEME_IDS) {
+        const c = toneColors(THEMES[id], key);
+        entries[fill]![id] = [c.fill[0], c.fill[1]];
+        entries[glyph]![id] = [c.glyph[0], c.glyph[1]];
+      }
+      tone = defineThemeColors(entries) ? { fill: named(fill), glyph: named(glyph) } : plainTone(current.id, key);
+      tones.set(key, tone);
+    }
+    return tone;
+  }
+  return plainTone(current.id, key);
+}
+function plainTone(id: ThemeId, hex: string): Tone {
+  const k = `${id}:${hex}`;
+  let tone = tones.get(k);
   if (!tone) {
-    const { light: l, dark: d } = current;
-    // Per side: the theme's own colour for the finer hue where that side names one, else the role's.
-    const own = (s: ThemeSide) => (extra ? s.hues?.[extra] : undefined);
-    const fill = (s: ThemeSide) => own(s) ?? (role === "muted" ? s.muted : s[role]);
-    const glyph = (s: ThemeSide) => (!own(s) && role === "accent" ? s.onAccent : glyphOn(fill(s), s));
-    tone = { fill: dyn(fill(l), fill(d)), glyph: dyn(glyph(l), glyph(d)) };
-    tones.set(key, tone);
+    const c = toneColors(THEMES[id], hex);
+    tone = { fill: plain(c.fill), glyph: plain(c.glyph) };
+    tones.set(k, tone);
   }
   return tone;
 }
@@ -274,10 +191,10 @@ export function themed<T extends object>(factory: () => T): T {
  * hue, light end clear of the surface by ΔL ≥ 0.10.
  */
 export const ValueRamp: Readonly<Record<0 | 1 | 2 | 3, ColorValue>> = {
-  get 3() { return palette().ramp[3]; },
-  get 2() { return palette().ramp[2]; },
-  get 1() { return palette().ramp[1]; },
-  get 0() { return palette().ramp[0]; },
+  get 3() { return role("ramp3"); },
+  get 2() { return role("ramp2"); },
+  get 1() { return role("ramp1"); },
+  get 0() { return role("ramp0"); },
 };
 
 /**

@@ -6,8 +6,7 @@ import { COLORS, autoIcon, convertCategoryToTag, createCategory, getRow, listRow
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
-import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow, runBusy } from "@/components/ui";
-import { ALL_TIME } from "@/lib/filters";
+import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, ToggleRow, runBusy } from "@/components/ui";
 import { dismissTo } from "@/lib/nav";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -50,13 +49,13 @@ export default function CategoryEdit() {
   usePickResult<string | null>(keys.icon, useCallback((v) => setIcon(v), []));
   usePickResult<string | null>(keys.color, useCallback((v) => setColor(v), []));
   usePickResult<string>(keys.folder, useCallback((v) => setParentId(v), []));
-  // Jump to this category's transactions: the Transactions tab itself, filtered to it over all time,
-  // rather than a second list of its own — one screen shows transactions, and everything there
-  // (sorting, the filter sheet, multi-select) then works on this list too. One navigation rather
-  // than a dismissal and a timer — see `lib/nav.ts` for what the timer cost.
+  // Jump to this category's transactions: Search, filtered to it — every month and every account,
+  // over the tab rather than in it, so the Transactions tab keeps its own month and filters, and
+  // everything there (sorting, the filter sheet, multi-select) works on this list too. One
+  // navigation rather than a dismissal and a timer — see `lib/nav.ts` for what the timer cost.
   const showTransactions = () => {
     if (!existing) return;
-    dismissTo({ pathname: "/transactions", params: { category: existing.id, name: catName(existing), from: ALL_TIME, nonce: String(Date.now()) } });
+    dismissTo({ pathname: "/search", params: { category: existing.id, name: catName(existing), nonce: String(Date.now()) } });
   };
   const parentFolder = parentId ? parents.find((p) => p.id === parentId) ?? null : null;
 
@@ -158,7 +157,7 @@ export default function CategoryEdit() {
       <ModalHeader title={existing ? (isFolder ? t("category.title.editFolder") : t("category.title.editCategory")) : isFolder ? t("category.title.newFolder") : t("category.title.newCategory")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.save"), onPress: commit, disabled: !valid }} />
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 60 }}>
         <View style={styles.nameRow}>
-          <View style={[styles.preview, { backgroundColor: shownColor + "26" }]}><SymbolView name={shownIcon as SFSymbol} size={26} tintColor={shownColor} /></View>
+          <View style={[styles.preview, { backgroundColor: shownColor + TILE_ALPHA }]}><SymbolView name={shownIcon as SFSymbol} size={26} tintColor={shownColor} /></View>
           <TextInput value={name} onChangeText={setName} placeholder={isFolder ? t("category.folderName") : t("category.categoryName")} placeholderTextColor={C.tertiary} style={styles.input} autoFocus={!existing}
             multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} accessibilityLabel={isFolder ? t("category.folderName") : t("category.categoryName")} />
         </View>
@@ -178,7 +177,7 @@ export default function CategoryEdit() {
         <SectionHeader>{t("category.appearance")}</SectionHeader>
         <Card>
           <Row icon="app.fill" iconColor="#8E8E93" title={t("category.icon")} subtitle={icon ? icon : t("category.automatic")} onPress={() => router.push({ pathname: "/pick/icon", params: { key: keys.icon, selected: icon ?? "", color: shownColor } })}
-            right={<View style={styles.right}><View style={[styles.rowIcon, { backgroundColor: shownColor + "26" }]}><SymbolView name={shownIcon as SFSymbol} size={16} tintColor={shownColor} /></View><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
+            right={<View style={styles.right}><View style={[styles.rowIcon, { backgroundColor: shownColor + TILE_ALPHA }]}><SymbolView name={shownIcon as SFSymbol} size={16} tintColor={shownColor} /></View><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
           <Row icon="paintpalette.fill" iconColor="#8E8E93" title={t("category.colour")} subtitle={color ? (colorName ? colorLabel(colorName) : color) : t("category.automatic")} onPress={() => router.push({ pathname: "/pick/color", params: { key: keys.color, selected: color ?? "" } })}
             right={<View style={styles.right}><View style={[styles.swatch, { backgroundColor: shownColor }]} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View>} />
           {isFolder && hasChildren ? (

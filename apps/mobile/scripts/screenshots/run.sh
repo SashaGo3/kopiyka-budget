@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # App Store screenshots, end to end:  build → install → seed demo data → capture → frame.
 #
-#   bun run screenshots                    # everything (a Release build takes ~5 min the first time)
+#   bun run screenshots                    # everything, contact sheets included (a Release build takes ~5 min the first time)
+#   bun run screenshots -- --no-build      # everything again from the last build
+#   bun run screenshots -- --creative      # only the header and search results art, from the captures there are
 #   bun run screenshots -- --no-build      # reuse the last Release build
 #   bun run screenshots -- --capture --frame            # only re-shoot and re-frame
 #   bun run screenshots -- --frame                      # only re-frame (edit screenshots/shots.json, then this)
@@ -12,12 +14,16 @@
 #
 # Steps can be picked individually: --build --install --seed --capture --frame (default: all).
 # --lang <code>|all (default all, i.e. apps/mobile/locales/languages.json; several as en,uk) picks the
-# languages: each is seeded with its own demo data and captured in turn, then framed.
+# languages: each is seeded with its own demo data and captured in turn, then framed — all languages
+# at once. A full capture shoots the iPad alongside the iPhone and watch, and then the creative art's
+# phones in their colour themes; with any capture flag passed through it is the one capture.sh run.
 # Everything else is passed through to capture.sh (--phone / --ipad / --watch / --theme / --only) or,
-# for --frame runs, to frame.mjs (e.g. --contact-sheet).
+# for --frame runs, to frame.mjs. The contact sheets (every slide side by side, for checking — never
+# uploaded) are made every time; --no-contact-sheet leaves them out.
 #
 # Output, per language (en → en-US, uk → uk, the App Store's codes):
-# screenshots/appstore/<store lang>/iphone-6.9/*.png, iphone-6.5/*.png, ipad-13/*.png, watch/*.png
+# screenshots/appstore/<store lang>/iphone-6.9/*.png, iphone-6.3/*.png, iphone-6.5/*.png, ipad-13/*.png,
+# watch/*.png, creative/*.png
 # (+ contact-sheet.png); raw captures in screenshots/raw/<lang>/; the listing text to paste is in
 # screenshots/metadata/<store lang>/ (written by `bun run i18n`, not by this). Uses its own simulators
 # ("Kopiyka Shots" / "Kopiyka Shots Watch" / "Kopiyka Shots iPad"); yours are never touched.
@@ -25,13 +31,16 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$MOBILE_DIR"
 
-STEPS=(); PASS=(); FRAME_ARGS=(); LANG_SPEC=all
+STEPS=(); PASS=(); FRAME_ARGS=(); LANG_SPEC=all; SHEET=--contact-sheet
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --build|--install|--seed|--capture|--frame) STEPS+=("${1#--}") ;;
     --no-build) STEPS+=(install seed capture frame) ;;
+    --creative) STEPS+=(frame); FRAME_ARGS+=(--creative-only) ;;
     --no-ipad) PASS+=("$1"); FRAME_ARGS+=("$1") ;;   # skip it in both halves, not just one
-    --contact-sheet|--contact-sheet=*|--out=*|--raw=*) FRAME_ARGS+=("$1") ;;
+    --contact-sheet|--contact-sheet=*) SHEET="$1" ;;   # on by default; =all adds the extras
+    --no-contact-sheet) SHEET="" ;;
+    --out=*|--raw=*) FRAME_ARGS+=("$1") ;;
     --lang) shift; LANG_SPEC="$1" ;;
     --lang=*) LANG_SPEC="${1#--lang=}" ;;
     -h|--help) sed -n 2,24p "$0"; exit 0 ;;
@@ -54,8 +63,9 @@ if has build; then
   # No -sdk here: it would force the watch targets onto the iOS SDK. The destination is enough.
   # Signing stays on (ad-hoc for the simulator): CODE_SIGNING_ALLOWED=NO drops the entitlements,
   # and without the App Group entitlement the database lands outside the group container.
-  # EXPO_PUBLIC_SCREENSHOTS=1: the simulator runs an iOS older than the automation needs, and the
-  # shortcut slide should not show the "needs iOS 27" warning (src/constants/features.ts).
+  # EXPO_PUBLIC_SCREENSHOTS=1 (src/constants/features.ts): the app opens the `-KPLink` launch
+  # argument capture.sh passes, never shows What's New, and never shows the automation's "needs
+  # iOS 27" warning should the simulators ever run an older iOS again (SHOTS_KEEP_RUNTIME=1).
   EXPO_PUBLIC_SCREENSHOTS=1 xcodebuild -workspace ios/Kopiyka.xcworkspace -scheme Kopiyka -configuration Release \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED" build -quiet \
     || die "xcodebuild failed"
@@ -79,6 +89,19 @@ if has install; then
   # (The simulators' location is set per language when the demo data is seeded: Lisbon, Kyiv.)
 fi
 
+# The creative art's phones, each in the colour theme shots.json gives it (`creative.features`). The
+# default theme's are the ordinary captures; the rest are shot here, one capture.sh run per theme.
+capture_creative() { # <code>
+  local id palette theme
+  while read -r id palette theme; do
+    scripts/screenshots/capture.sh --lang "$1" --no-seed --phone --palette "$palette" --theme "$theme" --only "$id" \
+      || die "capture ($1, $id in $palette $theme) failed"
+  done < <(node -e '
+    for (const f of require(process.argv[1]).creative?.features ?? [])
+      if ((f.palette ?? "graphite") !== "graphite") console.log(f.id, f.palette, f.theme ?? "light");
+  ' "$SHOTS_DIR/shots.json")
+}
+
 # Seed and capture one language at a time: the simulators hold one dataset, in one language.
 # demo-data.ts seeds its ids from its own PRNG, so both devices get the same dataset — the same
 # category and tag ids the deep links in capture.sh carry.
@@ -88,7 +111,18 @@ for code in "${LANGS[@]}"; do
     seed_demo "$code" "$PHONE" "$IPAD"
   fi
   if has capture; then
-    scripts/screenshots/capture.sh --lang "$code" --no-seed "${PASS[@]+"${PASS[@]}"}"
+    if [[ ${#PASS[@]} -eq 0 ]]; then
+      # A full run: the iPad is a simulator of its own, so it is shot while the iPhone and the watch
+      # are (those two take turns: the watch's data comes from the phone app, which the iPhone shots
+      # keep restarting). Then the creative art's captures in their colour themes, on the iPhone.
+      ( scripts/screenshots/capture.sh --lang "$code" --no-seed --ipad 2>&1 | sed -u 's/^/[iPad] /'; exit "${PIPESTATUS[0]}" ) &
+      ipad_pid=$!
+      scripts/screenshots/capture.sh --lang "$code" --no-seed --phone --watch || die "capture ($code, iPhone and watch) failed"
+      capture_creative "$code"
+      wait "$ipad_pid" || die "capture ($code, iPad) failed"
+    else
+      scripts/screenshots/capture.sh --lang "$code" --no-seed "${PASS[@]}"
+    fi
   fi
 done
 
@@ -96,21 +130,32 @@ if has frame; then
   # The captions come from packages/i18n/locales/<lang>/store.json by way of screenshots/i18n/, which
   # only `bun run i18n` writes: compile first, or an edited store.json frames as the old text.
   (cd ../../packages/i18n && bun run i18n >/dev/null) || die "bun run i18n failed — fix the messages it names"
-  node scripts/screenshots/frame.mjs --lang "$(IFS=,; echo "${LANGS[*]}")" "${FRAME_ARGS[@]+"${FRAME_ARGS[@]}"}"
+  # One framer per language, side by side: each is a minute or so of CPU-bound work on its own.
+  pids=()
+  for code in "${LANGS[@]}"; do
+    ( node scripts/screenshots/frame.mjs --lang "$code" ${SHEET:+"$SHEET"} "${FRAME_ARGS[@]+"${FRAME_ARGS[@]}"}" 2>&1 | sed -u "s/^/[$code] /"; exit "${PIPESTATUS[0]}" ) &
+    pids+=($!)
+  done
+  for pid in "${pids[@]}"; do wait "$pid" || die "frame.mjs failed"; done
 fi
 
-# Finals/<store lang>/{iphone,ipad,watch}: exactly what gets uploaded, nothing else — the 6.5"
-# iPhone set (App Store Connect scales it for every other iPhone), the 13" iPad set and the watch.
+# Finals/<store lang>/: exactly what gets uploaded, nothing else. Since iOS 27 App Store Connect
+# requires "iPhone with Dynamic Island (medium display)" and scales every iPhone from two sets:
+# iphone/ (6.9", the large display) and iphone-6.3/ (the medium one). Then the 13" iPad set, the
+# watch, and creative/ — the product page header and search results art, which deliver cannot
+# upload (App Store Connect → the version → Header and Search Results, by hand).
 # Rebuilt from scratch each time so a slide dropped from shots.json cannot linger here.
 if has frame; then
   for code in "${LANGS[@]}"; do
     store="$(node scripts/screenshots/langs.mjs "$code" | awk '{print $2}')"
     src="screenshots/appstore/$store"; dst="screenshots/Finals/$store"
     [[ -d "$src" ]] || continue
-    rm -rf "$dst"; mkdir -p "$dst/iphone" "$dst/ipad" "$dst/watch"
-    cp "$src"/iphone-6.5/*.png "$dst/iphone/" 2>/dev/null || true
+    rm -rf "$dst"; mkdir -p "$dst/iphone" "$dst/iphone-6.3" "$dst/ipad" "$dst/watch" "$dst/creative"
+    cp "$src"/iphone-6.9/*.png "$dst/iphone/" 2>/dev/null || true
+    cp "$src"/iphone-6.3/*.png "$dst/iphone-6.3/" 2>/dev/null || true
     cp "$src"/ipad-13/*.png "$dst/ipad/" 2>/dev/null || true
     cp "$src"/watch/*.png "$dst/watch/" 2>/dev/null || true
-    log "Finals: $dst ($(ls "$dst/iphone" | wc -l | tr -d ' ') iPhone, $(ls "$dst/ipad" | wc -l | tr -d ' ') iPad, $(ls "$dst/watch" | wc -l | tr -d ' ') watch)"
+    cp "$src"/creative/*.png "$dst/creative/" 2>/dev/null || true
+    log "Finals: $dst ($(ls "$dst/iphone" | wc -l | tr -d ' ') iPhone 6.9\", $(ls "$dst/iphone-6.3" | wc -l | tr -d ' ') iPhone 6.3\", $(ls "$dst/ipad" | wc -l | tr -d ' ') iPad, $(ls "$dst/watch" | wc -l | tr -d ' ') watch, $(ls "$dst/creative" | wc -l | tr -d ' ') creative)"
   done
 fi

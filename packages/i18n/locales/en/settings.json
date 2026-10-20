@@ -33,10 +33,10 @@
     "youOwe": { "message": "{open} · you owe {amount}", "note": "open is the \"3 open\" message; amount is money with its currency code." }
   },
   "travel": {
-    "title": "Travel",
+    "title": "Trips & Events",
     "on": { "message": "On · {trip}", "note": "Travel mode is running; trip is a short line about the trip (name, days left, spent)." },
     "onPlanned": { "message": "On · {trip} · planned until {date}", "note": "The trip's last planned day has come; date is \"22 Sep\"." },
-    "off": "Travel mode, and the trips you have been on"
+    "off": "Trips, birthdays, weddings — money kept out of the month"
   },
   "startDay": {
     "title": "Budget month starts on",

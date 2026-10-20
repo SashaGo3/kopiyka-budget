@@ -3,18 +3,21 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-na
 import { newPickKey, usePickResult } from "@/store/pick";
 import { WAIT_DAYS_OPTIONS, reminderLabel, reminderOptions, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
 import { Stack, router, useFocusEffect } from "expo-router";
-import { listRows, dueOccurrences, detectRecurring, adoptCandidate, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
+import { listRows, dueOccurrences, detectRecurring, adoptCandidate, dismissSuggestion, dismissedSuggestions, restoreDismissedSuggestions, shownPaymentIcon, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
+import { PaymentIcon } from "@/components/PaymentIcon";
+import { SymbolView } from "expo-symbols";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { catName, catNameById, acctName } from "@/lib/names";
 import { t } from "@/i18n";
 
-type RuleRowData = RecurringRule & { account?: { name: string; currency: string }; category?: { name: string; preset?: string | null }; due: number; waitingSince: string | null; wait: number };
+type CatRef = { name: string; preset?: string | null; icon?: string | null; color?: string | null };
+type RuleRowData = RecurringRule & { account?: { name: string; currency: string }; category?: CatRef; due: number; waitingSince: string | null; wait: number };
 
 const dayCount = (count: number) => t("settingsLists.recurring.days", { count });
 
@@ -62,6 +65,9 @@ export default function RecurringList() {
   const { rateFor } = useRates([...new Set(perCurrency.map((y) => y.currency))], base);
   const yearly = sumInBase(perCurrency, base, rateFor);
   const suggestions = useQuery((db) => detectRecurring(db, { today: todayLocal() }));
+  // Said no to, by series; a count so they can be brought back from the foot of the list.
+  const dismissed = useQuery((db) => dismissedSuggestions(db).size);
+  const catsById = useQuery((db) => new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])));
   const remind = useQuery(() => getReminderDaysBefore());
   const wait = useQuery(() => getRecurringWait());
   const waitDays = useQuery(() => getRecurringWaitDays());
@@ -152,13 +158,28 @@ export default function RecurringList() {
           <Card>
             {suggestions.map((c, i) => (
               <Row key={c.key} title={c.title ?? catNameById(c.category_id, c.category_name) ?? t("settingsLists.recurring.fallbackTitle")}
+                left={<PaymentIcon icon={shownPaymentIcon({ payee: c.title, match_payee: c.match_payee })} category={catRef(c.category_id ? catsById.get(c.category_id) : undefined)} size={26} />}
                 subtitle={c.source === "planned"
                   ? t("settingsLists.recurring.suggestionPlanned", { freq: freqLabel(c.frequency, c.interval), date: humanDayTime(c.next_date, c.time_of_day, todayLocal(), c.frequency === "yearly") })
                   : t("settingsLists.recurring.suggestionSeen", { freq: freqLabel(c.frequency, c.interval), date: humanDayTime(c.next_date, c.time_of_day, todayLocal(), c.frequency === "yearly"), count: c.occurrences })}
-                right={<View style={styles.right}><AmountPill minor={c.amount_minor} currency={c.currency} /><Chip label={t("settingsLists.recurring.add")} onPress={() => void adopt([c])} /></View>}
+                right={<View style={styles.right}>
+                  <AmountPill minor={c.amount_minor} currency={c.currency} />
+                  <View style={styles.actions}>
+                    <Pressable onPress={() => mutate((db) => dismissSuggestion(db, c.key))} hitSlop={8} style={styles.dismiss} accessibilityRole="button"
+                      accessibilityLabel={t("settingsLists.recurring.dismissA11y", { name: c.title ?? catNameById(c.category_id, c.category_name) ?? t("settingsLists.recurring.fallbackTitle") })}>
+                      <SymbolView name="xmark" size={13} tintColor={C.secondary} />
+                    </Pressable>
+                    <Chip label={t("settingsLists.recurring.add")} onPress={() => void adopt([c])} />
+                  </View>
+                </View>}
                 style={i > 0 ? styles.divider : undefined} />
             ))}
           </Card>
+        ) : null}
+        {dismissed ? (
+          <Pressable onPress={() => mutate((db) => restoreDismissedSuggestions(db))} hitSlop={8} style={styles.restore} accessibilityRole="button">
+            <Text style={styles.restoreText}>{t("settingsLists.recurring.restoreDismissed", { count: dismissed })}</Text>
+          </Pressable>
         ) : null}
         <Footnote style={styles.foot} more={wait ? t("settingsLists.recurring.footMoreWait") : t("settingsLists.recurring.footMoreNoWait")}>{t("settingsLists.recurring.footShort")}</Footnote>
       </ScrollView>
@@ -185,6 +206,7 @@ function RuleRow({ r, first, confirm }: { r: RuleRowData; first: boolean; confir
     : `${freqLabel(r.frequency, r.interval)} · ${acctName(r.account) ?? ""}${category && r.payee ? ` · ${category}` : ""}`;
   return (
     <Row title={title}
+      left={<PaymentIcon icon={shownPaymentIcon(r)} category={catRef(r.category)} size={26} />}
       subtitle={sub}
       right={<View style={styles.right}><Text style={styles.when}>{humanDayTime(r.next_date, r.time_of_day, todayLocal(), r.frequency === "yearly")}</Text><AmountPill minor={r.amount_minor} currency={r.account?.currency ?? ""} /></View>}
       onPress={() => router.push(confirm ? { pathname: "/recurring/confirm", params: { id: r.id } } : { pathname: "/recurring/[id]", params: { id: r.id } })}
@@ -192,7 +214,14 @@ function RuleRow({ r, first, confirm }: { r: RuleRowData; first: boolean; confir
   );
 }
 
+/** A category as the icon view wants it: its shown name, icon and colour. */
+function catRef(c: CatRef | undefined) { return c ? { name: catName(c), icon: c.icon, color: c.color } : null; }
+
 const styles = themed(() => StyleSheet.create({
+  actions: { flexDirection: "row", alignItems: "center", gap: S.sm },
+  dismiss: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  restore: { alignSelf: "center", marginTop: S.lg },
+  restoreText: { color: C.tint, fontSize: 15 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   foot: { marginTop: S.xl },
   addAll: { color: C.tint, fontSize: 15, fontWeight: "600" },
