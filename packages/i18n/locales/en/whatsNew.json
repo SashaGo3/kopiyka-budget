@@ -28,7 +28,7 @@
       "watchPending": "On Apple Watch, approve a pending payment, or pick its category first, and delete an entry typed by mistake.",
       "watchNote": "Add a note on Apple Watch by dictation or Scribble, right from the category list.",
       "watchControl": "A Log expense control for Control Center, the Smart Stack and the Action button on Apple Watch.",
-      "listTitles": "Entries are titled by the shop, with your note and the bank’s words beneath.",
+      "listTitles": "Entries are titled by your note, with the shop and the bank’s words beneath, and by those when there is no note.",
       "watchFaster": "The watch app opens faster, its keypad follows the screen’s corners, and Double Tap moves you on. It now needs watchOS 26.",
       "watchBudgetNames": "The watch and its budgets show the name you gave a budget, and a debt payment says whose debt it is."
     },

@@ -1990,7 +1990,7 @@ const catalog: Catalog = {
   "whatsNew.notes.v1_1_0.debtPayments": "Paying back a debt in parts: pick Debt instead of a category, and the debt counts what has been paid.",
   "whatsNew.notes.v1_1_0.events": "Events: a birthday, a wedding or a night out gets its own budget, like a trip, and stays out of your monthly budgets. Settings → Trips & Events.",
   "whatsNew.notes.v1_1_0.insightDetails": "Tap an insight to see what’s behind it: month by month, the highest and lowest, and where the money came from.",
-  "whatsNew.notes.v1_1_0.listTitles": "Entries are titled by the shop, with your note and the bank’s words beneath.",
+  "whatsNew.notes.v1_1_0.listTitles": "Entries are titled by your note, with the shop and the bank’s words beneath, and by those when there is no note.",
   "whatsNew.notes.v1_1_0.outside": "Payments kept outside a trip's budget are now remembered.",
   "whatsNew.notes.v1_1_0.paymentIcons": "Recurring payments show the company’s logo, or an icon, emoji or picture you choose.",
   "whatsNew.notes.v1_1_0.search": "Search has its own screen and finds by tags, trips, events, debts and more, typos and all.",
