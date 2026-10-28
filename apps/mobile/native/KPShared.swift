@@ -486,15 +486,17 @@ enum KPStore {
   }
 
   /// Travel mode (core `activeTripTagId`): the tag every new expense gets while a trip runs — from its
-  /// first day, so one set up ahead tags nothing yet. `starts` is a local YYYY-MM-DD.
+  /// first day to its last, so one set up ahead tags nothing yet and one whose days are over tags
+  /// nothing before the app comes up and ends it. `starts` and `ends` are local YYYY-MM-DD.
   static func activeTripTagId(_ db: OpaquePointer) -> String? {
     var stmt: OpaquePointer?
-    guard sqlite3_prepare_v2(db, "SELECT tag_id, starts FROM budgets WHERE deleted=0 AND period='once' AND tag_id IS NOT NULL AND ended IS NULL ORDER BY starts DESC, rowid DESC LIMIT 1", -1, &stmt, nil) == SQLITE_OK else { return nil }
+    guard sqlite3_prepare_v2(db, "SELECT tag_id, starts, ends FROM budgets WHERE deleted=0 AND period='once' AND tag_id IS NOT NULL AND ended IS NULL ORDER BY starts DESC, rowid DESC LIMIT 1", -1, &stmt, nil) == SQLITE_OK else { return nil }
     defer { sqlite3_finalize(stmt) }
     guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
-    let t = str(stmt, 0)
+    let t = str(stmt, 0), ends = str(stmt, 2)
     let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
-    guard !t.isEmpty, str(stmt, 1) <= f.string(from: Date()) else { return nil }
+    let today = f.string(from: Date())
+    guard !t.isEmpty, str(stmt, 1) <= today, ends.isEmpty || today <= ends else { return nil }
     return t
   }
 

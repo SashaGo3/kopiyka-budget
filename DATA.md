@@ -128,7 +128,12 @@ way a trip tag reaches a new entry is travel mode, while that trip runs (`withTr
 from its first day: a trip or event added with a later start is the running one already, but
 `activeTripTagId` (and its Swift copy) hands out nothing before `starts`, and the watch and widgets
 do not show it until then. Whether one is added running or finished is decided by its dates: a
-last day before today is born ended (`addPastTrip`).
+last day before today is born ended (`addPastTrip`). And a running one ends on its own: the day
+after its last, the app's sweep writes `ended = ends` (`endFinishedTrips`, run with the transfer
+sweep in `apps/mobile/src/lib/nativeWrites.ts`), and until it has run — the automation writing with
+the app closed — `activeTripTagId` and its Swift copy already tag nothing past `ends`. Moving an
+ended one's last day later, to today or beyond, runs it again (`travel/dates.tsx`), unless another
+is running.
 
 Everything carrying a trip's tag counts against its budget unless it was chosen to stay **outside**
 it: `budgets.outside_ids` (v17, trips only) is a JSON list of transaction ids — the flights booked

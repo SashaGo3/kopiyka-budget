@@ -4,7 +4,7 @@
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
 import { AppState } from "react-native";
-import { approvePending, claimRecurring, createTransaction, fillPending, getRow, listRows, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, photoInUse, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef, type PairOutcome } from "@kopiyka/core";
+import { approvePending, claimRecurring, createTransaction, endFinishedTrips, fillPending, getRow, listRows, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, photoInUse, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef, type PairOutcome } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, notifyChange } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
@@ -148,19 +148,20 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
 
 /**
  * Pair the transfer legs the automation wrote straight into the database while the app was closed
- * (core `pairTransferLegs`). Only a sweep that changed something counts as a write, or every return to
- * the app would mark the database dirty for nothing (DATA.md rule 12).
+ * (core `pairTransferLegs`), and end a trip whose last day has passed (core `endFinishedTrips`). Only
+ * a sweep that changed something counts as a write, or every return to the app would mark the
+ * database dirty for nothing (DATA.md rule 12).
  */
-function sweepTransfers(): void {
+function sweep(): void {
   try {
-    if (db.transaction(() => pairTransferLegs(db)) > 0) notifyChange();
+    if (db.transaction(() => pairTransferLegs(db) + endFinishedTrips(db, todayLocal())) > 0) notifyChange();
   } catch { /* a sweep is a nicety; the rows are still there, unpaired, for the next one */ }
 }
 
 /** Start answering native write requests. Call once, as early as possible (before any watch message can arrive). */
 export function installNativeWrites(): () => void {
-  sweepTransfers();
-  const appState = AppState.addEventListener("change", (s) => { if (s === "active") sweepTransfers(); });
+  sweep();
+  const appState = AppState.addEventListener("change", (s) => { if (s === "active") sweep(); });
   const off = KPBridge.onNativeWrite((w) => {
     void apply(w).then(
       (reply) => KPBridge.finishNativeWrite(w.request, true, null, reply),

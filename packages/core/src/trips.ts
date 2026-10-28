@@ -77,11 +77,13 @@ export function carriedTagIds(tagIds: readonly string[], skip: ReadonlySet<strin
 /**
  * Id of the tag new expenses should carry while travel mode is on, else null. Cheap: one
  * indexed-size query. A trip set up ahead (it starts on a later day) is the running one already, but
- * tags nothing until its first day — next week's wedding has no business on today's coffee.
+ * tags nothing until its first day — next week's wedding has no business on today's coffee. Nor
+ * after its last: `endFinishedTrips` ends it the next time the app comes up, and until then (the
+ * automation writing overnight, with the app closed) the dates are the answer.
  */
 export function activeTripTagId(db: SqlDriver, today = todayLocalDay()): string | null {
   const trip = activeTrip(db);
-  return trip && trip.starts <= today ? trip.tag_id ?? null : null;
+  return trip && trip.starts <= today && (!trip.ends || today <= trip.ends) ? trip.tag_id ?? null : null;
 }
 
 /** Add the active trip's tag to a tag list (no-op when travel mode is off, the trip has not begun, or the tag is already there). */
@@ -141,6 +143,18 @@ export function addPastTrip(db: SqlDriver, p: PastTrip): { budget: Budget; tag: 
     const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts: p.starts, ends, ended: ends, account_id: null, category_id: null });
     return { budget, tag };
   });
+}
+
+/**
+ * End the running trip once its last day has passed, on that last day — a trip from the 2nd to the
+ * 5th is over on the 6th without anyone having to say so. Returns how many it ended (0 or 1), so a
+ * sweep that changed nothing is not counted as a write (DATA.md rule 12). Ending early is still
+ * `endTrip`; going on longer is moving the last day before it passes.
+ */
+export function endFinishedTrips(db: SqlDriver, today = todayLocalDay()): number {
+  const over = listRows(db, "budgets", `${TRIP_WHERE} AND ended IS NULL AND ends IS NOT NULL AND ends < ?`, [today]);
+  for (const b of over) save(db, "budgets", { ...b, ended: b.ends! < b.starts ? b.starts : b.ends });
+  return over.length;
 }
 
 /** Turn travel mode off: the trip keeps its tag and budget as history. */
