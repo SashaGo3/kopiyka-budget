@@ -3,7 +3,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-na
 import { newPickKey, usePickResult } from "@/store/pick";
 import { WAIT_DAYS_OPTIONS, reminderLabel, reminderOptions, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
 import { Stack, router, useFocusEffect } from "expo-router";
-import { listRows, dueOccurrences, detectRecurring, adoptCandidate, dismissSuggestion, dismissedSuggestions, restoreDismissedSuggestions, shownPaymentIcon, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
+import { listRows, dueOccurrences, detectRecurring, adoptCandidate, dismissSuggestion, shownPaymentIcon, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
 import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
@@ -65,8 +65,6 @@ export default function RecurringList() {
   const { rateFor } = useRates([...new Set(perCurrency.map((y) => y.currency))], base);
   const yearly = sumInBase(perCurrency, base, rateFor);
   const suggestions = useQuery((db) => detectRecurring(db, { today: todayLocal() }));
-  // Said no to, by series; a count so they can be brought back from the foot of the list.
-  const dismissed = useQuery((db) => dismissedSuggestions(db).size);
   const catsById = useQuery((db) => new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])));
   const remind = useQuery(() => getReminderDaysBefore());
   const wait = useQuery(() => getRecurringWait());
@@ -176,11 +174,6 @@ export default function RecurringList() {
             ))}
           </Card>
         ) : null}
-        {dismissed ? (
-          <Pressable onPress={() => mutate((db) => restoreDismissedSuggestions(db))} hitSlop={8} style={styles.restore} accessibilityRole="button">
-            <Text style={styles.restoreText}>{t("settingsLists.recurring.restoreDismissed", { count: dismissed })}</Text>
-          </Pressable>
-        ) : null}
         <Footnote style={styles.foot} more={wait ? t("settingsLists.recurring.footMoreWait") : t("settingsLists.recurring.footMoreNoWait")}>{t("settingsLists.recurring.footShort")}</Footnote>
       </ScrollView>
       <BottomBar visible={visible}><BarButton icon="plus" label={t("settingsLists.recurring.add")} onPress={addRule} a11y={t("settingsLists.recurring.addA11y")} /></BottomBar>
@@ -220,8 +213,6 @@ function catRef(c: CatRef | undefined) { return c ? { name: catName(c), icon: c.
 const styles = themed(() => StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "center", gap: S.sm },
   dismiss: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
-  restore: { alignSelf: "center", marginTop: S.lg },
-  restoreText: { color: C.tint, fontSize: 15 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   foot: { marginTop: S.xl },
   addAll: { color: C.tint, fontSize: 15, fontWeight: "600" },
