@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kopiyka",
     "slug": "kopiyka",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kopiyka",
@@ -54,7 +54,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "89"
+      "buildNumber": "92"
     },
     "android": {
       "package": "dev.kopiyka.app",
@@ -80,17 +80,15 @@
         }
       ],
       [
-        "./plugins/withSilhouetteLaunchScreen",
-        {
-          "backgroundColor": "#F4F4F1"
-        }
-      ],
-      [
         "expo-splash-screen",
         {
           "backgroundColor": "#F4F4F1",
+          "image": "./assets/splash/kay-light.png",
+          "imageWidth": 96,
+          "resizeMode": "contain",
           "dark": {
-            "backgroundColor": "#141413"
+            "backgroundColor": "#141413",
+            "image": "./assets/splash/kay-dark.png"
           }
         }
       ],

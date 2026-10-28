@@ -1,23 +1,44 @@
 /**
- * First-paint signal. The native launch screen — the silhouette of the Transactions screen
- * (plugins/withSilhouetteLaunchScreen.js) — stays up until the landing screen (Transactions, or
- * Welcome on first run) has committed its first frame and calls `markBooted()`, or a sheet a deep
- * link opened has painted (`markSheetPainted`); it then fades into the real screen. Module state,
- * not React: it only ever flips once. The root layout also calls `markBooted()` after a safety
- * timeout, so a launch that lands somewhere else is never left behind the splash.
+ * First-paint signal. Launch is two layers with the same К in the same place: the native launch
+ * screen (expo-splash-screen's image, scripts/make-icons.mjs), which iOS draws in the default theme
+ * before any code runs, and `LaunchCover`, the same mark in the chosen theme's colours. The native
+ * one lifts as soon as the cover has painted under it (`coverPainted`) — a cross-fade that is
+ * invisible on the default theme — and the cover fades into the real screen once the landing screen
+ * (Transactions, or Welcome on first run) has committed its first frame and calls `markBooted()`, or
+ * a sheet a deep link opened has painted (`markSheetPainted`). Module state, not React: each only
+ * ever flips once. The root layout also calls `markBooted()` after a safety timeout, so a launch
+ * that lands somewhere else is never left behind the splash.
  */
 import { requireOptionalNativeModule } from "expo-modules-core";
 import * as SplashScreen from "expo-splash-screen";
 
 // Before expo-router's own first render would hide it: this module is imported by the root layout.
 void SplashScreen.preventAutoHideAsync().catch(() => {});
-SplashScreen.setOptions({ fade: true, duration: 250 });
+SplashScreen.setOptions({ fade: true, duration: 200 });
 let splashUp = true;
-function hideSplash() {
+/** The cover has laid out: lift the native launch screen off it. */
+export function coverPainted() {
   if (!splashUp) return;
   splashUp = false;
   // A frame later, so what was just committed is on the glass before the splash fades off it.
   requestAnimationFrame(() => SplashScreen.hide());
+}
+
+let revealed = false;
+const revealListeners = new Set<() => void>();
+/** The first screen is up: the native splash goes if it has not already, and the cover follows. */
+function reveal() {
+  coverPainted();
+  if (revealed) return;
+  revealed = true;
+  for (const l of revealListeners) l();
+  revealListeners.clear();
+}
+/** Runs `l` once the first screen (or a deep link's sheet) has painted; immediately if it has. */
+export function onReveal(l: () => void): () => void {
+  if (revealed) { l(); return () => {}; }
+  revealListeners.add(l);
+  return () => { revealListeners.delete(l); };
 }
 
 let booted = false;
@@ -28,7 +49,7 @@ export const isBooted = () => booted;
 export function markBooted() {
   if (booted) return;
   booted = true;
-  hideSplash();
+  reveal();
   for (const l of listeners) l();
   listeners.clear();
   marks.budgetsPainted = Date.now();
@@ -74,7 +95,7 @@ export const markRootLayoutRender = () => once("rootLayoutRender");
 /** Call once the Log sheet (transaction/[id]) has committed its first frame. */
 export function markSheetPainted() {
   once("sheetPainted");
-  hideSplash();
+  reveal();
   printTraceOnce();
 }
 

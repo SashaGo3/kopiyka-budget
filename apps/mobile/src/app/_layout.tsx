@@ -14,6 +14,7 @@ import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
 import { markAppCodeStart, markBooted, markRootLayoutRender, onBooted } from "@/lib/boot";
+import { LaunchCover } from "@/components/LaunchCover";
 import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { openLaunchLink } from "@/lib/launchLink";
 import { needsOnboarding } from "@/lib/onboarding";
@@ -239,6 +240,7 @@ export default function RootLayout() {
           <Stack.Screen name="filter" options={modal} />
         </Stack>
       </View>}
+      <LaunchCover />
     </ThemeProvider>
   );
 }
