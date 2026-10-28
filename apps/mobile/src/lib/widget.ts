@@ -6,7 +6,7 @@
 import { File, Paths } from "expo-file-system";
 import { Platform } from "react-native";
 import { KPBridge } from "@/lib/bridge";
-import { accountBalanceMinor, activeTrip, tripKind, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
+import { accountBalanceMinor, activeTrip, activeTripTagId, tripKind, budgetRows, iconFor, listRows, fromMinor, tripStats } from "@kopiyka/core";
 import { db, APP_GROUP } from "@/db";
 import { currentPeriod } from "./period";
 import { todayLocal } from "./dates";
@@ -48,10 +48,11 @@ export function buildSnapshot(): WidgetSnapshot {
     limit: fromMinor(r.budget.amount_minor, r.budget.currency), spent: fromMinor(r.spent_minor, r.budget.currency),
   }));
   const label = period.subtitle ? `${period.title} · ${period.subtitle}` : period.title;
-  // A trip set up ahead is not on the watch or the widgets until it begins: the watch ticks its tag
-  // on every new entry, and core tags nothing before the first day (`activeTripTagId`).
+  // A trip set up ahead is not on the watch or the widgets until it begins, nor once its last day
+  // has passed: the watch ticks its tag on every new entry, and core tags nothing outside the trip's
+  // days (`activeTripTagId`).
   const running = activeTrip(db);
-  const active = running && running.starts <= todayLocal() ? running : null;
+  const active = running && activeTripTagId(db, todayLocal()) ? running : null;
   const ts = active ? tripStats(db, active) : null;
   const trip: WidgetSnapshot["trip"] = active && ts && active.tag_id ? {
     budget_id: active.id, tag_id: active.tag_id, kind: tripKind(active), name: ts.name ?? t("travel.untitled", { kind: tripKind(active) }), currency: ts.currency, limit: fromMinor(ts.limit_minor, ts.currency), spent: fromMinor(ts.spent_minor, ts.currency),

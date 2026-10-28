@@ -202,6 +202,43 @@ png(watch, out("targets/watch/Assets.xcassets/AppIcon.appiconset/App-Icon-1024x1
 mkdirSync(out("targets/watch-widget/Assets.xcassets/Kay.imageset"), { recursive: true });
 writeFileSync(out("targets/watch-widget/Assets.xcassets/Kay.imageset/kay.svg"), silhouette("#000000"));
 
+// 9. The launch screen: the extruded К alone, centred on the page background, with no tile and no
+//    shadow. Native art in the default theme's colours (graphite's text over its page, the body that
+//    text at SPLASH_SIDE_OPACITY), because iOS draws it before any code runs; and the face and the
+//    body as separate white silhouettes, which the app tints in the chosen theme's colours to take
+//    over from it (src/components/LaunchCover.tsx). Same crop, so the two line up to the pixel.
+{
+  const SPLASH = { light: { bg: "#F4F4F1", text: "#141413" }, dark: { bg: "#141413", text: "#F1F1EE" } };
+  const SPLASH_SIDE_OPACITY = 0.35; // LaunchCover.tsx draws the body at the same opacity
+  const SPLASH_PX = 3 * 96; // 96 pt wide (app.json `imageWidth`, LaunchCover's MARK_WIDTH) at @3x
+  const { h, w, depth } = MARK;
+  const box = { x: C - 0.3 * h - w / 2 - depth / 2, y: C - h / 2 - w / 2 - depth / 2, width: 0.64 * h + w + depth, height: h + w + depth };
+  const crop = (body) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${box.width.toFixed(1)}" height="${box.height.toFixed(1)}" ` +
+    `viewBox="${box.x.toFixed(1)} ${box.y.toFixed(1)} ${box.width.toFixed(1)} ${box.height.toFixed(1)}">${body}</svg>`;
+  const o = -depth / 2;
+  // The extrusion of `mark`, without the face on top of it.
+  const body = (colour) => { let b = ""; for (let i = 40; i > 0; i--) b += kay(MARK, colour, o + (depth * i) / 40, o + (depth * i) / 40); return b; };
+  const face = (colour) => kay(MARK, colour, o, o);
+  mkdirSync(out("assets/splash"), { recursive: true });
+  const write = (source, file) => {
+    const tmp = `${file}.tmp.svg`;
+    writeFileSync(tmp, source);
+    execFileSync("rsvg-convert", ["-w", String(SPLASH_PX), "-o", file, tmp]);
+    rmSync(tmp);
+  };
+  for (const [side, { bg, text }] of Object.entries(SPLASH))
+    write(crop(body(blend(text, bg, SPLASH_SIDE_OPACITY)) + face(text)), out(`assets/splash/kay-${side}.png`));
+  write(crop(body("#FFFFFF")), out("assets/splash/kay-body.png"));
+  write(crop(face("#FFFFFF")), out("assets/splash/kay-face.png"));
+}
+
+/** `fg` laid over `bg` at `alpha`, as one opaque hex colour. */
+function blend(fg, bg, alpha) {
+  const ch = (hex, i) => parseInt(hex.slice(i, i + 2), 16);
+  return "#" + [1, 3, 5].map((i) => Math.round(ch(bg, i) + (ch(fg, i) - ch(bg, i)) * alpha).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
 /** Icon Composer stores fills as extended-sRGB components. */
 function srgb(hex) {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);

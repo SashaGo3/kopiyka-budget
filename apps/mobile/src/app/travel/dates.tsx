@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { daysBetween, defaultTripEnd, formatMinor, getRow, save, tripKind, type Budget } from "@kopiyka/core";
+import { activeTrip, daysBetween, defaultTripEnd, formatMinor, getRow, save, tripKind, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { ConfirmBar } from "@/components/Keypad";
@@ -28,7 +28,9 @@ import { t } from "@/i18n";
  * over can be picked, since two cannot run at once.
  *
  * Editing (`budget`): the same calendar on that trip's own span, saved over it. One that has ended
- * stays wholly in the past.
+ * — by hand, or on its own once its last day passed (core `endFinishedTrips`) — runs again when its
+ * last day is moved later and reaches today, so a stay that got a day longer is not a trap. Not while
+ * another one runs: then it stays wholly in the past.
  */
 export default function TravelDates() {
   const p = useLocalSearchParams<{ key?: string; name?: string; currency?: string; amount?: string; budget?: string; past?: string; kind?: string }>();
@@ -38,8 +40,10 @@ export default function TravelDates() {
   // Another trip is running, so this one can only be over: every day before today.
   const onlyOver = p.past === "1" && !editing;
   const yesterday = prevDay(today);
-  // An ended one stays over: its last day today at the latest. Otherwise nothing caps the range.
-  const maxDay = onlyOver ? yesterday : editing?.ended ? today : undefined;
+  // An ended one stays over while another runs: its last day today at the latest. Otherwise nothing
+  // caps the range.
+  const otherRunning = !!editing?.ended && !!activeTrip(db);
+  const maxDay = onlyOver ? yesterday : otherRunning ? today : undefined;
   const past = onlyOver || !!editing?.ended;
   const first = onlyOver ? yesterday : today;
   const [start, setStart] = useState(editing?.starts ?? first);
@@ -62,7 +66,10 @@ export default function TravelDates() {
   const confirm = () => {
     if (!end) return;
     if (editing) {
-      mutate((d) => save(d, "budgets", { ...editing, starts: start, ends: end, ...(editing.ended ? { ended: end } : {}) } as Budget));
+      // Moving an ended one's last day later, to today or beyond, runs it again; anything else keeps
+      // it ended, on its new last day — an end chosen by hand is not undone by a look at the dates.
+      const reopen = !!editing.ended && !otherRunning && end > editing.ended && end >= today;
+      mutate((d) => save(d, "budgets", { ...editing, starts: start, ends: end, ...(editing.ended ? { ended: reopen ? null : end } : {}) } as Budget));
       exit(() => router.back());
       return;
     }

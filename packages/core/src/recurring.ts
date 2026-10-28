@@ -13,6 +13,22 @@ export function addPeriod(day: string, freq: Frequency, interval: number): strin
   }
 }
 
+/**
+ * The first occurrence after `last` — an occurrence that has already happened — that is not yet in
+ * the past: `today` itself counts, because a charge due today may simply not have arrived yet. This
+ * is what a rule made from a payment starts at, and what it moves to when its cadence is changed:
+ * a tyre change done today and repeated every 6 months is next due in 6 months, never today.
+ */
+export function nextOccurrenceAfter(last: string, freq: Frequency, interval: number, today: string): string {
+  let next = addPeriod(last, freq, interval);
+  for (let guard = 0; guard < 5000 && next < today; guard++) {
+    const after = addPeriod(next, freq, interval);
+    if (after <= next) break; // a rule with no interval would otherwise never finish
+    next = after;
+  }
+  return next;
+}
+
 function clampDay(y: number, monthIndex: number, d: number): string {
   const first = new Date(Date.UTC(y, monthIndex, 1));
   const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();

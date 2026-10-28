@@ -3,7 +3,7 @@ import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createBudget, createCategory, createTag, createTransaction, createTransfer, listRows, tagIdsOf } from "../src/repo";
 import { activeBudgets, budgetRows } from "../src/insights";
-import { activeTrip, activeTripTagId, addPastTrip, tripKind, daysBetween, defaultTripEnd, endTrip, listTrips, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
+import { activeTrip, activeTripTagId, addPastTrip, endFinishedTrips, tripKind, daysBetween, defaultTripEnd, endTrip, listTrips, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
 import { getRow, save } from "../src/repo";
 
 function seed() {
@@ -22,9 +22,9 @@ describe("travel mode", () => {
     const { budget, tag } = startTrip(db, { name: "Rome", currency: "EUR", amount_minor: 100000, ends: "2026-09-14", today: "2026-09-08" });
     expect(tag.name).toBe("Rome");
     expect(budget).toMatchObject({ tag_id: tag.id, period: "once", starts: "2026-09-08", ends: "2026-09-14", ended: null, category_id: null, account_id: null });
-    expect(activeTripTagId(db)).toBe(tag.id);
-    expect(withTripTag(db, [])).toEqual([tag.id]);
-    expect(withTripTag(db, [tag.id, "x"])).toEqual([tag.id, "x"]);
+    expect(activeTripTagId(db, "2026-09-08")).toBe(tag.id);
+    expect(withTripTag(db, [], "2026-09-08")).toEqual([tag.id]);
+    expect(withTripTag(db, [tag.id, "x"], "2026-09-08")).toEqual([tag.id, "x"]);
     expect(() => startTrip(db, { name: "Paris", currency: "EUR", amount_minor: 1, ends: "2026-09-20" })).toThrow();
     // Trips never show up among the monthly budgets.
     expect(activeBudgets(db, "2026-10-01", null)).toHaveLength(0);
@@ -96,6 +96,26 @@ describe("travel mode", () => {
     expect(withTripTag(db, [], "2026-09-20")).toEqual([tag.id]);
     // All of its days are still to come, so the allowance is spread over them, not over the wait.
     expect(tripStats(db, budget, { today: "2026-09-08" })).toMatchObject({ days: 1, days_left: 1, allowance_minor: 30000 });
+  });
+
+  test("a trip or an event ends on its own once its last day has passed", () => {
+    const { db } = seed();
+    const { budget, tag } = startTrip(db, { name: "Party", kind: "event", currency: "PLN", amount_minor: 0, starts: "2026-10-02", ends: "2026-10-05", today: "2026-10-01" });
+    // Its last day is still its own, ended or not.
+    expect(endFinishedTrips(db, "2026-10-05")).toBe(0);
+    expect(activeTripTagId(db, "2026-10-05")).toBe(tag.id);
+    // The day after, nothing is tagged even before the sweep has run (the automation, app closed)…
+    expect(activeTripTagId(db, "2026-10-06")).toBeNull();
+    // …and the sweep ends it on its last day, once.
+    expect(endFinishedTrips(db, "2026-10-06")).toBe(1);
+    expect(getRow(db, "budgets", budget.id)?.ended).toBe("2026-10-05");
+    expect(activeTrip(db)).toBeNull();
+    expect(endFinishedTrips(db, "2026-10-07")).toBe(0);
+    // A trip ended early by hand keeps the day it was ended.
+    const rome = startTrip(db, { name: "Rome", currency: "EUR", amount_minor: 1, starts: "2026-10-10", ends: "2026-10-14", today: "2026-10-10" });
+    endTrip(db, rome.budget.id, "2026-10-12");
+    expect(endFinishedTrips(db, "2026-10-20")).toBe(0);
+    expect(getRow(db, "budgets", rome.budget.id)?.ended).toBe("2026-10-12");
   });
 
   test("a trip without a limit only counts what was spent", () => {

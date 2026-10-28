@@ -91,8 +91,8 @@ describe("history does not hand on a trip's tag", () => {
     const h = payeeHistory(db, "Cafe");
     expect(h.tag_ids).toEqual([]);
     // What the automation writes: history's tags, then travel mode's (nativeWrites `addTransaction`).
-    expect(withTripTag(db, h.tag_ids)).toEqual([lisbon.tag.id]);
-    expect(withTripTag(db, [lisbon.tag.id])).toEqual([lisbon.tag.id]);
+    expect(withTripTag(db, h.tag_ids, "2026-10-05")).toEqual([lisbon.tag.id]);
+    expect(withTripTag(db, [lisbon.tag.id], "2026-10-05")).toEqual([lisbon.tag.id]);
     endTrip(db, lisbon.budget.id, "2026-10-09");
     expect(withTripTag(db, payeeHistory(db, "Cafe").tag_ids)).toEqual([]);
   });

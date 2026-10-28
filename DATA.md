@@ -128,7 +128,12 @@ way a trip tag reaches a new entry is travel mode, while that trip runs (`withTr
 from its first day: a trip or event added with a later start is the running one already, but
 `activeTripTagId` (and its Swift copy) hands out nothing before `starts`, and the watch and widgets
 do not show it until then. Whether one is added running or finished is decided by its dates: a
-last day before today is born ended (`addPastTrip`).
+last day before today is born ended (`addPastTrip`). And a running one ends on its own: the day
+after its last, the app's sweep writes `ended = ends` (`endFinishedTrips`, run with the transfer
+sweep in `apps/mobile/src/lib/nativeWrites.ts`), and until it has run — the automation writing with
+the app closed — `activeTripTagId` and its Swift copy already tag nothing past `ends`. Moving an
+ended one's last day later, to today or beyond, runs it again (`travel/dates.tsx`), unless another
+is running.
 
 Everything carrying a trip's tag counts against its budget unless it was chosen to stay **outside**
 it: `budgets.outside_ids` (v17, trips only) is a JSON list of transaction ids — the flights booked
@@ -284,6 +289,15 @@ Three things are load-bearing:
   ("NETFLIX.COM AMSTERDAM" for a rule you called "Netflix"), set by pointing the rule at a payment
   that already happened and learned from the first charge that claims an occurrence. With a name the
   charge is recognised whatever it costs this time; without one only the exact amount identifies it.
+
+A rule **made from a payment** (Recurring → Add → from a past payment) owns that payment from the
+start: on save it takes the rule's id through `linkToRule` (`packages/core/src/claim.ts`, the same
+fill-only-empty-fields write a claim makes, trip tag dropped, out of Pending once it has a category),
+and the rule's next date is counted from it with `nextOccurrenceAfter` — after the payment's own day,
+never on it, and again from that day whenever the cadence is changed until a date is picked by hand.
+Otherwise the occurrence that already happened is waited for, or asked about, a second time. Only
+a new rule, and only on the payment's own account; updating an existing rule from a payment links
+nothing, because it does not move `next_date`.
 
 A rule also says what it is drawn with: `recurring_rules.icon` (v21) — `logo:<slug>`, `img:<data
 URI>`, `emoji:<text>`, `sf:<name>`, or `category` for the category's icon on purpose. NULL means

@@ -105,25 +105,41 @@ export function claimRecurring(db: SqlDriver, tx: Transaction, o: ClaimOptions):
   const hit = matchRecurring(db, tx, o);
   if (!hit) return null;
   db.transaction(() => {
-    const row = getRow(db, "transactions", tx.id);
-    if (!row || row.deleted || row.recurring_id) return;
-    const category_id = row.category_id ?? hit.rule.category_id;
-    // A subscription is not something the trip bought: travel mode put its tag on the charge because
-    // it arrived while away, and claiming it is where that turns out to be wrong. Without it the row
-    // may have no tags of its own left, and then the rule's go on as they would have.
-    const trips = new Set(tripTagIds(db));
-    const own = jsonIds(row.tag_ids).filter((x) => !trips.has(x));
-    save(db, "transactions", {
-      ...row,
-      recurring_id: hit.rule.id,
-      category_id,
-      tag_ids: own.length ? JSON.stringify(own) : hit.rule.tag_ids,
-      pending: category_id ? 0 : row.pending,
-    });
+    const row = linkToRule(db, tx.id, hit.rule);
+    if (!row) return;
     // A rule that did not know how its charge is written now does: the next one is recognised by
     // name, so a price that has changed since no longer keeps it from being claimed.
     const learned = !hit.rule.match_payee && row.payee?.trim() ? { ...hit.rule, match_payee: row.payee.trim() } : hit.rule;
     advanceRule(db, learned, hit.occurrence);
   });
   return hit;
+}
+
+/**
+ * Make an existing transaction one of this rule's occurrences: `recurring_id`, and the rule's
+ * category and tags only where the row says nothing (see `claimRecurring`). Returns the row as it
+ * was before, or null when it is gone, deleted, a transfer leg or already another rule's.
+ *
+ * Used by a claim and by a rule made *from* a payment: the payment pointed at is the occurrence
+ * that already happened, so it belongs to the rule from the start rather than sitting beside it as
+ * an unrelated expense — or as a pending row still asking for a decision the rule has just made.
+ * The caller moves `next_date`; this does not.
+ */
+export function linkToRule(db: SqlDriver, txId: string, rule: RecurringRule): Transaction | null {
+  const row = getRow(db, "transactions", txId);
+  if (!row || row.deleted || row.recurring_id || row.transfer_id) return null;
+  const category_id = row.category_id ?? rule.category_id;
+  // A subscription is not something the trip bought: travel mode put its tag on the charge because
+  // it arrived while away, and claiming it is where that turns out to be wrong. Without it the row
+  // may have no tags of its own left, and then the rule's go on as they would have.
+  const trips = new Set(tripTagIds(db));
+  const own = jsonIds(row.tag_ids).filter((x) => !trips.has(x));
+  save(db, "transactions", {
+    ...row,
+    recurring_id: rule.id,
+    category_id,
+    tag_ids: own.length ? JSON.stringify(own) : rule.tag_ids,
+    pending: category_id ? 0 : row.pending,
+  });
+  return row;
 }

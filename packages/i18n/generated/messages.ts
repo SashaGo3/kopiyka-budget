@@ -1908,8 +1908,6 @@ export interface Messages {
   "settingsLists.recurring.posting.manual": undefined;
   "settingsLists.recurring.posting.manualSubtitle": undefined;
   "settingsLists.recurring.posting.title": undefined;
-  /** Link under the suggestions. */
-  "settingsLists.recurring.restoreDismissed": { count: number };
   "settingsLists.recurring.source.new": undefined;
   "settingsLists.recurring.source.newSubtitle": undefined;
   "settingsLists.recurring.source.title": undefined;
@@ -1928,6 +1926,8 @@ export interface Messages {
   "settingsLists.tags.add": undefined;
   "settingsLists.tags.archived": undefined;
   "settingsLists.tags.archivedNote": undefined;
+  /** Subtitle of the Trips & Events and Archived rows on Settings → Tags. */
+  "settingsLists.tags.count": { count: number };
   "settingsLists.tags.emptyHint": undefined;
   "settingsLists.tags.emptyTitle": undefined;
   /** Unfolds under introShort. */
@@ -1935,12 +1935,15 @@ export interface Messages {
   /** Note above the tags list; the ⓘ unfolds introMore. */
   "settingsLists.tags.introShort": undefined;
   "settingsLists.tags.title": undefined;
-  /** Section header: tags made by travel mode, one per trip. */
+  /** Row at the foot of Settings → Tags and the title of the page it opens: tags made by travel mode, one per trip or event. */
   "settingsLists.tags.travel": undefined;
+  "settingsLists.tags.travelNote": undefined;
   /** How many transactions carry the tag. */
   "settingsLists.tags.uses": { count: number };
   "settingsLists.tags.usesAny": { count: number };
   "settingsLists.tags.usesArchived": { count: number };
+  /** A trip's or event's tag on Trips & Events; count is how many transactions carry it. */
+  "settingsLists.tags.usesKind": { kind: "event" | (string & {}); count: number };
   /** categories is a comma-separated list of category names. */
   "settingsLists.tags.usesOnly": { count: number; categories: string | number };
   "tabs.budgets": undefined;
@@ -2601,6 +2604,13 @@ export interface Messages {
   "whatsNew.notes.v1_1_0.watchFaster": undefined;
   "whatsNew.notes.v1_1_0.watchNote": undefined;
   "whatsNew.notes.v1_1_0.watchPending": undefined;
+  "whatsNew.notes.v1_1_1.dismissed": undefined;
+  "whatsNew.notes.v1_1_1.launch": undefined;
+  "whatsNew.notes.v1_1_1.recurringCadence": undefined;
+  "whatsNew.notes.v1_1_1.recurringLinked": undefined;
+  "whatsNew.notes.v1_1_1.recurringNext": undefined;
+  "whatsNew.notes.v1_1_1.tagPages": undefined;
+  "whatsNew.notes.v1_1_1.tripEnds": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;
   "whatsNew.title": undefined;

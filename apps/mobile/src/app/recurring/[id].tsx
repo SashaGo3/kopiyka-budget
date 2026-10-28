@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { candidateFromTransaction, createRecurring, getRow, guessLogo, iconFor, parsePaymentIcon, jsonIds, listRows, remove, save, formatMinor, type Frequency, type RecurringRule } from "@kopiyka/core";
+import { candidateFromTransaction, createRecurring, getRow, linkToRule, nextOccurrenceAfter, guessLogo, iconFor, parsePaymentIcon, jsonIds, listRows, remove, save, formatMinor, type Frequency, type RecurringRule } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -94,6 +94,12 @@ export default function RecurringEdit() {
   const [tagIds, setTagIds] = useState<string[]>(() => jsonIds((from ?? seedTx)?.tag_ids ?? ""));
   const customUnit = useRef<Frequency>("monthly");
   const [fromTx, setFromTx] = useState<string | null>(seedTx ? seenLabel(seedTx) : null);
+  // A new rule made from a payment: that payment is the occurrence that already happened. It joins
+  // the rule on save (`linkToRule`), and the next date is counted from its day — again whenever the
+  // cadence changes, until a date is picked by hand.
+  const [linkTx, setLinkTx] = useState<string | null>(seedTx ? tx ?? null : null);
+  const [anchor, setAnchor] = useState<string | null>(seedTx?.last_date ?? null);
+  const dateChosen = useRef(false);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
   const dirty = useDirty([accountId, kind, amountMinor, categoryId, payee, notes, freq, interval, start, daysBefore, autoPost, time, waitDays, matchPayee, tagIds, asCopy, icon]);
   const exit = useDiscardGuard(dirty);
@@ -113,7 +119,7 @@ export default function RecurringEdit() {
     setAccountId(c.account_id); setKind(c.amount_minor > 0 ? "income" : "expense");
     setAmountMinor(Math.abs(c.amount_minor));
     setCategoryId(c.category_id); setPayee((p) => c.title ?? (editing ? p : "")); setFreq(c.frequency); setInterval_(c.interval); setTime(c.time_of_day); setTagIds(jsonIds(c.tag_ids));
-    if (!editing) setStart(c.next_date);
+    if (!editing) { setStart(c.next_date); setLinkTx(id); setAnchor(c.last_date); dateChosen.current = false; }
     setMatchPayee((m) => c.match_payee ?? (editing ? m : null));
     setFromTx(seenLabel(c));
   }, [editing]));
@@ -123,17 +129,22 @@ export default function RecurringEdit() {
   usePickResult<string>(keys.notes, useCallback((v: string) => setNotes(v), []));
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => setCategoryId(v), []));
   usePickResult<string>(keys.acc, useCallback((v: string) => setAccountId(v), []));
-  usePickResult<string>(keys.date, useCallback((v: string) => setStart(v), []));
+  usePickResult<string>(keys.date, useCallback((v: string) => { dateChosen.current = true; setStart(v); }, []));
+  /** A new cadence; a rule counted from a payment moves its next date with it. */
+  const setCadence = useCallback((f: Frequency, n: number) => {
+    setFreq(f); setInterval_(n);
+    if (!editing && anchor && !dateChosen.current) setStart(nextOccurrenceAfter(anchor, f, n, todayLocal()));
+  }, [editing, anchor]);
   usePickResult<string>(keys.repeat, useCallback((v: string) => {
     if (v === CUSTOM) { setTimeout(() => askOption(keys.unit, t("recurring.repeat.every.title"), repeatUnits()), 450); return; }
-    const r = parseRepeat(v); if (r) { setFreq(r.freq); setInterval_(r.interval); }
-  }, [keys.unit]));
+    const r = parseRepeat(v); if (r) setCadence(r.freq, r.interval);
+  }, [keys.unit, setCadence]));
   usePickResult<string>(keys.unit, useCallback((u: string) => {
     const unit = repeatUnits().find((x) => x.value === u); if (!unit) return;
     customUnit.current = unit.value;
     setTimeout(() => askOption(keys.count, repeatCountTitle(unit.value), repeatCounts(unit.value)), 450);
   }, [keys.count]));
-  usePickResult<string>(keys.count, useCallback((n: string) => { setFreq(customUnit.current); setInterval_(Number(n) || 1); }, []));
+  usePickResult<string>(keys.count, useCallback((n: string) => setCadence(customUnit.current, Number(n) || 1), [setCadence]));
   usePickResult<string>(keys.remind, useCallback((v: string) => setDaysBefore(v === "off" ? null : Number(v)), []));
   usePickResult<string>(keys.post, useCallback((v: string) => setAutoPost(v === "auto"), []));
   usePickResult<string>(keys.wait, useCallback((v: string) => setWaitDays(v === "default" ? null : Number(v)), []));
@@ -150,7 +161,10 @@ export default function RecurringEdit() {
     if (daysBefore !== null) await ensureNotificationPermission();
     mutate((d) => {
       const base = { account_id: account.id, amount_minor: amountMinor * (kind === "expense" ? -1 : 1), category_id: categoryId, payee: payee.trim() || null, notes: notes.trim() || null, tag_ids: JSON.stringify(tagIds), frequency: freq, interval, start_date: existing?.start_date ?? start, next_date: start, notify: daysBefore !== null ? 1 : 0, notify_days_before: daysBefore ?? 1, auto_post: autoPost ? 1 : 0, time_of_day: time, wait_days: waitDays, match_payee: matchPayee, icon } as const;
-      if (existing) save(d, "recurring_rules", { ...existing, ...base } as RecurringRule); else createRecurring(d, base);
+      if (existing) { save(d, "recurring_rules", { ...existing, ...base } as RecurringRule); return; }
+      const rule = createRecurring(d, base);
+      // Only onto the account the payment is on: moved elsewhere, the rule is about other money.
+      if (linkTx && getRow(d, "transactions", linkTx)?.account_id === rule.account_id) linkToRule(d, linkTx, rule);
     });
     leave();
   };
@@ -179,7 +193,7 @@ export default function RecurringEdit() {
       setCategoryId(r.category_id); setPayee(r.payee ?? ""); setNotes(r.notes ?? ""); setFreq(r.frequency); setInterval_(r.interval);
       setStart(r.next_date); setDaysBefore(r.notify ? r.notify_days_before : null); setAutoPost(r.auto_post === 1);
       setTime(r.time_of_day); setWaitDays(r.wait_days ?? null); setTagIds(jsonIds(r.tag_ids)); setFromTx(null);
-      setMatchPayee(null);
+      setMatchPayee(null); setLinkTx(null); setAnchor(null);
       setAsCopy(true);
     };
     if (dirty) confirmDiscard(become); else become();

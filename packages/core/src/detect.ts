@@ -8,7 +8,7 @@
  */
 import type { SqlDriver } from "./db";
 import type { Frequency } from "./models";
-import { addPeriod } from "./recurring";
+import { nextOccurrenceAfter } from "./recurring";
 import { createRecurring, listRows, remove } from "./repo";
 import { getMeta, setMeta } from "./schema";
 
@@ -189,8 +189,7 @@ export function detectRecurring(db: SqlDriver, opts: DetectOptions): RecurringCa
     // Untitled groups (category + amount) are noisier: demand a clean simple period.
     if (!titleOf(last) && (best.score < 0.75 || best.interval !== 1)) continue;
     if (covered(last, best.frequency)) continue;
-    let next = addPeriod(last.date.slice(0, 10), best.frequency, best.interval);
-    while (next < opts.today) next = addPeriod(next, best.frequency, best.interval);
+    const next = nextOccurrenceAfter(last.date.slice(0, 10), best.frequency, best.interval, opts.today);
     out.push({
       key, account_id: last.account_id, category_id: last.category_id, category_name: last.category_name, title: titleOf(last), amount_minor: last.amount_minor,
       currency: last.currency, frequency: best.frequency, interval: best.interval, occurrences: series.length, last_date: last.date.slice(0, 10), next_date: next,
@@ -223,21 +222,29 @@ export function adoptCandidate(db: SqlDriver, c: RecurringCandidate, opts: { not
 /**
  * Start a rule from one transaction: if history shows a series with the same title
  * (or category + amount) its period is used, otherwise monthly from that date.
+ *
+ * The transaction pointed at is an occurrence that has *happened*, so the rule's next date is always
+ * after it — whichever series it was summarised from, and even when the row is still pending and so
+ * left out of the series. Change the cadence afterwards and the next date moves with it from
+ * `last_date` (`nextOccurrenceAfter`), unless a date was picked by hand.
  */
 export function candidateFromTransaction(db: SqlDriver, txId: string, today: string): RecurringCandidate | null {
   const t = db.get(`SELECT t.*, a.currency, c.name AS category_name FROM transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN categories c ON c.id=t.category_id WHERE t.id=?`, [txId]) as unknown as Tx | undefined;
   if (!t) return null;
   const key = groupKey(t);
+  const day = t.date.slice(0, 10);
   // A row pointed at on purpose is a rule wanted, whatever was dismissed as a suggestion.
   const found = detectRecurring(db, { today, skipExisting: false, includeDismissed: true }).find((c) => c.key === key);
   // The row the user pointed at is the better example of how this charge is written, whatever
   // occurrence the series happened to be summarised from.
-  if (found) return { ...found, match_payee: matchName(t) ?? found.match_payee };
-  let next = t.date.slice(0, 10);
-  while (next < today) next = addPeriod(next, "monthly", 1);
+  if (found) {
+    const last = found.last_date && found.last_date > day ? found.last_date : day;
+    const next = found.next_date > last ? found.next_date : nextOccurrenceAfter(last, found.frequency, found.interval, today);
+    return { ...found, match_payee: matchName(t) ?? found.match_payee, last_date: last, next_date: next };
+  }
   return {
     key, account_id: t.account_id, category_id: t.category_id, category_name: t.category_name, title: titleOf(t), amount_minor: t.amount_minor, currency: t.currency,
-    frequency: "monthly", interval: 1, occurrences: 1, last_date: t.date.slice(0, 10), next_date: next, confidence: 0.3, tag_ids: t.tag_ids, planned_tx_id: null,
+    frequency: "monthly", interval: 1, occurrences: 1, last_date: day, next_date: nextOccurrenceAfter(day, "monthly", 1, today), confidence: 0.3, tag_ids: t.tag_ids, planned_tx_id: null,
     time_of_day: t.date.slice(11, 16), source: "history", match_payee: matchName(t),
   };
 }
