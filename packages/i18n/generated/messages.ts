@@ -2604,6 +2604,13 @@ export interface Messages {
   "whatsNew.notes.v1_1_0.watchFaster": undefined;
   "whatsNew.notes.v1_1_0.watchNote": undefined;
   "whatsNew.notes.v1_1_0.watchPending": undefined;
+  "whatsNew.notes.v1_1_1.dismissed": undefined;
+  "whatsNew.notes.v1_1_1.launch": undefined;
+  "whatsNew.notes.v1_1_1.recurringCadence": undefined;
+  "whatsNew.notes.v1_1_1.recurringLinked": undefined;
+  "whatsNew.notes.v1_1_1.recurringNext": undefined;
+  "whatsNew.notes.v1_1_1.tagPages": undefined;
+  "whatsNew.notes.v1_1_1.tripEnds": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;
   "whatsNew.title": undefined;

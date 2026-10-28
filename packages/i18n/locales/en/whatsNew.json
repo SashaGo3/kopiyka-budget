@@ -7,6 +7,15 @@
   "improved": "Improved",
   "fixed": "Fixed",
   "notes": {
+    "v1_1_1": {
+      "recurringNext": "A recurring payment made from one you just paid no longer thinks the next one is due today. Six months means six months, counted from that payment.",
+      "recurringCadence": "Changing how often a recurring payment repeats now moves its next date too, instead of just nodding along.",
+      "recurringLinked": "The payment you make a recurring payment from now counts as its first one, so it isn't waited for or put in Pending again. The bank only charged you once.",
+      "tripEnds": "A trip ends by itself the day after its last day, so the coffee back home stops being filed under the holiday.",
+      "tagPages": "Trips & Events and Archived tags each get a page of their own at the bottom of Settings → Tags: a plane for a trip, a party popper for an event.",
+      "dismissed": "A suggested regular payment you dismiss stays dismissed. No more “Show 3 dismissed suggestions” lurking at the bottom like an ex.",
+      "launch": "A new launch screen: the Kopiyka К in your theme’s colours, taking a small bow on the way out. Still quick. It doesn’t wait for applause."
+    },
     "v1_1_0": {
       "events": "Events: a birthday, a wedding or a night out gets its own budget, like a trip, and stays out of your monthly budgets. Settings → Trips & Events.",
       "transferPairs": "When your bank notifies both sides of a transfer between your own accounts, the two become one transfer to check.",

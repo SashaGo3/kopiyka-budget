@@ -1,19 +1,11 @@
-Events: a birthday, a wedding or a night out gets its own budget, like a trip, and stays out of your monthly budgets (Settings → Trips & Events). A trip or event can also go without a limit and just count what was spent.
+Made a tyre change a recurring payment? Kopiyka used to think the next one was due… today. Again. Now six months means six months, counted from the payment you picked; changing how often it repeats moves the date too; and that payment counts as already paid, instead of the app waiting for the bank to charge you a second time.
 
-Tap a budget or an insight to see what’s behind it, month by month. Insights adds a payments checklist that includes your recurring payments.
+Dismissed a suggested regular payment? It now stays gone. No more “Show 3 dismissed suggestions” lurking at the bottom like an ex.
 
-Search has its own screen and finds by tags, trips, events, debts and more, typos and all.
+Tags got tidier: trips and events have a page of their own (a plane for trips, a party popper for events), and archived tags moved into their own quiet room at the bottom of Settings → Tags.
 
-Pay a debt back in parts: pick Debt instead of a category, and the debt counts what has been paid.
+A trip ends by itself the day after its last day, so the coffee back home stops being filed under the holiday.
 
-Recurring payments show the company’s logo, or an icon, emoji or picture you choose. Suggested regular payments you don’t want can be dismissed for good.
+A new launch screen: the Kopiyka К in your theme’s colours, taking a small bow on the way out. Still quick. It doesn’t wait for applause.
 
-Transfers: when your bank notifies both sides of a transfer between your own accounts, the two become one transfer to check. A new transfer asks for both accounts on one screen, and both amounts can be typed, so the bank’s rate or fee is kept as it was.
-
-A payment logged from your bank’s notification keeps the bank’s words apart from your own note.
-
-Themes named after cats: Pusik, Siri, Tadeusz & Kastuś and Una. Switching is instant, with stronger contrast.
-
-Apple Watch: approve pending payments, add a note by dictation, delete an entry, and log from Control Center, the Smart Stack or the Action button. The watch app opens faster and now needs watchOS 26.
-
-Plus fixes.
+Plus small fixes, swept under a very small rug.

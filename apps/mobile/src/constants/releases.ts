@@ -27,6 +27,23 @@ const note = (key: MessageKey & `whatsNew.notes.${string}`, icon?: string) => ({
 // dropped on 2026-09-28.
 export const RELEASES: Release[] = [
   {
+    version: "1.1.1",
+    date: "2026-10-28",
+    added: [
+      note("whatsNew.notes.v1_1_1.tagPages", "tag"),
+      note("whatsNew.notes.v1_1_1.launch", "sparkles"),
+    ],
+    improved: [
+      note("whatsNew.notes.v1_1_1.dismissed", "xmark.circle"),
+      note("whatsNew.notes.v1_1_1.tripEnds", "airplane.arrival"),
+    ],
+    fixed: [
+      note("whatsNew.notes.v1_1_1.recurringNext", "calendar"),
+      note("whatsNew.notes.v1_1_1.recurringCadence", "repeat"),
+      note("whatsNew.notes.v1_1_1.recurringLinked", "checkmark.circle"),
+    ],
+  },
+  {
     version: "1.1.0",
     date: "2026-10-17",
     added: [
