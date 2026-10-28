@@ -285,6 +285,15 @@ Three things are load-bearing:
   that already happened and learned from the first charge that claims an occurrence. With a name the
   charge is recognised whatever it costs this time; without one only the exact amount identifies it.
 
+A rule **made from a payment** (Recurring → Add → from a past payment) owns that payment from the
+start: on save it takes the rule's id through `linkToRule` (`packages/core/src/claim.ts`, the same
+fill-only-empty-fields write a claim makes, trip tag dropped, out of Pending once it has a category),
+and the rule's next date is counted from it with `nextOccurrenceAfter` — after the payment's own day,
+never on it, and again from that day whenever the cadence is changed until a date is picked by hand.
+Otherwise the occurrence that already happened is waited for, or asked about, a second time. Only
+a new rule, and only on the payment's own account; updating an existing rule from a payment links
+nothing, because it does not move `next_date`.
+
 A rule also says what it is drawn with: `recurring_rules.icon` (v21) — `logo:<slug>`, `img:<data
 URI>`, `emoji:<text>`, `sf:<name>`, or `category` for the category's icon on purpose. NULL means
 nobody chose, and the payee (then `match_payee`) is matched against the built-in brand marks
