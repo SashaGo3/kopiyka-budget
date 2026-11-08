@@ -2,25 +2,26 @@
  * The order categories are listed in — folders, and the categories inside each — wherever the app
  * shows them as a tree: Settings → Categories, both category pickers, Category types.
  *
- * Three answers, kept in `meta.category_order` (a preference that travels with backups, DATA.md
+ * Two answers, kept in `meta.category_order` (a preference that travels with backups, DATA.md
  * rule 7):
  *   - `custom` (the default, and what every build before this one did): `categories.sort`, the order
  *     dragged into place on the Reorder screen, then the name;
- *   - `name`: alphabetical by the name *as shown* — a ready-made category is sorted by its
- *     translation (rule 16), so the caller hands in the label;
  *   - `usage`: most used first, over the last 180 days (the window the picker's "recent" uses). A
  *     folder's usage is everything filed under its categories, so the folder you use most leads.
  *     Equal usage — two categories never used, say — falls back to the custom order, so a quiet
  *     corner of the list stays where it was put rather than shuffling alphabetically.
  *
  * Ordering only ever reads: nothing about a category changes because of where it is listed, and
- * `sort` is written only by the Reorder screen.
+ * `sort` is written only by the Reorder screen — or by `keepOrder`, when a usage order is kept as the
+ * custom one. (A pre-release build offered `name` too; a phone or backup still holding it reads as
+ * `custom`.)
  */
 import type { SqlDriver } from "./db";
 import { getMeta } from "./schema";
+import { getRow, save } from "./repo";
 
-export type CategoryOrder = "custom" | "name" | "usage";
-export const CATEGORY_ORDERS: readonly CategoryOrder[] = ["custom", "name", "usage"];
+export type CategoryOrder = "custom" | "usage";
+export const CATEGORY_ORDERS: readonly CategoryOrder[] = ["custom", "usage"];
 export const CATEGORY_ORDER_KEY = "category_order";
 export const USAGE_DAYS = 180;
 
@@ -55,13 +56,8 @@ type Orderable = { id: string; sort: number; name: string };
  * keep the order they meet rows in, so folders come out ordered among folders and each folder's
  * categories among themselves.
  */
-export function orderCategories<T extends Orderable>(cats: T[], mode: CategoryOrder, opts: { usage?: Map<string, number>; label?: (c: T) => string; locale?: string } = {}): T[] {
-  const label = opts.label ?? ((c: T) => c.name);
+export function orderCategories<T extends Orderable>(cats: T[], mode: CategoryOrder, opts: { usage?: Map<string, number> } = {}): T[] {
   const custom = (a: T, b: T) => a.sort - b.sort || a.name.localeCompare(b.name);
-  if (mode === "name") {
-    const names = new Map(cats.map((c) => [c.id, label(c)]));
-    return [...cats].sort((a, b) => names.get(a.id)!.localeCompare(names.get(b.id)!, opts.locale, { sensitivity: "base", numeric: true }) || custom(a, b));
-  }
   if (mode === "usage") {
     const uses = opts.usage ?? new Map<string, number>();
     return [...cats].sort((a, b) => (uses.get(b.id) ?? 0) - (uses.get(a.id) ?? 0) || custom(a, b));
@@ -70,7 +66,23 @@ export function orderCategories<T extends Orderable>(cats: T[], mode: CategoryOr
 }
 
 /** The categories as `listRows` gives them, put in the order the person chose. */
-export function inCategoryOrder<T extends Orderable>(db: SqlDriver, cats: T[], opts: { label?: (c: T) => string; locale?: string } = {}): T[] {
+export function inCategoryOrder<T extends Orderable>(db: SqlDriver, cats: T[]): T[] {
   const mode = getCategoryOrder(db);
-  return orderCategories(cats, mode, { ...opts, usage: mode === "usage" ? categoryUsage(db) : undefined });
+  return orderCategories(cats, mode, { usage: mode === "usage" ? categoryUsage(db) : undefined });
+}
+
+/**
+ * Make the order categories are listed in now — the usage order, say — the custom one: `sort` is
+ * numbered down `ordered`, and only the rows whose number changes are written (DATA.md rule 15's
+ * lesson). Returns how many were written.
+ */
+export function keepOrder(db: SqlDriver, ordered: { id: string }[]): number {
+  let n = 0;
+  db.transaction(() => {
+    ordered.forEach((c, i) => {
+      const row = getRow(db, "categories", c.id);
+      if (row && !row.deleted && row.sort !== i) { save(db, "categories", { ...row, sort: i }); n++; }
+    });
+  });
+  return n;
 }

@@ -23,7 +23,7 @@
   "categories": {
     "types": "Category types",
     "typesMissing": { "message": "{count, plural, one {# category} other {# categories}} without a type", "note": "Categories a well-known shop cannot be matched to yet." },
-    "toSort": {"message": "To sort · {count}", "note": "Section header on Settings → Categories over the rows that need an answer; count = categories waiting."}, "order": {"title": {"message": "Order", "note": "Section header above the sort switch on Settings → Categories."}, "usage": {"message": "By usage", "note": "Sort option: most used first.", "max": 14}, "name": {"message": "By name", "note": "Sort option: alphabetical.", "max": 14}, "custom": {"message": "Custom", "note": "Sort option: the order dragged into place.", "max": 14}, "reorder": "Reorder folders and categories", "usageNote": {"message": "Most used in the last 6 months first, folders by everything in them. Applies to every category list.", "note": "Under the sort switch when By usage is chosen."}, "nameNote": "Alphabetical, folders and the categories in them. Applies to every category list."},
+    "toSort": {"message": "To sort · {count}", "note": "Section header on Settings → Categories over the rows that need an answer; count = categories waiting."}, "order": {"title": {"message": "Order", "note": "Section header above the sort switch on Settings → Categories."}, "usage": {"message": "By usage", "note": "Sort option: most used first.", "max": 14}, "custom": {"message": "Custom", "note": "Sort option: the order dragged into place.", "max": 14}, "reorder": "Reorder folders and categories", "usageNote": {"message": "Most used in the last 6 months first, folders by everything in them. Applies to every category list.", "note": "Under the sort switch when By usage is chosen."}, "reorderFromUsage": {"message": "Starts from the usage order; Done keeps it as your custom order", "note": "Subtitle of Reorder while By usage is chosen."}, "keepTitle": "Keep this order?", "keepBody": {"message": "Custom can start from the usage order you see now, or go back to the order you had before.", "note": "Alert when switching from By usage to Custom."}, "keepThis": "Keep this order", "keepOld": "My previous order"},
     "presets": {"title": "Add ready-made categories", "count": {"message": "{count, plural, one {# you don’t have yet} other {# you don’t have yet}}", "note": "Ready-made categories (Bank fees, Donations…) this phone has nothing for."}, "none": "You have every ready-made category."},
     "typesAll": "Shops know where to go",
     "title": "Categories",
@@ -54,6 +54,9 @@
     "emptyHint": "Nothing tagged yet.",
     "uses": { "message": "{count, plural, one {# use} other {# uses}}", "note": "How many transactions carry the tag." },
     "usesOnly": { "message": "{count, plural, one {# use} other {# uses}} · only for {categories}", "note": "categories is a comma-separated list of category names." },
+    "search": "Search tags",
+    "noMatch": {"message": "No tag “{query}”", "note": "Empty search result on Settings → Tags."},
+    "noMatchHint": "Add it with the button below.",
     "usedWith": {"message": "Lately with {categories}", "note": "Second line of a tag on Settings → Tags: the categories its payments were filed under, with counts, e.g. \"Eating out (12), Groceries (5), +2\"."},
     "usesAny": "{count, plural, one {# use} other {# uses}} · any category",
     "usesArchived": "{count, plural, one {# use} other {# uses}} · archived",

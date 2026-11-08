@@ -1945,10 +1945,14 @@ export interface Messages {
   "settingsLists.categories.noFolder": undefined;
   /** Sort option: the order dragged into place. */
   "settingsLists.categories.order.custom": undefined;
-  /** Sort option: alphabetical. */
-  "settingsLists.categories.order.name": undefined;
-  "settingsLists.categories.order.nameNote": undefined;
+  /** Alert when switching from By usage to Custom. */
+  "settingsLists.categories.order.keepBody": undefined;
+  "settingsLists.categories.order.keepOld": undefined;
+  "settingsLists.categories.order.keepThis": undefined;
+  "settingsLists.categories.order.keepTitle": undefined;
   "settingsLists.categories.order.reorder": undefined;
+  /** Subtitle of Reorder while By usage is chosen. */
+  "settingsLists.categories.order.reorderFromUsage": undefined;
   /** Section header above the sort switch on Settings → Categories. */
   "settingsLists.categories.order.title": undefined;
   /** Sort option: most used first. */
@@ -2061,6 +2065,10 @@ export interface Messages {
   "settingsLists.tags.introMore": undefined;
   /** Note above the tags list; the ⓘ unfolds introMore. */
   "settingsLists.tags.introShort": undefined;
+  /** Empty search result on Settings → Tags. */
+  "settingsLists.tags.noMatch": { query: string | number };
+  "settingsLists.tags.noMatchHint": undefined;
+  "settingsLists.tags.search": undefined;
   "settingsLists.tags.title": undefined;
   /** Row at the foot of Settings → Tags and the title of the page it opens: tags made by travel mode, one per trip or event. */
   "settingsLists.tags.travel": undefined;

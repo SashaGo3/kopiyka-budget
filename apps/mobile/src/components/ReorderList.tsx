@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, LayoutAnimation, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -9,8 +9,27 @@ import { Empty, ModalHeader } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
-/** Every row the same height, which is what lets a drag be arithmetic rather than a measurement. */
-const H = 60;
+/**
+ * Every row the same height and the same gap below it, which is what lets a drag be arithmetic rather
+ * than a measurement. The arithmetic counts the whole pitch — row plus gap — and nothing else may add
+ * space between rows (a header's extra margin once did): every point not counted is a point the drop
+ * drifts from the finger, row after row.
+ */
+const H = 52;
+const GAP = 4;
+const PITCH = H + GAP;
+/** How close to the list's top or bottom edge the finger has to be before the list scrolls under it. */
+const EDGE = 90;
+/** The fastest it scrolls, in points a frame, with the finger right at the edge. */
+const SPEED = 14;
+
+/** How fast to scroll for a finger at screen `absY` over a list at `top`, `height` tall: negative up, positive down, 0 away from the edges. */
+function speedAt({ top, height }: { top: number; height: number }, absY: number): number {
+  if (!height) return 0;
+  if (absY < top + EDGE) return -SPEED * Math.min(1, (top + EDGE - absY) / EDGE);
+  if (absY > top + height - EDGE) return SPEED * Math.min(1, (absY - (top + height - EDGE)) / EDGE);
+  return 0;
+}
 
 /** `deletable` rows can be swiped left to reveal Delete; a row standing for a whole section cannot. */
 export type ReorderItem = { id: string; title: string; subtitle?: string; icon?: ReactNode; deletable?: boolean;
@@ -45,6 +64,11 @@ export type ReorderItem = { id: string; title: string; subtitle?: string; icon?:
  *
  * The callbacks are `.runOnJS(true)`: the work they do — swapping ids in an array, a haptic,
  * React state — is JS work anyway, and this way the file needs no worklets to read.
+ *
+ * A long list scrolls under the row being dragged: with the finger near the top or bottom edge the
+ * list scrolls itself (faster the closer it is), and where the row lands is measured in the list's own
+ * coordinates — the finger's travel plus how far the list has scrolled since the grab — so the row
+ * stays under the finger whichever of the two moved.
  *
  * With `section` rows, a row can never land above the first header (it has to belong to one), and
  * where it lands says which section it is in now — `onDone` reads that off the order.
@@ -89,6 +113,11 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
    * the wrong place.
    */
   const from = useRef({ index: 0, at: 0 });
+  // The list as the drag sees it: where it is scrolled to (and was at the grab), its size and place
+  // on screen, and the finger's last travel and screen position — read again every frame it scrolls.
+  const scrollRef = useRef<ScrollView>(null);
+  const frame = useRef<View>(null);
+  const live = useRef({ y: 0, start: 0, top: 0, height: 0, content: 0, ty: 0, absY: 0, raf: null as number | null });
   /** While a header is in the hand: each header's rows, put back under it on drop. */
   const folded = useRef<Map<string, string[]> | null>(null);
   const grab = useCallback((id: string) => {
@@ -105,15 +134,19 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
     }
     const at = orderRef.current.indexOf(id);
     from.current = { index: at, at };
+    live.current.start = live.current.y;
+    frame.current?.measureInWindow((_x, top, _w, height) => { live.current.top = top; live.current.height = height; });
     pan.setValue(0);
     setDragId(id);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [pan, byId, setOrderBoth]);
-  const drag = useCallback((dy: number) => {
+  /** Put the row where `ty` of finger travel, plus however far the list has scrolled, takes it. */
+  const place = useCallback((ty: number) => {
+    const dy = ty + (live.current.y - live.current.start);
     const { index, at } = from.current;
     // A row belongs to a section: the first place it may go is just under the first header.
     const first = folded.current ? 0 : orderRef.current.findIndex((x) => byId.get(x)?.section) + 1;
-    const target = Math.min(orderRef.current.length - 1, Math.max(first, index + Math.round(dy / H)));
+    const target = Math.min(orderRef.current.length - 1, Math.max(first, index + Math.round(dy / PITCH)));
     if (target !== at) {
       const next = [...orderRef.current];
       next.splice(target, 0, ...next.splice(at, 1));
@@ -123,9 +156,32 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
     }
     // The row has moved `(at − index)` places in the list already, so only what is left of the
     // finger's travel is drawn as an offset — otherwise it would run away by a row each swap.
-    pan.setValue(dy - (from.current.at - index) * H);
+    pan.setValue(dy - (from.current.at - index) * PITCH);
   }, [pan, setOrderBoth, byId]);
+  const stopScrolling = useCallback(() => { if (live.current.raf != null) cancelAnimationFrame(live.current.raf); live.current.raf = null; }, []);
+  // Scrolling at the edge, a frame at a time, placing the row again for each new offset; it keeps going
+  // for as long as the finger stays near the edge and there is list left to scroll.
+  const startScrolling = useCallback(() => {
+    const tick = () => {
+      const l = live.current;
+      const v = speedAt(l, l.absY);
+      const next = Math.min(Math.max(0, l.content - l.height), Math.max(0, l.y + v));
+      if (!v || next === l.y) { l.raf = null; return; }
+      l.y = next;
+      scrollRef.current?.scrollTo({ y: next, animated: false });
+      place(l.ty);
+      l.raf = requestAnimationFrame(tick);
+    };
+    live.current.raf = requestAnimationFrame(tick);
+  }, [place]);
+  const drag = useCallback((ty: number, absY: number) => {
+    live.current.ty = ty; live.current.absY = absY;
+    place(ty);
+    if (live.current.raf == null && speedAt(live.current, absY)) startScrolling();
+  }, [place, startScrolling]);
+  useEffect(() => stopScrolling, [stopScrolling]);
   const drop = useCallback(() => {
+    stopScrolling();
     const blocks = folded.current;
     if (blocks) {
       folded.current = null;
@@ -133,7 +189,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
       setOrderBoth(orderRef.current.flatMap((x) => [x, ...(blocks.get(x) ?? [])]));
     }
     setDragId(null); pan.setValue(0);
-  }, [pan, setOrderBoth]);
+  }, [pan, setOrderBoth, stopScrolling]);
   // The list's own scrolling, as a gesture the drag can name. A `Native` gesture wrapped round the
   // ScrollView is the handle gesture-handler gives you onto a native scroll: without one there is
   // nothing for `blocksExternalGesture` to point at.
@@ -159,7 +215,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
     .failOffsetX([-12, 12])
     .blocksExternalGesture(scrolling)
     .onStart(() => grab(id))
-    .onUpdate((e) => drag(e.translationY))
+    .onUpdate((e) => drag(e.translationY, e.absoluteY))
     .onFinalize(drop)])), [items, scrolling, grab, drag, drop]);
 
   return (
@@ -168,7 +224,11 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={title} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.done"), onPress: commit }} />
       <GestureDetector gesture={scrolling}>
-        <ScrollView scrollEnabled={!dragId} contentContainerStyle={{ padding: S.lg, gap: 0 }}>
+        <View ref={frame} collapsable={false} style={{ flex: 1 }}>
+        <ScrollView ref={scrollRef} scrollEnabled={!dragId} contentContainerStyle={{ padding: S.lg, gap: 0 }} scrollEventThrottle={16}
+          onScroll={(e) => { if (live.current.raf == null) live.current.y = e.nativeEvent.contentOffset.y; }}
+          onLayout={(e) => { live.current.height = e.nativeEvent.layout.height; }}
+          onContentSizeChange={(_w, h) => { live.current.content = h; }}>
           {order.length === 0 ? <Empty title={empty.title} hint={empty.hint} /> : null}
           {order.length ? <Text style={styles.hint}>{hint}</Text> : null}
           {order.map((id) => {
@@ -176,7 +236,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
             if (!row || !grip) return null;
             const dragging = dragId === id;
             const content = (
-              <Pressable style={styles.rowInner} disabled={!onLongPress || row.section || !!dragId} delayLongPress={350}
+              <Pressable style={[styles.rowInner, row.section && styles.sectionInner]} disabled={!onLongPress || row.section || !!dragId} delayLongPress={350}
                 onLongPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onLongPress?.(id, orderRef.current, (next) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOrderBoth(next); }); }}>
                 {row.icon}
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -212,6 +272,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
             );
           })}
         </ScrollView>
+        </View>
       </GestureDetector>
     </GestureHandlerRootView>
   );
@@ -219,7 +280,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
 
 const styles = themed(() => StyleSheet.create({
   hint: { color: C.secondary, fontSize: 13, paddingBottom: S.sm },
-  row: { height: H, marginBottom: S.xs, borderRadius: R.card, backgroundColor: C.card },
+  row: { height: H, marginBottom: GAP, borderRadius: R.card, backgroundColor: C.card },
   rowInner: { height: H, flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card },
   // Clipped to the row's corners, so Delete comes out from under the row rather than beside it.
   swipe: { borderRadius: R.card, overflow: "hidden", backgroundColor: C.red },
@@ -229,8 +290,10 @@ const styles = themed(() => StyleSheet.create({
   dragging: { zIndex: 10, elevation: 6, shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   name: { fontSize: 16, color: C.label },
   sectionName: { fontWeight: "700" },
-  // Headers stand a little apart from the section above; the rows under one are stepped in.
-  sectionRow: { marginTop: S.md },
+  // A header reads as one by its weight and its tint, not by extra space (see PITCH); the rows under
+  // one are stepped in.
+  sectionRow: { backgroundColor: C.fill },
+  sectionInner: { backgroundColor: "transparent" },
   inSection: { marginLeft: S.xl },
   sub: { fontSize: 13, color: C.secondary },
   grip: { paddingHorizontal: S.sm, paddingVertical: S.md },

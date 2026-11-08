@@ -52,10 +52,9 @@ export function groupName(group: string | null | undefined): string {
 }
 
 /**
- * Categories in the order chosen in Settings → Categories (custom, by name, by usage — core
- * categoryOrder.ts), by the name as shown, in the app's language. Every list of folders and their
- * categories reads through this, so they all agree.
+ * Categories in the order chosen in Settings → Categories (by usage, or custom — core
+ * categoryOrder.ts). Every list of folders and their categories reads through this, so they all agree.
  */
 export function orderedCategories<T extends Category>(d: SqlDriver, cats: T[]): T[] {
-  return inCategoryOrder(d, cats, { label: catName, locale: getLanguage() });
+  return inCategoryOrder(d, cats);
 }

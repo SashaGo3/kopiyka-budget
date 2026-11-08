@@ -185,12 +185,14 @@ exceptions to which categories are evidence of a place. A category whose every t
 out by default; `location_ignore` (JSON ids, a folder standing for everything in it) puts more out,
 `location_allow` lets one back in. Set from Settings → Location → Never suggest and each category's
 own "Suggest by location"; read only through `locationIgnoredIds` (`packages/core/src/repo.ts`, and
-its Swift copy in `KPStore`). `category_order` and `tag_order` joined on 2026-11-08: how every list of
-categories is ordered (`custom`, the default — `categories.sort`, dragged into place on Settings →
-Categories → Reorder — or `name`, or `usage` over the last 180 days, a folder counting everything in
-it; core `categoryOrder.ts`) and how Settings → Tags is (`usage`, the default, or `name`). Ordering
-only reads; the Reorder screen is the one writer of `sort` (and of `parent_id` for a category dropped
-into another folder), and it writes only the rows whose place or folder changed. `backup.test.ts` pins the list so the
+its Swift copy in `KPStore`). `category_order` joined on 2026-11-08: how every list of categories is ordered — `custom`, the
+default (`categories.sort`, dragged into place on Settings → Categories → Reorder), or `usage` over
+the last 180 days, a folder counting everything in it (core `categoryOrder.ts`). A pre-release build
+also offered `name`, and briefly a `tag_order`; a stored `name` reads as `custom`, and `tag_order` is
+off the list again — the Tags screen is always most used first. Ordering only reads. `sort` is
+written by the Reorder screen (and `parent_id`, for a category dropped into another folder) and by
+`keepOrder`, which makes the usage order the custom one when you switch; both write only the rows
+whose place or folder changed. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:

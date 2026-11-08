@@ -1,7 +1,6 @@
 import { jsonIds, listRows, listTrips, tripKind, type Tag, type TripKind } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { catName } from "@/lib/names";
-import { getTagOrder } from "@/lib/settings";
 
 export type TagListRow = Tag & {
   /** The kind of the trip or event the tag was made for; null for an ordinary tag. */
@@ -22,7 +21,7 @@ export type TagListRow = Tag & {
  * page of their own (an archived trip tag is archived first). One query for all three, so the counts
  * on the Tags screen are the same rows the two pages list.
  *
- * In the order Settings → Tags is set to: most used first (the default), or alphabetical.
+ * Most used first — over the last six months, then all time, then by name.
  */
 export function useTagList(): { live: TagListRow[]; travel: TagListRow[]; archived: TagListRow[] } {
   const tags = useQuery((db) => {
@@ -44,14 +43,13 @@ export function useTagList(): { live: TagListRow[]; travel: TagListRow[]; archiv
         withCat.set(id, m);
       }
     }
-    const byName = getTagOrder() === "name";
     // Newest first, so a tag two trips were run on reads as the latest of them.
     const kinds = new Map<string, TripKind>();
     for (const b of listTrips(db)) if (b.tag_id && !kinds.has(b.tag_id)) kinds.set(b.tag_id, tripKind(b));
     return listRows(db, "tags", "deleted=0", [], "name").map((t): TagListRow => ({
       ...t, trip: kinds.get(t.id) ?? null, uses: usage.get(t.id) ?? 0, scope: jsonIds(t.category_ids).map((id) => cats.get(id)).filter(Boolean).join(", "),
       usedWith: [...(withCat.get(t.id) ?? [])].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ name: cats.get(id) ?? "?", n })),
-    })).sort((a, b) => (byName ? 0 : (recent.get(b.id) ?? 0) - (recent.get(a.id) ?? 0) || b.uses - a.uses) || a.name.localeCompare(b.name));
+    })).sort((a, b) => (recent.get(b.id) ?? 0) - (recent.get(a.id) ?? 0) || b.uses - a.uses || a.name.localeCompare(b.name));
   });
   return {
     live: tags.filter((t) => !t.archived && !t.trip),

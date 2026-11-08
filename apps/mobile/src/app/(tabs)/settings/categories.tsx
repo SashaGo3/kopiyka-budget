@@ -1,8 +1,8 @@
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, getCategoryOrder, type CategoryOrder, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, missingPresets, unmarkedCount } from "@kopiyka/core";
-import { useQuery } from "@/store";
+import { archivedCategoryIds, getCategoryOrder, keepOrder, type CategoryOrder, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, missingPresets, unmarkedCount } from "@kopiyka/core";
+import { mutate, useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader, Segmented } from "@/components/ui";
 import { setCategoryOrderSetting } from "@/lib/settings";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
@@ -65,6 +65,19 @@ export default function CategoriesScreen() {
       subtitleColor={untyped ? C.orange : undefined}
       onPress={() => router.push("/category/types")} />
   );
+  /**
+   * Leaving By usage for Custom: the order on screen is usually the one wanted — it is what was being
+   * looked at — so it is offered as the new custom order, beside the custom order there was before.
+   */
+  const changeOrder = (v: CategoryOrder) => {
+    if (v === order) return;
+    if (order !== "usage" || v !== "custom") { setCategoryOrderSetting(v); return; }
+    Alert.alert(t("settingsLists.categories.order.keepTitle"), t("settingsLists.categories.order.keepBody"), [
+      { text: t("settingsLists.categories.order.keepThis"), onPress: () => { mutate((d) => keepOrder(d, orderedCategories(d, listRows(d, "categories", "deleted=0", [], "sort, name")))); setCategoryOrderSetting("custom"); } },
+      { text: t("settingsLists.categories.order.keepOld"), onPress: () => setCategoryOrderSetting("custom") },
+      { text: t("common.cancel"), style: "cancel" },
+    ]);
+  };
   const add = () => Alert.alert(t("settingsLists.categories.add"), undefined, [
     { text: t("settingsLists.categories.newCategory"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new" } }) },
     { text: t("settingsLists.categories.newFolder"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", folder: "1" } }) },
@@ -98,17 +111,16 @@ export default function CategoriesScreen() {
           <>
             <SectionHeader>{t("settingsLists.categories.order.title")}</SectionHeader>
             <View style={styles.order}>
-              <Segmented<CategoryOrder> value={order} onChange={setCategoryOrderSetting} options={[
+              <Segmented<CategoryOrder> value={order} onChange={changeOrder} options={[
                 { value: "usage", label: t("settingsLists.categories.order.usage") },
-                { value: "name", label: t("settingsLists.categories.order.name") },
                 { value: "custom", label: t("settingsLists.categories.order.custom") },
               ]} />
             </View>
-            {order === "custom" ? (
-              <Card>
-                <Row icon="line.3.horizontal" iconColor="#8E8E93" title={t("settingsLists.categories.order.reorder")} onPress={() => router.push("/category/reorder")} />
-              </Card>
-            ) : <ScreenNote>{order === "usage" ? t("settingsLists.categories.order.usageNote") : t("settingsLists.categories.order.nameNote")}</ScreenNote>}
+            <Card>
+              <Row icon="line.3.horizontal" iconColor="#8E8E93" title={t("settingsLists.categories.order.reorder")} onPress={() => router.push("/category/reorder")}
+                subtitle={order === "usage" ? t("settingsLists.categories.order.reorderFromUsage") : undefined} />
+            </Card>
+            {order === "usage" ? <ScreenNote>{t("settingsLists.categories.order.usageNote")}</ScreenNote> : null}
           </>
         ) : null}
         {groups.list.length === 0 ? <Empty title={t("settingsLists.categories.emptyTitle")} hint={t("settingsLists.categories.emptyHint")} /> : null}

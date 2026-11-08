@@ -4,7 +4,8 @@ import { archivedCategoryIds, folderIds, getRow, listRows, save, type Category }
 import { mutate, useQuery } from "@/store";
 import { CategoryIcon } from "@/components/ui";
 import { ReorderList, type ReorderItem } from "@/components/ReorderList";
-import { catName } from "@/lib/names";
+import { catName, orderedCategories } from "@/lib/names";
+import { getCategoryOrderSetting, setCategoryOrderSetting } from "@/lib/settings";
 import { t } from "@/i18n";
 
 const LOOSE = "section:loose";
@@ -30,7 +31,9 @@ const LOOSE = "section:loose";
  */
 export default function CategoryReorder() {
   const data = useQuery((d) => {
-    const all = listRows(d, "categories", "deleted=0", [], "sort, name");
+    // In the order on screen — the usage order, when that is what is chosen — so a reorder starts from
+    // what was being looked at, and Done makes it the custom order.
+    const all = orderedCategories(d, listRows(d, "categories", "deleted=0", [], "sort, name"));
     const gone = archivedCategoryIds(all), folders = folderIds(all);
     const live = all.filter((c) => !gone.has(c.id));
     return { live, folders: live.filter((c) => folders.has(c.id)), loose: live.filter((c) => !c.parent_id && !folders.has(c.id)) };
@@ -65,6 +68,7 @@ export default function CategoryReorder() {
         if (c.sort !== sort || (c.parent_id ?? null) !== parent) save(d, "categories", { ...c, sort, parent_id: parent });
       }
     });
+    if (getCategoryOrderSetting() !== "custom") setCategoryOrderSetting("custom");
     if (stayed.length) Alert.alert(t("category.reorder.stayedTitle"), t("category.reorder.stayedBody", { names: stayed.join(", ") }));
   };
 

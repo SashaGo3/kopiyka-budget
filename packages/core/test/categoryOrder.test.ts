@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate, setMeta } from "../src/schema";
-import { createAccount, createCategory, createTransaction } from "../src/repo";
-import { categoryUsage, getCategoryOrder, inCategoryOrder, orderCategories } from "../src/categoryOrder";
+import { createAccount, createCategory, createTransaction, listRows } from "../src/repo";
+import { categoryUsage, getCategoryOrder, inCategoryOrder, keepOrder, orderCategories } from "../src/categoryOrder";
 
 describe("category order", () => {
   const setup = () => {
@@ -36,11 +36,16 @@ describe("category order", () => {
     expect(ids.indexOf("Cafe")).toBeLessThan(ids.indexOf("Groceries"));
   });
 
-  test("name sorts by the label given, and the stored setting is what inCategoryOrder follows", () => {
+  test("the stored setting is what inCategoryOrder follows; the old name order reads as custom; keepOrder freezes it", () => {
     const { db, food, car, groceries, cafe, fuel } = setup();
-    const label = (c: { name: string }) => (c.name === "Groceries" ? "Aaa" : c.name);
-    expect(orderCategories([groceries, cafe], "name", { label }).map((c) => c.name)).toEqual(["Groceries", "Cafe"]);
+    setMeta(db, "category_order", "name");
+    expect(getCategoryOrder(db)).toBe("custom");
     setMeta(db, "category_order", "usage");
     expect(inCategoryOrder(db, [food, car, groceries, cafe, fuel]).map((c) => c.name)).toEqual(["Car", "Fuel", "Food", "Cafe", "Groceries"]);
+    const usage = inCategoryOrder(db, [food, car, groceries, cafe, fuel]);
+    expect(keepOrder(db, usage)).toBeGreaterThan(0);
+    expect(keepOrder(db, usage)).toBe(0); // nothing left to change, nothing written
+    setMeta(db, "category_order", "custom");
+    expect(inCategoryOrder(db, listRows(db, "categories", "deleted=0")).map((c) => c.name)).toEqual(["Car", "Fuel", "Food", "Cafe", "Groceries"]);
   });
 });

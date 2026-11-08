@@ -1,16 +1,16 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import { ScrollView, StyleSheet } from "react-native";
 import { Stack, router } from "expo-router";
-import { Card, Empty, Row, ScreenNote, Segmented, TagPill } from "@/components/ui";
-import { getTagOrder, setTagOrder, type TagOrder } from "@/lib/settings";
-import { useQuery } from "@/store";
+import { Card, Empty, Row, ScreenNote, TagPill } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S, themed } from "@/constants/theme";
 import { usedWithLine, useTagList } from "@/lib/tagList";
 import { t as tr } from "@/i18n";
 
 /**
- * Tags, with the categories each one is limited to and the ones it is actually used with, most used
- * first unless switched to alphabetical. Each row is the tag as it looks on a
+ * Tags, most used first, with the categories each one is limited to and the ones it is actually used
+ * with. The search in the header looks through every tag — trip and archived ones too, since a name
+ * typed is a tag being looked for wherever it lives. Each row is the tag as it looks on a
  * transaction — its pill — rather than its name printed and then drawn again beside it. The tags
  * travel mode made, and the archived ones, are a page each, opened from the foot of the list: a trip
  * tag is one journey rather than a way of filing things, an archived one is no longer offered, and
@@ -20,26 +20,32 @@ export default function TagsScreen() {
   // The Add bar slides away while scrolling down, as on Transactions, and comes back on the way up.
   const { visible, onScroll } = useScrollHide();
   const { live, travel, archived } = useTagList();
-  const order = useQuery(() => getTagOrder());
+  const [q, setQ] = useState("");
+  const query = q.trim().toLowerCase();
+  const found = query ? [...live, ...travel, ...archived].filter((tg) => tg.name.toLowerCase().includes(query)) : null;
   const subtitle = (tg: (typeof live)[number]) => {
     const head = tg.scope ? tr("settingsLists.tags.usesOnly", { count: tg.uses, categories: tg.scope }) : tr("settingsLists.tags.usesAny", { count: tg.uses });
     return tg.usedWith.length ? `${head}\n${tr("settingsLists.tags.usedWith", { categories: usedWithLine(tg.usedWith) })}` : head;
   };
   return (
     <>
-      <Stack.Screen options={{ title: tr("settingsLists.tags.title") }} />
+      <Stack.Screen options={{ title: tr("settingsLists.tags.title"),
+        headerSearchBarOptions: { placeholder: tr("settingsLists.tags.search"), hideWhenScrolling: true,
+          onChangeText: (e) => setQ(e?.nativeEvent?.text ?? ""), onCancelButtonPress: () => setQ("") } }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         <ScreenNote more={tr("settingsLists.tags.introMore")}>{tr("settingsLists.tags.introShort")}</ScreenNote>
-        {live.length === 0 ? <Empty title={tr("settingsLists.tags.emptyTitle")} hint={tr("settingsLists.tags.emptyHint")} /> : null}
-        {live.length > 1 ? (
-          <View style={{ paddingHorizontal: S.lg, paddingTop: S.md }}>
-            <Segmented<TagOrder> value={order} onChange={setTagOrder} options={[
-              { value: "usage", label: tr("settingsLists.categories.order.usage") },
-              { value: "name", label: tr("settingsLists.categories.order.name") },
-            ]} />
-          </View>
+        {!found && live.length === 0 ? <Empty title={tr("settingsLists.tags.emptyTitle")} hint={tr("settingsLists.tags.emptyHint")} /> : null}
+        {found ? (
+          found.length ? (
+            <Card style={{ marginTop: S.lg }}>
+              {found.map((t, i) => (
+                <Row key={t.id} title={t.name} subtitle={subtitle(t)} onPress={() => router.push({ pathname: "/tag/edit", params: { id: t.id } })} style={i > 0 ? styles.divider : undefined}
+                  titleNode={<TagPill name={t.name} color={t.color} />} />
+              ))}
+            </Card>
+          ) : <Empty title={tr("settingsLists.tags.noMatch", { query: q.trim() })} hint={tr("settingsLists.tags.noMatchHint")} />
         ) : null}
-        {live.length ? (
+        {!found && live.length ? (
           <Card style={{ marginTop: S.lg }}>
             {live.map((t, i) => (
               <Row key={t.id} title={t.name} subtitle={subtitle(t)} onPress={() => router.push({ pathname: "/tag/edit", params: { id: t.id } })} style={i > 0 ? styles.divider : undefined}
@@ -47,7 +53,7 @@ export default function TagsScreen() {
             ))}
           </Card>
         ) : null}
-        {travel.length || archived.length ? (
+        {!found && (travel.length || archived.length) ? (
           <Card style={{ marginTop: S.lg }}>
             {travel.length ? <Row icon="suitcase.fill" iconColor="#0A84FF" title={tr("settingsLists.tags.travel")} subtitle={tr("settingsLists.tags.count", { count: travel.length })} onPress={() => router.push({ pathname: "/settings/tags-travel" })} /> : null}
             {archived.length ? <Row icon="archivebox" iconColor="#8E8E93" title={tr("settingsLists.tags.archived")} subtitle={tr("settingsLists.tags.count", { count: archived.length })} onPress={() => router.push({ pathname: "/settings/tags-archived" })} style={travel.length ? styles.divider : undefined} /> : null}
