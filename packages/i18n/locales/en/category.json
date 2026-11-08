@@ -33,6 +33,7 @@
   "whichFolder": "Which folder?",
   "noFolder": "No folder",
   "types": { "title": "Category types" },
+  "suggestHere": { "message": "Suggest by location", "note": "Switch: may this category be offered because of where you are? Off by default for parking, taxi, bills." },
   "type": {
     "title": "Type",
     "none": "None",

@@ -109,9 +109,9 @@ struct KPWatchState: Codable {
     /// Retired in the app: still named on the history rows that carry it, never offered for
     /// anything new (`KPRank.categories`). Absent in a state file written before archiving existed.
     var archived: Bool? = nil
-    /// What kind of category it is (core `categoryType`), what a well-known shop is matched to
+    /// What kinds of thing it is (core `categoryTypes`), what a well-known shop is matched to
     /// (KPShops). Absent in a state file written before category types existed.
-    var type: String? = nil
+    var types: [String]? = nil
   }
   /// The home the app knows (meta `home_lat`/`home_lon`); no category is suggested near it.
   struct Home: Codable, Hashable { let lat: Double; let lon: Double }
@@ -339,8 +339,8 @@ enum KPFormat {
 /// Category with folder name, description and usage: what the receipt reader chooses from.
 struct KPCategoryRef {
   let id: String; let name: String; let parent: String?; let description: String?; let uses: Int
-  /// Core `categoryType`: what a well-known shop is filed into (KPShops). Nil when nothing says.
-  var type: String? = nil
+  /// Core `categoryTypes`: what a well-known shop is filed into (KPShops). Empty when nothing says.
+  var types: [String] = []
   var path: String { parent.map { "\($0) › \(name)" } ?? name }
 }
 
@@ -558,7 +558,7 @@ enum KPStore {
     let cats = fileState()?.categories ?? []
     let folders = Set(cats.compactMap(\.parent_id))
     return cats.filter { $0.kind == "expense" && !folders.contains($0.id) }
-      .map { .init(id: $0.id, name: $0.name, parent: $0.parent_name, description: $0.description, uses: $0.uses, type: $0.type) }
+      .map { .init(id: $0.id, name: $0.name, parent: $0.parent_name, description: $0.description, uses: $0.uses, types: $0.types ?? []) }
   }
 
   /// Works before the `description` column exists (older database): falls back to a query without it.
@@ -574,8 +574,8 @@ enum KPStore {
         let preset = opt(stmt, 5), parentPreset = opt(stmt, 6)
         out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: preset), parent: opt(stmt, 2).map { KPPreset.name($0, preset: parentPreset) },
                          description: described ? KPPreset.matchText(opt(stmt, 3), preset: preset) : nil, uses: Int(sqlite3_column_int(stmt, 4)),
-                         // Core `categoryType`: the stated type, else the preset's ("none" matches no shop).
-                         type: typed ? (opt(stmt, 7) ?? preset) : preset))
+                         // Core `categoryTypes`: the stated list, else the preset's.
+                         types: KPShops.types(typed ? opt(stmt, 7) : nil, preset: preset)))
       }
       return out
     }
@@ -786,18 +786,29 @@ enum KPStore {
     }
   }
 
-  /// Mirrors core `locationIgnoredIds`: the categories in meta `location_ignore` (Settings → Location
-  /// → Never suggest — parking, fuel) and every category inside a folder named there. Their rows are
-  /// no evidence of what a place is, so the history search never counts them.
+  /// Mirrors core `locationIgnoredIds`: categories whose every type is placeless (parking, taxi —
+  /// KPShops.placeless), plus meta `location_ignore` with each folder opened up, minus meta
+  /// `location_allow`. Their rows are no evidence of what a place is, so the history search skips them.
   private static func locationIgnored(_ db: OpaquePointer) -> Set<String> {
-    guard let raw = meta(db, "location_ignore"), let data = raw.data(using: .utf8),
-          let ids = (try? JSONSerialization.jsonObject(with: data)) as? [String], !ids.isEmpty else { return [] }
-    var out = Set(ids)
+    func ids(_ key: String) -> [String] {
+      guard let raw = meta(db, key), let data = raw.data(using: .utf8) else { return [] }
+      return (try? JSONSerialization.jsonObject(with: data)) as? [String] ?? []
+    }
+    var named = Set(ids("location_ignore"))
+    var cats: [(id: String, parent: String?, types: [String])] = []
     var stmt: OpaquePointer?
-    guard sqlite3_prepare_v2(db, "SELECT id, parent_id FROM categories WHERE deleted=0 AND parent_id IS NOT NULL", -1, &stmt, nil) == SQLITE_OK else { return out }
-    defer { sqlite3_finalize(stmt) }
-    while sqlite3_step(stmt) == SQLITE_ROW { if let parent = opt(stmt, 1), out.contains(parent) { out.insert(str(stmt, 0)) } }
-    return out
+    // Before v24 there is no `type` column: the preset alone answers.
+    let typed = sqlite3_prepare_v2(db, "SELECT id, parent_id, type, preset FROM categories WHERE deleted=0", -1, &stmt, nil) == SQLITE_OK
+    if !typed { sqlite3_finalize(stmt); stmt = nil; guard sqlite3_prepare_v2(db, "SELECT id, parent_id, NULL, preset FROM categories WHERE deleted=0", -1, &stmt, nil) == SQLITE_OK else { return named } }
+    while sqlite3_step(stmt) == SQLITE_ROW { cats.append((str(stmt, 0), opt(stmt, 1), KPShops.types(opt(stmt, 2), preset: opt(stmt, 3)))) }
+    sqlite3_finalize(stmt)
+    var changed = !named.isEmpty
+    while changed {
+      changed = false
+      for c in cats where c.parent.map(named.contains) == true && !named.contains(c.id) { named.insert(c.id); changed = true }
+    }
+    for c in cats where KPShops.isPlaceless(c.types) { named.insert(c.id) }
+    return named.subtracting(ids("location_allow"))
   }
 
   /// The most-used category among rows within `radiusM` that `keep` accepts; ties go to the most

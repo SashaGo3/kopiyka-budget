@@ -179,10 +179,13 @@ that carries one recolours the screens where they are (each screen's content re-
 phone. `recurring_dismissed` joined on 2026-10-15: the suggested regular payments a person said no
 to, as a JSON list of suggestion keys (`dismissSuggestion`, `packages/core/src/detect.ts`) — the
 account and the normalised name, so the same charge next month stays dismissed. A row pointed at on
-purpose ("from a past payment") still builds its rule. `location_ignore` joined on 2026-11-08: the categories Settings →
-Location → Never suggest names (parking, fuel — paid beside other places), as a JSON list of ids, a
-folder standing for everything in it. Their rows are never evidence of what a place is
-(`locationIgnoredIds`, `packages/core/src/repo.ts`, and its Swift copy in `KPStore`). `backup.test.ts` pins the list so the
+purpose ("from a past payment") still builds its rule. `location_ignore` and `location_allow` joined on 2026-11-08: the
+exceptions to which categories are evidence of a place. A category whose every type is placeless
+(`PLACELESS_TYPES` — parking, taxi, rent, subscriptions: paid beside other places or from nowhere) is
+out by default; `location_ignore` (JSON ids, a folder standing for everything in it) puts more out,
+`location_allow` lets one back in. Set from Settings → Location → Never suggest and each category's
+own "Suggest by location"; read only through `locationIgnoredIds` (`packages/core/src/repo.ts`, and
+its Swift copy in `KPStore`). `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -538,13 +541,17 @@ the shop's name stands for both, so nothing is printed twice.
 
 ## 21. A shop is matched to a type, and the type to your category
 
-A category's **type** (`categories.type`, v24) says what kind of thing it is — `food.groceries`,
-`transport.parking` — whatever it is called. The vocabulary is the ready-made categories' keys plus
+A category's **types** (`categories.type`, v24) say what kind of thing it is — `food.groceries`,
+`transport.parking` — whatever it is called, and it may be several: "Car" is fuel and parking. The
+column holds a JSON list. The vocabulary is the ready-made categories' keys plus
 a few no preset seeds (`EXTRA_CATEGORY_TYPES`), and a key is forever, like a preset's (rule 16).
-Read it through `categoryType` (`packages/core/src/categoryTypes.ts`), never off the column:
+Read it through `categoryTypes` (`packages/core/src/categoryTypes.ts`), never off the column, and
+write it through `typesToStore`:
 
-- a known key on the row is what a person said (or accepted from a suggestion on Save);
-- `"none"` is "no type, on purpose" — a ready-made category renamed into something else;
+- a list on the row is what a person said (or accepted from a suggestion on Save); unknown keys are
+  dropped, and a bare key — what the first 1.1.2 build wrote — is a list of one;
+- `"[]"` (or the older `"none"`) is "no type, on purpose" — a ready-made category renamed into
+  something else;
 - NULL is "not said", and a ready-made category then answers with its `preset`. That is the whole
   migration for anyone already on the default categories: **nothing is backfilled**, no `updated_at`
   moves (rule 15's lesson), and a preset renamed to "Їжа вдома" is still groceries.
@@ -555,7 +562,8 @@ keywords) and write it only when you save — and only the rows whose answer cha
 
 `packages/core/src/shops.ts` maps well-known shops (Poland, Ukraine, worldwide) to types, never to
 categories; `categoryForShop` files the type into whichever of your live, pickable categories
-carries it, the most used of the last 90 days when several do. Three things are load-bearing:
+carries it — the most specific when several do (fewest types), then the most used of the last 90
+days. Three things are load-bearing:
 
 - **History comes first and a shop list is only a guess.** The notification automation asks it after
   `payeeHistory` and before the word match and location; what it finds is logged pending as

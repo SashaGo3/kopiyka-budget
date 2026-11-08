@@ -508,8 +508,9 @@ struct LogPaymentIntent: AppIntent {
     // fuel — filed into whichever category of yours has that type, whatever you called it. Still a
     // guess: the first payment there waits in Pending for a yes, and after that it is history.
     if categoryId == nil, let type = KPShops.type(shop, noteKey) {
-      let refs = KPStore.categoryRefs().filter { $0.type == type }
-      if let hit = refs.max(by: { $0.uses < $1.uses }) { categoryId = hit.id; guessed = true }
+      // The most specific of yours first ("Groceries" over "Food & coffee"), then the most used.
+      let refs = KPStore.categoryRefs().filter { $0.types.contains(type) }
+      if let hit = refs.min(by: { ($0.types.count, -$0.uses) < ($1.types.count, -$1.uses) }) { categoryId = hit.id; guessed = true }
     }
     if categoryId == nil, let s = shop, let hit = LogPaymentIntent.matchCategory(s, KPStore.categoryRefs()) {
       categoryId = hit.id

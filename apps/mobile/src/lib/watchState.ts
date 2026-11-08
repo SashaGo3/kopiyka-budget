@@ -5,7 +5,7 @@
  * and native/KPShared.swift `KPStore`/`KPWatchState`, which this mirrors field-for-field).
  * Rebuilt after every write, so this stays a handful of grouped queries — no per-row round-trips.
  */
-import { accountName, accountNumbers, categoryMatchText, categoryName, categoryType, fromMinor, getHome, iconFor, jsonIds, uncarriedTagIds } from "@kopiyka/core";
+import { accountName, accountNumbers, categoryMatchText, categoryName, categoryTypes, fromMinor, getHome, iconFor, jsonIds, uncarriedTagIds } from "@kopiyka/core";
 import { db } from "@/db";
 import { getLanguage, t, type LanguageCode } from "@/i18n";
 import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
@@ -16,8 +16,8 @@ export interface WatchCategory {
   icon: string | null; color: string | null; uses: number; description: string | null;
   /** Retired in the app: still named on the history rows that carry it, never offered for a new one. */
   archived: boolean;
-  /** What kind of category it is (core `categoryType`), for matching a well-known shop to it. */
-  type: string | null;
+  /** What kinds of thing it is (core `categoryTypes`), for matching a well-known shop to it. */
+  types: string[];
 }
 export interface WatchTag { id: string; name: string; color: string | null; category_ids: string[]; uses: number; archived: boolean }
 export interface WatchTx {
@@ -86,7 +86,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
       id: c.id, name: name(c.name, c.preset), parent_id: c.parent_id, parent_name: c.parent_name === null ? null : name(c.parent_name, c.parent_preset),
       kind: c.kind, icon: m.icon, color: m.color, uses: c.uses, description: categoryMatchText(c), archived: !!c.archived,
       // What a well-known shop is filed into (core shops.ts); the automation matches it while the app owns the file.
-      type: categoryType(c),
+      types: categoryTypes(c),
     };
   });
 

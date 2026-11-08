@@ -309,6 +309,7 @@ const catalog: Catalog = {
   "category.recolour.title": "Для всіх категорій",
   "category.shape.category": "Категорія в папці",
   "category.shape.folder": "Папка",
+  "category.suggestHere": "Підказувати за розташуванням",
   "category.title.editCategory": "Редагування категорії",
   "category.title.editFolder": "Редагування папки",
   "category.title.newCategory": "Нова категорія",

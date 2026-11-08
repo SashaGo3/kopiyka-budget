@@ -196,10 +196,10 @@ export const MIGRATIONS: string[][] = [
     `ALTER TABLE transactions ADD COLUMN bank_note TEXT`,
   ],
   [
-    // v24: what kind of thing a category is ("food.groceries", "transport.parking"), whatever it is
-    // called — what a shop's name is matched to (shops.ts). NULL is "not said": a ready-made category
-    // answers with its `preset`, so nothing is backfilled; "none" is "no type, on purpose".
-    // Read it through `categoryType` (categoryTypes.ts), never off the column.
+    // v24: what kinds of thing a category is (a JSON list: "food.groceries", "transport.parking"),
+    // whatever it is called — what a shop's name is matched to (shops.ts). NULL is "not said": a
+    // ready-made category answers with its `preset`, so nothing is backfilled; "[]" is "none, on
+    // purpose". Read it through `categoryTypes` (categoryTypes.ts), never off the column.
     `ALTER TABLE categories ADD COLUMN type TEXT`,
   ],
 ];

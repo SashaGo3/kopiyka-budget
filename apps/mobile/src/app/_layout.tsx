@@ -233,6 +233,7 @@ export default function RootLayout() {
           <Stack.Screen name="pick/amount" options={fit} />
           <Stack.Screen name="pick/accounts" options={picker} />
           <Stack.Screen name="pick/categories" options={picker} />
+          <Stack.Screen name="pick/types" options={picker} />
           <Stack.Screen name="pick/transaction" options={picker} />
           <Stack.Screen name="pick/location" options={modal} />
           <Stack.Screen name="insight/edit" options={modal} />

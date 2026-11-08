@@ -5,6 +5,7 @@ import { getMeta, setMeta } from "./schema";
 import { DEFAULT_ACCOUNT_GROUP, DEFAULT_DEBT_NOTIFY_TIME } from "./models";
 import type { Account, Budget, Category, Debt, Insight, RecurringRule, RowByTable, Synced, SyncedTable, Tag, Transaction } from "./models";
 import { SYNCED_TABLES } from "./models";
+import { isPlaceless } from "./categoryTypes";
 
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
@@ -376,26 +377,67 @@ export function setHome(db: SqlDriver, home: { lat: number; lon: number; place: 
 
 /**
  * Categories whose payments say nothing about the place they were paid at (Settings → Location →
- * Never suggest). Parking, fuel, a taxi, a toll: paid in the car park beside the supermarket, and
- * after one of them every coffee bought there was offered as Parking. Rows filed under one are left
- * out of the location history altogether — they are still there, still counted, only never evidence
- * of what "here" is. A folder in the list stands for every category inside it, the ones added later
- * included. Stored as a JSON list of ids in meta `location_ignore`; it travels with backups.
+ * Never suggest, and each category's own "Suggest by location"). Parking, a taxi, a ticket: paid in
+ * the car park beside the supermarket, and after one of them every coffee bought there was offered
+ * as Parking. Rows filed under one are left out of the location history altogether — still there,
+ * still counted, only never evidence of what "here" is.
+ *
+ * Three inputs. A category whose every type is placeless (`PLACELESS_TYPES`, categoryTypes.ts) is out
+ * by default, so a new "Parking" needs no setting at all. Meta `location_ignore` (JSON ids) adds
+ * more — a folder there stands for every category inside it, later ones included. Meta
+ * `location_allow` (JSON ids) lets one back in, default or not. Both travel with backups.
  */
 export function getLocationIgnore(db: SqlDriver): string[] { return jsonIds(getMeta(db, "location_ignore")); }
-export function setLocationIgnore(db: SqlDriver, ids: string[]): void {
-  if (ids.length) setMeta(db, "location_ignore", JSON.stringify([...new Set(ids)]));
-  else db.run(`DELETE FROM meta WHERE key='location_ignore'`);
+export function getLocationAllow(db: SqlDriver): string[] { return jsonIds(getMeta(db, "location_allow")); }
+function writeIds(db: SqlDriver, key: string, ids: Iterable<string>): void {
+  const list = [...new Set(ids)];
+  if (list.length) setMeta(db, key, JSON.stringify(list)); else db.run(`DELETE FROM meta WHERE key=?`, [key]);
 }
-/** `getLocationIgnore` with each folder opened up into the categories inside it. */
-export function locationIgnoredIds(db: SqlDriver, cats: { id: string; parent_id: string | null }[] = listRows(db, "categories", "deleted=0")): Set<string> {
+export function setLocationIgnore(db: SqlDriver, ids: string[]): void { writeIds(db, "location_ignore", ids); }
+
+type IgnoreCat = { id: string; parent_id: string | null; type?: string | null; preset?: string | null };
+
+/** The ids `location_ignore` names, each folder opened up into the categories inside it. */
+function namedIgnored(db: SqlDriver, cats: IgnoreCat[]): Set<string> {
   const out = new Set(getLocationIgnore(db));
-  if (!out.size) return out;
-  for (let changed = true; changed;) {
+  for (let changed = out.size > 0; changed;) {
     changed = false;
     for (const c of cats) if (c.parent_id && out.has(c.parent_id) && !out.has(c.id)) { out.add(c.id); changed = true; }
   }
   return out;
+}
+
+/** Every category left out of location suggestions right now (see above). */
+export function locationIgnoredIds(db: SqlDriver, cats: IgnoreCat[] = listRows(db, "categories", "deleted=0")): Set<string> {
+  const out = namedIgnored(db, cats);
+  for (const c of cats) if (isPlaceless(c)) out.add(c.id);
+  for (const id of getLocationAllow(db)) out.delete(id);
+  return out;
+}
+
+/** One category in or out of location suggestions, writing only the exception to its default. */
+export function setLocationSuggest(db: SqlDriver, categoryId: string, on: boolean): void {
+  const cats = listRows(db, "categories", "deleted=0");
+  const ignore = new Set(getLocationIgnore(db)), allow = new Set(getLocationAllow(db));
+  ignore.delete(categoryId); allow.delete(categoryId);
+  const c = cats.find((x) => x.id === categoryId);
+  // Out without a word from this category: all its types are placeless, or its folder is on the list.
+  const outByDefault = !!c && (isPlaceless(c) || (!!c.parent_id && ignore.has(c.parent_id)));
+  if (on && outByDefault) allow.add(categoryId);
+  if (!on && !outByDefault) ignore.add(categoryId);
+  writeIds(db, "location_ignore", ignore); writeIds(db, "location_allow", allow);
+}
+
+/**
+ * The Never suggest list as a whole, from the multi-picker: what is ticked is out (a fully ticked
+ * folder arrives as the folder, and keeps meaning "and whatever is added to it"), and a category out
+ * by default that was unticked is let back in.
+ */
+export function setLocationIgnoreChoice(db: SqlDriver, chosen: string[]): void {
+  const cats = listRows(db, "categories", "deleted=0");
+  writeIds(db, "location_ignore", chosen);
+  const covered = namedIgnored(db, cats);
+  writeIds(db, "location_allow", cats.filter((c) => isPlaceless(c) && !covered.has(c.id)).map((c) => c.id));
 }
 
 /**

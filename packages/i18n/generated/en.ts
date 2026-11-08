@@ -309,6 +309,7 @@ const catalog: Catalog = {
   "category.recolour.title": "Use for all categories",
   "category.shape.category": "Category in a folder",
   "category.shape.folder": "Folder",
+  "category.suggestHere": "Suggest by location",
   "category.title.editCategory": "Edit category",
   "category.title.editFolder": "Edit folder",
   "category.title.newCategory": "New category",

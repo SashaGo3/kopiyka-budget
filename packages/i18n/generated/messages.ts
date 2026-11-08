@@ -418,6 +418,8 @@ export interface Messages {
   "category.shape.category": undefined;
   /** Segmented control: this row is a folder. */
   "category.shape.folder": undefined;
+  /** Switch: may this category be offered because of where you are? Off by default for parking, taxi, bills. */
+  "category.suggestHere": undefined;
   "category.title.editCategory": undefined;
   "category.title.editFolder": undefined;
   "category.title.newCategory": undefined;

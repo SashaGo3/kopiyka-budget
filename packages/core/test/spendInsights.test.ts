@@ -114,7 +114,29 @@ describe("topShops", () => {
   });
 });
 
+describe("topShops, by hand and by bank", () => {
+  test("a hand-typed entry counts by its place, and a known chain is one shop whatever comes before it", () => {
+    const { db, tx } = world();
+    tx("2026-09-02", -3000, { payee: "JMP S.A. BIEDRONKA 1234" });
+    tx("2026-09-03", -9000, { place: "Biedronka" }); // logged by hand: no payee
+    tx("2026-09-04", -2000, { place: "Kawiarnia Pod Lipą" });
+    const [r] = topShops(db, { ...SEP, today: "2026-09-30", startDay: 1 });
+    expect(r!.shops.map((s) => [s.key, s.spent_minor, s.count])).toEqual([["biedronka", 12000, 2], ["kawiarnia", 2000, 1]]);
+  });
+});
+
 describe("spendingPlaces", () => {
+  test("one shop is one place even when its fixes fall either side of where a grid line would be", () => {
+    const { db, tx } = world();
+    const cell = 150 / 111_000, edge = Math.ceil(52.25 / cell) * cell;
+    tx("2026-09-02", -4000, { lat: edge - 0.0003, lon: 21.05 });
+    tx("2026-09-03", -4000, { lat: edge + 0.0003, lon: 21.05 });
+    tx("2026-09-04", -3000, { lat: edge + 0.0002, lon: 21.05, place: "Lidl" });
+    tx("2026-09-05", -3000, { lat: edge + 0.0009, lon: 21.0505, place: "lidl" });
+    const [r] = spendingPlaces(db, { start: SEP.start, end: SEP.end });
+    expect(r!.places.map((p) => [p.spent_minor, p.count])).toEqual([[8000, 2], [6000, 2]]);
+  });
+
   test("a named place gathers its rows; unnamed ones gather by block", () => {
     const { db, tx } = world();
     tx("2026-09-02", -4000, { lat: 52.2297, lon: 21.0122, place: "Biedronka" });

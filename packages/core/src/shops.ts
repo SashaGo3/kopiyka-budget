@@ -165,12 +165,15 @@ export function shopTerms(): { term: string; type: string }[] {
   return table;
 }
 
-/** The type a shop's name says it is, or null. Whole words, longest term first. */
-export function shopType(...names: (string | null | undefined)[]): string | null {
+/** The known shop a name contains — its term and type — or null. Whole words, longest term first. */
+export function knownShop(...names: (string | null | undefined)[]): { term: string; type: string } | null {
   for (const raw of names) {
     const n = raw ? ` ${normalizeName(raw)} ` : "";
     if (n.trim().length < 2) continue;
-    for (const { term, type } of shopTerms()) if (n.includes(` ${term} `)) return type;
+    for (const t of shopTerms()) if (n.includes(` ${t.term} `)) return t;
   }
   return null;
 }
+
+/** The type a shop's name says it is, or null. */
+export function shopType(...names: (string | null | undefined)[]): string | null { return knownShop(...names)?.type ?? null; }

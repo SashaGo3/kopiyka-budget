@@ -1,7 +1,7 @@
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, categoryImportance, categoryType, folderIds, listRows, markableCategories, markableLeaves, unmarkedCount } from "@kopiyka/core";
+import { archivedCategoryIds, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, unmarkedCount } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
@@ -40,7 +40,7 @@ export default function CategoriesScreen() {
   const untyped = useQuery((db) => {
     const all = listRows(db, "categories", "deleted=0");
     const folders = folderIds(all), gone = archivedCategoryIds(all);
-    return all.filter((c) => !folders.has(c.id) && !gone.has(c.id) && !categoryType(c) && c.type !== "none").length;
+    return all.filter((c) => !folders.has(c.id) && !gone.has(c.id) && !categoryTypes(c).length && c.type !== "none" && c.type !== "[]").length;
   });
   const add = () => Alert.alert(t("settingsLists.categories.add"), undefined, [
     { text: t("settingsLists.categories.newCategory"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new" } }) },

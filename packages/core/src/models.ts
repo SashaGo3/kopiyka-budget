@@ -72,9 +72,9 @@ export interface Category extends Synced {
    */
   preset?: string | null;
   /**
-   * What kind of thing this is, whatever it is called ("food.groceries"), so a shop can be filed
-   * into it (shops.ts). NULL: not said — a ready-made category answers with its preset. "none": no
-   * type on purpose. Read it through `categoryType`, never off the row. Absent before v24.
+   * What kinds of thing this is, whatever it is called — a JSON list (`["food.groceries"]`), so a
+   * shop can be filed into it (shops.ts). NULL: not said — a ready-made category answers with its
+   * preset. "[]": none on purpose. Read it through `categoryTypes`, never off the row. Absent before v24.
    */
   type?: string | null;
 }

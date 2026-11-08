@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
-import { createAccount, createCategory, createTransaction, save } from "../src/repo";
-import { CATEGORY_TYPES, categoryForShop, categoryType, isCategoryType, suggestCategoryType } from "../src/categoryTypes";
+import { createAccount, createCategory, createTransaction, locationIgnoredIds, save, setLocationIgnoreChoice, setLocationSuggest } from "../src/repo";
+import { categoryForShop, categoryTypes, isCategoryType, isPlaceless, suggestCategoryTypes, typesToStore } from "../src/categoryTypes";
 import { SHOPS, shopType } from "../src/shops";
 import { shopsSwift } from "../scripts/shops";
 
@@ -40,24 +40,33 @@ describe("shops", () => {
 });
 
 describe("category types", () => {
-  test("a ready-made category answers with its preset, renamed or not; a stated type wins; none is none", () => {
-    expect(categoryType({ type: null, preset: "food.groceries" })).toBe("food.groceries");
-    expect(categoryType({ type: "transport.parking", preset: "transport.car" })).toBe("transport.parking");
-    expect(categoryType({ type: "none", preset: "food.groceries" })).toBeNull();
-    expect(categoryType({ type: null, preset: "food" })).toBeNull(); // a folder's key is not a type
-    expect(categoryType({ type: "made.up", preset: null })).toBeNull();
+  test("a ready-made category answers with its preset; a stated list wins; [] and none are none", () => {
+    expect(categoryTypes({ type: null, preset: "food.groceries" })).toEqual(["food.groceries"]);
+    expect(categoryTypes({ type: '["transport.fuel","transport.parking"]', preset: "transport.car" })).toEqual(["transport.fuel", "transport.parking"]);
+    expect(categoryTypes({ type: "transport.parking", preset: null })).toEqual(["transport.parking"]); // the first 1.1.2 build wrote a bare key
+    expect(categoryTypes({ type: "[]", preset: "food.groceries" })).toEqual([]);
+    expect(categoryTypes({ type: "none", preset: "food.groceries" })).toEqual([]);
+    expect(categoryTypes({ type: null, preset: "food" })).toEqual([]); // a folder's key is not a type
+    expect(categoryTypes({ type: '["made.up","food.coffee"]', preset: null })).toEqual(["food.coffee"]);
   });
-  test("a name suggests a type in any language", () => {
-    expect(suggestCategoryType("Паркування")).toBe("transport.parking");
-    expect(suggestCategoryType("Parking")).toBe("transport.parking");
-    expect(suggestCategoryType("Продукти")).toBe("food.groceries");
-    expect(suggestCategoryType("Coffee with friends")).toBe("food.coffee");
-    expect(suggestCategoryType("Lidl")).toBe("food.groceries");
-    expect(suggestCategoryType("Зарплата", "income")).toBe("income.salary");
-    expect(suggestCategoryType("Їжа вдома")).toBeNull();
+  test("what is stored: nothing while the preset says it, the list otherwise", () => {
+    expect(typesToStore(["food.groceries"], "food.groceries")).toBeNull();
+    expect(typesToStore(["food.groceries", "food.coffee"], "food.groceries")).toBe('["food.groceries","food.coffee"]');
+    expect(typesToStore([], "food.groceries")).toBe("[]");
+    expect(typesToStore([], null)).toBeNull();
   });
-  test("every type has a name in every language", () => {
-    for (const g of CATEGORY_TYPES) for (const x of g.types) expect(suggestCategoryType(x.key)).toBeDefined();
+  test("a name suggests one or more types, in any language", () => {
+    expect(suggestCategoryTypes("Паркування")).toEqual(["transport.parking"]);
+    expect(suggestCategoryTypes("Продукти")).toEqual(["food.groceries"]);
+    expect(suggestCategoryTypes("Taxi & parking").sort()).toEqual(["transport.parking", "transport.taxi"]);
+    expect(suggestCategoryTypes("Lidl")).toEqual(["food.groceries"]);
+    expect(suggestCategoryTypes("Зарплата", "income")).toEqual(["income.salary"]);
+    expect(suggestCategoryTypes("Їжа вдома")).toEqual([]);
+  });
+  test("placeless means every type is", () => {
+    expect(isPlaceless({ type: '["transport.parking"]' })).toBe(true);
+    expect(isPlaceless({ type: '["transport.parking","transport.fuel"]' })).toBe(false);
+    expect(isPlaceless({ type: null, preset: null })).toBe(false);
   });
 
   function world() {
@@ -70,20 +79,51 @@ describe("category types", () => {
     const { db, food } = world();
     const mine = createCategory(db, { name: "Їжа вдома", parent_id: food.id, preset: "food.groceries" });
     expect(categoryForShop(db, "BIEDRONKA 1234")).toBe(mine.id);
-    expect(categoryForShop(db, "WOG")).toBeNull(); // nothing of yours is fuel
+    expect(categoryForShop(db, "WOG")).toBeNull();
   });
-  test("of several, the one used most lately; archived and folders never", () => {
+  test("of several, the most specific, then the most used lately; archived never", () => {
     const { db, acc, food } = world();
+    const wide = createCategory(db, { name: "Food & coffee", parent_id: food.id, type: '["food.groceries","food.coffee"]' });
     const a = createCategory(db, { name: "Groceries", parent_id: food.id, preset: "food.groceries" });
-    const b = createCategory(db, { name: "Lidl & co", parent_id: food.id, type: "food.groceries" });
+    const b = createCategory(db, { name: "Lidl & co", parent_id: food.id, type: '["food.groceries"]' });
     const now = new Date().toISOString();
+    for (let i = 0; i < 5; i++) createTransaction(db, { account_id: acc.id, date: now, amount_minor: -100, category_id: wide.id });
     for (let i = 0; i < 3; i++) createTransaction(db, { account_id: acc.id, date: now, amount_minor: -100, category_id: b.id });
     expect(categoryForShop(db, "LIDL")).toBe(b.id);
     save(db, "categories", { ...b, archived: 1 });
     expect(categoryForShop(db, "LIDL")).toBe(a.id);
+    expect(categoryForShop(db, "STARBUCKS")).toBe(wide.id);
   });
   test("v24 adds the column and backfills nothing", () => {
     const { db } = world();
     expect(db.all<{ type: string | null }>(`SELECT type FROM categories`).every((r) => r.type === null)).toBe(true);
+  });
+});
+
+describe("never suggest by location", () => {
+  test("placeless categories are out by default, and a category can be let in or put out", () => {
+    const db = openBunDb(); migrate(db);
+    const t = createCategory(db, { name: "Transport", preset: "transport" });
+    const parking = createCategory(db, { name: "Parking", parent_id: t.id, type: '["transport.parking"]' });
+    const car = createCategory(db, { name: "Car", parent_id: t.id, type: '["transport.parking","transport.fuel"]' });
+    const coffee = createCategory(db, { name: "Coffee", type: '["food.coffee"]' });
+    expect([...locationIgnoredIds(db)].sort()).toEqual([parking.id]);
+    setLocationSuggest(db, parking.id, true);
+    expect(locationIgnoredIds(db).has(parking.id)).toBe(false);
+    setLocationSuggest(db, coffee.id, false);
+    expect(locationIgnoredIds(db).has(coffee.id)).toBe(true);
+    setLocationSuggest(db, coffee.id, true);
+    expect(locationIgnoredIds(db).has(coffee.id)).toBe(false);
+    expect(locationIgnoredIds(db).has(car.id)).toBe(false);
+  });
+  test("the Settings list: a ticked folder covers its categories; an unticked default is let in", () => {
+    const db = openBunDb(); migrate(db);
+    const t = createCategory(db, { name: "Transport" });
+    const parking = createCategory(db, { name: "Parking", parent_id: t.id, type: '["transport.parking"]' });
+    const fuel = createCategory(db, { name: "Fuel", parent_id: t.id, type: '["transport.fuel"]' });
+    setLocationIgnoreChoice(db, [t.id]);
+    expect(locationIgnoredIds(db)).toEqual(new Set([t.id, parking.id, fuel.id]));
+    setLocationIgnoreChoice(db, []);
+    expect(locationIgnoredIds(db).size).toBe(0);
   });
 });

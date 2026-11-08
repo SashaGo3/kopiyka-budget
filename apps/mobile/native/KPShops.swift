@@ -515,6 +515,29 @@ enum KPShops {
     ("dm", "shopping.household"),
   ]
 
+  /// Every category type there is (core `CATEGORY_TYPES`).
+  static let known: Set<String> = ["food.groceries", "food.restaurants", "food.coffee", "shopping.household", "shopping.clothes", "shopping.electronics", "shopping.wishes", "home.rent", "home.utilities", "home.internet", "home.furniture", "transport.car", "transport.fuel", "transport.publicTransport", "transport.taxi", "transport.parking", "health.pharmacy", "health.doctor", "health.vitamins", "health.gym", "personal.beauty", "personal.education", "personal.hobbies", "bills.subscriptions", "bills.insurance", "bills.taxes", "fun.entertainment", "fun.travel", "fun.presents", "family.kids", "family.pets", "savings.savings", "savings.investments", "income.salary", "income.freelance", "income.gifts", "income.other"]
+  /// Types whose payments say nothing about the place (core `PLACELESS_TYPES`).
+  static let placeless: Set<String> = ["transport.parking", "transport.taxi", "transport.publicTransport", "home.rent", "home.utilities", "home.internet", "bills.subscriptions", "bills.insurance", "bills.taxes", "savings.savings", "savings.investments"]
+
+  /// Mirrors core `categoryTypes`: the column's JSON list, "[]"/"none" for none on purpose, a bare
+  /// key as a list of one; nothing stated, the preset's. Unknown keys are dropped.
+  static func types(_ raw: String?, preset: String?) -> [String] {
+    if let raw, !raw.isEmpty {
+      if raw == "none" { return [] }
+      if raw.hasPrefix("["), let data = raw.data(using: .utf8), let list = (try? JSONSerialization.jsonObject(with: data)) as? [Any] {
+        var out: [String] = []
+        for case let k as String in list where known.contains(k) && !out.contains(k) { out.append(k) }
+        return out
+      }
+      if known.contains(raw) { return [raw] }
+    }
+    if let preset, known.contains(preset) { return [preset] }
+    return []
+  }
+  /// Mirrors core `isPlaceless`: every one of its types is placeless.
+  static func isPlaceless(_ types: [String]) -> Bool { !types.isEmpty && types.allSatisfy { placeless.contains($0) } }
+
   /// Mirrors core `normalizeName`: lower case, ł → l, accents off, anything but a-z, 0-9 and
   /// Cyrillic a space, spaces collapsed. The two must agree or a shop matches on one side only.
   static func normalize(_ s: String) -> String {

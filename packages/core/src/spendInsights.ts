@@ -9,7 +9,8 @@
  */
 import type { SqlDriver } from "./db";
 import type { Category } from "./models";
-import { categorySpend, listRows, placeKey } from "./repo";
+import { categorySpend, distanceMeters, listRows, placeKey } from "./repo";
+import { shopTerms } from "./shops";
 import { addPeriod, budgetPeriod } from "./recurring";
 import { tripTagIds } from "./trips";
 import { normalizeName } from "./logos";
@@ -141,6 +142,12 @@ export function biggestOneOffs(db: SqlDriver, o: { start: string; end: string; a
  * nothing is left.
  */
 export function shopKey(payee: string | null | undefined): string | null {
+  // A chain everybody knows is that chain whatever the bank prints before it: "JMP S.A. BIEDRONKA
+  // 1234" and a place called "Biedronka" are one shop, not "jmp" and "biedronka".
+  // The shortest chain name it contains, so "Żabka Nano" and "ATB-Market" are Żabka and ATB.
+  const n = ` ${normalizeName(payee ?? "")} `;
+  const chain = shopTerms().filter((t) => n.includes(` ${t.term} `)).sort((x, y) => x.term.length - y.term.length)[0];
+  if (chain) return chain.term;
   const words = normalizeName(payee ?? "").split(" ").filter((w) => w.length >= 2 && !/\d/.test(w) && !isMethodWord(w));
   return words[0] ?? null;
 }
@@ -150,17 +157,21 @@ export interface ShopLine { key: string; name: string; spent_minor: number; coun
 /**
  * The shops the period's money went to, most first, with what the same stretch of the period before
  * cost there (`comparableWindows`, so a running month is compared day for day). The shop is the
- * row's `payee` — the name as the bank or the person wrote it; a note is the person's own sentence
- * and the bank's text carries references (rule 20), so neither names a shop. Recurring payments are
- * left out: rent is not shopping. The name shown is the one the shop was written under most often.
+ * row's `payee` — the name as the bank wrote it — or, for an entry typed by hand, which has none,
+ * the `place` the phone named where it was logged. A note is the person's own sentence and the
+ * bank's text carries references (rule 20), so neither names a shop. Recurring payments are left
+ * out: rent is not shopping. The name shown is the one the shop was written under most often.
  */
 export function topShops(db: SqlDriver, o: { start: string; end: string; today: string; startDay: number; accountIds?: string[]; limit?: number }): { currency: string; shops: ShopLine[] }[] {
   const w = comparableWindows({ ...o, count: 1 });
   const scope = o.accountIds?.length ? ` AND t.account_id IN (${o.accountIds.map(() => "?").join(",")})` : "";
+  // Hand-typed entries have no payee and used to be left out altogether, so a shop paid for in
+  // cash or logged from the sheet never made the list however much went there.
   const read = (win: { start: string; end: string }) => db.all<{ payee: string; amount_minor: number; currency: string; category_id: string | null }>(
-    `SELECT t.payee, t.amount_minor, a.currency, t.category_id FROM transactions t JOIN accounts a ON a.id=t.account_id
+    `SELECT COALESCE(NULLIF(trim(t.payee), ''), NULLIF(trim(t.place), '')) AS payee, t.amount_minor, a.currency, t.category_id
+     FROM transactions t JOIN accounts a ON a.id=t.account_id
      WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.recurring_id IS NULL AND t.debt_id IS NULL AND t.amount_minor<0
-       AND t.payee IS NOT NULL AND trim(t.payee)<>'' AND t.date>=? AND t.date<?${scope}`,
+       AND COALESCE(NULLIF(trim(t.payee), ''), NULLIF(trim(t.place), '')) IS NOT NULL AND t.date>=? AND t.date<?${scope}`,
     [win.start, win.end, ...(o.accountIds ?? [])]);
   type Acc = ShopLine & { names: Map<string, number>; cats: Map<string, number> };
   const by = new Map<string, Map<string, Acc>>();
@@ -210,23 +221,25 @@ export function spendingPlaces(db: SqlDriver, o: { start: string; end: string; a
     `SELECT t.lat, t.lon, t.place, t.amount_minor, a.currency, t.category_id FROM transactions t JOIN accounts a ON a.id=t.account_id
      WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.amount_minor<0 AND t.date>=? AND t.date<?${scope}`,
     [o.start, o.end, ...(o.accountIds ?? [])]);
-  const cell = (lat: number, lon: number, m: number) => {
-    const dLat = m / 111_000, dLon = m / (111_000 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
-    return `${Math.floor(lat / dLat)}:${Math.floor(lon / dLon)}`;
-  };
-  type Acc = { key: string; wLat: number; wLon: number; w: number; spent: number; count: number; names: Map<string, number>; cats: Map<string, number> };
-  const by = new Map<string, { total: number; located: number; places: Map<string, Acc> }>();
-  for (const r of rows) {
+  // Places are grown, not cut from a grid: a fixed grid split one shop in two whenever its fixes
+  // fell either side of a cell's edge, and each half then lost to a smaller place elsewhere. Rows
+  // are taken biggest first, so a place grows around where most of its money was spent.
+  type Acc = { key: string; name: string; wLat: number; wLon: number; w: number; spent: number; count: number; names: Map<string, number>; cats: Map<string, number> };
+  const by = new Map<string, { total: number; located: number; places: Acc[] }>();
+  const sorted = [...rows].sort((a, b) => a.amount_minor - b.amount_minor);
+  for (const r of sorted) {
     const spent = -r.amount_minor;
-    const cur = by.get(r.currency) ?? { total: 0, located: 0, places: new Map<string, Acc>() };
+    const cur = by.get(r.currency) ?? { total: 0, located: 0, places: [] as Acc[] };
     by.set(r.currency, cur);
     cur.total += spent;
     if (r.lat == null || r.lon == null) continue;
     cur.located += spent;
     const name = r.place?.trim() ? placeKey(r.place) : "";
-    const key = name ? `p:${name}|${cell(r.lat, r.lon, 2000)}` : `g:${cell(r.lat, r.lon, MAP_CELL_M)}`;
-    let e = cur.places.get(key);
-    if (!e) { e = { key, wLat: 0, wLon: 0, w: 0, spent: 0, count: 0, names: new Map(), cats: new Map() }; cur.places.set(key, e); }
+    const near = (e: Acc, m: number) => distanceMeters(r.lat!, r.lon!, e.wLat / e.w, e.wLon / e.w) <= m;
+    // The same name within 2 km is the same shop; a fix with no name joins whatever is within 150 m.
+    let e = (name ? cur.places.find((x) => x.name === name && near(x, 2000)) : undefined)
+      ?? (name ? undefined : cur.places.filter((x) => near(x, MAP_CELL_M)).sort((a, b) => b.spent - a.spent)[0]);
+    if (!e) { e = { key: `${name || "here"}:${cur.places.length}`, name, wLat: 0, wLon: 0, w: 0, spent: 0, count: 0, names: new Map(), cats: new Map() }; cur.places.push(e); }
     // Weighted by money, with a floor so a free (0) row still has somewhere to be.
     const weight = Math.max(spent, 1);
     e.wLat += r.lat * weight; e.wLon += r.lon * weight; e.w += weight;
@@ -237,7 +250,7 @@ export function spendingPlaces(db: SqlDriver, o: { start: string; end: string; a
   const best = (m: Map<string, number>): string | null => { let k: string | null = null, v = -Infinity; for (const [kk, vv] of m) if (vv > v) { k = kk; v = vv; } return k; };
   return [...by].map(([currency, c]) => ({
     currency, total_minor: c.total, located_minor: c.located,
-    places: [...c.places.values()].map((e) => ({ key: e.key, lat: e.wLat / e.w, lon: e.wLon / e.w, place: best(e.names), spent_minor: e.spent, count: e.count, category_id: best(e.cats) }))
+    places: c.places.map((e) => ({ key: e.key, lat: e.wLat / e.w, lon: e.wLon / e.w, place: best(e.names), spent_minor: e.spent, count: e.count, category_id: best(e.cats) }))
       .sort((a, b) => b.spent_minor - a.spent_minor),
   })).filter((c) => c.places.length).sort((a, b) => b.located_minor - a.located_minor);
 }
