@@ -200,6 +200,8 @@ export default function RootLayout() {
           <Stack.Screen name="category/importance" options={modal} />
           <Stack.Screen name="category/types" options={modal} />
           <Stack.Screen name="category/presets" options={picker} />
+          {/* A drag list, like budget/reorder: the sheet's own swipe would fight every row. */}
+          <Stack.Screen name="category/reorder" options={{ ...modal, gestureEnabled: false }} />
           <Stack.Screen name="tag/edit" options={modal} />
           <Stack.Screen name="budget/edit" options={fit} />
           {/* The one screen with a drag: the sheet's own swipe-to-dismiss would be pulling against

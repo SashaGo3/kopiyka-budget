@@ -25,6 +25,7 @@ export * from "./payee";
 export * from "./suggest";
 export * from "./presets";
 export * from "./categoryTypes";
+export * from "./categoryOrder";
 export * from "./shops";
 export * from "./defaultNames";
 export * from "./keypad";

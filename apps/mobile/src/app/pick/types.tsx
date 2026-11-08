@@ -36,15 +36,19 @@ export default function PickTypes() {
     }
     return out;
   });
-  const toggle = (k: string) => { latest.current.touched = true; setChosen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; }); };
+
   // Handed back once, on the way out however it is taken; untouched, nothing is handed back at all.
-  const latest = useRef({ chosen, touched: false, sent: false });
-  latest.current.chosen = chosen;
-  useEffect(() => () => { const l = latest.current; if (!l.sent && l.touched) { l.sent = true; resolvePick(key, [...l.chosen]); } }, [key]);
-  const done = () => { latest.current.sent = true; resolvePick(key, [...chosen]); router.back(); };
+  const chosenNow = useRef(chosen);
+  const touched = useRef(false);
+  const sent = useRef(false);
+  useEffect(() => { chosenNow.current = chosen; }, [chosen]);
+  useEffect(() => () => { if (!sent.current && touched.current) { sent.current = true; resolvePick(key, [...chosenNow.current]); } }, [key]);
+  const toggle = (k: string) => { touched.current = true; setChosen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; }); };
+  const clear = () => { touched.current = true; setChosen(new Set()); };
+  const done = () => { sent.current = true; resolvePick(key, [...chosen]); router.back(); };
   return (
     <PickerSections sections={sections} keyExtractor={(k) => k}
-      header={<PickerHeader title={title ?? t("category.type.title")} clear={{ label: t("category.type.none"), onPress: () => { latest.current.touched = true; setChosen(new Set()); }, active: !chosen.size }} done={{ onPress: done, count: chosen.size }} />}
+      header={<PickerHeader title={title ?? t("category.type.title")} clear={{ label: t("category.type.none"), onPress: clear, active: !chosen.size }} done={{ onPress: done, count: chosen.size }} />}
       renderSectionHeader={({ section }) => <Text style={styles.section}>{section.title}</Text>}
       renderItem={({ item }) => {
         const on = chosen.has(item);

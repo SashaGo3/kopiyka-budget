@@ -13,7 +13,13 @@ import { t } from "@/i18n";
 const H = 60;
 
 /** `deletable` rows can be swiped left to reveal Delete; a row standing for a whole section cannot. */
-export type ReorderItem = { id: string; title: string; subtitle?: string; icon?: ReactNode; deletable?: boolean };
+export type ReorderItem = { id: string; title: string; subtitle?: string; icon?: ReactNode; deletable?: boolean;
+  /**
+   * A header that the rows after it, up to the next header, belong to (categories under their folder).
+   * A row can be dragged into another section; a header carries its whole section with it — while one
+   * is in the hand the list folds to headers only, and unfolds where it is dropped.
+   */
+  section?: boolean };
 
 /**
  * A screen for dragging rows into the order you want them somewhere else — budgets on Budgets,
@@ -39,6 +45,9 @@ export type ReorderItem = { id: string; title: string; subtitle?: string; icon?:
  *
  * The callbacks are `.runOnJS(true)`: the work they do — swapping ids in an array, a haptic,
  * React state — is JS work anyway, and this way the file needs no worklets to read.
+ *
+ * With `section` rows, a row can never land above the first header (it has to belong to one), and
+ * where it lands says which section it is in now — `onDone` reads that off the order.
  */
 export function ReorderList({ title, items, hint, empty, onDone }: {
   title: string;
@@ -57,6 +66,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
   const [pan] = useState(() => new Animated.Value(0));
 
   const [removed, setRemoved] = useState<string[]>([]);
+  const sectioned = useMemo(() => items.some((x) => x.section), [items]);
   const commit = () => { onDone(orderRef.current, removed); router.back(); };
   const del = useCallback((id: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -74,16 +84,31 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
    * the wrong place.
    */
   const from = useRef({ index: 0, at: 0 });
+  /** While a header is in the hand: each header's rows, put back under it on drop. */
+  const folded = useRef<Map<string, string[]> | null>(null);
   const grab = useCallback((id: string) => {
+    if (byId.get(id)?.section) {
+      const blocks = new Map<string, string[]>();
+      let head: string | null = null;
+      const before: string[] = [];
+      for (const x of orderRef.current) {
+        if (byId.get(x)?.section) { head = x; blocks.set(x, []); } else if (head) blocks.get(head)!.push(x); else before.push(x);
+      }
+      folded.current = blocks;
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setOrderBoth([...before, ...blocks.keys()]);
+    }
     const at = orderRef.current.indexOf(id);
     from.current = { index: at, at };
     pan.setValue(0);
     setDragId(id);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, [pan]);
+  }, [pan, byId, setOrderBoth]);
   const drag = useCallback((dy: number) => {
     const { index, at } = from.current;
-    const target = Math.min(orderRef.current.length - 1, Math.max(0, index + Math.round(dy / H)));
+    // A row belongs to a section: the first place it may go is just under the first header.
+    const first = folded.current ? 0 : orderRef.current.findIndex((x) => byId.get(x)?.section) + 1;
+    const target = Math.min(orderRef.current.length - 1, Math.max(first, index + Math.round(dy / H)));
     if (target !== at) {
       const next = [...orderRef.current];
       next.splice(target, 0, ...next.splice(at, 1));
@@ -94,8 +119,16 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
     // The row has moved `(at − index)` places in the list already, so only what is left of the
     // finger's travel is drawn as an offset — otherwise it would run away by a row each swap.
     pan.setValue(dy - (from.current.at - index) * H);
+  }, [pan, setOrderBoth, byId]);
+  const drop = useCallback(() => {
+    const blocks = folded.current;
+    if (blocks) {
+      folded.current = null;
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setOrderBoth(orderRef.current.flatMap((x) => [x, ...(blocks.get(x) ?? [])]));
+    }
+    setDragId(null); pan.setValue(0);
   }, [pan, setOrderBoth]);
-  const drop = useCallback(() => { setDragId(null); pan.setValue(0); }, [pan]);
   // The list's own scrolling, as a gesture the drag can name. A `Native` gesture wrapped round the
   // ScrollView is the handle gesture-handler gives you onto a native scroll: without one there is
   // nothing for `blocksExternalGesture` to point at.
@@ -141,7 +174,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
               <View style={styles.rowInner}>
                 {row.icon}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.name} numberOfLines={1}>{row.title}</Text>
+                  <Text style={[styles.name, row.section && styles.sectionName]} numberOfLines={1}>{row.title}</Text>
                   {row.subtitle ? <Text style={styles.sub} numberOfLines={1}>{row.subtitle}</Text> : null}
                 </View>
                 <GestureDetector gesture={grip}>
@@ -152,7 +185,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
               </View>
             );
             return (
-              <Animated.View key={id} style={[styles.row, dragging && styles.dragging, dragging && { transform: [{ translateY: pan }] }]}
+              <Animated.View key={id} style={[styles.row, row.section && styles.sectionRow, sectioned && !row.section && styles.inSection, dragging && styles.dragging, dragging && { transform: [{ translateY: pan }] }]}
                 accessibilityActions={row.deletable ? [{ name: "delete", label: t("common.delete") }] : undefined}
                 onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === "delete") del(id); }}>
                 {row.deletable ? (
@@ -189,6 +222,10 @@ const styles = themed(() => StyleSheet.create({
   // Lifted off the list while it is in the hand, and drawn last so it passes over its neighbours.
   dragging: { zIndex: 10, elevation: 6, shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   name: { fontSize: 16, color: C.label },
+  sectionName: { fontWeight: "700" },
+  // Headers stand a little apart from the section above; the rows under one are stepped in.
+  sectionRow: { marginTop: S.md },
+  inSection: { marginLeft: S.xl },
   sub: { fontSize: 13, color: C.secondary },
   grip: { paddingHorizontal: S.sm, paddingVertical: S.md },
 }));

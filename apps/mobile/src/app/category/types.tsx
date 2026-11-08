@@ -7,7 +7,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, CategoryIcon, Footnote, ModalHeader, Row, SectionHeader } from "@/components/ui";
 import { C, themed } from "@/constants/theme";
-import { catName } from "@/lib/names";
+import { catName, orderedCategories } from "@/lib/names";
 import { getLanguage, t } from "@/i18n";
 
 /**
@@ -34,7 +34,7 @@ function writeTypes(d: SqlDriver, c: Category, types: string[]): boolean {
 export default function CategoryTypes() {
   const lang = getLanguage();
   const cats = useQuery((d) => {
-    const all = listRows(d, "categories", "deleted=0", [], "sort, name");
+    const all = orderedCategories(d, listRows(d, "categories", "deleted=0", [], "sort, name"));
     const folders = folderIds(all), gone = archivedCategoryIds(all);
     const byId = new Map(all.map((c) => [c.id, c]));
     const groups = new Map<string, { folder: Category | null; items: Category[] }>();

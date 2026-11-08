@@ -1,12 +1,13 @@
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, missingPresets, unmarkedCount } from "@kopiyka/core";
+import { archivedCategoryIds, getCategoryOrder, type CategoryOrder, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, missingPresets, unmarkedCount } from "@kopiyka/core";
 import { useQuery } from "@/store";
-import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
+import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader, Segmented } from "@/components/ui";
+import { setCategoryOrderSetting } from "@/lib/settings";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S, themed } from "@/constants/theme";
-import { catName } from "@/lib/names";
+import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
 
 /** Folders and their categories; tap any row to edit it. Add lives in the thumb zone. */
@@ -14,7 +15,7 @@ export default function CategoriesScreen() {
   // The Add bar slides away while scrolling down, as on Transactions, and comes back on the way up.
   const { visible, onScroll } = useScrollHide();
   const groups = useQuery((db) => {
-    const every = listRows(db, "categories", "deleted=0", [], "sort, name");
+    const every = orderedCategories(db, listRows(db, "categories", "deleted=0", [], "sort, name"));
     // Retired ones stand apart at the foot of the screen — with their folder, when the whole folder
     // was retired — so the working list is only what can actually be chosen.
     const retired = archivedCategoryIds(every);
@@ -44,6 +45,9 @@ export default function CategoriesScreen() {
     const folders = folderIds(all), gone = archivedCategoryIds(all);
     return all.filter((c) => !folders.has(c.id) && !gone.has(c.id) && !categoryTypes(c).length && c.type !== "none" && c.type !== "[]").length;
   });
+  // The order every list of categories follows (core categoryOrder.ts); read through a query so the
+  // list below re-sorts the moment it changes.
+  const order = useQuery((db) => getCategoryOrder(db));
   const add = () => Alert.alert(t("settingsLists.categories.add"), undefined, [
     { text: t("settingsLists.categories.newCategory"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new" } }) },
     { text: t("settingsLists.categories.newFolder"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", folder: "1" } }) },
@@ -70,6 +74,23 @@ export default function CategoriesScreen() {
               subtitle={t("settingsLists.categories.presets.count", { count: missing })}
               onPress={() => router.push("/category/presets")} /> : null}
           </Card>
+        ) : null}
+        {groups.list.length ? (
+          <>
+            <SectionHeader>{t("settingsLists.categories.order.title")}</SectionHeader>
+            <View style={styles.order}>
+              <Segmented<CategoryOrder> value={order} onChange={setCategoryOrderSetting} options={[
+                { value: "usage", label: t("settingsLists.categories.order.usage") },
+                { value: "name", label: t("settingsLists.categories.order.name") },
+                { value: "custom", label: t("settingsLists.categories.order.custom") },
+              ]} />
+            </View>
+            {order === "custom" ? (
+              <Card>
+                <Row icon="line.3.horizontal" iconColor="#8E8E93" title={t("settingsLists.categories.order.reorder")} onPress={() => router.push("/category/reorder")} />
+              </Card>
+            ) : <ScreenNote>{order === "usage" ? t("settingsLists.categories.order.usageNote") : t("settingsLists.categories.order.nameNote")}</ScreenNote>}
+          </>
         ) : null}
         {groups.list.length === 0 ? <Empty title={t("settingsLists.categories.emptyTitle")} hint={t("settingsLists.categories.emptyHint")} /> : null}
         {groups.list.map(({ parent, children }) => (
@@ -107,4 +128,5 @@ const styles = themed(() => StyleSheet.create({
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   child: { paddingLeft: S.xl + 8 },
   right: { flexDirection: "row", alignItems: "center", gap: 8 },
+  order: { paddingHorizontal: S.lg, paddingBottom: S.sm },
 }));

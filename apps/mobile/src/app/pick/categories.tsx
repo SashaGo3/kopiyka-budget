@@ -7,7 +7,7 @@ import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, PickCheck, PickerHeader, PickerList, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
-import { catName } from "@/lib/names";
+import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
 
 type Item = { kind: "none" } | { kind: "folder"; c: Category; kids: Category[] } | { kind: "child"; c: Category; parent: Category };
@@ -30,7 +30,7 @@ export default function PickCategories() {
     // an existing budget or tag scope can be read and edited rather than silently losing a member.
     const keep = new Set((selected ?? "").split(",").filter(Boolean));
     const retired = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
-    const all = listRows(db, "categories", "deleted=0", [], "sort, name").filter((c) => keep.has(c.id) || !retired.has(c.id));
+    const all = orderedCategories(db, listRows(db, "categories", "deleted=0", [], "sort, name")).filter((c) => keep.has(c.id) || !retired.has(c.id));
     return all.filter((c) => !c.parent_id).map((p) => ({ p, kids: all.filter((c) => c.parent_id === p.id) }));
   });
   const [chosen, setChosen] = useState<Set<string>>(() => {

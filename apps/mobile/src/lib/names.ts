@@ -15,7 +15,7 @@
  *   acctName(account)                 a row you have (or just its `name` — a joined `account_name`)
  *   groupName(group_name)             for display only; grouping keeps comparing the stored value
  */
-import { accountGroupName, accountName, categoryDescription, categoryName, listRows, type Account, type Category } from "@kopiyka/core";
+import { accountGroupName, accountName, categoryDescription, categoryName, inCategoryOrder, listRows, type Account, type Category, type SqlDriver } from "@kopiyka/core";
 import { db } from "@/db";
 import { dbVersion } from "@/store";
 import { getLanguage } from "@/i18n";
@@ -49,4 +49,13 @@ export function acctName(a: Pick<Account, "name"> | null | undefined): string | 
 /** Shown, not compared: group by the stored `group_name`, label with this. */
 export function groupName(group: string | null | undefined): string {
   return accountGroupName(group, getLanguage());
+}
+
+/**
+ * Categories in the order chosen in Settings → Categories (custom, by name, by usage — core
+ * categoryOrder.ts), by the name as shown, in the app's language. Every list of folders and their
+ * categories reads through this, so they all agree.
+ */
+export function orderedCategories<T extends Category>(d: SqlDriver, cats: T[]): T[] {
+  return inCategoryOrder(d, cats, { label: catName, locale: getLanguage() });
 }

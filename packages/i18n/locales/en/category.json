@@ -89,6 +89,7 @@
     "bodyChildren": "{count, plural, one {Its # category becomes a top-level folder.} other {Its # categories become top-level folders.}} Transactions keep their data.",
     "body": "Transactions keep their data but become uncategorized."
   },
+  "reorder": {"title": "Reorder", "hint": {"message": "Drag by the handle. A category can go into another folder; a folder takes its categories with it.", "note": "Hint on top of the categories reorder screen."}, "income": "Income", "emptyTitle": "No categories", "emptyHint": "Add some first."},
   "importance": {
     "title": "Set what matters",
     "step": { "message": "Step {step} of {total}", "note": "Progress over the question." },

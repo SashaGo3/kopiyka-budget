@@ -58,8 +58,8 @@ export default function InsightEdit() {
   // The name field opens holding the name the card goes by now, so it is edited rather than retyped.
   // Handed back unchanged (or emptied), the card keeps no name of its own and goes on following its
   // kind's, in whatever language the app is in.
-  const defaultName = useRef("");
-  usePickResult<string>(keys.title, useCallback((v: string) => setP((s) => ({ ...s, title: v.trim() && v.trim() !== defaultName.current ? v.trim() : undefined })), []));
+  const defaultName = kind ? kindTitle(kind) : "";
+  usePickResult<string>(keys.title, useCallback((v: string) => setP((s) => ({ ...s, title: v.trim() && v.trim() !== defaultName ? v.trim() : undefined })), [defaultName]));
   usePickResult<string>(keys.acc, useCallback((v: string) => setP((s) => ({ ...s, account_id: v })), []));
   // The safety buffer counts several accounts; a card saved with one moves over to the list.
   usePickResult<string[]>(keys.accs, useCallback((v: string[]) => setP((s) => { const { account_id: _, ...rest } = s; return { ...rest, account_ids: v }; }), []));
@@ -72,8 +72,7 @@ export default function InsightEdit() {
     const ct = Object.fromEntries(Object.entries(s.category_tags ?? {}).filter(([k]) => ids.includes(k)));
     return { ...s, category_ids: ids, category_tags: Object.keys(ct).length ? ct : undefined };
   }), []));
-  const kindName = kind ? kindTitle(kind) : "";
-  defaultName.current = kindName;
+  const kindName = defaultName;
   const account = p.account_id ? names.accounts.get(p.account_id) : undefined;
   const currency = account?.currency ?? "EUR";
   const needsAccount = kind === "savings_goal" || kind === "account_balance";

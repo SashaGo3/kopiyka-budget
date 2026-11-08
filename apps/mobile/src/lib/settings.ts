@@ -2,7 +2,7 @@
  * Local preferences (not synced): stored in the meta table so they survive reinstalls
  * of the dev client and are included in the full data export.
  */
-import { DEFAULT_WAIT_DAYS, getHome, getMeta, locationIgnoredIds, setHome, setLocationIgnoreChoice, setMeta } from "@kopiyka/core";
+import { CATEGORY_ORDER_KEY, DEFAULT_WAIT_DAYS, getCategoryOrder, getHome, type CategoryOrder, getMeta, locationIgnoredIds, setHome, setLocationIgnoreChoice, setMeta } from "@kopiyka/core";
 import { db } from "@/db";
 import { notifyChange } from "@/store";
 import { t } from "@/i18n";
@@ -83,6 +83,18 @@ export function getBudgetsSections(): BudgetsSection[] {
   return [...new Set([...known, ...BUDGETS_SECTIONS])];
 }
 export function setBudgetsSections(order: BudgetsSection[]): void { write("budgets_sections", JSON.stringify(order)); }
+
+/**
+ * How categories are listed — folders and what is in them — on Settings → Categories, the pickers and
+ * Category types: the order dragged into place, alphabetical, or most used first (core categoryOrder.ts).
+ */
+export function getCategoryOrderSetting(): CategoryOrder { return getCategoryOrder(db); }
+export function setCategoryOrderSetting(v: CategoryOrder): void { write(CATEGORY_ORDER_KEY, v); }
+
+/** Settings → Tags: most used first (the default) or alphabetical. Tags have no order of their own to drag. */
+export type TagOrder = "usage" | "name";
+export function getTagOrder(): TagOrder { return read("tag_order") === "name" ? "name" : "usage"; }
+export function setTagOrder(v: TagOrder): void { write("tag_order", v); }
 
 export function getHideIncome(): boolean { return read("hide_income") === "1"; }
 export function setHideIncome(on: boolean): void { write("hide_income", on ? "1" : "0"); }

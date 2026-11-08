@@ -419,6 +419,12 @@ export interface Messages {
   "category.noFolder": undefined;
   "category.recolour.subtitle": undefined;
   "category.recolour.title": undefined;
+  "category.reorder.emptyHint": undefined;
+  "category.reorder.emptyTitle": undefined;
+  /** Hint on top of the categories reorder screen. */
+  "category.reorder.hint": undefined;
+  "category.reorder.income": undefined;
+  "category.reorder.title": undefined;
   /** Segmented control: this row is a category inside a folder. */
   "category.shape.category": undefined;
   /** Segmented control: this row is a folder. */
@@ -1920,6 +1926,18 @@ export interface Messages {
   "settingsLists.categories.newCategory": undefined;
   "settingsLists.categories.newFolder": undefined;
   "settingsLists.categories.noFolder": undefined;
+  /** Sort option: the order dragged into place. */
+  "settingsLists.categories.order.custom": undefined;
+  /** Sort option: alphabetical. */
+  "settingsLists.categories.order.name": undefined;
+  "settingsLists.categories.order.nameNote": undefined;
+  "settingsLists.categories.order.reorder": undefined;
+  /** Section header above the sort switch on Settings → Categories. */
+  "settingsLists.categories.order.title": undefined;
+  /** Sort option: most used first. */
+  "settingsLists.categories.order.usage": undefined;
+  /** Under the sort switch when By usage is chosen. */
+  "settingsLists.categories.order.usageNote": undefined;
   /** Ready-made categories (Bank fees, Donations…) this phone has nothing for. */
   "settingsLists.categories.presets.count": { count: number };
   "settingsLists.categories.presets.none": undefined;
@@ -2028,6 +2046,8 @@ export interface Messages {
   /** Row at the foot of Settings → Tags and the title of the page it opens: tags made by travel mode, one per trip or event. */
   "settingsLists.tags.travel": undefined;
   "settingsLists.tags.travelNote": undefined;
+  /** Second line of a tag on Settings → Tags: the categories its payments were filed under, with counts, e.g. "Eating out (12), Groceries (5), +2". */
+  "settingsLists.tags.usedWith": { categories: string | number };
   /** How many transactions carry the tag. */
   "settingsLists.tags.uses": { count: number };
   "settingsLists.tags.usesAny": { count: number };

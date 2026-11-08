@@ -7,7 +7,7 @@ import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
-import { catName } from "@/lib/names";
+import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
 
 /** How many recently used categories get a shortcut at the top before the full list starts. */
@@ -47,7 +47,7 @@ export default function PickCategory() {
   const debts = useQuery((db) => (withDebts === "1" ? debtChoices(db, chosenDebt) : []), [withDebts, chosenDebt]);
   const [debtStep, setDebtStep] = useState(false);
   const { pickable, sections } = useQuery((db) => {
-    const all = listRows(db, "categories", "deleted=0", [], "sort, name");
+    const all = orderedCategories(db, listRows(db, "categories", "deleted=0", [], "sort, name"));
     const byId = new Map(all.map((c) => [c.id, c]));
     const folders = folderIds(all);
     // Retired categories, and everything inside a retired folder, are not offered — but the one this

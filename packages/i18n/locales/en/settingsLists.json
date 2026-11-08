@@ -23,6 +23,7 @@
   "categories": {
     "types": "Category types",
     "typesMissing": { "message": "{count, plural, one {# category} other {# categories}} without a type", "note": "Categories a well-known shop cannot be matched to yet." },
+    "order": {"title": {"message": "Order", "note": "Section header above the sort switch on Settings → Categories."}, "usage": {"message": "By usage", "note": "Sort option: most used first.", "max": 14}, "name": {"message": "By name", "note": "Sort option: alphabetical.", "max": 14}, "custom": {"message": "Custom", "note": "Sort option: the order dragged into place.", "max": 14}, "reorder": "Reorder folders and categories", "usageNote": {"message": "Most used in the last 6 months first, folders by everything in them. Applies to every category list.", "note": "Under the sort switch when By usage is chosen."}, "nameNote": "Alphabetical, folders and the categories in them. Applies to every category list."},
     "presets": {"title": "Add ready-made categories", "count": {"message": "{count, plural, one {# you don’t have yet} other {# you don’t have yet}}", "note": "Ready-made categories (Bank fees, Donations…) this phone has nothing for."}, "none": "You have every ready-made category."},
     "typesAll": "Shops know where to go",
     "title": "Categories",
@@ -53,6 +54,7 @@
     "emptyHint": "Nothing tagged yet.",
     "uses": { "message": "{count, plural, one {# use} other {# uses}}", "note": "How many transactions carry the tag." },
     "usesOnly": { "message": "{count, plural, one {# use} other {# uses}} · only for {categories}", "note": "categories is a comma-separated list of category names." },
+    "usedWith": {"message": "With {categories}", "note": "Second line of a tag on Settings → Tags: the categories its payments were filed under, with counts, e.g. \"Eating out (12), Groceries (5), +2\"."},
     "usesAny": "{count, plural, one {# use} other {# uses}} · any category",
     "usesArchived": "{count, plural, one {# use} other {# uses}} · archived",
     "travel": { "message": "Trips & Events", "note": "Row at the foot of Settings → Tags and the title of the page it opens: tags made by travel mode, one per trip or event." },
