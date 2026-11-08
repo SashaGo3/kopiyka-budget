@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps } from "react-native";
+import { ActivityIndicator, Animated, Easing, FlatList, LayoutAnimation, Pressable, SectionList, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
@@ -292,6 +292,45 @@ export function HeaderBar({ title, left, right, style }: { title: string; left?:
   );
 }
 
+/**
+ * The one shape for a picker sheet (`picker` detents in _layout): the list *is* the screen and the
+ * header rides in it as its first, sticky item. A sheet with detents sizes and scrolls its first
+ * scroll view, so a header in a View above the list leaves the list unsized and the rows broken —
+ * build every picker from `PickerList` / `PickerSections` + `PickerHeader` rather than by hand.
+ */
+export function PickerList<T>({ header, style, contentContainerStyle, ...rest }: Omit<FlatListProps<T>, "ListHeaderComponent"> & { header: ReactNode }) {
+  return <FlatList stickyHeaderIndices={[0]} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
+}
+export function PickerSections<T, S>({ header, style, contentContainerStyle, ...rest }: Omit<SectionListProps<T, S>, "ListHeaderComponent"> & { header: ReactNode }) {
+  return <SectionList stickySectionHeadersEnabled={false} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
+}
+
+/**
+ * A picker's title bar: an optional text action on the left (clear / "Any"), bold while nothing is
+ * chosen, and the filled Done pill on the right, counting what will be handed back. `children` sit
+ * under the bar (a search field, the transfer slots) and stay pinned with it.
+ */
+export function PickerHeader({ title, clear, done, children }: {
+  title: string;
+  clear?: { label: string; onPress: () => void; active?: boolean; a11y?: string };
+  done: { onPress: () => void; count?: number; disabled?: boolean };
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      <HeaderBar style={styles.pickerBar} title={title}
+        left={clear ? <Tap onPress={clear.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={clear.a11y ?? clear.label}><ButtonText style={[styles.pickerLink, clear.active && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{clear.label}</ButtonText></Tap> : undefined}
+        right={<Tap onPress={done.onPress} disabled={done.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} accessibilityState={{ disabled: !!done.disabled }} style={[styles.pickerDone, done.disabled && { opacity: 0.4 }]}><ButtonText style={styles.pickerDoneText} maxFontSizeMultiplier={1.3}>{done.count ? t("pick.doneCount", { count: done.count }) : t("common.done")}</ButtonText></Tap>} />
+      {children}
+    </>
+  );
+}
+
+/** The tick a picker row ends with. */
+export function PickCheck({ state }: { state: boolean | "half" }) {
+  return <SymbolView name={state === "half" ? "minus.circle.fill" : state ? "checkmark.circle.fill" : "circle"} size={22} tintColor={state === true ? C.tint : C.tertiary} />;
+}
+
 /** Plain header for card modals: text actions only, no native glass bubbles. */
 export function ModalHeader({ title, left, right }: { title: string; left?: { label: string; onPress: () => void }; right?: { label: string; onPress: () => void; disabled?: boolean; bold?: boolean } }) {
   return (
@@ -489,6 +528,13 @@ export function Empty({ title, hint, action }: { title: string; hint?: string; a
 }
 
 const styles = themed(() => StyleSheet.create({
+  pickerList: { flex: 1, backgroundColor: C.bgGrouped },
+  pickerContent: { paddingBottom: 60 },
+  pickerHead: { backgroundColor: C.bgGrouped, paddingBottom: S.sm },
+  pickerBar: { paddingTop: S.md },
+  pickerLink: { color: C.tint, fontSize: 15 },
+  pickerDone: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
+  pickerDoneText: { color: C.onTint, fontSize: 15, fontWeight: "700" },
   // Clipped so the veil follows whatever corners the card has.
   pressCard: { overflow: "hidden" },
   pressVeil: { backgroundColor: C.fill },

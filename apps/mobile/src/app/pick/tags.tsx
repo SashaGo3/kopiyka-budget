@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { ButtonText, HeaderBar, TagPill, Tap } from "@/components/ui";
+import { PickerHeader, PickerList, TagPill, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
@@ -65,17 +65,15 @@ export default function PickTags() {
   // it behind in the search field, where it would be thrown away with the sheet.
   const done = () => { resolvePick(key, canCreate ? [...chosen, make().id] : chosen); router.back(); };
   return (
-    <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={filtered} keyExtractor={(tg) => tg.id} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets stickyHeaderIndices={[0]}
-      ListHeaderComponent={
-        <View style={{ backgroundColor: C.bgGrouped }}>
-          <HeaderBar style={styles.head} title={t("pick.tags.title")}
-            right={<Tap onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{chosen.length + (canCreate ? 1 : 0) ? t("pick.doneCount", { count: chosen.length + (canCreate ? 1 : 0) }) : t("common.done")}</ButtonText></Tap>} />
+    <PickerList data={filtered} keyExtractor={(tg) => tg.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets
+      header={
+        <PickerHeader title={t("pick.tags.title")} done={{ onPress: done, count: chosen.length + (canCreate ? 1 : 0) }}>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.tags.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel={t("pick.tags.searchA11y")} />
           </View>
           {canCreate ? <Tap onPress={create} style={styles.row} accessibilityRole="button"><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{t("pick.tags.create", { name: q.trim() })}</Text></Tap> : null}
-        </View>
+        </PickerHeader>
       }
       renderItem={({ item: tg, index }) => (
         <>
@@ -96,10 +94,7 @@ export default function PickTags() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  head: { paddingTop: S.md },
   count: { fontSize: 12, color: C.tertiary },
-  doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
-  done: { color: C.onTint, fontSize: 15, fontWeight: "700" },
   search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
   input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
   section: { fontSize: 12, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4, paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: 4 },
