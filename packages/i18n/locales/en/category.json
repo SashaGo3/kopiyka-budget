@@ -32,11 +32,12 @@
   "folder": "Folder",
   "whichFolder": "Which folder?",
   "noFolder": "No folder",
-  "types": { "title": "Category types" },
+  "types": {"title": "Category types", "hint": {"message": "A type says what a category is, whatever you call it — so a payment at a shop the app knows lands in the right one. Several categories can share a type. Changes are saved as you make them.", "note": "Footer of Settings → Categories → Category types."}, "useAll": {"message": "{count, plural, one {Use # suggestion} other {Use all # suggestions}}", "note": "Button: save every suggested type at once. count = how many categories have one."}, "undo": {"message": "{count, plural, one {Undo — # category typed} other {Undo — # categories typed}}", "note": "Button shown after Use all suggestions; puts the types back as they were."}, "fromHistory": {"message": "{type} · from your payments", "note": "type was guessed from the shops this category's payments went to; tap to keep or change."}},
   "suggestHere": { "message": "Suggest by location", "note": "Switch: may this category be offered because of where you are? Off by default for parking, taxi, bills." },
   "type": {
     "title": "Type",
     "none": "None",
+    "also": {"message": "Also: {names}", "note": "Under a category type in the picker: the user's other categories that already have this type. names = comma-separated category names."},
     "suggested": { "message": "{type} · suggested", "note": "type is a category type's name, guessed from the category's name; saved on Save." }
   },
   "inheritedColour": { "message": "Automatic uses {folder}’s colour, because the folder has one.", "note": "folder is the folder's name." },

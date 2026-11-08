@@ -1,7 +1,7 @@
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, unmarkedCount } from "@kopiyka/core";
+import { archivedCategoryIds, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, missingPresets, unmarkedCount } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
@@ -37,6 +37,8 @@ export default function CategoriesScreen() {
     return { total: leaves.length, unmarked: unmarkedCount(asked), marked: leaves.filter((c) => level.get(c.id)).length };
   });
   // Categories nothing says the kind of (DATA.md rule 21): a well-known shop cannot be filed into them.
+  // Ready-made categories this phone has nothing for — new in a later version, or skipped at onboarding.
+  const missing = useQuery((db) => missingPresets(db).length);
   const untyped = useQuery((db) => {
     const all = listRows(db, "categories", "deleted=0");
     const folders = folderIds(all), gone = archivedCategoryIds(all);
@@ -64,6 +66,9 @@ export default function CategoriesScreen() {
               subtitle={untyped ? t("settingsLists.categories.typesMissing", { count: untyped }) : t("settingsLists.categories.typesAll")}
               subtitleColor={untyped ? C.orange : undefined}
               onPress={() => router.push("/category/types")} />
+            {missing ? <Row title={t("settingsLists.categories.presets.title")} icon="plus.square.on.square" style={styles.divider}
+              subtitle={t("settingsLists.categories.presets.count", { count: missing })}
+              onPress={() => router.push("/category/presets")} /> : null}
           </Card>
         ) : null}
         {groups.list.length === 0 ? <Empty title={t("settingsLists.categories.emptyTitle")} hint={t("settingsLists.categories.emptyHint")} /> : null}

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createTransaction, locationIgnoredIds, save, setLocationIgnoreChoice, setLocationSuggest } from "../src/repo";
-import { categoryForShop, categoryTypes, isCategoryType, isPlaceless, suggestCategoryTypes, typesToStore } from "../src/categoryTypes";
+import { categoryForShop, categoryTypes, isCategoryType, isPlaceless, suggestCategoryTypes, suggestTypesFromHistory, typesToStore } from "../src/categoryTypes";
 import { SHOPS, shopType } from "../src/shops";
 import { shopsSwift } from "../scripts/shops";
 
@@ -125,5 +125,54 @@ describe("never suggest by location", () => {
     expect(locationIgnoredIds(db)).toEqual(new Set([t.id, parking.id, fuel.id]));
     setLocationIgnoreChoice(db, []);
     expect(locationIgnoredIds(db).size).toBe(0);
+  });
+});
+
+describe("mapping categories to types", () => {
+  test("short keywords, whole names, and a name that is a keyword outranking one that contains it", () => {
+    expect(suggestCategoryTypes("ZUS")).toEqual(["bills.taxes"]);
+    expect(suggestCategoryTypes("PIT")).toEqual(["bills.taxes"]);
+    expect(suggestCategoryTypes("Bank fees")).toEqual(["bills.fees"]);
+    expect(suggestCategoryTypes("Car (general)")).toEqual(["transport.car"]);
+    expect(suggestCategoryTypes("Health")).toEqual(["health.doctor"]);
+    expect(suggestCategoryTypes("Cats")).toEqual(["family.pets"]);
+    expect(suggestCategoryTypes("Accountant")).toEqual(["bills.services"]);
+  });
+
+  test("history speaks only when the known shops are most of the category and agree", () => {
+    const db = openBunDb(); migrate(db);
+    const acc = createAccount(db, { name: "Main", currency: "PLN" });
+    const food = createCategory(db, { name: "Stuff" });
+    const soda = createCategory(db, { name: "Fizzy" });
+    const add = (category_id: string, payee: string) => createTransaction(db, { account_id: acc.id, date: "2026-11-01T12:00:00Z", amount_minor: -1000, category_id, payee });
+    for (const p of ["SKLEP LIDL 1941", "JMP S.A. BIEDRONKA 604", "LIDL", "Some market"]) add(food.id, p);
+    for (const p of ["CIRCLE K WROCLAW", "CIRCLE K WROCLAW", "CIRCLE K WROCLAW", "a", "b", "c", "d", "e", "f", "g"]) add(soda.id, p);
+    const out = suggestTypesFromHistory(db);
+    expect(out.get(food.id)).toEqual(["food.groceries"]);
+    expect(out.has(soda.id)).toBe(false);
+  });
+
+  test("a payee you file under one kind of thing elsewhere speaks for it; one filed under two says nothing", () => {
+    const db = openBunDb(); migrate(db);
+    const acc = createAccount(db, { name: "Main", currency: "PLN" });
+    const rent = createCategory(db, { name: "Rent", type: '["home.rent"]' });
+    const payments = createCategory(db, { name: "Payments" });
+    const fuel = createCategory(db, { name: "Fuel", type: '["transport.fuel"]' });
+    const eating = createCategory(db, { name: "Eating out", type: '["food.restaurants"]' });
+    const soda = createCategory(db, { name: "Fizzy" });
+    const add = (category_id: string, payee: string) => createTransaction(db, { account_id: acc.id, date: "2026-11-01T12:00:00Z", amount_minor: -1000, category_id, payee });
+    add(rent.id, "E-BOK.VANTAGERENT.PL"); add(payments.id, "E-BOK.VANTAGERENT.PL"); add(payments.id, "E-BOK.VANTAGERENT.PL 0425");
+    add(fuel.id, "SOME STATION"); add(eating.id, "SOME STATION"); add(soda.id, "SOME STATION"); add(soda.id, "SOME STATION");
+    const out = suggestTypesFromHistory(db);
+    expect(out.get(payments.id)).toEqual(["home.rent"]);
+    expect(out.has(soda.id)).toBe(false);
+  });
+
+  test("the folder narrows a name, stands in for an empty one, and a broad folder never does", () => {
+    expect(suggestCategoryTypes("Maintenance", "expense", "Car")).toEqual(["transport.car"]);
+    expect(suggestCategoryTypes("General", "expense", "Car")).toEqual(["transport.car"]);
+    expect(suggestCategoryTypes("Purchases", "expense", "Shopping")).toEqual([]);
+    expect(suggestCategoryTypes("Bicycle")).toEqual(["transport.bike"]);
+    expect(suggestCategoryTypes("Cash")).toEqual(["personal.cash"]);
   });
 });

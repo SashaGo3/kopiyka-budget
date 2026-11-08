@@ -13,6 +13,7 @@ import { INSIGHT_GROUPS, INSIGHT_LOOK, addableKinds, comfortDefaults, kindsIn, k
 import { catName, acctName } from "@/lib/names";
 import { t } from "@/i18n";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { dismissTo } from "@/lib/nav";
 
 /**
  * Pick a kind — grouped by what it is about, so twelve cards are three short lists rather than one
@@ -26,7 +27,8 @@ export default function InsightEdit() {
   // A card of a kind folded into another ("Safe to spend") is edited, and saved, as that other kind.
   const [kind, setKind] = useState<InsightKind | null>((existing ? retiredKind(existing.kind) ?? existing.kind : null) ?? (presetKind as InsightKind) ?? null);
   const [p, setP] = useState<InsightParams>(() => (existing ? parseInsightParams(existing.params) : {}));
-  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  // Closing with changes asks first (lib/discard.ts); saving and converting leave through `leave`. Deleting
+  // goes to the Insights tab instead: the screen underneath may be the deleted card's own page.
   const exit = useDiscardGuard(useDirty([kind, p]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const names = useQuery((d) => ({ accounts: new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a])), categories: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, catName(c)])), tags: new Map(listRows(d, "tags", "1=1").map((x) => [x.id, x.name])) }));
@@ -53,7 +55,11 @@ export default function InsightEdit() {
     const cid = tagsFor.current; if (!cid) return;
     setP((s) => { const ct = { ...(s.category_tags ?? {}) }; if (v.length) ct[cid] = v; else delete ct[cid]; return { ...s, category_tags: Object.keys(ct).length ? ct : undefined }; });
   }, []));
-  usePickResult<string>(keys.title, useCallback((v: string) => setP((s) => ({ ...s, title: v || undefined })), []));
+  // The name field opens holding the name the card goes by now, so it is edited rather than retyped.
+  // Handed back unchanged (or emptied), the card keeps no name of its own and goes on following its
+  // kind's, in whatever language the app is in.
+  const defaultName = useRef("");
+  usePickResult<string>(keys.title, useCallback((v: string) => setP((s) => ({ ...s, title: v.trim() && v.trim() !== defaultName.current ? v.trim() : undefined })), []));
   usePickResult<string>(keys.acc, useCallback((v: string) => setP((s) => ({ ...s, account_id: v })), []));
   // The safety buffer counts several accounts; a card saved with one moves over to the list.
   usePickResult<string[]>(keys.accs, useCallback((v: string[]) => setP((s) => { const { account_id: _, ...rest } = s; return { ...rest, account_ids: v }; }), []));
@@ -67,6 +73,7 @@ export default function InsightEdit() {
     return { ...s, category_ids: ids, category_tags: Object.keys(ct).length ? ct : undefined };
   }), []));
   const kindName = kind ? kindTitle(kind) : "";
+  defaultName.current = kindName;
   const account = p.account_id ? names.accounts.get(p.account_id) : undefined;
   const currency = account?.currency ?? "EUR";
   const needsAccount = kind === "savings_goal" || kind === "account_balance";
@@ -85,7 +92,7 @@ export default function InsightEdit() {
     mutate((d) => existing ? save(d, "insights", { ...existing, kind: k, params: JSON.stringify(params) }) : createInsight(d, { kind: k, params: JSON.stringify(params), sort: nextSort(d) }));
     leave();
   };
-  const del = () => existing && Alert.alert(t("insights.edit.removeTitle"), undefined, [{ text: t("common.cancel"), style: "cancel" }, { text: t("insights.edit.remove"), style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); leave(); } }]);
+  const del = () => existing && Alert.alert(t("insights.edit.removeTitle"), undefined, [{ text: t("common.cancel"), style: "cancel" }, { text: t("insights.edit.remove"), style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); exit(() => dismissTo({ pathname: "/insights" })); } }]);
   const money = (minor?: number) => (minor != null ? `${formatMinor(minor, currency)} ${currency}` : t("insights.edit.notSet"));
   const catList = (p.category_ids ?? []).map((cid) => names.categories.get(cid) ?? "?").join(", ");
 
@@ -119,7 +126,7 @@ export default function InsightEdit() {
               </View>
             </View>
             <Card>
-              <Row icon="textformat" iconColor="#8E8E93" title={t("insights.edit.title")} subtitle={p.title || t("insights.edit.defaultTitle", { title: kindName })} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.title, title: t("insights.edit.title"), value: p.title ?? "" } })} />
+              <Row icon="textformat" iconColor="#8E8E93" title={t("insights.edit.title")} subtitle={p.title || t("insights.edit.defaultTitle", { title: kindName })} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.title, title: t("insights.edit.title"), value: p.title || kindName } })} />
               {needsAccount ? <Row icon="creditcard" title={t("insights.edit.account")} subtitle={acctName(account) ?? t("insights.edit.required")} subtitleColor={required(!account)} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: p.account_id ?? "" } })} style={styles.divider} /> : null}
               {kind === "safety_buffer" ? (
                 <>

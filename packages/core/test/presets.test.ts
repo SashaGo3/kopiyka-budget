@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate, MIGRATIONS } from "../src/schema";
 import { createCategory, getRow, listRows } from "../src/repo";
-import { CATEGORY_PRESET, categoryDescription, categoryMatchText, categoryName, presetCounts, presetDescription, presetKey, presetName, seedCategories } from "../src/presets";
+import { CATEGORY_PRESET, categoryDescription, categoryMatchText, categoryName, missingPresets, presetCounts, presetDescription, presetKey, presetName, seedCategories } from "../src/presets";
 import { exportBackup, importBackup } from "../src/backup";
 import { ICON_PRESETS } from "../src/icons";
 import { LANGUAGES } from "@kopiyka/i18n/generated";
@@ -141,4 +141,19 @@ describe("a backup from before v18 restored into a fresh database", () => {
       expect(g.updated_at).toBe(file.categories.find((c) => c.id === g.id)!.updated_at);
     });
   }
+});
+
+describe("adding ready-made categories later", () => {
+  test("missing means nothing made from it and nothing of yours already that kind; adding makes only those", () => {
+    const db = openBunDb(); migrate(db);
+    const bills = createCategory(db, { name: "Bills" });
+    createCategory(db, { name: "Bank Fees", parent_id: bills.id });
+    const missing = missingPresets(db);
+    expect(missing).not.toContain("bills.fees");
+    expect(missing).toContain("bills.services");
+    expect(seedCategories(db, "en", new Set(["bills.services"])).created).toBe(1);
+    const made = listRows(db, "categories", "deleted=0 AND preset='bills.services'")[0]!;
+    expect(made.parent_id).toBe(bills.id); // the folder already there, found by its name
+    expect(missingPresets(db)).not.toContain("bills.services");
+  });
 });

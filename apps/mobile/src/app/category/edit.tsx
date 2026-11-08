@@ -121,7 +121,7 @@ export default function CategoryEdit() {
   const valid = name.trim().length > 0;
   const parentToSave = isFolder ? null : parentId;
   const presetTypes = categoryTypes({ preset: existing?.preset ?? null });
-  const suggested = types === null && !presetTypes.length ? suggestCategoryTypes(name, kind) : [];
+  const suggested = types === null && !presetTypes.length ? suggestCategoryTypes(name, kind, parentFolder ? catName(parentFolder) : null) : [];
   const shownTypes = types ?? (presetTypes.length ? presetTypes : suggested);
   // A folder has no type; a ready-made category left alone keeps following its preset (NULL).
   const typeToSave = isFolder ? null : typesToStore(shownTypes, existing?.preset);
@@ -181,7 +181,7 @@ export default function CategoryEdit() {
     router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("category.whichFolder"), selected: parentId ?? "", options: JSON.stringify(options) } });
   };
   const folderName = parentFolder ? catName(parentFolder) : null;
-  const pickType = () => router.push({ pathname: "/pick/types", params: { key: keys.type, title: t("category.type.title"), selected: shownTypes.join(","), kind } });
+  const pickType = () => router.push({ pathname: "/pick/types", params: { key: keys.type, title: t("category.type.title"), selected: shownTypes.join(","), kind, exclude: existing?.id ?? "" } });
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={existing ? (isFolder ? t("category.title.editFolder") : t("category.title.editCategory")) : isFolder ? t("category.title.newFolder") : t("category.title.newCategory")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.save"), onPress: commit, disabled: !valid }} />

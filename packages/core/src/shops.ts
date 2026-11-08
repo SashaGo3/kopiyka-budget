@@ -73,6 +73,13 @@ export const SHOPS: Shop[] = [
     "mobiparking", "mobi parking", "parkomat", "apcoa", "interparking", "easypark", "q park", "qpark", "saba",
     "parking", "parkowanie", "spp", "паркування", "парковка", "kyiv parking", "parkovka",
   ] },
+  // ── Bike & scooter ──────────────────────────────────────────────────────────────────────────
+  { type: "transport.bike", terms: [
+    "nextbike", "veturilo", "wroclawski rower miejski", "rower miejski", "tier mobility", "dott", "voi technology", "voiscooters", "hulajnoga", "hulajnogi",
+    "bird rides", "lime ride", "limebike", "велопрокат", "nextbike ua",
+  ] },
+  // ── Cash ────────────────────────────────────────────────────────────────────────────────────
+  { type: "personal.cash", terms: ["bankomat", "wyplata z bankomatu", "euronet", "atm", "cash withdrawal", "банкомат", "зняття готівки", "видача готівки"] },
   // ── Car ─────────────────────────────────────────────────────────────────────────────────────
   { type: "transport.car", terms: ["norauto", "inter cars", "vianor", "autodoc", "myjnia", "автомийка"] },
   // ── Pharmacy ────────────────────────────────────────────────────────────────────────────────
@@ -133,7 +140,12 @@ export const SHOPS: Shop[] = [
     "playstation plus", "tidal", "deezer", "kyivstar tv", "takflix", "storytel", "legimi", "empik go",
   ] },
   // ── Insurance ───────────────────────────────────────────────────────────────────────────────
-  { type: "bills.insurance", terms: ["pzu", "warta", "allianz", "ergo hestia", "generali", "uniqa", "link4", "оранта", "oranta", "ingo", "інго"] },
+  { type: "bills.insurance", terms: ["pzu", "warta", "allianz", "ergo hestia", "generali", "uniqa", "link4", "vienna life", "оранта", "oranta", "ingo", "інго"] },
+  // ── Taxes: the tax office and social security, as banks print them ─────────────────────────────
+  { type: "bills.taxes", terms: [
+    "zaklad ubezpieczen spolecznych", "zus", "urzad skarbowy", "mikrorachunek podatkowy", "e urzad skarbowy",
+    "дпс", "державна податкова служба", "податкова", "єдиний податок", "hmrc", "finanzamt",
+  ] },
   // ── Entertainment ───────────────────────────────────────────────────────────────────────────
   { type: "fun.entertainment", terms: [
     "cinema city", "multikino", "helios", "planeta kino", "планета кіно", "multiplex", "мультиплекс", "karabas",

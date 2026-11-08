@@ -544,7 +544,15 @@ the shop's name stands for both, so nothing is printed twice.
 A category's **types** (`categories.type`, v24) say what kind of thing it is — `food.groceries`,
 `transport.parking` — whatever it is called, and it may be several: "Car" is fuel and parking. The
 column holds a JSON list. The vocabulary is the ready-made categories' keys plus
-a few no preset seeds (`EXTRA_CATEGORY_TYPES`), and a key is forever, like a preset's (rule 16).
+any no preset seeds (`EXTRA_CATEGORY_TYPES`: `transport.bike` and `personal.cash` — `transport.parking`
+was one until it became a ready-made category in 1.1.2), and a key is forever, like a preset's (rule 16). Several categories may carry the
+same type; `categoryForShop` decides among them. 1.1.2 also split `bills.fees` (bank fees and
+commissions) out of `bills.taxes`, renamed "Taxes & fees" to "Taxes" with the old names on
+`FORMER_PRESET_NAMES`, and added `bills.services` and `personal.charity` — new keys, so onboarding seeds
+them on a new phone. An existing one is offered them in Settings → Categories → Add ready-made
+categories (`missingPresets`: a preset nothing was made from *and* no category of yours already is,
+by type or by name), added only when ticked, into the folder of that name if there is one
+(`seedCategories(db, lang, only)`).
 Read it through `categoryTypes` (`packages/core/src/categoryTypes.ts`), never off the column, and
 write it through `typesToStore`:
 
@@ -557,8 +565,15 @@ write it through `typesToStore`:
   moves (rule 15's lesson), and a preset renamed to "Їжа вдома" is still groceries.
 
 A category of your own has no type until one is saved. The editor and Settings → Categories →
-Category types offer what its name suggests (`suggestCategoryType`, every language's names and
-keywords) and write it only when you save — and only the rows whose answer changes.
+Category types offer what its name suggests (`suggestCategoryTypes`, every language's names and
+keywords — narrowed by the folder it is in, which also stands in for an empty name when the folder
+is one kind of thing: "General" in "Car", never anything in "Shopping"), and the types screen,
+failing that, what its payments suggest (`suggestTypesFromHistory`, last two years): a payee you
+also pay from a typed category of *one* kind lends that kind ("Payments" to the landlord "Rent" is
+paid to), else the shop list; only payments with a payee count, and a shop-list guess must also be a
+good share of all the category's rows (a petrol station sells more than fuel). The editor writes on
+Save; the types screen writes each pick as its picker closes, and "Use all suggestions" writes every
+suggestion at once, with an Undo — in both, only the rows whose answer changes.
 
 `packages/core/src/shops.ts` maps well-known shops (Poland, Ukraine, worldwide) to types, never to
 categories; `categoryForShop` files the type into whichever of your live, pickable categories

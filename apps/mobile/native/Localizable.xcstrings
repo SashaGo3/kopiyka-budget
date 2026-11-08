@@ -3620,6 +3620,40 @@
         }
       }
     },
+    "preset.bills.fees.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bank fee, commission, account fee, card fee, ATM fee, transfer fee, currency conversion, interest charged"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "комісія, комісія банку, обслуговування рахунку, обслуговування картки, зняття готівки, переказ, конвертація валюти, відсотки за кредитом"
+          }
+        }
+      }
+    },
+    "preset.bills.fees.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bank fees"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Комісії банку"
+          }
+        }
+      }
+    },
     "preset.bills.insurance.description" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3671,6 +3705,40 @@
         }
       }
     },
+    "preset.bills.services.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "accountant, bookkeeping, lawyer, notary, legal services, translator, consulting"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "бухгалтер, бухгалтерія, юрист, нотаріус, юридичні послуги, перекладач, консультація"
+          }
+        }
+      }
+    },
+    "preset.bills.services.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accountant & legal"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Бухгалтер і юрист"
+          }
+        }
+      }
+    },
     "preset.bills.subscriptions.description" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3711,13 +3779,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "tax, government fees, bank fees, fines"
+            "value" : "tax, income tax, VAT, social security, ZUS, PIT, government fees, stamp duty, fines"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "податок, держмито, комісія банку, штраф"
+            "value" : "податок, ПДФО, ЄСВ, єдиний податок, ПДВ, держмито, штраф"
           }
         }
       }
@@ -3728,13 +3796,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Taxes & fees"
+            "value" : "Taxes"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Податки й комісії"
+            "value" : "Податки"
           }
         }
       }
@@ -3745,13 +3813,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "baby, kids, toys, diapers, childcare, school supplies"
+            "value" : "baby, kids, toys, diapers, childcare, school supplies, child, children, pregnancy, stroller"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "немовля, діти, іграшки, підгузки, садок, шкільне приладдя"
+            "value" : "немовля, діти, іграшки, підгузки, садок, шкільне приладдя, дитина, вагітність, візочок"
           }
         }
       }
@@ -3796,13 +3864,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "pet food, vet, cat, dog, litter"
+            "value" : "pet food, vet, cat, dog, litter, cats, dogs, pet shop, grooming"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "корм, ветеринар, кіт, пес, наповнювач"
+            "value" : "корм, ветеринар, кіт, пес, наповнювач, коти, собаки, зоомагазин, грумінг"
           }
         }
       }
@@ -4068,13 +4136,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "doctor, dentist, clinic, medical visit, tests"
+            "value" : "doctor, dentist, clinic, medical visit, tests, health, medical, hospital, lab"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "лікар, стоматолог, клініка, прийом, аналізи"
+            "value" : "лікар, стоматолог, клініка, прийом, аналізи, здоровʼя, лікарня, лабораторія"
           }
         }
       }
@@ -4555,19 +4623,87 @@
         }
       }
     },
+    "preset.personal.cash.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cash withdrawal, ATM, cash machine, bankomat"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "зняття готівки, банкомат, готівка"
+          }
+        }
+      }
+    },
+    "preset.personal.cash.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cash"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Готівка"
+          }
+        }
+      }
+    },
+    "preset.personal.charity.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "donation, charity, fundraiser, volunteers, church, crowdfunding, Patreon"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "донат, благодійність, збір, волонтери, ЗСУ, Повернись живим, Притула, monobank банка, церква"
+          }
+        }
+      }
+    },
+    "preset.personal.charity.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Donations"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Донати"
+          }
+        }
+      }
+    },
     "preset.personal.education.description" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "courses, language lessons, books, tuition, school"
+            "value" : "courses, language lessons, books, tuition, school, lessons, tutor, language school"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "курси, уроки мови, книжки, навчання, школа"
+            "value" : "курси, уроки мови, книжки, навчання, школа, уроки, репетитор, мовна школа"
           }
         }
       }
@@ -4799,13 +4935,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "household goods, cleaning, toiletries, drugstore, Rossmann, kitchen items"
+            "value" : "household goods, cleaning, toiletries, drugstore, Rossmann, kitchen items, essentials, cleaning supplies"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "побутові товари, прибирання, засоби гігієни, EVA, Watsons, Prostor, кухонне приладдя"
+            "value" : "побутові товари, прибирання, засоби гігієни, EVA, Watsons, Prostor, кухонне приладдя, необхідне, побутова хімія"
           }
         }
       }
@@ -4878,19 +5014,53 @@
         }
       }
     },
+    "preset.transport.bike.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "bicycle, bike, bike rental, city bike, e-scooter, scooter rental, bike service"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "велосипед, велопрокат, електросамокат, прокат самокатів, веломайстерня"
+          }
+        }
+      }
+    },
+    "preset.transport.bike.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bike & scooter"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Велосипед і самокат"
+          }
+        }
+      }
+    },
     "preset.transport.car.description" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "car service, parts, parking, tolls, car wash, insurance for the car"
+            "value" : "car service, parts, parking, tolls, car wash, insurance for the car, car maintenance, mechanic, tyres, oil change, inspection"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "СТО, запчастини, паркування, мийка, страховка авто"
+            "value" : "СТО, запчастини, паркування, мийка, страховка авто, техобслуговування, шиномонтаж, заміна масла, техогляд"
           }
         }
       }
@@ -5003,13 +5173,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "bus, tram, metro, train ticket, monthly pass"
+            "value" : "bus, tram, metro, train ticket, monthly pass, bike sharing, scooter rental"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "автобус, трамвай, метро, квиток на потяг, Укрзалізниця, проїзний"
+            "value" : "автобус, трамвай, метро, квиток на потяг, Укрзалізниця, проїзний, велопрокат, прокат самокатів"
           }
         }
       }

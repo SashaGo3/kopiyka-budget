@@ -297,12 +297,17 @@ export function HeaderBar({ title, left, right, style }: { title: string; left?:
  * header rides in it as its first, sticky item. A sheet with detents sizes and scrolls its first
  * scroll view, so a header in a View above the list leaves the list unsized and the rows broken —
  * build every picker from `PickerList` / `PickerSections` + `PickerHeader` rather than by hand.
+ *
+ * A list redraws its rows only when `data` or `extraData` changes, and a picker's ticks live in
+ * state its memoised data knows nothing about — so a tap changed the Done count and left every
+ * tick where it was. `renderItem` is a fresh closure over that state on each render, so it is the
+ * `extraData`: whatever the picker's state, the rows follow it.
  */
 export function PickerList<T>({ header, style, contentContainerStyle, ...rest }: Omit<FlatListProps<T>, "ListHeaderComponent"> & { header: ReactNode }) {
-  return <FlatList stickyHeaderIndices={[0]} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
+  return <FlatList stickyHeaderIndices={[0]} extraData={rest.renderItem} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
 }
 export function PickerSections<T, S>({ header, style, contentContainerStyle, ...rest }: Omit<SectionListProps<T, S>, "ListHeaderComponent"> & { header: ReactNode }) {
-  return <SectionList stickySectionHeadersEnabled={false} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
+  return <SectionList stickySectionHeadersEnabled={false} extraData={rest.renderItem} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
 }
 
 /**

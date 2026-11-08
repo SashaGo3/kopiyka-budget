@@ -428,11 +428,21 @@ export interface Messages {
   "category.transactions.header": undefined;
   "category.transactions.inCategory": undefined;
   "category.transactions.inFolder": undefined;
+  /** Under a category type in the picker: the user's other categories that already have this type. names = comma-separated category names. */
+  "category.type.also": { names: string | number };
   "category.type.none": undefined;
   /** type is a category type's name, guessed from the category's name; saved on Save. */
   "category.type.suggested": { type: string | number };
   "category.type.title": undefined;
+  /** type was guessed from the shops this category's payments went to; tap to keep or change. */
+  "category.types.fromHistory": { type: string | number };
+  /** Footer of Settings → Categories → Category types. */
+  "category.types.hint": undefined;
   "category.types.title": undefined;
+  /** Button shown after Use all suggestions; puts the types back as they were. */
+  "category.types.undo": { count: number };
+  /** Button: save every suggested type at once. count = how many categories have one. */
+  "category.types.useAll": { count: number };
   "category.whichFolder": undefined;
   "common.add": undefined;
   /** A day and a time: "22 Sep at 11:17". */
@@ -1501,9 +1511,13 @@ export interface Messages {
   "preset.account.name": undefined;
   /** The group every account is in until given another (DATA.md rule 17). Not a category. */
   "preset.accountGroup.name": undefined;
+  "preset.bills.fees.description": undefined;
+  "preset.bills.fees.name": undefined;
   "preset.bills.insurance.description": undefined;
   "preset.bills.insurance.name": undefined;
   "preset.bills.name": undefined;
+  "preset.bills.services.description": undefined;
+  "preset.bills.services.name": undefined;
   "preset.bills.subscriptions.description": undefined;
   "preset.bills.subscriptions.name": undefined;
   "preset.bills.taxes.description": undefined;
@@ -1556,6 +1570,10 @@ export interface Messages {
   "preset.income.salary.name": undefined;
   "preset.personal.beauty.description": undefined;
   "preset.personal.beauty.name": undefined;
+  "preset.personal.cash.description": undefined;
+  "preset.personal.cash.name": undefined;
+  "preset.personal.charity.description": undefined;
+  "preset.personal.charity.name": undefined;
   "preset.personal.education.description": undefined;
   "preset.personal.education.name": undefined;
   "preset.personal.hobbies.description": undefined;
@@ -1575,6 +1593,8 @@ export interface Messages {
   "preset.shopping.name": undefined;
   "preset.shopping.wishes.description": undefined;
   "preset.shopping.wishes.name": undefined;
+  "preset.transport.bike.description": undefined;
+  "preset.transport.bike.name": undefined;
   "preset.transport.car.description": undefined;
   "preset.transport.car.name": undefined;
   "preset.transport.fuel.description": undefined;
@@ -1891,6 +1911,10 @@ export interface Messages {
   "settingsLists.categories.newCategory": undefined;
   "settingsLists.categories.newFolder": undefined;
   "settingsLists.categories.noFolder": undefined;
+  /** Ready-made categories (Bank fees, Donations…) this phone has nothing for. */
+  "settingsLists.categories.presets.count": { count: number };
+  "settingsLists.categories.presets.none": undefined;
+  "settingsLists.categories.presets.title": undefined;
   "settingsLists.categories.title": undefined;
   "settingsLists.categories.types": undefined;
   "settingsLists.categories.typesAll": undefined;

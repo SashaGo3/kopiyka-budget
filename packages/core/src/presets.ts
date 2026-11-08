@@ -17,6 +17,7 @@ import { LANGUAGES, SOURCE } from "@kopiyka/i18n/generated";
 import type { SqlDriver } from "./db";
 import type { Category } from "./models";
 import { createCategory, listRows } from "./repo";
+import { categoryTypes, suggestCategoryTypes, typeIsStated } from "./categoryTypes";
 import { CATEGORY_PRESET, FORMER_PRESET_NAMES, presetDescription, presetKey, presetName } from "./presetData";
 
 export { CATEGORY_PRESET, presetDescription, presetKey, presetName, type PresetCategory, type PresetFolder } from "./presetData";
@@ -68,7 +69,7 @@ export function presetCounts(): { folders: number; categories: number } {
  * Create the preset, named in `lang`. A folder or category that is already there — by preset key, or
  * by a name the preset uses in any language — is reused, so running twice adds nothing.
  */
-export function seedCategories(db: SqlDriver, lang: string = SOURCE): { created: number; folders: Category[] } {
+export function seedCategories(db: SqlDriver, lang: string = SOURCE, only?: ReadonlySet<string>): { created: number; folders: Category[] } {
   const existing = listRows(db, "categories", "deleted=0");
   const find = (parent: string | null, preset: string) =>
     existing.find((c) => (c.parent_id ?? null) === parent && (c.preset === preset || isPresetName(preset, c.name)));
@@ -77,6 +78,8 @@ export function seedCategories(db: SqlDriver, lang: string = SOURCE): { created:
   db.transaction(() => {
     for (const f of CATEGORY_PRESET) {
       const fk = presetKey(f.key);
+      // Adding a few later (`only`): a folder is made only to hold one of them.
+      if (only && !f.categories.some((c) => only.has(presetKey(f.key, c.key)))) continue;
       let folder = find(null, fk);
       if (!folder) {
         folder = createCategory(db, { name: presetName(fk, lang)!, parent_id: null, icon: f.icon, color: f.color, kind: f.kind, sort: sort++, preset: fk });
@@ -85,6 +88,7 @@ export function seedCategories(db: SqlDriver, lang: string = SOURCE): { created:
       folders.push(folder);
       for (const c of f.categories) {
         const ck = presetKey(f.key, c.key);
+        if (only && !only.has(ck)) continue;
         if (find(folder.id, ck)) continue;
         existing.push(createCategory(db, { name: presetName(ck, lang)!, parent_id: folder.id, icon: c.icon, color: f.color, kind: f.kind, sort: sort++, description: presetDescription(ck, lang), preset: ck }));
         created++;
@@ -92,4 +96,25 @@ export function seedCategories(db: SqlDriver, lang: string = SOURCE): { created:
     }
   });
   return { created, folders };
+}
+
+/**
+ * The ready-made categories this database has nothing for, by key — what Settings offers to add to a
+ * phone set up before they existed (1.1.2 added Parking, Bank fees, Accountant & legal, Donations).
+ * "Nothing for" means no live category was made from it *and* none of yours already is that kind of
+ * thing: a "Bank Fees" of your own, typed or suggested by its name, is the bank fees category already.
+ */
+export function missingPresets(db: SqlDriver): string[] {
+  const cats = listRows(db, "categories", "deleted=0");
+  const had = new Set<string>();
+  const folders = new Set(cats.filter((c) => c.parent_id).map((c) => c.parent_id!));
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  for (const c of cats) {
+    if (c.preset) had.add(c.preset);
+    if (folders.has(c.id)) continue;
+    const said = categoryTypes(c);
+    const ts = said.length || typeIsStated(c) ? said : suggestCategoryTypes(c.name, c.kind, c.parent_id ? byId.get(c.parent_id)?.name : null);
+    for (const t of ts) had.add(t);
+  }
+  return CATEGORY_PRESET.flatMap((f) => f.categories.map((c) => presetKey(f.key, c.key))).filter((k) => !had.has(k));
 }

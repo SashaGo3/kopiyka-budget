@@ -24,9 +24,15 @@ import { archivedCategoryIds, folderIds, listRows } from "./repo";
 import { shopType } from "./shops";
 import { normalizeName } from "./logos";
 
-/** Kinds a shop can be that no ready-made category is seeded for. Names live in preset.json under the same key. */
+/**
+ * Kinds a shop can be that no ready-made category is seeded for. Names live in preset.json under the
+ * same key. (Parking was one until it became a ready-made category in 1.1.2.) Cash taken out of an
+ * ATM is not spending on anything yet, and a bike or scooter ride is not a car — both matter to
+ * whoever has a category for them, and to nobody else's starting list.
+ */
 export const EXTRA_CATEGORY_TYPES: { key: string; icon: string; folder: string }[] = [
-  { key: "transport.parking", icon: "parkingsign", folder: "transport" },
+  { key: "transport.bike", icon: "bicycle", folder: "transport" },
+  { key: "personal.cash", icon: "banknote", folder: "personal" },
 ];
 
 /** Every type, grouped under the ready-made folder it belongs with, in the order a picker shows them. */
@@ -96,12 +102,16 @@ function typeWords() {
       const n = presetName(key, l.code);
       if (n) names.add(normalizeName(n));
       const d = presetDescription(key, l.code);
-      if (d) for (const p of d.split(",")) { const w = normalizeName(p); if (w.length >= 4) phrases.push(w); }
+      // Three letters is enough for a keyword someone listed on purpose: ZUS, PIT, VAT, ETF, bar.
+      if (d) for (const p of d.split(",")) { const w = normalizeName(p); if (w.length >= 3) phrases.push(w); }
     }
     for (const f of FORMER_PRESET_NAMES[key] ?? []) names.add(normalizeName(f));
     // The name's own words count as keywords too: "Coffee" is a word of "Coffee & snacks".
     const own = new Set<string>();
-    for (const n of [...names]) for (const w of n.split(" ")) if (w.length >= 4) { phrases.push(w); own.add(w); }
+    for (const n of [...names]) {
+      phrases.push(n); // a whole name is a keyword at any length: "Car" in "Car (general)"
+      for (const w of n.split(" ")) if (w.length >= 4) { phrases.push(w); own.add(w); }
+    }
     for (const n of names) own.add(n);
     return { key, names, phrases, own };
   });
@@ -117,7 +127,39 @@ const hasWord = (hay: string, w: string) => (` ${hay} `).includes(` ${w} `);
  * coffee — and failing that, a shop the category is named after ("Lidl"). Only a suggestion: it is
  * shown, and kept only when a person saves it.
  */
-export function suggestCategoryTypes(name: string, kind: "expense" | "income" = "expense"): string[] {
+export function suggestCategoryTypes(name: string, kind: "expense" | "income" = "expense", folder?: string | null): string[] {
+  const own = typesForName(name, kind);
+  if (!folder) return own;
+  // The folder a category is in narrows what its name means and stands in when the name says nothing:
+  // "Maintenance" in "Car" is the car's, and "General" in "Car" is still the car.
+  const { groups: near, broad } = folderGroups(folder, kind);
+  if (!near.size) return own;
+  if (own.length) { const inside = own.filter((k) => near.has(k.split(".")[0]!)); return inside.length ? inside : own; }
+  // Only a folder that is one kind of thing can speak for what is in it: "Car" can, "Shopping" — a
+  // ready-made folder of four kinds — cannot.
+  if (broad) return [];
+  const fromFolder = typesForName(folder, kind);
+  return fromFolder.length === 1 ? fromFolder : [];
+}
+
+/**
+ * The ready-made folders a folder's name points at: itself when it is one of their names, in any
+ * language ("Transport", "Транспорт"), else the folders of whatever types its name suggests ("Car").
+ */
+function folderGroups(folder: string, kind: "expense" | "income"): { groups: Set<string>; broad: boolean } {
+  const n = normalizeName(folder);
+  const out = new Set<string>();
+  for (const g of CATEGORY_TYPES) {
+    if (g.kind !== kind) continue;
+    const names = [...LANGUAGES.map((l) => presetName(g.folder, l.code)), ...(FORMER_PRESET_NAMES[g.folder] ?? [])];
+    if (names.some((x) => x && normalizeName(x) === n)) out.add(g.folder);
+  }
+  if (out.size) return { groups: out, broad: true };
+  for (const k of typesForName(folder, kind)) out.add(k.split(".")[0]!);
+  return { groups: out, broad: false };
+}
+
+function typesForName(name: string, kind: "expense" | "income"): string[] {
   const n = normalizeName(name);
   if (!n) return [];
   const inKind = new Set(CATEGORY_TYPES.filter((g) => g.kind === kind).flatMap((g) => g.types.map((t) => t.key)));
@@ -130,14 +172,92 @@ export function suggestCategoryTypes(name: string, kind: "expense" | "income" = 
   for (const t of all) for (const p of t.phrases) {
     if (hasWord(n, p) || hasWord(p, n)) byWord.set(p, [...(byWord.get(p) ?? []), { key: t.key, own: t.own.has(p) }]);
   }
+  // A keyword the name *is* ("Health" is the doctor's "health") outranks one that merely contains it
+  // ("health insurance"), however long that one is.
   const hits = new Map<string, number>();
   for (const [p, list] of byWord) {
     const keep = list.some((x) => x.own) ? list.filter((x) => x.own) : list;
-    for (const x of keep) if (p.length > (hits.get(x.key) ?? 0)) hits.set(x.key, p.length);
+    const score = p === n ? 1000 : p.length;
+    for (const x of keep) if (score > (hits.get(x.key) ?? 0)) hits.set(x.key, score);
   }
+  const sure = [...hits].filter(([, v]) => v >= 1000);
+  if (sure.length) return sure.map(([k]) => k).slice(0, 3);
   if (hits.size) return [...hits].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
   const shop = shopType(name);
   return shop && inKind.has(shop) ? [shop] : [];
+}
+
+/** A payee as evidence: its words without the numbers (store number, terminal, date) banks add. */
+const payeeKey = (p: string | null | undefined) => (p ? normalizeName(p).split(" ").filter((w) => !/\d/.test(w)).join(" ") : "");
+
+/**
+ * What the payments filed under each category say it is, by category id — computed for every
+ * category, used for the ones that have not said. Two kinds of evidence, payment by payment:
+ *
+ * - **Your own filing.** A payee you also pay from a category that has a type speaks for that type:
+ *   "Payments" to the landlord "Rent" is paid to is rent. Only when that payee is filed under one
+ *   kind of thing — Circle K under Fuel and under Eating Out says nothing either way.
+ * - **The shop list** (shops.ts), for a payee nothing else of yours knows.
+ *
+ * Only payments with a payee count — a hand-typed row with none says nothing, for or against. A type
+ * is offered when at least two payments speak for it, they are most of what speaks, and most of the
+ * payments with a payee; a shop-list guess must also be a good share of the category's rows, because a
+ * petrol station sells more than fuel (Sodastream refills: a few Circle K rows out of many).
+ * The last two years are enough to know a category by, and keep the scan cheap.
+ */
+export function suggestTypesFromHistory(db: SqlDriver, since: string = new Date(Date.now() - 730 * 86_400_000).toISOString()): Map<string, string[]> {
+  const cats = listRows(db, "categories", "deleted=0");
+  const kindOf = new Map(cats.map((c) => [c.id, c.kind]));
+  const typed = new Map(cats.map((c) => [c.id, categoryTypes(c)]).filter(([, t]) => (t as string[]).length) as [string, string[]][]);
+  const rows = db.all<{ category_id: string; payee: string | null; notes: string | null; bank_note: string | null }>(
+    `SELECT category_id, payee, notes, bank_note FROM transactions
+     WHERE deleted=0 AND category_id IS NOT NULL AND transfer_id IS NULL AND date>=?`, [since]);
+
+  // Which kinds of thing each payee is filed under, by the categories that say what they are.
+  const filed = new Map<string, Map<string, Set<string>>>(); // payee → type → categories
+  for (const r of rows) {
+    const k = payeeKey(r.payee), ts = typed.get(r.category_id);
+    if (!k || !ts) continue;
+    const m = filed.get(k) ?? new Map<string, Set<string>>();
+    for (const ty of ts) m.set(ty, (m.get(ty) ?? new Set()).add(r.category_id));
+    filed.set(k, m);
+  }
+  const ownVote = (k: string, self: string): string | null => {
+    const m = filed.get(k);
+    if (!m) return null;
+    const others = [...m].filter(([, ids]) => [...ids].some((id) => id !== self));
+    return others.length === 1 ? others[0]![0] : null;
+  };
+
+  const per = new Map<string, { total: number; spoken: number; votes: Map<string, { n: number; own: number }> }>();
+  for (const r of rows) {
+    const e = per.get(r.category_id) ?? { total: 0, spoken: 0, votes: new Map() };
+    per.set(r.category_id, e);
+    e.total++;
+    const k = payeeKey(r.payee) || payeeKey(r.bank_note);
+    if (!k) continue;
+    e.spoken++;
+    const own = ownVote(k, r.category_id);
+    const ty = own ?? shopType(r.payee, r.bank_note, r.notes);
+    if (!ty) continue;
+    const v = e.votes.get(ty) ?? { n: 0, own: 0 };
+    v.n++; if (own) v.own++;
+    e.votes.set(ty, v);
+  }
+  const out = new Map<string, string[]>();
+  for (const [id, e] of per) {
+    const kind = kindOf.get(id) ?? "expense";
+    const inKind = new Set(CATEGORY_TYPES.filter((g) => g.kind === kind).flatMap((g) => g.types.map((t) => t.key)));
+    const ranked = [...e.votes].filter(([k]) => inKind.has(k)).sort((a, b) => b[1].n - a[1].n);
+    const top = ranked[0];
+    if (!top) continue;
+    const known = ranked.reduce((a, [, v]) => a + v.n, 0);
+    const [type, v] = top;
+    const enough = v.n >= 2 && v.n >= known * 0.6 && v.n >= e.spoken * 0.4;
+    const broad = v.own > 0 || v.n >= e.total * 0.4;
+    if (enough && broad) out.set(id, [type]);
+  }
+  return out;
 }
 
 type Cat = { id: string; parent_id: string | null; archived: 0 | 1; kind: "expense" | "income"; type?: string | null; preset?: string | null };
@@ -177,9 +297,9 @@ export function categoryForShop(db: SqlDriver, ...names: (string | null | undefi
  * A category that is also something place-bound ("Car": fuel and parking) still counts.
  */
 export const PLACELESS_TYPES: readonly string[] = [
-  "transport.parking", "transport.taxi", "transport.publicTransport",
+  "transport.parking", "transport.taxi", "transport.publicTransport", "transport.bike", "personal.cash",
   "home.rent", "home.utilities", "home.internet",
-  "bills.subscriptions", "bills.insurance", "bills.taxes",
+  "bills.subscriptions", "bills.insurance", "bills.taxes", "bills.fees",
   "savings.savings", "savings.investments",
 ];
 const PLACELESS = new Set(PLACELESS_TYPES);

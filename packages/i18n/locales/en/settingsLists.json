@@ -23,6 +23,7 @@
   "categories": {
     "types": "Category types",
     "typesMissing": { "message": "{count, plural, one {# category} other {# categories}} without a type", "note": "Categories a well-known shop cannot be matched to yet." },
+    "presets": {"title": "Add ready-made categories", "count": {"message": "{count, plural, one {# you don’t have yet} other {# you don’t have yet}}", "note": "Ready-made categories (Bank fees, Donations…) this phone has nothing for."}, "none": "You have every ready-made category."},
     "typesAll": "Shops know where to go",
     "title": "Categories",
     "introShort": { "message": "What money was spent on. Budgets and every chart are built from categories.", "note": "Note above the categories list; the ⓘ unfolds introMore." },
