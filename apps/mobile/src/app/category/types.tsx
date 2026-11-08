@@ -92,6 +92,26 @@ export default function CategoryTypes() {
     if (was) mutate((d) => { for (const w of was) { const c = getRow(d, "categories", w.id) as Category | undefined; if (c && !c.deleted) save(d, "categories", { ...c, type: w.type }); } });
   };
 
+  // What still needs an answer goes first, where it cannot be missed: no type at all (orange) ahead of
+  // a suggestion waiting for a yes (tint), each with its folder named since it is shown outside it.
+  // Once a row has a type — or "none" chosen on purpose — it moves down into its folder.
+  const undecided = (c: Category) => !categoryTypes(c).length && !typeIsStated(c);
+  const needs = cats.flatMap((g) => g.items.filter(undecided).map((c) => ({ c, folder: g.folder })))
+    .sort((a, b) => Number(suggestions.has(a.c.id)) - Number(suggestions.has(b.c.id)));
+  const decided = cats.map((g) => ({ ...g, items: g.items.filter((c) => !undecided(c)) })).filter((g) => g.items.length);
+  const row = (c: Category, i: number, folder?: Category | null) => {
+    const list = shown(c).map((x) => categoryTypeName(x, lang)).join(", ");
+    const s = suggestions.get(c.id);
+    const what = !list ? (undecided(c) ? t("category.types.choose") : t("category.type.none"))
+      : s ? (s.from === "history" ? t("category.types.fromHistory", { type: list }) : t("category.type.suggested", { type: list })) : list;
+    return (
+      <Row key={c.id} title={catName(c)} onPress={() => pick(c)} style={i ? styles.divider : undefined}
+        left={<CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={30} />}
+        subtitle={folder ? `${catName(folder)} · ${what}` : what}
+        subtitleColor={s ? C.tint : !list && undecided(c) ? C.orange : !list ? C.tertiary : undefined} />
+    );
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={t("category.types.title")} right={{ label: t("common.done"), onPress: () => router.back() }} />
@@ -105,21 +125,16 @@ export default function CategoryTypes() {
             <Row icon="arrow.uturn.backward" iconColor="#8E8E93" title={t("category.types.undo", { count: undo.length })} onPress={undoAll} />
           </Card>
         ) : null}
-        {cats.map((g) => (
+        {needs.length ? (
+          <View>
+            <SectionHeader>{t("category.types.needs", { count: needs.length })}</SectionHeader>
+            <Card>{needs.map(({ c, folder }, i) => row(c, i, folder))}</Card>
+          </View>
+        ) : null}
+        {decided.map((g) => (
           <View key={g.folder?.id ?? "top"}>
             <SectionHeader>{g.folder ? catName(g.folder) : t("category.noFolder")}</SectionHeader>
-            <Card>
-              {g.items.map((c, i) => {
-                const list = shown(c).map((x) => categoryTypeName(x, lang)).join(", ");
-                const s = suggestions.get(c.id);
-                return (
-                  <Row key={c.id} title={catName(c)} onPress={() => pick(c)} style={i ? styles.divider : undefined}
-                    left={<CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={30} />}
-                    subtitle={!list ? t("category.type.none") : s ? (s.from === "history" ? t("category.types.fromHistory", { type: list }) : t("category.type.suggested", { type: list })) : list}
-                    subtitleColor={s ? C.tint : !list ? C.tertiary : undefined} />
-                );
-              })}
-            </Card>
+            <Card>{g.items.map((c, i) => row(c, i))}</Card>
           </View>
         ))}
         <Footnote>{t("category.types.hint")}</Footnote>

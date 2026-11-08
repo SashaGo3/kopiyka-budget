@@ -434,10 +434,14 @@ export interface Messages {
   /** type is a category type's name, guessed from the category's name; saved on Save. */
   "category.type.suggested": { type: string | number };
   "category.type.title": undefined;
+  /** Under a category with no type and nothing to suggest. */
+  "category.types.choose": undefined;
   /** type was guessed from the shops this category's payments went to; tap to keep or change. */
   "category.types.fromHistory": { type: string | number };
   /** Footer of Settings → Categories → Category types. */
   "category.types.hint": undefined;
+  /** Section at the top of Category types: categories nobody has given a type yet. */
+  "category.types.needs": { count: string | number };
   "category.types.title": undefined;
   /** Button shown after Use all suggestions; puts the types back as they were. */
   "category.types.undo": { count: number };
