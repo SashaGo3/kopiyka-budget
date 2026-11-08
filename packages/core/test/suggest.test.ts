@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
-import { NEAR_RADIUS_M, createAccount, createCategory, createTag, createTransaction, distanceMeters, setHome, suggestCategoryAt } from "../src/repo";
+import { NEAR_RADIUS_M, createAccount, createCategory, createTag, createTransaction, distanceMeters, setHome, setLocationIgnore, suggestCategoryAt } from "../src/repo";
 import { suggestBudget } from "../src/suggest";
 
 function seed() {
@@ -198,5 +198,24 @@ describe("suggesting a category for where you are", () => {
     tie.at(SHOP, tie.fuel.id, "Biedronka", "2026-09-01T10:00:00+02:00");
     tie.at(SHOP, tie.food.id, "Biedronka", "2026-09-05T10:00:00+02:00");
     expect(suggestCategoryAt(tie.db, { ...SHOP, place: "Biedronka" })?.category_id).toBe(tie.food.id);
+  });
+
+  test("a category on the never-suggest list is no evidence of the place", () => {
+    const { db, food, at } = world();
+    const transport = createCategory(db, { name: "Transport" });
+    const parking = createCategory(db, { name: "Parking", parent_id: transport.id });
+    // Parked by the supermarket three times, shopped once: Parking won every guess there.
+    for (const d of ["2026-09-01", "2026-09-02", "2026-09-03"]) at(SHOP, parking.id, "Biedronka", `${d}T10:00:00+02:00`);
+    at(SHOP, food.id, "Biedronka", "2026-08-01T10:00:00+02:00");
+    expect(suggestCategoryAt(db, { ...SHOP, place: "Biedronka" })?.category_id).toBe(parking.id);
+    setLocationIgnore(db, [parking.id]);
+    expect(suggestCategoryAt(db, { ...SHOP, place: "Biedronka" })?.category_id).toBe(food.id);
+    expect(suggestCategoryAt(db, { ...SHOP, place: null })?.category_id).toBe(food.id);
+    // A folder stands for what is inside it.
+    setLocationIgnore(db, [transport.id]);
+    expect(suggestCategoryAt(db, { ...SHOP, place: "Biedronka" })?.category_id).toBe(food.id);
+    // Nothing else to go on: no guess at all rather than the ignored one.
+    setLocationIgnore(db, [transport.id, food.id]);
+    expect(suggestCategoryAt(db, { ...SHOP, place: "Biedronka" })).toBeNull();
   });
 });

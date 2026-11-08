@@ -6,7 +6,7 @@ import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolvePick } from "@/store/pick";
-import { BigButton } from "@/components/ui";
+import { BigButton, Tap } from "@/components/ui";
 import { S } from "@/constants/theme";
 import { t } from "@/i18n";
 
@@ -65,9 +65,9 @@ export default function PhotoCapture() {
   return (
     <View style={styles.screen}>
       <CameraView ref={setCam} style={StyleSheet.absoluteFill} facing="back" pictureSize="1920x1080" mute />
-      <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
+      <Tap onPress={() => router.back()} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
         <SymbolView name="xmark" size={18} tintColor="white" weight="semibold" />
-      </Pressable>
+      </Tap>
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, S.lg) + S.md }]}>
         {/* A row with a spacer on the right, so the shutter stays centred on screen rather than
             being pushed off by the library button. */}

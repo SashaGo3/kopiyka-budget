@@ -195,6 +195,13 @@ export const MIGRATIONS: string[][] = [
     // typed around it, and nothing typed can lose it. Rows from before keep the bank's text in `notes`.
     `ALTER TABLE transactions ADD COLUMN bank_note TEXT`,
   ],
+  [
+    // v24: what kind of thing a category is ("food.groceries", "transport.parking"), whatever it is
+    // called — what a shop's name is matched to (shops.ts). NULL is "not said": a ready-made category
+    // answers with its `preset`, so nothing is backfilled; "none" is "no type, on purpose".
+    // Read it through `categoryType` (categoryTypes.ts), never off the column.
+    `ALTER TABLE categories ADD COLUMN type TEXT`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

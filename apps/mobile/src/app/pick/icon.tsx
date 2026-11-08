@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { ICON_CATALOG, ICON_GROUPS, searchIcons, type CatalogIcon, type IconGroup } from "@kopiyka/core";
@@ -72,11 +73,11 @@ export default function PickIcon() {
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.icon.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" accessibilityLabel={t("pick.icon.search")} />
           </View>
           {!ql ? (
-            <Pressable onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
+            <Tap onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
               <View style={styles.autoIcon}><SymbolView name="wand.and.stars" size={16} tintColor={C.tertiary} /></View>
               <Text style={styles.autoText}>{t("pick.automatic")}</Text>
               {!selected ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
       }
@@ -88,10 +89,10 @@ export default function PickIcon() {
             {item.icons.map((icon) => {
               const on = selected === icon.name;
               return (
-                <Pressable key={icon.name} onPress={() => choose(icon.name)} style={[styles.cell, on && { borderColor: tint, backgroundColor: tint + "1F" }]}
+                <Tap key={icon.name} onPress={() => choose(icon.name)} style={[styles.cell, on && { borderColor: tint, backgroundColor: tint + "1F" }]}
                   accessibilityRole="button" accessibilityLabel={`${groupLabel(icon.group)}: ${icon.keywords.split(" ")[0]}`} accessibilityState={{ selected: on }}>
                   <SymbolView name={icon.name as SFSymbol} size={22} tintColor={on ? tint : C.secondary} />
-                </Pressable>
+                </Tap>
               );
             })}
             {/* Keeps the last row of a group left-aligned instead of spreading four icons across six slots. */}

@@ -12,7 +12,8 @@ import { APP_MARKETING_VERSION, APP_VERSION, privacyPolicyUrl } from "@/constant
 import { releasesToRead } from "@/lib/whatsNew";
 import { AUTOMATION_MIN_IOS, AUTOMATION_SUPPORTED } from "@/constants/features";
 import { lastBackupLine, useBackupState } from "@/lib/backup";
-import { getHideIncome, getHomeLocation, getLocationEnabled, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setShowBalance } from "@/lib/settings";
+import { getHideIncome, getHomeLocation, getLocationEnabled, getLocationIgnoreIds, getShowBalance, setHideIncome, setHomeLocation, setLocationEnabled, setLocationIgnoreIds, setShowBalance } from "@/lib/settings";
+import { catNameById } from "@/lib/names";
 import { ensureLocationPermission, locationStatus, placeName, preciseLocation } from "@/lib/location";
 import { tripLine, tripLook, useActiveTrip, useTripStats } from "@/lib/travel";
 import { dayMonth, humanDayTime } from "@/lib/dates";
@@ -28,7 +29,7 @@ export default function SettingsScreen() {
   // Only the name: the screen's colours follow a switch natively (src/lib/theme.ts), its words do not.
   const theme = useTheme();
   const backup = useBackupState();
-  const prefs = useQuery(() => ({ startDay: getPeriodStartDay(), location: getLocationEnabled(), home: getHomeLocation(), hideIncome: getHideIncome(), showBalance: getShowBalance() }));
+  const prefs = useQuery(() => ({ startDay: getPeriodStartDay(), location: getLocationEnabled(), home: getHomeLocation(), ignore: getLocationIgnoreIds(), hideIncome: getHideIncome(), showBalance: getShowBalance() }));
   const counts = useQuery((db) => {
     const openDebts = listDebts(db, { settled: false });
     const debtCurrencies = new Set(openDebts.map((d) => d.currency));
@@ -92,6 +93,11 @@ export default function SettingsScreen() {
     setLocationEnabled(on);
     refreshPerm();
   };
+  // Never suggest: categories paid beside other places (parking, fuel) that must not become "what is here".
+  const ignoreKey = useMemo(() => newPickKey("locignore"), []);
+  usePickResult<string[]>(ignoreKey, useCallback((ids: string[]) => setLocationIgnoreIds(ids.filter((id) => id !== "none")), []));
+  const pickIgnore = () => router.push({ pathname: "/pick/categories", params: { key: ignoreKey, title: t("settings.locationIgnore.title"), selected: prefs.ignore.join(",") } });
+  const ignoreNames = prefs.ignore.map((id) => catNameById(id)).filter((n): n is string => !!n);
   // Home: where no category should be suggested (everything gets bought at home).
   const [settingHome, setSettingHome] = useState(false);
   const useHereAsHome = async () => {
@@ -170,6 +176,10 @@ export default function SettingsScreen() {
           {prefs.location && perm.loc === "granted" ? (
             <Row icon="house" iconColor="#34C759" title={t("settings.home.title")} style={styles.divider} onPress={settingHome ? undefined : pickHome}
               subtitle={settingHome ? t("settings.home.reading") : prefs.home ? t("settings.home.set", { place: prefs.home.place ?? `${prefs.home.lat.toFixed(4)}, ${prefs.home.lon.toFixed(4)}` }) : t("settings.home.unset")} />
+          ) : null}
+          {prefs.location && perm.loc === "granted" ? (
+            <Row icon="mappin.slash" iconColor="#34C759" title={t("settings.locationIgnore.title")} style={styles.divider} onPress={pickIgnore}
+              subtitle={ignoreNames.length ? ignoreNames.join(", ") : t("settings.locationIgnore.unset")} />
           ) : null}
         </Card>
         <SectionHeader>{t("settings.section.backup")}</SectionHeader>

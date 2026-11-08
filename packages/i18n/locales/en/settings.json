@@ -71,6 +71,10 @@
     "denied": "Turned off in the Settings app",
     "on": "Suggests the category you used at the same place"
   },
+  "locationIgnore": {
+    "title": "Never suggest",
+    "unset": { "message": "None · e.g. Parking, Fuel, Taxi", "note": "Categories paid next to other places, so where they were paid says nothing about the place." }
+  },
   "home": {
     "title": "Home",
     "reading": "Reading location…",

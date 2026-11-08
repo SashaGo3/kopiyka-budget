@@ -7,7 +7,7 @@ import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { groupByDay, rowCategory, useTransactions, type TxRow } from "@/components/TransactionList";
 import { BarButton, BottomBar } from "@/components/BottomBar";
-import { AmountPill, ButtonText, CategoryIcon, Empty, Money } from "@/components/ui";
+import { AmountPill, ButtonText, CategoryIcon, Empty, Money, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { timeLabel } from "@/lib/dates";
 import { Trans, t } from "@/i18n";
@@ -148,7 +148,7 @@ function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete
   const guessed = categorised && tx.source === GUESSED;
   return (
     <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.editA11y", { title })}
+      <Tap style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.editA11y", { title })}
         onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: tx.id } })}>
         <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={34} />
         <View style={styles.text}>
@@ -157,7 +157,7 @@ function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete
         </View>
         <AmountPill minor={tx.amount_minor} currency={tx.currency} />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
       <View style={styles.actions}>
         <Action icon="checkmark.circle.fill" label={t("pending.approve")} color={C.green} onPress={onApprove} grow />
         <Action icon={categorised ? "folder.fill" : "folder.badge.plus"} color={categorised && !guessed ? C.secondary : C.tint} onPress={onCategory}
@@ -185,7 +185,7 @@ function PendingTransfer({ tx, partner, first, last, onApprove, onDelete }: {
   const edit = () => router.push({ pathname: "/transfer/[id]", params: { id: tx.transfer_id! } });
   return (
     <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.transfer.editA11y", { route })} onPress={edit}>
+      <Tap style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.transfer.editA11y", { route })} onPress={edit}>
         <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
         <View style={styles.text}>
           <Text style={styles.title} numberOfLines={1}>{t("pending.transfer.title")}</Text>
@@ -196,7 +196,7 @@ function PendingTransfer({ tx, partner, first, last, onApprove, onDelete }: {
           {inn && inn.currency !== out.currency ? <AmountPill minor={inn.amount_minor} currency={inn.currency} neutral /> : null}
         </View>
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
       <View style={styles.actions}>
         {unknown
           ? <Action icon="pencil" label={t("pending.transfer.fill")} color={C.tint} onPress={edit} grow />

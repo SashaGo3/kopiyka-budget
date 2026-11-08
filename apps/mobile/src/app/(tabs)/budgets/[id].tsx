@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { budgetCategoryIds, budgetRow, budgetSeries, daysUntil, formatMinor, getRow, listRows, type Budget, type Category, type Tag } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { ButtonText, Card, CategoryIcon, CategoryIconStack, Empty, Money, ProgressBar, Row, SectionHeader } from "@/components/ui";
+import { ButtonText, Card, CategoryIcon, CategoryIconStack, Empty, Money, ProgressBar, Row, SectionHeader, Tap } from "@/components/ui";
 import { HistoryChart } from "@/components/HistoryChart";
 import { PeriodPill } from "@/components/PeriodPill";
 import { C, S, themed } from "@/constants/theme";
@@ -104,9 +104,9 @@ export default function BudgetDetail() {
     <>
       <Stack.Screen options={{ title: look.name, headerLargeTitle: false,
         headerRight: () => (
-          <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: budget.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("common.edit")}>
+          <Tap onPress={() => router.push({ pathname: "/budget/edit", params: { id: budget.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("common.edit")}>
             <ButtonText style={styles.headerLink} maxFontSizeMultiplier={1.3}>{t("common.edit")}</ButtonText>
-          </Pressable>
+          </Tap>
         ) }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120, paddingTop: S.sm, gap: S.md }}>
         <View style={styles.pills}>

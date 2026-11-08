@@ -31,6 +31,13 @@
   },
   "folder": "Folder",
   "whichFolder": "Which folder?",
+  "noFolder": "No folder",
+  "types": { "title": "Category types" },
+  "type": {
+    "title": "Type",
+    "none": "None",
+    "suggested": { "message": "{type} · suggested", "note": "type is a category type's name, guessed from the category's name; saved on Save." }
+  },
   "inheritedColour": { "message": "Automatic uses {folder}’s colour, because the folder has one.", "note": "folder is the folder's name." },
   "folderHint": "A folder groups the list and is never filed into. New categories in it take its colour.",
   "transactions": {

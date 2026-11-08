@@ -1,11 +1,11 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from "react";
-import { LayoutAnimation, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LayoutAnimation, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, sumInBase, tagSpend, tripTagIds } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, PressCard, ProgressBar, SectionHeader, StatPair } from "@/components/ui";
+import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, PressCard, ProgressBar, SectionHeader, StatPair, Tap } from "@/components/ui";
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
@@ -157,7 +157,7 @@ export default function BudgetsScreen() {
           {data.rows.length === 0 ? <Empty title={budgetAccount ? t("budgets.emptyFor", { account: scopeName }) : t("budgets.empty")} hint={t("budgets.emptyHint")} /> : null}
           {data.rows.length ? (
             <SectionHeader right={data.rows.length > 1 || data.spending.length || pastTrips.length
-              ? <Pressable onPress={() => router.push("/budget/reorder")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("budgets.reorder.title")}><Text style={styles.addText}>{t("budgets.reorder.button")}</Text></Pressable>
+              ? <Tap onPress={() => router.push("/budget/reorder")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("budgets.reorder.title")}><Text style={styles.addText}>{t("budgets.reorder.button")}</Text></Tap>
               : undefined}>{scope ? t("budgets.monthlyScoped", { period: period.subtitle ?? period.title, scope: scopeName }) : t("budgets.monthly", { period: period.subtitle ?? period.title })}</SectionHeader>
           ) : null}
           {data.rows.map((b, bi) => {
@@ -199,10 +199,10 @@ export default function BudgetsScreen() {
               </FadeIn>
             );
           })}
-          <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button">
+          <Tap onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button">
             <SymbolView name="plus.circle" size={18} tintColor={C.tint} />
             <Text style={styles.addText}>{budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}</Text>
-          </Pressable>
+          </Tap>
       </>
     ),
     spending: (
@@ -219,28 +219,28 @@ export default function BudgetsScreen() {
                 const openDebt = (id: string | null) => id && router.push({ pathname: "/debt/edit", params: { id } });
                 return (
                   <View key={key}>
-                    <Pressable onPress={() => (expandable ? toggle(key) : g.trip ? openCategory(g.children[0]?.id ?? null, g.name, g.trip) : openCategory(g.id, g.name))} style={[styles.spendRow, i > 0 && styles.divider]} accessibilityRole="button" accessibilityLabel={`${g.name}, ${g.spent / 100} ${g.currency}`} accessibilityState={{ expanded: open }}>
+                    <Tap onPress={() => (expandable ? toggle(key) : g.trip ? openCategory(g.children[0]?.id ?? null, g.name, g.trip) : openCategory(g.id, g.name))} style={[styles.spendRow, i > 0 && styles.divider]} accessibilityRole="button" accessibilityLabel={`${g.name}, ${g.spent / 100} ${g.currency}`} accessibilityState={{ expanded: open }}>
                       <CategoryIcon name={g.name} icon={g.icon} color={g.color} size={28} />
                       <Text style={styles.spendName}>{g.name}</Text>
                       <Money minor={-g.spent} currency={g.currency} />
                       <SymbolView name={expandable ? (open ? "chevron.down" : "chevron.right") : "chevron.right"} size={12} tintColor={C.tertiary} />
-                    </Pressable>
+                    </Tap>
                     {open ? (
                       <View style={styles.children}>
                         {g.debts ? null : (
-                          <Pressable onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.spending.allLabel", { name: g.name })}>
+                          <Tap onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.spending.allLabel", { name: g.name })}>
                             <SymbolView name={g.trip ? (g.icon as SFSymbol | null) ?? "airplane" : "folder"} size={14} tintColor={C.tint} />
                             <Text style={[styles.childText, { color: C.tint, fontWeight: "600" }]}>{t("budgets.spending.allIn", { name: g.name })}</Text>
                             <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
-                          </Pressable>
+                          </Tap>
                         )}
                         {g.children.map((ch) => (
-                          <Pressable key={ch.id ?? "none"} onPress={() => (g.debts ? openDebt(ch.id) : openCategory(ch.id, ch.name, g.trip))} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.childLabel", { name: ch.name })}>
+                          <Tap key={ch.id ?? "none"} onPress={() => (g.debts ? openDebt(ch.id) : openCategory(ch.id, ch.name, g.trip))} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.childLabel", { name: ch.name })}>
                             <CategoryIcon name={ch.name} icon={ch.icon} color={ch.color} size={20} />
                             <Text style={styles.childText}>{ch.name}</Text>
                             <Money minor={-ch.spent} currency={g.currency} style={styles.childAmt} />
                             <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
-                          </Pressable>
+                          </Tap>
                         ))}
                       </View>
                     ) : null}
@@ -262,7 +262,7 @@ export default function BudgetsScreen() {
     travel: (
       <>
           {pastTrips.length ? (
-            <SectionHeader right={pastTrips.length > 3 ? <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><Text style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</Text></Pressable> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
+            <SectionHeader right={pastTrips.length > 3 ? <Tap onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><Text style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</Text></Tap> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
           ) : null}
           {(pastTrips.length > 3 ? (pastOpen ? pastTrips : []) : pastTrips).map((x) => <TripCard key={x.id} budget={x} compact />)}
       </>

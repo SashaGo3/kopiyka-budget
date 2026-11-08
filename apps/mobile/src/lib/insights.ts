@@ -20,6 +20,10 @@ export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }
   values: { icon: "heart.text.square", color: "#FF3B30" },
   safety_buffer: { icon: "lifepreserver", color: "#32ADE6" },
   safe_to_spend: { icon: "checkmark.shield", color: "#34C759" },
+  month_vs_usual: { icon: "arrow.up.arrow.down", color: "#FF9500" },
+  one_offs: { icon: "bag", color: "#FF2D55" },
+  top_shops: { icon: "storefront", color: "#5856D6" },
+  spending_map: { icon: "map", color: "#34C759" },
 };
 
 /**
@@ -27,7 +31,7 @@ export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }
  * here is not lost: `kindsIn` puts it in the last group rather than leaving a card nobody can add.
  */
 export const INSIGHT_GROUPS: { id: "spending" | "accounts" | "payments"; kinds: InsightKind[] }[] = [
-  { id: "spending", kinds: ["free_money", "days_to_salary", "regular", "values"] },
+  { id: "spending", kinds: ["free_money", "days_to_salary", "month_vs_usual", "regular", "values", "one_offs", "top_shops", "spending_map"] },
   { id: "accounts", kinds: ["account_balance", "savings_goal", "safety_buffer"] },
   { id: "payments", kinds: ["checklist", "subscriptions"] },
 ];

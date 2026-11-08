@@ -4,15 +4,16 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
   accountBalanceMinor, accountHistory, budgetRows, categoryChecklist, categoryImportance, checklistTotals, commitments, formatMinor, getRow, incomeSeries, incomeSources, listRows, parseInsightParams, regularSeries,
-  retiredKind, safetyBuffer, savingsGoal, shownPaymentIcon, spendSeries, subscriptionsPerYear, toSeries, type Category, type Insight, type Series,
+  retiredKind, safetyBuffer, savingsGoal, shownPaymentIcon, spendSeries, spendingPlaces, subscriptionsPerYear, toSeries, type Category, type Insight, type Series,
 } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { ButtonText, Card, Empty, Money, ProgressBar, Row, SectionHeader } from "@/components/ui";
+import { ButtonText, Card, Empty, Money, ProgressBar, Row, SectionHeader, Tap } from "@/components/ui";
 import { InsightCard } from "@/components/InsightCard";
 import { HistoryChart } from "@/components/HistoryChart";
 import { PeriodPill } from "@/components/PeriodPill";
 import { PaymentIcon } from "@/components/PaymentIcon";
+import { SpendMap } from "@/components/SpendMap";
 import { C, S, themed, themeHue } from "@/constants/theme";
 import { humanDayTime, monthLong, todayLocal } from "@/lib/dates";
 import { anchorDay, currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
@@ -38,6 +39,8 @@ import { t } from "@/i18n";
  * - Regular spending: its own windows — per week for a weekly card — so the averages are the card's.
  * - What it went on: spending by period beside the split.
  * - Safety buffer: the accounts counted, and what a month of the comfort level has cost.
+ * - Month vs usual: every folder on the card, and spending by period under it.
+ * - Spending map: the map itself, and every place on it.
  */
 export default function InsightDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,9 +64,9 @@ export default function InsightDetail() {
     <>
       <Stack.Screen options={{ title, headerLargeTitle: false,
         headerRight: () => (
-          <Pressable onPress={() => router.push({ pathname: "/insight/edit", params: { id: insight.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("insights.detail.edit")}>
+          <Tap onPress={() => router.push({ pathname: "/insight/edit", params: { id: insight.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("insights.detail.edit")}>
             <ButtonText style={styles.headerLink} maxFontSizeMultiplier={1.3}>{t("insights.detail.edit")}</ButtonText>
-          </Pressable>
+          </Tap>
         ) }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120, paddingTop: S.sm, gap: S.md }}>
         <View style={styles.pills}>
@@ -98,10 +101,10 @@ function Histories({ series, title, hue, weekly, kind, empty }: { series: Series
   const arrow = (dir: -1 | 1) => {
     const to = series[i + dir];
     return (
-      <Pressable onPress={() => { if (to) setAt(i + dir); }} disabled={!to} hitSlop={10} style={[styles.arrow, !to && { opacity: 0.3 }]}
+      <Tap onPress={() => { if (to) setAt(i + dir); }} disabled={!to} hitSlop={10} style={[styles.arrow, !to && { opacity: 0.3 }]}
         accessibilityRole="button" accessibilityLabel={to ? t("insights.detail.showCurrency", { currency: to.currency }) : undefined} accessibilityElementsHidden={!to}>
         <SymbolView name={dir < 0 ? "chevron.left" : "chevron.right"} size={15} weight="semibold" tintColor={C.tint} />
-      </Pressable>
+      </Tap>
     );
   };
   return (
@@ -167,6 +170,10 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
         const accounts = b.account_ids.map((aid) => getRow(d, "accounts", aid)).filter((a): a is NonNullable<typeof a> => !!a);
         return { kind, b, accounts, history };
       }
+      case "month_vs_usual":
+        return { kind, history: spendSeries(d, { categoryIds: [], accountIds: scoped, startDay, today: day }) };
+      case "spending_map":
+        return { kind, v: spendingPlaces(d, { start: period.start, end: period.end, accountIds: scoped })[0] ?? null };
       default: return { kind: "none" as const };
     }
   }, [insight.params, kind, period.start, day, scope, startDay, accountIds.join(",")]);
@@ -323,7 +330,21 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
       return <Histories series={data.series} weekly={data.weekly} hue={hue} empty={t("insights.detail.noHistory")}
         title={(currency) => data.weekly ? t("insights.detail.perWeekHistory", { currency }) : t("insights.detail.perMonthHistory", { currency })} />;
     case "values":
+    case "month_vs_usual":
       return <Histories series={data.history} title={spendTitle} hue={hue} />;
+    case "spending_map": {
+      const v = data.v;
+      if (!v) return null;
+      return <>
+        <SpendMap places={v.places} />
+        <Section title={t("insights.map.all")}>
+          <Card>
+            {v.places.map((pl, i) => <Row key={pl.key} title={pl.place ?? t("insights.map.unnamed")} subtitle={t("insights.shops.count", { count: pl.count })}
+              right={money(pl.spent_minor, v.currency)} style={i > 0 ? styles.divider : undefined} />)}
+          </Card>
+        </Section>
+      </>;
+    }
     case "safety_buffer": {
       const b = data.b;
       if (!b) return null;

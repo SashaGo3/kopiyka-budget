@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { formatMinor, listRows } from "@kopiyka/core";
@@ -8,7 +8,7 @@ import { rowCategory, useTransactions } from "@/components/TransactionList";
 import { useQuery } from "@/store";
 import { catName, acctName } from "@/lib/names";
 import { t } from "@/i18n";
-import { AmountPill, CategoryIcon } from "@/components/ui";
+import { AmountPill, CategoryIcon, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
 
@@ -61,7 +61,7 @@ export default function PickTransaction() {
         // Towards zero, whichever way the row points, exactly as the entry sheet books it.
         const after = forReturn ? tx.amount_minor + (tx.amount_minor < 0 ? back : -back) : null;
         return (
-          <Pressable onPress={() => { resolvePick(key, tx.id); router.back(); }} style={styles.row} accessibilityRole="button"
+          <Tap onPress={() => { resolvePick(key, tx.id); router.back(); }} style={styles.row} accessibilityRole="button"
             accessibilityLabel={after !== null
               ? t("pick.transaction.returnA11y", { name, amount: `${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}`, after: `${formatMinor(after, tx.currency)} ${tx.currency}`, date: humanDayTime(tx.date.slice(0, 10)) })
               : `${name}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}, ${humanDayTime(tx.date.slice(0, 10))}`}>
@@ -77,7 +77,7 @@ export default function PickTransaction() {
                 <Text style={styles.after} numberOfLines={1}>{formatMinor(after, tx.currency)}</Text>
               </View>
             ) : <AmountPill minor={tx.amount_minor} currency={tx.currency} />}
-          </Pressable>
+          </Tap>
         );
       }}
       ListEmptyComponent={<Text style={styles.empty}>{forReturn ? t("pick.transaction.noneReturn") : t("pick.transaction.none")}</Text>} />

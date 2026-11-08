@@ -4963,6 +4963,40 @@
         }
       }
     },
+    "preset.transport.parking.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "parking, car park, parking meter, paid parking zone, garage"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "паркування, парковка, стоянка, паркомат, гараж"
+          }
+        }
+      }
+    },
+    "preset.transport.parking.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parking"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Паркування"
+          }
+        }
+      }
+    },
     "preset.transport.publicTransport.description" : {
       "extractionState" : "manual",
       "localizations" : {

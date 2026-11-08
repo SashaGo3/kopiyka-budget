@@ -157,7 +157,11 @@
     "subscriptions": { "title": "Subscriptions per year", "hint": "What your recurring expenses cost yearly" },
     "regular": { "title": "Regular spending", "hint": "Weekly or monthly average for a category" },
     "values": { "title": "What it went on", "hint": "This period split by how much each category matters to you" },
-    "safety_buffer": { "title": "Safety buffer", "hint": "How many months you could live on your money" }
+    "safety_buffer": { "title": "Safety buffer", "hint": "How many months you could live on your money" },
+    "month_vs_usual": { "title": "Month vs usual", "hint": "What is above or below your usual spending this period" },
+    "one_offs": { "title": "Biggest one-offs", "hint": "The largest purchases this period that were not recurring" },
+    "top_shops": { "title": "Where you shop most", "hint": "The shops this period's money went to, and how that compares" },
+    "spending_map": { "title": "Spending map", "hint": "Where this period's money was spent, on a map" }
   },
   "edit": {
     "bufferAccounts": { "message": "Money you could live on", "note": "Safety buffer row: the accounts whose money counts." },
@@ -216,5 +220,32 @@
     "hint": "Drag by the grip on the right. The order here is the order on Insights.",
     "emptyTitle": "No insights",
     "emptyHint": "Add one on the Insights tab first."
+  }
+,
+  "usual": {
+    "soFar": { "message": "{amount} so far · usually {usual} by now", "note": "Under the big percentage while the period is still running." },
+    "whole": { "message": "{amount} · usually {usual}", "note": "Under the big percentage for a finished period." },
+    "same": { "message": "As usual", "note": "Big text when spending is within a few percent of the usual." },
+    "new": { "message": "new", "note": "Instead of a percentage: nothing was spent here in the periods before.", "max": 12 },
+    "nothing": "Nothing to compare yet.",
+    "all": { "message": "Every folder", "note": "Section on the details screen listing every line." },
+    "lineA11y": { "message": "{name}: {amount}, {change} against usual", "note": "VoiceOver label of one line." }
+  },
+  "oneOffs": {
+    "nothing": "No one-off purchases this period.",
+    "openA11y": { "message": "{title}, {amount}, {day}", "note": "VoiceOver label of one purchase; opens it." },
+    "untitled": { "message": "Purchase", "note": "A purchase with no shop, note or bank text." }
+  },
+  "shops": {
+    "nothing": "No shops this period yet.",
+    "count": { "message": "{count, plural, one {# purchase} other {# purchases}}", "note": "Under a shop's name." },
+    "new": { "message": "new", "note": "Trend: nothing was spent at this shop in the period before.", "max": 12 },
+    "all": { "message": "Top shops", "note": "Section on the details screen." }
+  },
+  "map": {
+    "nothing": "Nothing with a location this period.",
+    "located": { "message": "{pct}% of spending has a place", "note": "Under the top places: how much of the period the map covers." },
+    "unnamed": { "message": "Unnamed spot", "note": "A place with coordinates but no name." },
+    "all": { "message": "Places", "note": "Section on the details screen listing every place." }
   }
 }

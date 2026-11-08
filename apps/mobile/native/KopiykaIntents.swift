@@ -504,6 +504,13 @@ struct LogPaymentIntent: AppIntent {
     // look like every other online BLIK payment, so what it offers is worth a category and not the
     // right to skip the queue.
     var guessed = categoryId != nil && !history.trusted
+    // A shop everybody knows (KPShops, generated from core shops.ts): Biedronka is groceries, WOG
+    // fuel — filed into whichever category of yours has that type, whatever you called it. Still a
+    // guess: the first payment there waits in Pending for a yes, and after that it is history.
+    if categoryId == nil, let type = KPShops.type(shop, noteKey) {
+      let refs = KPStore.categoryRefs().filter { $0.type == type }
+      if let hit = refs.max(by: { $0.uses < $1.uses }) { categoryId = hit.id; guessed = true }
+    }
     if categoryId == nil, let s = shop, let hit = LogPaymentIntent.matchCategory(s, KPStore.categoryRefs()) {
       categoryId = hit.id
       guessed = true

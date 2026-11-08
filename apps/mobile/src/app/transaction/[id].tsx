@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, categoryForShop, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
-import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon } from "@/components/ui";
+import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
@@ -324,7 +324,11 @@ export default function TransactionSheet() {
       if (!alive || !name) return;
       setPlace((cur) => cur ?? name);
       const here = suggestCategoryAt(db, { lat: c.lat, lon: c.lon, place: name });
-      if (here?.by === "place") offer(here.category_id);
+      if (here?.by === "place") { offer(here.category_id); return; }
+      // Nothing filed at this shop yet, but it is one everybody knows (core shops.ts): Biedronka is
+      // groceries in whatever category of yours has that type. Still only offered, marked suggested.
+      const shop = categoryForShop(db, name);
+      if (shop) offer(shop);
     });
     return () => { alive = false; };
   }, [isNew]);
@@ -493,12 +497,12 @@ export default function TransactionSheet() {
           {/* Return and Duplicate used to sit in this corner as a lone round arrow, where a back or an undo
               button is expected — so they live in the chip grid below now (its last cell), and the corner
               holds only Delete, on the right, on a saved entry. */}
-          {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("transaction.entry.deleteA11y")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
-          <Pressable onPress={copyAmount} disabled={value === null} style={styles.amountRow} accessibilityRole="button"
+          {existing ? <Tap onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("transaction.entry.deleteA11y")}><SymbolView name="trash" size={16} tintColor={C.red} /></Tap> : null}
+          <Tap onPress={copyAmount} disabled={value === null} style={styles.amountRow} accessibilityRole="button"
             accessibilityLabel={t("transaction.entry.amountA11y", { amount: `${expr ? signChar : ""}${shown}`, currency })}>
             <Text style={[styles.amount, { color: expr ? signColor : C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{expr ? signChar : ""}{decimalAt > 0 ? <>{shown.slice(0, decimalAt)}{caretMark}{shown.slice(decimalAt)}</> : <>{shown}{caretMark}</>}</Text>
             <Text style={styles.currency}>{currency}</Text>
-          </Pressable>
+          </Tap>
           {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("transaction.entry.copied")}</Text> : <CalcLine expr={expr} style={styles.result} />}
           <View style={styles.details}>
             {/* The note is the entry's title, so the line shows it whole where it fits and ends in an
@@ -506,9 +510,9 @@ export default function TransactionSheet() {
                 there is no line: an "Add a note" placeholder did exactly what the Note chip does, at the
                 cost of a row a small phone takes out of the keypad. */}
             {note ? (
-              <Pressable onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
+              <Tap onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
                 <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4}>{note}</Text>
-              </Pressable>
+              </Tap>
             ) : null}
             {/* What the bank said, under your note and apart from it: read here, never edited. */}
             {bankNote ? (
@@ -522,35 +526,35 @@ export default function TransactionSheet() {
                 keypad needs. With one account the balance shares this line rather than taking its own. */}
             {coords || place ? (
               <View style={styles.line}>
-                <Pressable onPress={openLocation} style={[styles.line, { flex: 1 }]} accessibilityRole="button" accessibilityLabel={place ?? t("transaction.entry.locationPinned")}>
+                <Tap onPress={openLocation} style={[styles.line, { flex: 1 }]} accessibilityRole="button" accessibilityLabel={place ?? t("transaction.entry.locationPinned")}>
                   <SymbolView name="mappin.and.ellipse" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={1}>{(() => {
                     const where = place ?? (coords ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` : "");
                     return suggested ? t("transaction.entry.placeSuggested", { place: where }) : where;
                   })()}</Text>
-                </Pressable>
+                </Tap>
                 {oneAccount ? balanceToggle() : null}
               </View>
             ) : null}
             {parts.length && splitMinors ? (
-              <Pressable onPress={openSplit} style={styles.line} accessibilityRole="button"
+              <Tap onPress={openSplit} style={styles.line} accessibilityRole="button"
                 accessibilityLabel={t("transaction.entry.splitA11y", { count: parts.length + 1 })}>
                 <SymbolView name="square.split.2x1" size={14} tintColor={C.secondary} />
                 <Text style={styles.lineText} numberOfLines={2}>
                   {splitMinors.map((minor, i) => `${formatMinor(minor, currency)} ${i === 0 ? (category ? catName(category) : t("transaction.entry.splitThisEntry")) : (catNames.get(parts[i - 1]!.category_id ?? "") ?? t("transaction.entry.splitNoCategory"))}`).join(" · ")}
                 </Text>
-              </Pressable>
+              </Tap>
             ) : null}
             {refunded ? (
-              <Pressable onPress={undoReturns} style={styles.line} accessibilityRole="button"
+              <Tap onPress={undoReturns} style={styles.line} accessibilityRole="button"
                 accessibilityLabel={t("transaction.entry.returnedA11y", { back: formatMinor(Math.abs(refunded), currency), currency, paid: formatMinor(Math.abs(paidAmountMinor(existing!)), currency) })}>
                 <SymbolView name="arrow.uturn.backward" size={14} tintColor={C.green as unknown as string} />
                 <Text style={styles.lineText} numberOfLines={1}>{t("transaction.entry.returnedLine", { back: formatMinor(Math.abs(refunded), currency), paid: formatMinor(Math.abs(paidAmountMinor(existing!)), currency) })}</Text>
-              </Pressable>
+              </Tap>
             ) : null}
             {photoSrc ? (
-              <Pressable onPress={openPhoto} style={styles.line} accessibilityRole="button" accessibilityLabel={t("transaction.entry.photoA11y")}>
+              <Tap onPress={openPhoto} style={styles.line} accessibilityRole="button" accessibilityLabel={t("transaction.entry.photoA11y")}>
                 <Image source={{ uri: photoSrc }} style={styles.thumb} contentFit="cover" /><Text style={styles.lineText}>{shot ? t("transaction.entry.photoUnsaved") : t("transaction.entry.photo")}</Text>
-              </Pressable>
+              </Tap>
             ) : null}
             {tags.length ? (
               <View style={[styles.line, { flexWrap: "wrap" }]}>
@@ -564,12 +568,12 @@ export default function TransactionSheet() {
               several, the balance sits under the pill: beside it, a long name and a long balance overlapped. */}
           {!oneAccount ? (
             <View style={styles.accountRow}>
-              <Pressable onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
+              <Tap onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
                 <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
                 {/* One line that shrinks to fit: unclipped, a long name ran under the balance. */}
                 <ButtonText fit={1} style={styles.accountText} maxFontSizeMultiplier={1.3}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</ButtonText>
                 <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
-              </Pressable>
+              </Tap>
               {balanceToggle(true)}
             </View>
           ) : !(coords || place) ? <View style={[styles.line, { justifyContent: "flex-end" }]}>{balanceToggle()}</View> : null}
@@ -583,7 +587,7 @@ export default function TransactionSheet() {
           <TextInput ref={noteRef} autoFocus multiline value={note} onChangeText={setNote} placeholder={t("transaction.entry.notePlaceholder")} placeholderTextColor={C.tertiary} style={styles.noteInput}
             onFocus={noteFocused}
             onBlur={() => setNoteOpen(false)} accessibilityLabel={t("transaction.entry.notePlaceholder")} />
-          <Pressable onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><ButtonText style={styles.noteDone} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Pressable>
+          <Tap onPress={() => setNoteOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")}><ButtonText style={styles.noteDone} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Tap>
         </View>
       ) : (
         <>
@@ -647,7 +651,7 @@ export default function TransactionSheet() {
 function BalanceToggle({ start, balance, after, afterColor, currency }: { start?: boolean; balance: number; after: number | null; afterColor: string; currency: string }) {
   const [shown, setShown] = useState(getShowBalance);
   return (
-      <Pressable onPress={() => setShown((v) => !v)} hitSlop={10} style={[styles.balance, start && styles.balanceStart]} accessibilityRole="button"
+      <Tap onPress={() => setShown((v) => !v)} hitSlop={10} style={[styles.balance, start && styles.balanceStart]} accessibilityRole="button"
         accessibilityHint={shown ? t("transaction.entry.hideBalance") : t("transaction.entry.showBalance")}
         accessibilityLabel={!shown ? t("transaction.entry.balance") : after !== null ? t("transaction.entry.balanceAfterA11y", { balance: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("transaction.entry.balanceA11y", { balance: formatMinor(balance, currency), currency })}>
         <SymbolView name={shown ? "eye" : "eye.slash"} size={14} tintColor={C.tertiary} />
@@ -657,7 +661,7 @@ function BalanceToggle({ start, balance, after, afterColor, currency }: { start?
           {shown && after !== null ? <>{" → "}<Text style={{ fontWeight: "600", color: afterColor }}>{formatMinor(after, currency)}</Text></> : null}
           {` ${currency}`}
         </ButtonText>
-      </Pressable>
+      </Tap>
   );
 }
 

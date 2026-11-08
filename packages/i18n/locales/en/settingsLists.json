@@ -21,6 +21,9 @@
     "archivedType": { "message": "{type} · archived", "note": "Row subtitle of an archived account; type is \"Card\"." }
   },
   "categories": {
+    "types": "Category types",
+    "typesMissing": { "message": "{count, plural, one {# category} other {# categories}} without a type", "note": "Categories a well-known shop cannot be matched to yet." },
+    "typesAll": "Shops know where to go",
     "title": "Categories",
     "introShort": { "message": "What money was spent on. Budgets and every chart are built from categories.", "note": "Note above the categories list; the ⓘ unfolds introMore." },
     "introMore": { "message": "A folder groups categories and is never filed into: a transaction goes to a category inside it. New categories in a folder take its colour.", "note": "Unfolds under introShort." },

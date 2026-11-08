@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { ButtonText, HeaderBar, TagPill } from "@/components/ui";
+import { ButtonText, HeaderBar, TagPill, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
@@ -69,12 +69,12 @@ export default function PickTags() {
       ListHeaderComponent={
         <View style={{ backgroundColor: C.bgGrouped }}>
           <HeaderBar style={styles.head} title={t("pick.tags.title")}
-            right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{chosen.length + (canCreate ? 1 : 0) ? t("pick.doneCount", { count: chosen.length + (canCreate ? 1 : 0) }) : t("common.done")}</ButtonText></Pressable>} />
+            right={<Tap onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{chosen.length + (canCreate ? 1 : 0) ? t("pick.doneCount", { count: chosen.length + (canCreate ? 1 : 0) }) : t("common.done")}</ButtonText></Tap>} />
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.tags.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel={t("pick.tags.searchA11y")} />
           </View>
-          {canCreate ? <Pressable onPress={create} style={styles.row} accessibilityRole="button"><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{t("pick.tags.create", { name: q.trim() })}</Text></Pressable> : null}
+          {canCreate ? <Tap onPress={create} style={styles.row} accessibilityRole="button"><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{t("pick.tags.create", { name: q.trim() })}</Text></Tap> : null}
         </View>
       }
       renderItem={({ item: tg, index }) => (
@@ -82,12 +82,12 @@ export default function PickTags() {
           {category && !tg.travel && index === 0 && tg.rank === 0 ? <Text style={styles.section}>{t("pick.tags.usedWith")}</Text> : null}
           {category && !tg.travel && tg.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>{t("pick.tags.other")}</Text> : null}
           {tg.travel && (index === 0 || !filtered[index - 1]!.travel) ? <Text style={styles.section}>{t("pick.tags.travel")}</Text> : null}
-          <Pressable onPress={() => toggle(tg.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={tg.name} accessibilityState={{ selected: chosen.includes(tg.id) }}>
+          <Tap onPress={() => toggle(tg.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={tg.name} accessibilityState={{ selected: chosen.includes(tg.id) }}>
             <TagPill name={tg.name} color={tg.color} />
             <Text style={styles.count}>{tg.together ? `${tg.together}×` : ""}</Text>
             <View style={{ flex: 1 }} />
             <SymbolView name={chosen.includes(tg.id) ? "checkmark.circle.fill" : "circle"} size={22} tintColor={chosen.includes(tg.id) ? C.tint : C.tertiary} />
-          </Pressable>
+          </Tap>
         </>
       )}
       ListEmptyComponent={<Text style={styles.empty}>{t("pick.tags.empty")}</Text>}

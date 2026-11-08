@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
-import { Alert, LayoutAnimation, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, LayoutAnimation, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { accountLeftover, categoryChecklist, save, checklistTotals, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, regularSpending, retiredKind, safeToSpend, safetyBuffer, savingsGoal, subscriptionsPerYear, valueSplit, withChecklistTick, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
+import { accountLeftover, biggestOneOffs, monthVsUsual, spendingPlaces, topShops, categoryChecklist, save, checklistTotals, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, regularSpending, retiredKind, safeToSpend, safetyBuffer, savingsGoal, subscriptionsPerYear, valueSplit, withChecklistTick, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
-import { CategoryIcon, Money, PressCard, ProgressBar, TagPill } from "@/components/ui";
+import { CategoryIcon, Money, PressCard, ProgressBar, TagPill, Tap } from "@/components/ui";
 import { PaymentIcon } from "@/components/PaymentIcon";
 import { C, S, ValueRamp, themed, themeHue } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
@@ -12,6 +12,7 @@ import { anchorDay, currentPeriod, getPeriodStartDay, usePeriod } from "@/lib/pe
 import { getBudgetScope } from "@/lib/settings";
 import { INSIGHT_LOOK, kindTitle, ruleTitle } from "@/lib/insights";
 import { catName, acctName } from "@/lib/names";
+import { rowText } from "@/lib/rowText";
 import { t, Trans } from "@/i18n";
 import { scopeAccount, scopeAccountIds } from "@/lib/scope";
 
@@ -70,9 +71,13 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
       case "regular": return { kind: "regular" as const, v: regularSpending(db, p, { today: day, accountIds: scopeIds }), names: (p.category_ids ?? []).map((id) => { const c = getRow(db, "categories", id); return c ? catName(c) : null; }).filter(Boolean).join(", ") };
       case "values": return { kind: "values" as const, v: valueSplit(db, { today: day, startDay, accountIds: scopeIds }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
       case "safety_buffer": { const v = safetyBuffer(db, p, { today: day, startDay }); return { kind: "safety_buffer" as const, v, names: (v?.account_ids ?? []).map((id) => acctName(getRow(db, "accounts", id))).filter(Boolean).join(", ") }; }
+      case "month_vs_usual": return { kind: "month_vs_usual" as const, v: monthVsUsual(db, { start: period.start, end: period.end, today: day, startDay, accountIds: scopeIds }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
+      case "one_offs": return { kind: "one_offs" as const, v: biggestOneOffs(db, { start: period.start, end: period.end, accountIds: scopeIds, limit: detail ? 10 : 3 }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
+      case "top_shops": return { kind: "top_shops" as const, v: topShops(db, { start: period.start, end: period.end, today: day, startDay, accountIds: scopeIds, limit: detail ? 10 : 3 }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
+      case "spending_map": return { kind: "spending_map" as const, v: spendingPlaces(db, { start: period.start, end: period.end, accountIds: scopeIds }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
       default: return { kind: "gone" as const };
     }
-  }, [insight.id, insight.kind, insight.params, period.start, scope, startDay]);
+  }, [insight.id, insight.kind, insight.params, period.start, scope, startDay, detail]);
   const sub = (s: string) => <Text style={styles.sub}>{s}</Text>;
   const pn = period.subtitle ?? period.title;
   const strong = { b: (c: ReactNode) => <Text style={styles.lineStrong}>{c}</Text>, g: (c: ReactNode) => <Text style={[styles.lineStrong, { color: C.green }]}>{c}</Text> };
@@ -165,7 +170,7 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
           : c.ticked ? t("insights.checklist.ticked")
           // Done, and paid more than once already, or a line that usually is: what it has come to so far.
           : !rule && c.currency && c.spent_minor && c.previous ? t("insights.checklist.paid", { amount: amt(c.spent_minor, c.currency) }) : null;
-        return <Pressable key={c.key} onPress={press} style={styles.check} accessibilityRole="button" accessibilityLabel={c.ticked ? t("insights.checklist.tickedLabel", { name: label }) : c.done ? t("insights.checklist.doneLabel", { name: label }) : t("insights.checklist.notYetLabel", { name: label })}>
+        return <Tap key={c.key} onPress={press} style={styles.check} accessibilityRole="button" accessibilityLabel={c.ticked ? t("insights.checklist.tickedLabel", { name: label }) : c.done ? t("insights.checklist.doneLabel", { name: label }) : t("insights.checklist.notYetLabel", { name: label })}>
           {/* The tick is for the details screen, where paid lines are listed too; on the card every line is an open one. */}
           {detail ? <SymbolView name={c.ticked ? "checkmark.circle" : c.done ? "checkmark.circle.fill" : "circle"} size={22} tintColor={c.done ? C.green : C.tertiary} /> : null}
           {/* A payment wears its own mark with its category as a badge; a category line just its icon. */}
@@ -184,7 +189,7 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
             {hint ? <Text style={styles.sub}>{hint}</Text> : null}
           </View>
           {detail && c.spent_minor && c.currency && (c.done || times) ? <Money minor={-c.spent_minor} currency={c.currency} style={styles.sub} /> : null}
-        </Pressable>;
+        </Tap>;
       }) : sub(t("insights.checklist.choose"))}
         {!data.v.length ? null : !open.length ? sub(t("insights.checklist.allDone", { period: pn })) : !detail && paid ? sub(t("insights.checklist.paidCount", { count: paid })) : null}</View>;
     }
@@ -264,6 +269,110 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
         </View>
       );
     }
+    case "month_vs_usual": {
+      const v = data.v[0];
+      if (!v) return sub(t("insights.usual.nothing"));
+      const r = v.usual_minor ? (v.now_minor - v.usual_minor) / v.usual_minor : null;
+      // On the card only what actually moved: a tenth either way, or spending that is new.
+      const lines = detail ? v.lines : v.lines.filter((l) => l.ratio === null || Math.abs(l.ratio) >= 0.1).slice(0, 4);
+      return (
+        <View style={{ gap: 4 }}>
+          <Text style={[styles.big, r !== null && Math.abs(r) >= 0.03 && { color: r > 0 ? C.orange : C.green }]}>{r === null ? amt(v.now_minor, v.currency) : Math.abs(r) < 0.03 ? t("insights.usual.same") : pctChange(r)}</Text>
+          {sub(t(v.partial ? "insights.usual.soFar" : "insights.usual.whole", { amount: amt(v.now_minor, v.currency), usual: amt(v.usual_minor, v.currency) }))}
+          {lines.map((l) => {
+            const cat = data.cats.get(l.category_id);
+            const name = cat ? catName(cat) : t("common.noCategory");
+            const change = l.ratio === null ? t("insights.usual.new") : pctChange(l.ratio);
+            const up = l.diff_minor > 0;
+            return (
+              <Tap key={l.category_id} style={styles.check} accessibilityRole="button" accessibilityLabel={t("insights.usual.lineA11y", { name, amount: amt(l.now_minor, v.currency), change })}
+                onPress={() => router.push({ pathname: "/transactions", params: { category: l.category_id, name, from: period.start, to: period.end, accounts: scopeIds.join(","), nonce: String(Date.now()) } })}>
+                <CategoryIcon name={name} icon={cat?.icon} color={cat?.color} size={30} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.line} numberOfLines={1}>{name}</Text>
+                  <Text style={styles.sub}>{`${amt(l.now_minor, v.currency)} · ${amt(l.usual_minor, v.currency)}`}</Text>
+                </View>
+                <Text style={[styles.lineStrong, { color: up ? C.orange : C.green }]}>{change}</Text>
+              </Tap>
+            );
+          })}
+        </View>
+      );
+    }
+    case "one_offs": {
+      const v = data.v[0];
+      if (!v) return sub(t("insights.oneOffs.nothing"));
+      return (
+        <View style={{ gap: 4 }}>
+          {v.rows.map((r) => {
+            const cat = r.category_id ? data.cats.get(r.category_id) : undefined;
+            const title = rowText(r).title ?? (cat ? catName(cat) : t("insights.oneOffs.untitled"));
+            const when = humanDayTime(r.date.slice(0, 10));
+            return (
+              <Tap key={r.id} style={styles.check} onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: r.id } })}
+                accessibilityRole="button" accessibilityLabel={t("insights.oneOffs.openA11y", { title, amount: amt(-r.amount_minor, v.currency), day: when })}>
+                <CategoryIcon name={cat ? catName(cat) : title} icon={cat?.icon} color={cat?.color} size={30} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.line} numberOfLines={1}>{title}</Text>
+                  <Text style={styles.sub} numberOfLines={1}>{cat ? `${when} · ${catName(cat)}` : when}</Text>
+                </View>
+                <Money minor={-r.amount_minor} currency={v.currency} style={styles.lineStrong} />
+              </Tap>
+            );
+          })}
+        </View>
+      );
+    }
+    case "top_shops": {
+      const v = data.v[0];
+      if (!v) return sub(t("insights.shops.nothing"));
+      return (
+        <View style={{ gap: 4 }}>
+          {v.shops.map((s) => {
+            const cat = s.category_id ? data.cats.get(s.category_id) : undefined;
+            const r = s.prev_minor ? (s.spent_minor - s.prev_minor) / s.prev_minor : null;
+            return (
+              <View key={s.key} style={styles.check}>
+                <CategoryIcon name={cat ? catName(cat) : s.name} icon={cat?.icon} color={cat?.color} size={30} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.line} numberOfLines={1}>{s.name}</Text>
+                  <Text style={styles.sub}>{t("insights.shops.count", { count: s.count })}</Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Money minor={s.spent_minor} currency={v.currency} style={styles.lineStrong} />
+                  <Text style={[styles.sub, r !== null && Math.abs(r) >= 0.03 && { color: r > 0 ? C.orange : C.green }]}>{r === null ? t("insights.shops.new") : Math.abs(r) < 0.03 ? "=" : pctChange(r)}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      );
+    }
+    case "spending_map": {
+      const v = data.v[0];
+      if (!v) return sub(t("insights.map.nothing"));
+      // The map itself is on the details screen; the card names where most of it went.
+      const shown = detail ? [] : v.places.slice(0, 3);
+      return (
+        <View style={{ gap: 4 }}>
+          {shown.map((pl) => {
+            const cat = pl.category_id ? data.cats.get(pl.category_id) : undefined;
+            const name = pl.place ?? t("insights.map.unnamed");
+            return (
+              <View key={pl.key} style={styles.check}>
+                <CategoryIcon name={cat ? catName(cat) : name} icon={cat?.icon ?? "mappin"} color={cat?.color} size={30} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.line} numberOfLines={1}>{name}</Text>
+                  <Text style={styles.sub}>{t("insights.shops.count", { count: pl.count })}</Text>
+                </View>
+                <Money minor={pl.spent_minor} currency={v.currency} style={styles.lineStrong} />
+              </View>
+            );
+          })}
+          {sub(t("insights.map.located", { pct: v.total_minor ? Math.round((v.located_minor / v.total_minor) * 100) : 0 }))}
+        </View>
+      );
+    }
     case "safety_buffer": {
       if (!data.v) return sub(t("insights.chooseAccount"));
       const b = data.v;
@@ -297,6 +406,9 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
     }
   }
 }
+
+/** "+38%" / "−12%": a change against the usual, rounded to a whole percent. */
+function pctChange(r: number): string { return `${r > 0 ? "+" : "−"}${Math.round(Math.abs(r) * 100)}%`; }
 
 function formatDiff(minor: number, currency: string) { return minor > 0 ? t("insights.goal.toGo", { amount: `${formatMinor(minor, currency)} ${currency}` }) : t("insights.goal.reached"); }
 

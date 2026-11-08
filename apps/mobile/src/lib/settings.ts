@@ -2,7 +2,7 @@
  * Local preferences (not synced): stored in the meta table so they survive reinstalls
  * of the dev client and are included in the full data export.
  */
-import { DEFAULT_WAIT_DAYS, getHome, getMeta, setHome, setMeta } from "@kopiyka/core";
+import { DEFAULT_WAIT_DAYS, getHome, getLocationIgnore, getMeta, setHome, setLocationIgnore, setMeta } from "@kopiyka/core";
 import { db } from "@/db";
 import { notifyChange } from "@/store";
 import { t } from "@/i18n";
@@ -56,6 +56,9 @@ export function setLocationEnabled(on: boolean): void { write("location_enabled"
 /** Home: no category is suggested near it (core `suggestCategoryAt`; the watch bridge applies the same rule). */
 export function getHomeLocation(): { lat: number; lon: number; place: string | null } | null { return getHome(db); }
 export function setHomeLocation(home: { lat: number; lon: number; place: string | null } | null): void { setHome(db, home); notifyChange(); }
+/** Categories whose payments are never evidence of a place — parking, fuel (core `locationIgnoredIds`). */
+export function getLocationIgnoreIds(): string[] { return getLocationIgnore(db); }
+export function setLocationIgnoreIds(ids: string[]): void { setLocationIgnore(db, ids); notifyChange(); }
 
 /**
  * Show the account's balance on the entry sheet from the moment it opens, instead of keeping it

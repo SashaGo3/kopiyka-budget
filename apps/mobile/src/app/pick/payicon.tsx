@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { ICON_CATALOG, guessLogo, searchIcons, searchLogos, type Logo } from "@kopiyka/core";
@@ -104,11 +105,11 @@ export default function PickPaymentIcon() {
     if (chars.some((c) => EMOJI.test(c))) choose(`emoji:${chars.slice(0, 8).join("")}`);
   };
   const option = (label: string, value: string, left: React.ReactNode) => (
-    <Pressable onPress={() => choose(value)} style={styles.optRow} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: (selected ?? "") === value }}>
+    <Tap onPress={() => choose(value)} style={styles.optRow} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: (selected ?? "") === value }}>
       {left}
       <Text style={styles.optText} numberOfLines={1}>{label}</Text>
       {(selected ?? "") === value ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
-    </Pressable>
+    </Tap>
   );
   const label = (c: Cell) => c.kind === "logo" ? c.logo.title : c.kind === "sf" ? c.name.replace(/\./g, " ") : c.kind === "photo" ? t("pick.payIcon.photo")
     : c.web.domain;
@@ -151,14 +152,14 @@ export default function PickPaymentIcon() {
               const k = cellKey(cell);
               const on = selected === k;
               return (
-                <Pressable key={k} onPress={() => void take(cell)} disabled={!!taking} style={[styles.cell, on && { borderColor: C.tint }]}
+                <Tap key={k} onPress={() => void take(cell)} disabled={!!taking} style={[styles.cell, on && { borderColor: C.tint }]}
                   accessibilityRole="button" accessibilityLabel={label(cell)} accessibilityState={{ selected: on }}>
                   {taking === k ? <ActivityIndicator size="small" />
                     : cell.kind === "logo" ? <LogoTile logo={cell.logo} size={26} />
                     : cell.kind === "sf" ? <SymbolView name={cell.name as SFSymbol} size={18} tintColor={on ? C.tint : C.secondary} />
                     : cell.kind === "photo" ? <SymbolView name="photo.badge.plus" size={18} tintColor={C.tint} />
                     : <Image source={{ uri: cell.web.uri }} style={styles.picture} />}
-                </Pressable>
+                </Tap>
               );
             })}
             {Array.from({ length: COLS - item.cells.length }, (_, i) => <View key={`pad${i}`} style={[styles.cell, styles.pad]} pointerEvents="none" />)}

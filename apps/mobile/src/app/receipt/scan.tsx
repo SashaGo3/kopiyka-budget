@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import type { CameraView } from "expo-camera";
 import { SymbolView } from "expo-symbols";
@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KPBridge, type ReceiptParse } from "@/lib/bridge";
 import { resolvePick } from "@/store/pick";
-import { BigButton } from "@/components/ui";
+import { BigButton, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
@@ -68,18 +68,18 @@ export default function ReceiptScan() {
   return (
     <View style={{ flex: 1, backgroundColor: "black" }}>
       <CameraView ref={cam} style={{ flex: 1 }} facing="back" onCameraReady={() => setReady(true)} />
-      <Pressable onPress={() => { done.current = true; router.back(); }} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
+      <Tap onPress={() => { done.current = true; router.back(); }} hitSlop={12} style={[styles.close, { top: insets.top + S.sm }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
         <SymbolView name="xmark" size={18} tintColor="white" weight="bold" />
-      </Pressable>
+      </Tap>
       <View style={styles.frame} pointerEvents="none" />
       <View style={[styles.overlay, { bottom: insets.bottom + S.xl }]}>
         <View style={styles.hintRow}>
           {ready ? <ActivityIndicator color="white" /> : null}
           <Text style={styles.hint}>{attempts > 2 ? `${status} · ${t("photo.receipt.lightTip")}` : status}</Text>
         </View>
-        <Pressable onPress={() => void attempt(true)} style={styles.shutter} accessibilityRole="button" accessibilityLabel={t("photo.receipt.takeNow")}>
+        <Tap onPress={() => void attempt(true)} style={styles.shutter} accessibilityRole="button" accessibilityLabel={t("photo.receipt.takeNow")}>
           <SymbolView name="camera.fill" size={26} tintColor="black" />
-        </Pressable>
+        </Tap>
       </View>
     </View>
   );

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { activeTrip, countryCurrency, formatMinor, rateOrFallback, toMinor, type TripKind } from "@kopiyka/core";
 import { SymbolView } from "expo-symbols";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { db } from "@/db";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { SheetFrame, Subtle, Title } from "@/components/ui";
+import { SheetFrame, Subtle, Title, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
 import { errorText } from "@/lib/errors";
@@ -146,11 +146,11 @@ export default function TravelStart() {
           </View>
           <View style={styles.amountRow}>
             <Text onPress={naming ? () => nameRef.current?.blur() : undefined} style={[styles.amount, limitless && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{limitless ? t("travel.start.noLimit") : shown}</Text>
-            <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency, title: t("travel.start.currency") } })} hitSlop={8}
+            <Tap onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency, title: t("travel.start.currency") } })} hitSlop={8}
               style={styles.curPill} accessibilityRole="button" accessibilityLabel={t("travel.start.currencyLabel", { currency })}>
               <Text style={styles.cur}>{currency}</Text>
               <SymbolView name="chevron.down" size={11} tintColor={C.secondary} />
-            </Pressable>
+            </Tap>
           </View>
           <CalcLine expr={expr} style={{ textAlign: "left" }} />
         </View>

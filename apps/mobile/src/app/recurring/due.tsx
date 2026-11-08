@@ -5,7 +5,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { advanceRule, dueManualRules, listRows, postOccurrence, ruleWaitDays, waitingRules, type DueRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { BarButton, BottomBar } from "@/components/BottomBar";
-import { AmountPill, ButtonText, CategoryIcon, Empty, Money } from "@/components/ui";
+import { AmountPill, ButtonText, CategoryIcon, Empty, Money, Tap } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { waitDefaultDays } from "@/lib/settings";
@@ -120,7 +120,7 @@ function WaitingItem({ d, first, last }: { d: Row; first: boolean; last: boolean
   const deadline = rule.auto_post ? t("recurring.due.deadlinePosts", { count: wait }) : t("recurring.due.deadlineBack", { count: wait });
   return (
     <View style={[styles.card, styles.waiting, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("recurring.due.expectedA11y", { name: title, date: humanDayTime(days[0]!) })} accessibilityHint={t("recurring.due.openHint")}
+      <Tap style={styles.head} accessibilityRole="button" accessibilityLabel={t("recurring.due.expectedA11y", { name: title, date: humanDayTime(days[0]!) })} accessibilityHint={t("recurring.due.openHint")}
         onPress={() => router.push({ pathname: "/recurring/confirm", params: { id: rule.id } })}>
         <CategoryIcon name={category ? catName(category) : title} icon={category?.icon} color={category?.color} size={34} />
         <View style={styles.text}>
@@ -130,7 +130,7 @@ function WaitingItem({ d, first, last }: { d: Row; first: boolean; last: boolean
         </View>
         <AmountPill minor={rule.amount_minor * days.length} currency={account?.currency ?? ""} neutral />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
     </View>
   );
 }
@@ -144,7 +144,7 @@ function DueItem({ d, first, last, onPost, onSkip }: { d: Row; first: boolean; l
     : t("recurring.due.dueOn", { date: humanDayTime(days[0]!, rule.time_of_day) });
   return (
     <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={`${title}, ${when}`} accessibilityHint={t("recurring.due.openHint")}
+      <Tap style={styles.head} accessibilityRole="button" accessibilityLabel={`${title}, ${when}`} accessibilityHint={t("recurring.due.openHint")}
         onPress={() => router.push({ pathname: "/recurring/confirm", params: { id: rule.id } })}>
         <CategoryIcon name={category ? catName(category) : title} icon={category?.icon} color={category?.color} size={34} />
         <View style={styles.text}>
@@ -154,7 +154,7 @@ function DueItem({ d, first, last, onPost, onSkip }: { d: Row; first: boolean; l
         </View>
         <AmountPill minor={rule.amount_minor * days.length} currency={account?.currency ?? ""} />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
       <View style={styles.actions}>
         <Action icon="checkmark.circle.fill" label={behind ? t("recurring.postAll", { count: days.length }) : t("recurring.due.post")} color={C.green} onPress={onPost} grow />
         <Action icon="forward.end" label={t("recurring.skip")} color={C.orange} onPress={onSkip} grow />

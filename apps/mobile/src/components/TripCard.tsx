@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { LayoutAnimation, Pressable, StyleSheet, Text, View } from "react-native";
+import { LayoutAnimation, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { formatMinor, getRow, tripKind, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { useQuery } from "@/store";
-import { AmountPill, CategoryIcon, Money, ProgressBar } from "@/components/ui";
+import { AmountPill, CategoryIcon, Money, ProgressBar, Tap } from "@/components/ui";
 import { C, R, S, themed, themeHue, themeTone } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { useRates } from "@/lib/rates";
@@ -60,14 +60,14 @@ export function TripCard({ budget, compact, onPress, onShow }: { budget: Budget;
   const plannedPerDay = Math.round(s.limit_minor / s.days);
   return (
     <View style={[styles.card, compact && styles.compact]}>
-      <Pressable onPress={onPress ?? (() => show())} style={styles.head} accessibilityRole="button" accessibilityLabel={s.limited ? t("travel.card.label", { kind, name: tripTitle, amount: `${fmt(s.remaining_minor)} ${s.currency}` }) : t("travel.card.labelSpent", { kind, name: tripTitle, amount: `${fmt(s.spent_minor)} ${s.currency}` })}>
+      <Tap onPress={onPress ?? (() => show())} style={styles.head} accessibilityRole="button" accessibilityLabel={s.limited ? t("travel.card.label", { kind, name: tripTitle, amount: `${fmt(s.remaining_minor)} ${s.currency}` }) : t("travel.card.labelSpent", { kind, name: tripTitle, amount: `${fmt(s.spent_minor)} ${s.currency}` })}>
         <View style={[styles.icon, { backgroundColor: themeHue(look.color) }]}><SymbolView name={look.icon} size={18} tintColor={themeTone(look.color).glyph} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{tripTitle}</Text>
           <Text style={styles.sub}>{when}</Text>
         </View>
         {hero ? null : s.limited ? <AmountPill minor={s.remaining_minor} currency={s.currency} warn /> : <AmountPill minor={s.spent_minor} currency={s.currency} neutral />}
-      </Pressable>
+      </Tap>
       {hero ? (
         <View style={styles.hero} accessible accessibilityLabel={`${hero.value} ${hero.label}`}>
           <Text style={[styles.heroValue, { color: hero.color }]} numberOfLines={1} adjustsFontSizeToFit>{hero.value}</Text>
@@ -90,23 +90,23 @@ export function TripCard({ budget, compact, onPress, onShow }: { budget: Budget;
       ) : null}
       {s.unconverted.length ? <Text style={styles.warn}>{t("travel.card.unconverted", { amounts: s.unconverted.map((u) => `${formatMinor(u.minor, u.currency)} ${u.currency}`).join(", ") })}</Text> : null}
       {!compact && s.by_category.length ? (
-        <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v); }} style={styles.fold}
+        <Tap onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v); }} style={styles.fold}
           accessibilityRole="button" accessibilityLabel={open ? t("travel.card.hideSpent") : t("travel.card.showSpent")} accessibilityState={{ expanded: open }}>
           <Text style={[styles.sub, { flex: 1 }]}>{t("travel.card.byCategory")}</Text>
           <SymbolView name={open ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
-        </Pressable>
+        </Tap>
       ) : null}
       {!compact && open && s.by_category.map((ch) => {
         const c = cats.get(ch.category_id);
         const name = c ? catName(c) : t("budgets.title.uncategorized");
         return (
-          <Pressable key={ch.category_id ?? "none"} onPress={() => show(ch.category_id)} style={styles.child} accessibilityRole="button" accessibilityLabel={t("travel.card.categoryLabel", { name, trip: tripTitle })}>
+          <Tap key={ch.category_id ?? "none"} onPress={() => show(ch.category_id)} style={styles.child} accessibilityRole="button" accessibilityLabel={t("travel.card.categoryLabel", { name, trip: tripTitle })}>
             <CategoryIcon name={name} icon={c?.icon} color={c?.color} size={24} />
             <Text style={styles.childName}>{name}</Text>
             {s.spent_minor > 0 ? <Text style={styles.share}>{Math.round((ch.spent_minor / s.spent_minor) * 100)}%</Text> : null}
             <Money minor={-ch.spent_minor} currency={s.currency} style={styles.childAmt} />
             <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-          </Pressable>
+          </Tap>
         );
       })}
     </View>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { accountBalanceMinor, createTransfer, formatMinor, getRow, jsonIds, listRows, numberFormat, remove, toMinor, fromMinor, rateOrFallback, updateTransfer, deriveTransfer, type Side } from "@kopiyka/core";
@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { ButtonText, Chip, SheetFrame, Subtle, ChipRow, DeleteRow } from "@/components/ui";
+import { ButtonText, Chip, SheetFrame, Subtle, ChipRow, DeleteRow, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -204,7 +204,7 @@ export default function TransferSheet() {
         <View style={styles.top}>
           <View style={styles.headRow}>
             <Subtle style={{ flex: 1 }}>{wasPending ? t("transfer.reviewTitle") : t("transfer.title")}</Subtle>
-            {stacked ? <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("transfer.backA11y")} style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><Text style={styles.backText} maxFontSizeMultiplier={1.3}>{t("common.back")}</Text></Pressable> : null}
+            {stacked ? <Tap onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("transfer.backA11y")} style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><Text style={styles.backText} maxFontSizeMultiplier={1.3}>{t("common.back")}</Text></Tap> : null}
           </View>
           <Leg role={t("transfer.from")} account={acctName(from)} amount={fromShown ?? (fromValue !== null ? String(fromValue) : waiting("from") ? "…" : "0")} currency={from?.currency ?? ""} derived={ready && !typed.from && fromShown !== null}
             active={ready && side === "from"} onPress={() => (from ? setSide("from") : pickFrom())} onPickAccount={pickFrom} negative
@@ -212,9 +212,9 @@ export default function TransferSheet() {
           <View style={styles.arrowRow}>
             <SymbolView name="arrow.down" size={18} tintColor={C.tertiary} />
             {from && to ? (
-              <Pressable onPress={swap} hitSlop={10} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
+              <Tap onPress={swap} hitSlop={10} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
                 <SymbolView name="arrow.up.arrow.down" size={13} tintColor={C.tint} />
-              </Pressable>
+              </Tap>
             ) : null}
           </View>
           <Leg role={t("transfer.to")} account={acctName(to)} amount={toShown ?? (toValue !== null ? String(toValue) : waiting("to") ? "…" : "0")} currency={to?.currency ?? ""} derived={ready && !typed.to && toShown !== null}
@@ -263,12 +263,12 @@ function Leg({ role, account, amount, currency, active, derived, onPress, onPick
 }) {
   const moved = after !== null && after !== balance;
   return (
-    <Pressable onPress={onPress} style={[styles.leg, active && styles.legActive]} accessibilityRole="button"
+    <Tap onPress={onPress} style={[styles.leg, active && styles.legActive]} accessibilityRole="button"
       accessibilityLabel={t("transfer.legA11y", { role, account: account ?? t("transfer.noAccount"), amount, currency })} accessibilityState={{ selected: active }}>
-      <Pressable onPress={onPickAccount} style={styles.legHead} accessibilityRole="button" accessibilityLabel={t("transfer.pickA11y", { role, account: account ?? t("transfer.chooseAccount") })}>
+      <Tap onPress={onPickAccount} style={styles.legHead} accessibilityRole="button" accessibilityLabel={t("transfer.pickA11y", { role, account: account ?? t("transfer.chooseAccount") })}>
         <Text style={[styles.legLabel, !account && { color: C.tint, fontWeight: "600" }]}>{role} · {account ?? t("transfer.chooseAccount")}</Text>
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
       <ButtonText fit={1} style={[styles.legAmount, negative ? null : { color: C.green }, derived && styles.legDerived]}>{negative ? "−" : "+"}{amount} <Text style={styles.legCur}>{currency}</Text></ButtonText>
       {currency ? (
         <View style={styles.legBalance} accessibilityLabel={moved ? t("transfer.balanceAfterA11y", { balance: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("transfer.balanceA11y", { balance: formatMinor(balance, currency), currency })}>
@@ -280,7 +280,7 @@ function Leg({ role, account, amount, currency, active, derived, onPress, onPick
           <Text style={styles.balanceText}>{currency}</Text>
         </View>
       ) : null}
-    </Pressable>
+    </Tap>
   );
 }
 

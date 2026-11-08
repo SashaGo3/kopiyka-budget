@@ -72,7 +72,7 @@ const METHOD_WORDS = new Set([
  * ("płatność" → "platnosc"), so the list holds one spelling of each word — the same one the Swift
  * copies hold (`KPStore.isMethodWord`, `KPPaymentText.unwrapMethod`), which fold the same way.
  */
-function isMethodWord(word: string): boolean {
+export function isMethodWord(word: string): boolean {
   const folded = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\u0142/g, "l")
     .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
   return METHOD_WORDS.has(folded);

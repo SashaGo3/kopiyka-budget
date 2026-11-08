@@ -109,6 +109,9 @@ struct KPWatchState: Codable {
     /// Retired in the app: still named on the history rows that carry it, never offered for
     /// anything new (`KPRank.categories`). Absent in a state file written before archiving existed.
     var archived: Bool? = nil
+    /// What kind of category it is (core `categoryType`), what a well-known shop is matched to
+    /// (KPShops). Absent in a state file written before category types existed.
+    var type: String? = nil
   }
   /// The home the app knows (meta `home_lat`/`home_lon`); no category is suggested near it.
   struct Home: Codable, Hashable { let lat: Double; let lon: Double }
@@ -336,6 +339,8 @@ enum KPFormat {
 /// Category with folder name, description and usage: what the receipt reader chooses from.
 struct KPCategoryRef {
   let id: String; let name: String; let parent: String?; let description: String?; let uses: Int
+  /// Core `categoryType`: what a well-known shop is filed into (KPShops). Nil when nothing says.
+  var type: String? = nil
   var path: String { parent.map { "\($0) › \(name)" } ?? name }
 }
 
@@ -553,12 +558,12 @@ enum KPStore {
     let cats = fileState()?.categories ?? []
     let folders = Set(cats.compactMap(\.parent_id))
     return cats.filter { $0.kind == "expense" && !folders.contains($0.id) }
-      .map { .init(id: $0.id, name: $0.name, parent: $0.parent_name, description: $0.description, uses: $0.uses) }
+      .map { .init(id: $0.id, name: $0.name, parent: $0.parent_name, description: $0.description, uses: $0.uses, type: $0.type) }
   }
 
   /// Works before the `description` column exists (older database): falls back to a query without it.
   private static func categoryRefs(_ db: OpaquePointer) -> [KPCategoryRef] {
-    func run(_ sql: String, described: Bool) -> [KPCategoryRef]? {
+    func run(_ sql: String, described: Bool, typed: Bool = false) -> [KPCategoryRef]? {
       var stmt: OpaquePointer?
       guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
       defer { sqlite3_finalize(stmt) }
@@ -568,15 +573,18 @@ enum KPStore {
         // Names as the app shows them (KPPreset); the description as the receipt reader matches it.
         let preset = opt(stmt, 5), parentPreset = opt(stmt, 6)
         out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: preset), parent: opt(stmt, 2).map { KPPreset.name($0, preset: parentPreset) },
-                         description: described ? KPPreset.matchText(opt(stmt, 3), preset: preset) : nil, uses: Int(sqlite3_column_int(stmt, 4))))
+                         description: described ? KPPreset.matchText(opt(stmt, 3), preset: preset) : nil, uses: Int(sqlite3_column_int(stmt, 4)),
+                         // Core `categoryType`: the stated type, else the preset's ("none" matches no shop).
+                         type: typed ? (opt(stmt, 7) ?? preset) : preset))
       }
       return out
     }
     let uses = "(SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses"
     // "Has nothing inside it" is what makes a row pickable, the same rule as core's `folderIds`.
     let leaf = "NOT EXISTS (SELECT 1 FROM categories k WHERE k.deleted=0 AND k.parent_id=c.id)"
-    // Older databases lack `preset` (v18) or `description`: each falls back to a query without it.
-    return run("SELECT c.id, c.name, p.name, c.description, \(uses), c.preset, p.preset FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
+    // Older databases lack `type` (v24), `preset` (v18) or `description`: each falls back to a query without it.
+    return run("SELECT c.id, c.name, p.name, c.description, \(uses), c.preset, p.preset, c.type FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true, typed: true)
+      ?? run("SELECT c.id, c.name, p.name, c.description, \(uses), c.preset, p.preset FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
       ?? run("SELECT c.id, c.name, p.name, c.description, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
       ?? run("SELECT c.id, c.name, p.name, NULL, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: false)
       ?? []
@@ -772,14 +780,29 @@ enum KPStore {
     withDatabase { db in
       if let h = home(db), distanceMeters(lat, lon, h.lat, h.lon) <= homeRadiusM { return nil }
       let key = place.map(placeKey) ?? ""
-      if !key.isEmpty, let named = pickNearby(db, lat: lat, lon: lon, radiusM: samePlaceRadiusM, keep: { placeKey($0 ?? "") == key }) { return named }
-      return pickNearby(db, lat: lat, lon: lon, radiusM: radiusM, keep: { _ in true })
+      let skip = locationIgnored(db)
+      if !key.isEmpty, let named = pickNearby(db, lat: lat, lon: lon, radiusM: samePlaceRadiusM, skip: skip, keep: { placeKey($0 ?? "") == key }) { return named }
+      return pickNearby(db, lat: lat, lon: lon, radiusM: radiusM, skip: skip, keep: { _ in true })
     }
+  }
+
+  /// Mirrors core `locationIgnoredIds`: the categories in meta `location_ignore` (Settings → Location
+  /// → Never suggest — parking, fuel) and every category inside a folder named there. Their rows are
+  /// no evidence of what a place is, so the history search never counts them.
+  private static func locationIgnored(_ db: OpaquePointer) -> Set<String> {
+    guard let raw = meta(db, "location_ignore"), let data = raw.data(using: .utf8),
+          let ids = (try? JSONSerialization.jsonObject(with: data)) as? [String], !ids.isEmpty else { return [] }
+    var out = Set(ids)
+    var stmt: OpaquePointer?
+    guard sqlite3_prepare_v2(db, "SELECT id, parent_id FROM categories WHERE deleted=0 AND parent_id IS NOT NULL", -1, &stmt, nil) == SQLITE_OK else { return out }
+    defer { sqlite3_finalize(stmt) }
+    while sqlite3_step(stmt) == SQLITE_ROW { if let parent = opt(stmt, 1), out.contains(parent) { out.insert(str(stmt, 0)) } }
+    return out
   }
 
   /// The most-used category among rows within `radiusM` that `keep` accepts; ties go to the most
   /// recent, because the rows arrive newest first and the maximum below is stable.
-  private static func pickNearby(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double, keep: (String?) -> Bool) -> String? {
+  private static func pickNearby(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double, skip: Set<String> = [], keep: (String?) -> Bool) -> String? {
     let dLat = radiusM / 111_000, dLon = radiusM / (111_000 * max(0.2, cos(lat * .pi / 180)))
     var stmt: OpaquePointer?
     let sql = """
@@ -797,6 +820,7 @@ enum KPStore {
       if distanceMeters(lat, lon, rlat, rlon) > radiusM { continue }
       if !keep(opt(stmt, 3)) { continue }
       let id = str(stmt, 0)
+      if skip.contains(id) { continue }
       if counts[id] == nil { order.append(id) }
       counts[id, default: 0] += 1
     }

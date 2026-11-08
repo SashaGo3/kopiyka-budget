@@ -15,7 +15,7 @@ describe("backup", () => {
   test("carries every preference the app stores, and no identity of the device it came from", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
       "appearance", "backup_keep_days", "base_currency", "budget_scope", "budgets_sections", "current_account",
-      "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled",
+      "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled", "location_ignore",
       "period_start_day", "recurring_dismissed", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
       "shortcut_notify", "show_balance", "theme",
     ]);

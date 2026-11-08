@@ -86,6 +86,10 @@ export const INSIGHT_KINDS: { kind: OfferedInsightKind; title: string; hint: str
   { kind: "regular", title: "Regular spending", hint: "Weekly or monthly average for a category" },
   { instant: true, kind: "values", title: "What it went on", hint: "This period split by how much each category matters to you" },
   { kind: "safety_buffer", title: "Safety buffer", hint: "How many months you could live on your money" },
+  { instant: true, kind: "month_vs_usual", title: "Month vs usual", hint: "What is above or below your usual spending this period" },
+  { instant: true, kind: "one_offs", title: "Biggest one-offs", hint: "The largest purchases this period that were not recurring" },
+  { instant: true, kind: "top_shops", title: "Where you shop most", hint: "The shops this period's money went to, and how that compares" },
+  { instant: true, kind: "spending_map", title: "Spending map", hint: "Where this period's money was spent, on a map" },
 ];
 
 /**

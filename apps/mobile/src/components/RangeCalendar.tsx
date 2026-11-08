@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Tap } from "@/components/ui";
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { C, S, themed } from "@/constants/theme";
@@ -52,13 +53,13 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Pressable onPress={() => setMonth(shiftMonth(month, -1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.previous")}>
+        <Tap onPress={() => setMonth(shiftMonth(month, -1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.previous")}>
           <SymbolView name="chevron.left" size={16} tintColor={C.tint} />
-        </Pressable>
+        </Tap>
         <Text style={styles.month}>{monthBounds(month).label}</Text>
-        <Pressable onPress={() => setMonth(shiftMonth(month, 1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.next")}>
+        <Tap onPress={() => setMonth(shiftMonth(month, 1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.next")}>
           <SymbolView name="chevron.right" size={16} tintColor={C.tint} />
-        </Pressable>
+        </Tap>
       </View>
       <View style={styles.week}>
         {weekdays().map((w, i) => <Text key={i} style={styles.weekday}>{w}</Text>)}
@@ -75,14 +76,14 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
             const bandRight = inside || (d === start && end !== null && end !== start);
             const off = !!maxEnd && d > maxEnd;
             return (
-              <Pressable key={j} onPress={() => tap(d)} disabled={off} style={[styles.cell, off && { opacity: 0.3 }]} accessibilityRole="button"
+              <Tap key={j} onPress={() => tap(d)} disabled={off} style={[styles.cell, off && { opacity: 0.3 }]} accessibilityRole="button"
                 accessibilityLabel={humanDayTime(d)} accessibilityState={{ selected: edge || inside, disabled: off }}>
                 {bandLeft ? <View style={[styles.band, { left: 0, right: "50%" }]} /> : null}
                 {bandRight ? <View style={[styles.band, { left: "50%", right: 0 }]} /> : null}
                 <View style={[styles.dot, edge && styles.dotOn]}>
                   <Text style={[styles.dayText, inside && styles.dayInside, edge && styles.dayOn]}>{Number(d.slice(8, 10))}</Text>
                 </View>
-              </Pressable>
+              </Tap>
             );
           })}
         </View>

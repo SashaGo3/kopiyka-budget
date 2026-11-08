@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { WAIT_DAYS_OPTIONS, reminderLabel, reminderOptions, getRecurringWait, getRecurringWaitDays, getReminderDaysBefore, setRecurringWait, setRecurringWaitDays, setReminderDaysBefore, waitDefaultDays } from "@/lib/settings";
 import { Stack, router, useFocusEffect } from "expo-router";
 import { listRows, dueOccurrences, detectRecurring, adoptCandidate, dismissSuggestion, shownPaymentIcon, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
-import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow } from "@/components/ui";
+import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow, Tap } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { PaymentIcon } from "@/components/PaymentIcon";
 import { SymbolView } from "expo-symbols";
@@ -150,7 +150,7 @@ export default function RecurringList() {
         {paused.length ? <SectionHeader>{t("settingsLists.recurring.paused")}</SectionHeader> : null}
         {paused.length ? <Card>{paused.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
         {suggestions.length ? (
-          <SectionHeader right={<Pressable onPress={() => void adopt(suggestions)} hitSlop={8}><Text style={styles.addAll}>{t("settingsLists.recurring.addAll")}</Text></Pressable>}>{t("settingsLists.recurring.suggested")}</SectionHeader>
+          <SectionHeader right={<Tap onPress={() => void adopt(suggestions)} hitSlop={8}><Text style={styles.addAll}>{t("settingsLists.recurring.addAll")}</Text></Tap>}>{t("settingsLists.recurring.suggested")}</SectionHeader>
         ) : null}
         {suggestions.length ? (
           <Card>
@@ -163,10 +163,10 @@ export default function RecurringList() {
                 right={<View style={styles.right}>
                   <AmountPill minor={c.amount_minor} currency={c.currency} />
                   <View style={styles.actions}>
-                    <Pressable onPress={() => mutate((db) => dismissSuggestion(db, c.key))} hitSlop={8} style={styles.dismiss} accessibilityRole="button"
+                    <Tap onPress={() => mutate((db) => dismissSuggestion(db, c.key))} hitSlop={8} style={styles.dismiss} accessibilityRole="button"
                       accessibilityLabel={t("settingsLists.recurring.dismissA11y", { name: c.title ?? catNameById(c.category_id, c.category_name) ?? t("settingsLists.recurring.fallbackTitle") })}>
                       <SymbolView name="xmark" size={13} tintColor={C.secondary} />
-                    </Pressable>
+                    </Tap>
                     <Chip label={t("settingsLists.recurring.add")} onPress={() => void adopt([c])} />
                   </View>
                 </View>}

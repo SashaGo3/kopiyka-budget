@@ -13,7 +13,7 @@ import { BarButton, BottomBar, LogButton, useScrollHide } from "@/components/Bot
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
-import { ButtonText, Empty, Money, StatPair } from "@/components/ui";
+import { ButtonText, Empty, Money, StatPair, Tap } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { ALL_TIME, EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
@@ -385,7 +385,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   };
   usePickResult<string>(keys.note, useCallback((text: string) => reviewAfterPick({ kind: "note", text, mode: "replace" }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const headerButton = (label: string, onPress: () => void, bold = false) => (
-    <Pressable onPress={onPress} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={label}><ButtonText style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</ButtonText></Pressable>
+    <Tap onPress={onPress} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={label}><ButtonText style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</ButtonText></Tap>
   );
   const range = tripTag && filter.from === ALL_TIME && !filter.to ? "" : filter.from || filter.to ? rangeLabel(filter.from, filter.to) : filter.upcoming ? t("transactions.upcoming") : "";
   // What the screen was opened *about* — a category from Budgets, a tag or a category from its

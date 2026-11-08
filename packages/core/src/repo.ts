@@ -9,7 +9,7 @@ import { SYNCED_TABLES } from "./models";
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor", "numbers"],
-  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset"],
+  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset", "type"],
   tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
     "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref", "debt_id", "bank_note"],
@@ -98,7 +98,7 @@ export function createAccount(db: SqlDriver, a: Partial<Account> & Pick<Account,
 }
 
 export function createCategory(db: SqlDriver, c: Partial<Category> & Pick<Category, "name">): Category {
-  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, preset: null, ...c } as Category);
+  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, preset: null, type: null, ...c } as Category);
 }
 
 export function createTag(db: SqlDriver, t: Partial<Tag> & Pick<Tag, "name">): Tag {
@@ -375,6 +375,30 @@ export function setHome(db: SqlDriver, home: { lat: number; lon: number; place: 
 }
 
 /**
+ * Categories whose payments say nothing about the place they were paid at (Settings → Location →
+ * Never suggest). Parking, fuel, a taxi, a toll: paid in the car park beside the supermarket, and
+ * after one of them every coffee bought there was offered as Parking. Rows filed under one are left
+ * out of the location history altogether — they are still there, still counted, only never evidence
+ * of what "here" is. A folder in the list stands for every category inside it, the ones added later
+ * included. Stored as a JSON list of ids in meta `location_ignore`; it travels with backups.
+ */
+export function getLocationIgnore(db: SqlDriver): string[] { return jsonIds(getMeta(db, "location_ignore")); }
+export function setLocationIgnore(db: SqlDriver, ids: string[]): void {
+  if (ids.length) setMeta(db, "location_ignore", JSON.stringify([...new Set(ids)]));
+  else db.run(`DELETE FROM meta WHERE key='location_ignore'`);
+}
+/** `getLocationIgnore` with each folder opened up into the categories inside it. */
+export function locationIgnoredIds(db: SqlDriver, cats: { id: string; parent_id: string | null }[] = listRows(db, "categories", "deleted=0")): Set<string> {
+  const out = new Set(getLocationIgnore(db));
+  if (!out.size) return out;
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const c of cats) if (c.parent_id && out.has(c.parent_id) && !out.has(c.id)) { out.add(c.id); changed = true; }
+  }
+  return out;
+}
+
+/**
  * Most common category among earlier transactions logged within `radiusM` of a point.
  * Cheap: a bounding-box query on the indexed columns, then an exact distance check.
  */
@@ -435,7 +459,9 @@ export function suggestCategoryAt(db: SqlDriver, at: { lat: number; lon: number;
  * it would put a new entry somewhere the picker will not even offer.
  */
 function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, keep: (r: { place: string | null }) => boolean): PlaceSuggestion | null {
-  const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
+  const cats = listRows(db, "categories", "deleted=0");
+  const gone = archivedCategoryIds(cats);
+  const ignored = locationIgnoredIds(db, cats);
   const dLat = radiusM / 111_000, dLon = radiusM / (111_000 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
   const rows = db.all<{ category_id: string; lat: number; lon: number; place: string | null }>(
     `SELECT category_id, lat, lon, place FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
@@ -443,7 +469,7 @@ function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, ke
     [lat - dLat, lat + dLat, lon - dLon, lon + dLon]);
   const counts = new Map<string, PlaceSuggestion>();
   for (const r of rows) {
-    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r) || gone.has(r.category_id)) continue;
+    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r) || gone.has(r.category_id) || ignored.has(r.category_id)) continue;
     const e = counts.get(r.category_id) ?? { category_id: r.category_id, count: 0, place: null };
     e.count++; e.place ??= r.place; counts.set(r.category_id, e);
   }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { SymbolView } from "expo-symbols";
 import { router, useLocalSearchParams } from "expo-router";
 import { budgetCategoryIds, createBudget, formatMinor, getRow, listRows, remove, save, scopedBudget, suggestBudget, toMinor, fromMinor, type Budget } from "@kopiyka/core";
@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { Chip, ChipGrid, SheetFrame } from "@/components/ui";
+import { Chip, ChipGrid, SheetFrame, Tap } from "@/components/ui";
 import { SideScroll } from "@/components/SideScroll";
 import { C, S, themed } from "@/constants/theme";
 import { monthBounds, todayLocal } from "@/lib/dates";
@@ -86,7 +86,7 @@ export default function BudgetEdit() {
     <SheetFrame
       top={
         <View style={styles.top}>
-          {existing ? <Pressable onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("budgets.edit.delete")}><SymbolView name="trash" size={16} tintColor={C.red} /></Pressable> : null}
+          {existing ? <Tap onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("budgets.edit.delete")}><SymbolView name="trash" size={16} tintColor={C.red} /></Tap> : null}
           <Text style={styles.covers} numberOfLines={2}>{name.trim() || covers}</Text>
           <Text style={styles.meta}>{[
             name.trim() ? covers : null,

@@ -179,7 +179,10 @@ that carries one recolours the screens where they are (each screen's content re-
 phone. `recurring_dismissed` joined on 2026-10-15: the suggested regular payments a person said no
 to, as a JSON list of suggestion keys (`dismissSuggestion`, `packages/core/src/detect.ts`) — the
 account and the normalised name, so the same charge next month stays dismissed. A row pointed at on
-purpose ("from a past payment") still builds its rule. `backup.test.ts` pins the list so the
+purpose ("from a past payment") still builds its rule. `location_ignore` joined on 2026-11-08: the categories Settings →
+Location → Never suggest names (parking, fuel — paid beside other places), as a JSON list of ids, a
+folder standing for everything in it. Their rows are never evidence of what a place is
+(`locationIgnoredIds`, `packages/core/src/repo.ts`, and its Swift copy in `KPStore`). `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -533,6 +536,38 @@ the shop's name stands for both, so nothing is printed twice.
 - **Not in `ROW_DEFAULTS`**: a backup from before v23 leaves the phone's text alone, and an older
   build ignores the column.
 
+## 21. A shop is matched to a type, and the type to your category
+
+A category's **type** (`categories.type`, v24) says what kind of thing it is — `food.groceries`,
+`transport.parking` — whatever it is called. The vocabulary is the ready-made categories' keys plus
+a few no preset seeds (`EXTRA_CATEGORY_TYPES`), and a key is forever, like a preset's (rule 16).
+Read it through `categoryType` (`packages/core/src/categoryTypes.ts`), never off the column:
+
+- a known key on the row is what a person said (or accepted from a suggestion on Save);
+- `"none"` is "no type, on purpose" — a ready-made category renamed into something else;
+- NULL is "not said", and a ready-made category then answers with its `preset`. That is the whole
+  migration for anyone already on the default categories: **nothing is backfilled**, no `updated_at`
+  moves (rule 15's lesson), and a preset renamed to "Їжа вдома" is still groceries.
+
+A category of your own has no type until one is saved. The editor and Settings → Categories →
+Category types offer what its name suggests (`suggestCategoryType`, every language's names and
+keywords) and write it only when you save — and only the rows whose answer changes.
+
+`packages/core/src/shops.ts` maps well-known shops (Poland, Ukraine, worldwide) to types, never to
+categories; `categoryForShop` files the type into whichever of your live, pickable categories
+carries it, the most used of the last 90 days when several do. Three things are load-bearing:
+
+- **History comes first and a shop list is only a guess.** The notification automation asks it after
+  `payeeHistory` and before the word match and location; what it finds is logged pending as
+  `"shortcut-guess"` (rule 9), so the first payment at a shop always waits for a yes, and after that
+  it is history. The entry sheet only *offers* it, from the place name, marked suggested.
+- **Whole words, longest first, the same on both sides.** `native/KPShops.swift` is generated from
+  the list (`bun run scripts/shops.ts` in packages/core, with its own copy of `normalizeName`) and
+  `test/shops.test.ts` fails when they drift. A marketplace that sells everything is left out.
+- **Not in `ROW_DEFAULTS`**: a backup from before v24 leaves the phone's types alone, and an older
+  build ignores the column. The state file carries each category's resolved `type` so the automation
+  can match while the app owns the database (rule 10).
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import
@@ -545,7 +580,8 @@ back. What to tell it:
    renamed category stops being translated on its own (rule 16), so there is never a reason to edit it.
    Leave `bank_ref` and an account's `numbers` alone too: they are how bank notifications find
    accounts and pair transfers (rule 18). And `debt_id`: it is what a debt counts as paid (rule 19).
-   And `bank_note`: it is what the bank said, which nothing else records (rule 20).
+   And `bank_note`: it is what the bank said, which nothing else records (rule 20). `type` may be
+   set to any key of `CATEGORY_TYPES`, or `"none"` (rule 21).
 4. Leave `amount_minor` and every transaction alone unless the point of the pass is the transactions.
    Leave `importance` alone too, or say nothing about it: a column the file omits keeps whatever the
    phone already had, but an `importance: 0` written over a marked category erases an answer only a

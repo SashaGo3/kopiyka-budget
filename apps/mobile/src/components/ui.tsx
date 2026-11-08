@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle, type TextProps } from "react-native";
+import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps } from "react-native";
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -43,6 +44,27 @@ export function ButtonText({ fit, style, ...rest }: Omit<TextProps, "numberOfLin
     : <Text {...rest} style={[styles.buttonText, style]} />;
 }
 
+const AnimatedPressable = Reanimated.createAnimatedComponent(Pressable);
+
+/**
+ * Anything you tap that has no pressed look of its own. It dims the moment the finger lands and eases
+ * back when it lifts, the way an iOS button does — so even a quick tap that opens a sheet a beat later
+ * is seen to have landed. A `style` that is already faded (a disabled look) is dimmed from there, not
+ * reset to full. Rows that highlight instead (`Row`) and controls that scale (`PressCard`, the keypad)
+ * keep their own answer; this is for everything else, and a bare `Pressable` with an `onPress` and no
+ * pressed state is the thing it replaces.
+ */
+export function Tap({ style, onPressIn, onPressOut, dim = 0.45, ...rest }: Omit<PressableProps, "style"> & { style?: StyleProp<ViewStyle>; dim?: number }) {
+  const lit = useSharedValue(1);
+  const base = Number(StyleSheet.flatten(style)?.opacity ?? 1);
+  const fade = useAnimatedStyle(() => ({ opacity: base * lit.value }), [base]);
+  return (
+    <AnimatedPressable {...rest} style={[style, fade]}
+      onPressIn={(e: GestureResponderEvent) => { lit.value = withTiming(dim, { duration: 70 }); onPressIn?.(e); }}
+      onPressOut={(e: GestureResponderEvent) => { lit.value = withTiming(1, { duration: 240 }); onPressOut?.(e); }} />
+  );
+}
+
 export function Chip({ label, icon, active, onPress, tint, compact, disabled, cell }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean;
   /**
    * Fills one cell of a `ChipGrid`: the icon sits above the label, so the label has the cell's whole
@@ -51,13 +73,13 @@ export function Chip({ label, icon, active, onPress, tint, compact, disabled, ce
    */
   cell?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active, disabled: !!disabled }}
-      style={({ pressed }) => [styles.chip, compact && styles.chipCompact, cell && styles.chipCell, active && styles.chipActive, disabled && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
+    <Tap onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active, disabled: !!disabled }}
+      style={[styles.chip, compact && styles.chipCompact, cell && styles.chipCell, active && styles.chipActive, disabled && { opacity: 0.4 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
       {cell
         ? <ButtonText fit={1} style={[styles.chipText, styles.chipCellText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
         : <ButtonText style={[styles.chipText, active && styles.chipTextActive]}>{label}</ButtonText>}
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -118,10 +140,10 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
       {options.map((o) => {
         const on = o.value === value;
         return (
-          <Pressable key={o.value} onPress={() => onChange(o.value)} accessibilityRole="button" accessibilityLabel={o.label} accessibilityState={{ selected: on }} style={[styles.segItem, on && styles.segOn]}>
+          <Tap key={o.value} onPress={() => onChange(o.value)} accessibilityRole="button" accessibilityLabel={o.label} accessibilityState={{ selected: on }} style={[styles.segItem, on && styles.segOn]}>
             {/* One line, shrinking to fit: a segment is a third of a row, and "Автоматично" broke mid-word. */}
             <ButtonText fit={1} style={[styles.segText, on && { color: o.color ?? C.label, fontWeight: "600" }]}>{o.label}</ButtonText>
-          </Pressable>
+          </Tap>
         );
       })}
     </View>
@@ -237,9 +259,9 @@ export function TagPill({ name, color, onPress }: { name: string; color?: string
   // No colour of its own: one derived from the name, so a row of tags is not a row of identical pills.
   const tint = tagColor(name, color);
   return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={t("ui.tagA11y", { name })} style={[styles.tag, { backgroundColor: tint + "22", borderColor: tint + "55" }]}>
+    <Tap onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={t("ui.tagA11y", { name })} style={[styles.tag, { backgroundColor: tint + "22", borderColor: tint + "55" }]}>
       <ButtonText style={[styles.tagText, { color: tint }]}>#{name}</ButtonText>
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -274,8 +296,8 @@ export function HeaderBar({ title, left, right, style }: { title: string; left?:
 export function ModalHeader({ title, left, right }: { title: string; left?: { label: string; onPress: () => void }; right?: { label: string; onPress: () => void; disabled?: boolean; bold?: boolean } }) {
   return (
     <HeaderBar title={title} style={styles.modalHeader}
-      left={left ? <Pressable onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><ButtonText style={styles.modalLink} maxFontSizeMultiplier={1.3}>{left.label}</ButtonText></Pressable> : null}
-      right={right ? <Pressable onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><ButtonText style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]} maxFontSizeMultiplier={1.3}>{right.label}</ButtonText></Pressable> : null} />
+      left={left ? <Tap onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><ButtonText style={styles.modalLink} maxFontSizeMultiplier={1.3}>{left.label}</ButtonText></Tap> : null}
+      right={right ? <Tap onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><ButtonText style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]} maxFontSizeMultiplier={1.3}>{right.label}</ButtonText></Tap> : null} />
   );
 }
 
@@ -351,9 +373,9 @@ export function CategoryIconStack({ items, size = 30, max = 3, cutout = C.card }
 
 export function BigButton({ label, onPress, destructive, disabled }: { label: string; onPress: () => void; destructive?: boolean; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.big, destructive && { backgroundColor: C.red }, (pressed || disabled) && { opacity: 0.5 }]}>
+    <Tap onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={[styles.big, destructive && { backgroundColor: C.red }, disabled && { opacity: 0.5 }]}>
       <ButtonText style={styles.bigText}>{label}</ButtonText>
-    </Pressable>
+    </Tap>
   );
 }
 

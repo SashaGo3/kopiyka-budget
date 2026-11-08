@@ -411,6 +411,7 @@ export interface Messages {
   "category.income": undefined;
   /** folder is the folder's name. */
   "category.inheritedColour": { folder: string | number };
+  "category.noFolder": undefined;
   "category.recolour.subtitle": undefined;
   "category.recolour.title": undefined;
   /** Segmented control: this row is a category inside a folder. */
@@ -425,6 +426,11 @@ export interface Messages {
   "category.transactions.header": undefined;
   "category.transactions.inCategory": undefined;
   "category.transactions.inFolder": undefined;
+  "category.type.none": undefined;
+  /** type is a category type's name, guessed from the category's name; saved on Save. */
+  "category.type.suggested": { type: string | number };
+  "category.type.title": undefined;
+  "category.types.title": undefined;
   "category.whichFolder": undefined;
   "common.add": undefined;
   /** A day and a time: "22 Sep at 11:17". */
@@ -953,21 +959,41 @@ export interface Messages {
   "insights.kind.days_to_salary.title": undefined;
   "insights.kind.free_money.hint": undefined;
   "insights.kind.free_money.title": undefined;
+  "insights.kind.month_vs_usual.hint": undefined;
+  "insights.kind.month_vs_usual.title": undefined;
+  "insights.kind.one_offs.hint": undefined;
+  "insights.kind.one_offs.title": undefined;
   "insights.kind.regular.hint": undefined;
   "insights.kind.regular.title": undefined;
   "insights.kind.safety_buffer.hint": undefined;
   "insights.kind.safety_buffer.title": undefined;
   "insights.kind.savings_goal.hint": undefined;
   "insights.kind.savings_goal.title": undefined;
+  "insights.kind.spending_map.hint": undefined;
+  "insights.kind.spending_map.title": undefined;
   "insights.kind.subscriptions.hint": undefined;
   "insights.kind.subscriptions.title": undefined;
+  "insights.kind.top_shops.hint": undefined;
+  "insights.kind.top_shops.title": undefined;
   "insights.kind.values.hint": undefined;
   "insights.kind.values.title": undefined;
+  /** Section on the details screen listing every place. */
+  "insights.map.all": undefined;
+  /** Under the top places: how much of the period the map covers. */
+  "insights.map.located": { pct: string | number };
+  "insights.map.nothing": undefined;
+  /** A place with coordinates but no name. */
+  "insights.map.unnamed": undefined;
   /** "3 months"; also the big number on Safety buffer, which may be a fraction (1.5). */
   "insights.months": { count: number };
   "insights.noBudgets": undefined;
   /** Progress towards a target: "1 200.00 EUR of 5 000.00 EUR". */
   "insights.of": { have: string | number; target: string | number };
+  "insights.oneOffs.nothing": undefined;
+  /** VoiceOver label of one purchase; opens it. */
+  "insights.oneOffs.openA11y": { title: string | number; amount: string | number; day: string | number };
+  /** A purchase with no shop, note or bank text. */
+  "insights.oneOffs.untitled": undefined;
   /** VoiceOver label of a card's header; title is the card's name. */
   "insights.openLabel": { title: string | number };
   "insights.per.daily": { count: number };
@@ -992,12 +1018,32 @@ export interface Messages {
   /** Under "12 days"; day is "22 Sep". */
   "insights.salary.until": { day: string | number };
   "insights.screenTitle": undefined;
+  /** Section on the details screen. */
+  "insights.shops.all": undefined;
+  /** Under a shop's name. */
+  "insights.shops.count": { count: number };
+  /** Trend: nothing was spent at this shop in the period before. */
+  "insights.shops.new": undefined;
+  "insights.shops.nothing": undefined;
   /** "9.99 EUR per month"; per is insights.per.*. */
   "insights.subscriptions.amountPer": { amount: string | number; per: string | number };
   /** Under the yearly total: the same divided by 12. The tag makes the amount bold. */
   "insights.subscriptions.perMonth": { amount: string | number };
   /** Under the yearly total. */
   "insights.subscriptions.perYear": { included: string | number; count: number };
+  /** Section on the details screen listing every line. */
+  "insights.usual.all": undefined;
+  /** VoiceOver label of one line. */
+  "insights.usual.lineA11y": { name: string | number; amount: string | number; change: string | number };
+  /** Instead of a percentage: nothing was spent here in the periods before. */
+  "insights.usual.new": undefined;
+  "insights.usual.nothing": undefined;
+  /** Big text when spending is within a few percent of the usual. */
+  "insights.usual.same": undefined;
+  /** Under the big percentage while the period is still running. */
+  "insights.usual.soFar": { amount: string | number; usual: string | number };
+  /** Under the big percentage for a finished period. */
+  "insights.usual.whole": { amount: string | number; usual: string | number };
   /** Legend: categories nobody has marked. */
   "insights.values.level.l0": undefined;
   /** Legend: low importance. */
@@ -1532,6 +1578,8 @@ export interface Messages {
   "preset.transport.fuel.description": undefined;
   "preset.transport.fuel.name": undefined;
   "preset.transport.name": undefined;
+  "preset.transport.parking.description": undefined;
+  "preset.transport.parking.name": undefined;
   "preset.transport.publicTransport.description": undefined;
   "preset.transport.publicTransport.name": undefined;
   "preset.transport.taxi.description": undefined;
@@ -1742,6 +1790,9 @@ export interface Messages {
   "settings.location.denied": undefined;
   "settings.location.on": undefined;
   "settings.location.title": undefined;
+  "settings.locationIgnore.title": undefined;
+  /** Categories paid next to other places, so where they were paid says nothing about the place. */
+  "settings.locationIgnore.unset": undefined;
   "settings.notifications.ask": undefined;
   "settings.notifications.denied": undefined;
   "settings.notifications.granted": undefined;
@@ -1839,6 +1890,10 @@ export interface Messages {
   "settingsLists.categories.newFolder": undefined;
   "settingsLists.categories.noFolder": undefined;
   "settingsLists.categories.title": undefined;
+  "settingsLists.categories.types": undefined;
+  "settingsLists.categories.typesAll": undefined;
+  /** Categories a well-known shop cannot be matched to yet. */
+  "settingsLists.categories.typesMissing": { count: number };
   "settingsLists.debts.add": undefined;
   "settingsLists.debts.addA11y": undefined;
   "settingsLists.debts.emptyHint": undefined;
@@ -2611,6 +2666,13 @@ export interface Messages {
   "whatsNew.notes.v1_1_1.recurringNext": undefined;
   "whatsNew.notes.v1_1_1.tagPages": undefined;
   "whatsNew.notes.v1_1_1.tripEnds": undefined;
+  "whatsNew.notes.v1_1_2.folder": undefined;
+  "whatsNew.notes.v1_1_2.insights": undefined;
+  "whatsNew.notes.v1_1_2.map": undefined;
+  "whatsNew.notes.v1_1_2.neverSuggest": undefined;
+  "whatsNew.notes.v1_1_2.shops": undefined;
+  "whatsNew.notes.v1_1_2.taps": undefined;
+  "whatsNew.notes.v1_1_2.types": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;
   "whatsNew.title": undefined;

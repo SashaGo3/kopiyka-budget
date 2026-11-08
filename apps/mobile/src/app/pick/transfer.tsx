@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { accountBalanceMinor, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { ButtonText, HeaderBar, Money, Row, accountIcon } from "@/components/ui";
+import { ButtonText, HeaderBar, Money, Row, accountIcon, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
@@ -51,12 +51,12 @@ export default function PickTransferAccounts() {
     const role = s === "from" ? t("transfer.from") : t("transfer.to");
     const active = focus === s;
     return (
-      <Pressable onPress={() => setFocus(s)} style={[styles.slot, active && styles.slotActive]} accessibilityRole="button" accessibilityState={{ selected: active }}
+      <Tap onPress={() => setFocus(s)} style={[styles.slot, active && styles.slotActive]} accessibilityRole="button" accessibilityState={{ selected: active }}
         accessibilityLabel={t("transfer.pickA11y", { role, account: a ? acctName(a) : t("transfer.chooseAccount") })}>
         <Text style={styles.slotRole}>{role}</Text>
         <ButtonText fit={1} style={[styles.slotName, !a && { color: active ? C.tint : C.tertiary }]}>{a ? acctName(a) : t("transfer.chooseAccount")}</ButtonText>
         {a ? <Text style={styles.slotCur}>{a.currency}</Text> : null}
-      </Pressable>
+      </Tap>
     );
   };
 
@@ -65,12 +65,12 @@ export default function PickTransferAccounts() {
       ListHeaderComponent={
         <View style={styles.head}>
           <HeaderBar title={t("transfer.pickTitle")}
-            right={<Pressable onPress={done} disabled={!ready} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} accessibilityState={{ disabled: !ready }} style={[styles.doneBtn, !ready && { opacity: 0.4 }]}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Pressable>} />
+            right={<Tap onPress={done} disabled={!ready} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} accessibilityState={{ disabled: !ready }} style={[styles.doneBtn, !ready && { opacity: 0.4 }]}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Tap>} />
           <View style={styles.slots}>
             {slot("from")}
-            <Pressable onPress={swap} disabled={!pair.from && !pair.to} hitSlop={8} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
+            <Tap onPress={swap} disabled={!pair.from && !pair.to} hitSlop={8} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
               <SymbolView name="arrow.left.arrow.right" size={14} tintColor={C.tint} />
-            </Pressable>
+            </Tap>
             {slot("to")}
           </View>
           <Text style={styles.hint}>{focus === "from" ? t("transfer.chooseFrom") : t("transfer.chooseTo")}</Text>

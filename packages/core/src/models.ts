@@ -71,6 +71,12 @@ export interface Category extends Synced {
    * (presets.ts), never off `name`. Absent on rows from a build before v18.
    */
   preset?: string | null;
+  /**
+   * What kind of thing this is, whatever it is called ("food.groceries"), so a shop can be filed
+   * into it (shops.ts). NULL: not said — a ready-made category answers with its preset. "none": no
+   * type on purpose. Read it through `categoryType`, never off the row. Absent before v24.
+   */
+  type?: string | null;
 }
 
 /** 0 unset, 1 low, 2 medium, 3 high. */
@@ -255,7 +261,7 @@ export interface Budget extends Synced {
   ended: string | null;
 }
 
-export type InsightKind = "savings_goal" | "account_balance" | "free_money" | "days_to_salary" | "checklist" | "subscriptions" | "upcoming" | "regular" | "recurring_spend" | "values" | "safety_buffer" | "safe_to_spend";
+export type InsightKind = "savings_goal" | "account_balance" | "free_money" | "days_to_salary" | "checklist" | "subscriptions" | "upcoming" | "regular" | "recurring_spend" | "values" | "safety_buffer" | "safe_to_spend" | "month_vs_usual" | "one_offs" | "top_shops" | "spending_map";
 
 /** A user-added statistics card on the Insights tab. `params` is JSON, shape depends on `kind`. */
 export interface Insight extends Synced {

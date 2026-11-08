@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Tap } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
@@ -26,9 +27,9 @@ export default function PickMonth() {
   return (
     <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.md, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
       <View style={styles.yearRow}>
-        <Pressable onPress={() => setYear((y) => y - 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.previousYear")} style={styles.arrow}><SymbolView name="chevron.left" size={18} tintColor={C.tint} /></Pressable>
+        <Tap onPress={() => setYear((y) => y - 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.previousYear")} style={styles.arrow}><SymbolView name="chevron.left" size={18} tintColor={C.tint} /></Tap>
         <Text style={styles.year}>{year}</Text>
-        <Pressable onPress={() => setYear((y) => y + 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.nextYear")} style={styles.arrow}><SymbolView name="chevron.right" size={18} tintColor={C.tint} /></Pressable>
+        <Tap onPress={() => setYear((y) => y + 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.nextYear")} style={styles.arrow}><SymbolView name="chevron.right" size={18} tintColor={C.tint} /></Tap>
       </View>
       <View style={styles.grid}>
         {Array.from({ length: 12 }, (_, i) => monthShort(i + 1)).map((m, i) => {

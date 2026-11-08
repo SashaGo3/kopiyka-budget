@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { archivedCategoryIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { ButtonText, CategoryIcon, HeaderBar } from "@/components/ui";
+import { ButtonText, CategoryIcon, HeaderBar, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
@@ -76,34 +76,34 @@ export default function PickCategories() {
     <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={items} keyExtractor={(i) => (i.kind === "none" ? "none" : i.c.id)} stickyHeaderIndices={[0]} contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
         <HeaderBar style={styles.head} title={title ?? t("pick.categories.title")}
-          left={<Pressable onPress={() => setChosen(new Set())} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.categories.anyA11y")}><ButtonText style={[styles.link, !chosen.size && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{t("pick.any")}</ButtonText></Pressable>}
-          right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{catCount ? t("pick.doneCount", { count: catCount }) : t("common.done")}</ButtonText></Pressable>} />
+          left={<Tap onPress={() => setChosen(new Set())} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.categories.anyA11y")}><ButtonText style={[styles.link, !chosen.size && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{t("pick.any")}</ButtonText></Tap>}
+          right={<Tap onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{catCount ? t("pick.doneCount", { count: catCount }) : t("common.done")}</ButtonText></Tap>} />
       }
       renderItem={({ item }) => {
         if (item.kind === "none") return (
-          <Pressable onPress={() => toggle("none")} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.categories.uncategorized")} accessibilityState={{ selected: chosen.has("none") }}>
+          <Tap onPress={() => toggle("none")} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.categories.uncategorized")} accessibilityState={{ selected: chosen.has("none") }}>
             <View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View>
             <Text style={[styles.name, { color: C.secondary }]}>{t("pick.categories.uncategorized")}</Text><Check state={chosen.has("none") ? "full" : "off"} />
-          </Pressable>
+          </Tap>
         );
         if (item.kind === "folder") {
           const full = item.kids.length ? item.kids.every((k) => chosen.has(k.id)) : chosen.has(item.c.id);
           const half = item.kids.length ? !full && item.kids.some((k) => chosen.has(k.id)) : false;
           return (
-            <Pressable onPress={() => (item.kids.length ? toggleFolder(item.kids) : toggle(item.c.id))} style={[styles.row, styles.folder]} accessibilityRole="button" accessibilityLabel={t("pick.categories.folderA11y", { name: catName(item.c) })} accessibilityState={{ selected: full }}>
+            <Tap onPress={() => (item.kids.length ? toggleFolder(item.kids) : toggle(item.c.id))} style={[styles.row, styles.folder]} accessibilityRole="button" accessibilityLabel={t("pick.categories.folderA11y", { name: catName(item.c) })} accessibilityState={{ selected: full }}>
               <CategoryIcon name={catName(item.c)} icon={item.c.icon} color={item.c.color} size={28} />
               <Text style={[styles.name, { fontWeight: "600" }]}>{catName(item.c)} <Text style={styles.all}>{t("pick.categories.wholeFolder")}</Text></Text>
               <Check state={full ? "full" : half ? "half" : "off"} />
-            </Pressable>
+            </Tap>
           );
         }
         const on = chosen.has(item.c.id);
         return (
-          <Pressable onPress={() => toggle(item.c.id)} style={[styles.row, styles.child]} accessibilityRole="button" accessibilityLabel={catName(item.c)} accessibilityState={{ selected: on }}>
+          <Tap onPress={() => toggle(item.c.id)} style={[styles.row, styles.child]} accessibilityRole="button" accessibilityLabel={catName(item.c)} accessibilityState={{ selected: on }}>
             <CategoryIcon name={catName(item.c)} icon={item.c.icon} color={item.c.color} size={26} />
             <Text style={styles.name}>{catName(item.c)}</Text>
             <Check state={on ? "full" : "off"} />
-          </Pressable>
+          </Tap>
         );
       }} />
   );

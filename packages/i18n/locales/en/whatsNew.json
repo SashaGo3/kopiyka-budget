@@ -7,6 +7,15 @@
   "improved": "Improved",
   "fixed": "Fixed",
   "notes": {
+    "v1_1_2": {
+      "shops": "Biedronka, Lidl, Сільпо, АТБ, WOG, Orlen, Uber, Uklon and a few hundred more are recognised the first time you pay there. The payment still waits in Pending for your yes, so the app guesses, and you decide.",
+      "types": "Every category can say what kind of thing it is, so a shop finds your category whatever you called it. Settings → Categories → Category types suggests them for you.",
+      "insights": "Three new insights: this month against your usual, your biggest one-off purchases, and where you shop most.",
+      "map": "A spending map: where the money went, in circles, sized by how much.",
+      "neverSuggest": "Settings → Location → Never suggest: parking by the supermarket no longer makes everything there Parking.",
+      "taps": "Every button now answers a tap, the moment your finger lands. Including the ones that used to sit there pretending not to notice.",
+      "folder": "A new category no longer moves itself into the first folder. You pick one, or none."
+    },
     "v1_1_1": {
       "recurringNext": "A recurring payment made from one you just paid no longer thinks the next one is due today. Six months means six months, counted from that payment.",
       "recurringCadence": "Changing how often a recurring payment repeats now moves its next date too, instead of just nodding along.",

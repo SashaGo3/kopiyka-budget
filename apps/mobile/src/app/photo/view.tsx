@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Tap } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
@@ -14,14 +15,14 @@ export default function PhotoView() {
   return (
     <View style={styles.screen}>
       <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="contain" accessibilityLabel={t("photo.attached")} />
-      <Pressable onPress={() => router.back()} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, right: S.lg }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
+      <Tap onPress={() => router.back()} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, right: S.lg }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
         <SymbolView name="xmark" size={18} tintColor="white" weight="semibold" />
-      </Pressable>
+      </Tap>
       {key ? (
-        <Pressable onPress={() => { resolvePick(key, true); router.back(); }} style={[styles.remove, { bottom: Math.max(insets.bottom, S.lg) + S.md }]} accessibilityRole="button" accessibilityLabel={t("photo.remove")}>
+        <Tap onPress={() => { resolvePick(key, true); router.back(); }} style={[styles.remove, { bottom: Math.max(insets.bottom, S.lg) + S.md }]} accessibilityRole="button" accessibilityLabel={t("photo.remove")}>
           <SymbolView name="trash" size={16} tintColor="white" />
           <Text style={styles.removeText}>{t("photo.remove")}</Text>
-        </Pressable>
+        </Tap>
       ) : null}
     </View>
   );

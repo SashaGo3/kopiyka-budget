@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { tagTransactions, tripKind } from "@kopiyka/core";
 import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { TransactionList, useTransactions } from "@/components/TransactionList";
-import { ModalHeader } from "@/components/ui";
+import { ModalHeader, Tap } from "@/components/ui";
 import { ConfirmBar } from "@/components/Keypad";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, S, themed } from "@/constants/theme";
@@ -60,11 +60,11 @@ export default function TravelBackfill() {
           <TextInput value={q} onChangeText={setQ} placeholder={t("travel.backfill.search")} placeholderTextColor={C.tertiary} style={styles.input}
             autoCorrect={false} returnKeyType="search" clearButtonMode="while-editing" accessibilityLabel={t("travel.backfill.searchLabel")} />
         </View>
-        <Pressable onPress={() => router.push({ pathname: "/filter", params: { key, value: JSON.stringify(filter) } })} hitSlop={6}
+        <Tap onPress={() => router.push({ pathname: "/filter", params: { key, value: JSON.stringify(filter) } })} hitSlop={6}
           style={[styles.filter, filters > 0 && styles.filterOn]} accessibilityRole="button" accessibilityLabel={filters ? t("travel.backfill.filtersOn", { count: filters }) : t("travel.backfill.filters")}>
           <SymbolView name="line.3.horizontal.decrease" size={17} tintColor={filters ? C.onTint : C.tint} />
           {filters ? <Text style={styles.filterCount}>{filters}</Text> : null}
-        </Pressable>
+        </Tap>
       </View>
       <TransactionList rows={rows} selected={selected} onToggle={toggle}
         header={<Text style={styles.hint}>{from ? t("travel.backfill.hintPast", { kind }) : t("travel.backfill.hint", { kind })}</Text>} />

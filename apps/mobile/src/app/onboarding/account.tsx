@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "@/components/ui";
 import { SymbolView } from "expo-symbols";
 import { router } from "expo-router";
 import { createAccount, formatMinor, listRows, save, toMinor, type Account, type AccountType } from "@kopiyka/core";
@@ -83,11 +84,11 @@ export default function OnboardingAccount() {
       <View style={styles.form}>
         <TextInput value={name} onChangeText={setName} placeholder={t("onboarding.account.namePlaceholder")} placeholderTextColor={C.tertiary} style={styles.input} returnKeyType="done" accessibilityLabel={t("onboarding.account.namePlaceholder")} />
         <View style={styles.balance}>
-          <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency } })} style={styles.currencyRow} accessibilityRole="button" accessibilityLabel={t("onboarding.account.currencyA11y", { currency })}>
+          <Tap onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency } })} style={styles.currencyRow} accessibilityRole="button" accessibilityLabel={t("onboarding.account.currencyA11y", { currency })}>
             <Text style={styles.balanceLabel}>{t("onboarding.account.balanceIn")}</Text>
             <Text style={styles.currencyText}>{currency} · {currencyName(currency)}</Text>
             <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
-          </Pressable>
+          </Tap>
           <Text style={styles.balanceValue} numberOfLines={1} adjustsFontSizeToFit>{shown} <Text style={styles.balanceCur}>{currency}</Text></Text>
           <CalcLine expr={expr} style={{ textAlign: "left" }} />
         </View>

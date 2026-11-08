@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { candidateFromTransaction, createRecurring, getRow, linkToRule, nextOccurrenceAfter, guessLogo, iconFor, parsePaymentIcon, jsonIds, listRows, remove, save, formatMinor, type Frequency, type RecurringRule } from "@kopiyka/core";
@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
-import { Card, DeleteRow, ModalHeader, Row, Segmented } from "@/components/ui";
+import { Card, DeleteRow, ModalHeader, Row, Segmented, Tap } from "@/components/ui";
 import { PaymentIcon } from "@/components/PaymentIcon";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, localIso, timeLabel, todayLocal } from "@/lib/dates";
@@ -218,10 +218,10 @@ export default function RecurringEdit() {
       <ModalHeader title={existing ? t("recurring.title.edit") : t("recurring.title.new")} left={{ label: t("common.cancel"), onPress: () => (existing ? router.back() : confirmDiscard(leave)) }}
         right={existing ? { label: existing.active ? t("recurring.pause") : t("recurring.resume"), bold: false, onPress: () => { mutate((d) => save(d, "recurring_rules", { ...existing, active: existing.active ? 0 : 1 })); leave(); } } : undefined} />
       <ScrollView contentContainerStyle={{ paddingBottom: S.md }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-        <Pressable onPress={editAmount} style={styles.hero} accessibilityRole="button" accessibilityLabel={t("recurring.amountA11y", { amount: `${formatMinor(amountMinor, currency)} ${currency}` })} accessibilityHint={t("recurring.amountHint")}>
+        <Tap onPress={editAmount} style={styles.hero} accessibilityRole="button" accessibilityLabel={t("recurring.amountA11y", { amount: `${formatMinor(amountMinor, currency)} ${currency}` })} accessibilityHint={t("recurring.amountHint")}>
           <Text style={[styles.amount, kind === "income" && { color: C.green }, !amountMinor && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{kind === "expense" ? "−" : "+"}{formatMinor(amountMinor, currency)} <Text style={styles.cur}>{currency}</Text></Text>
           <Text style={styles.summary}>{amountMinor ? t("recurring.summary", { repeat: repeats.toLowerCase(), next: humanDayTime(start, time) }) : t("recurring.tapAmount")}</Text>
-        </Pressable>
+        </Tap>
         <View style={{ paddingHorizontal: S.md, marginBottom: S.md }}><Segmented value={kind} onChange={setKind} options={[{ value: "expense", label: t("recurring.expense") }, { value: "income", label: t("recurring.income"), color: C.green as unknown as string }]} /></View>
         <Card style={{ marginBottom: S.md }}>
           <Row icon="clock.arrow.circlepath" title={existing ? t("recurring.fromTx.updateTitle") : t("recurring.fromTx.title")} subtitle={fromTx ?? (existing ? t("recurring.fromTx.updateSubtitle") : t("recurring.fromTx.subtitle"))} onPress={() => router.push({ pathname: "/pick/transaction", params: { key: keys.tx, title: t("recurring.fromTx.pickTitle") } })} />

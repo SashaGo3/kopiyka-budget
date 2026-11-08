@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
@@ -8,7 +8,7 @@ import {
 } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
-import { BigButton, Card, Empty, ModalHeader, CategoryIcon } from "@/components/ui";
+import { BigButton, Card, Empty, ModalHeader, CategoryIcon, Tap } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
@@ -120,20 +120,20 @@ export default function ImportanceFlow() {
         return (
           <Card key={folder?.id ?? "loose"} style={styles.group}>
             {folder ? (
-              <Pressable onPress={() => toggleFolder(rows)} style={[styles.row, styles.folderRow]} accessibilityRole="button"
+              <Tap onPress={() => toggleFolder(rows)} style={[styles.row, styles.folderRow]} accessibilityRole="button"
                 accessibilityLabel={t("category.importance.folderA11y", { name: catName(folder) })} accessibilityState={{ selected: full }}>
                 <CategoryIcon name={catName(folder)} icon={folder.icon} color={folder.color} size={28} />
                 <Text style={[styles.name, { fontWeight: "600" }]}>{catName(folder)} <Text style={styles.all}>{t("category.importance.all", { count: rows.length })}</Text></Text>
                 <Check state={full ? "full" : half ? "half" : "off"} />
-              </Pressable>
+              </Tap>
             ) : <Text style={styles.looseHead}>{t("category.importance.noFolder")}</Text>}
             {rows.map((c) => (
-              <Pressable key={c.id} onPress={() => toggle(c.id)} style={[styles.row, folder ? styles.child : null]} accessibilityRole="button"
+              <Tap key={c.id} onPress={() => toggle(c.id)} style={[styles.row, folder ? styles.child : null]} accessibilityRole="button"
                 accessibilityLabel={catName(c)} accessibilityState={{ selected: chosen.has(c.id) }}>
                 <CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={26} />
                 <Text style={styles.name}>{catName(c)}</Text>
                 <Check state={chosen.has(c.id) ? "full" : "off"} />
-              </Pressable>
+              </Tap>
             ))}
           </Card>
         );

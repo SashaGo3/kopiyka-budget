@@ -5,7 +5,7 @@
  * and native/KPShared.swift `KPStore`/`KPWatchState`, which this mirrors field-for-field).
  * Rebuilt after every write, so this stays a handful of grouped queries — no per-row round-trips.
  */
-import { accountName, accountNumbers, categoryMatchText, categoryName, fromMinor, getHome, iconFor, jsonIds, uncarriedTagIds } from "@kopiyka/core";
+import { accountName, accountNumbers, categoryMatchText, categoryName, categoryType, fromMinor, getHome, iconFor, jsonIds, uncarriedTagIds } from "@kopiyka/core";
 import { db } from "@/db";
 import { getLanguage, t, type LanguageCode } from "@/i18n";
 import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
@@ -16,6 +16,8 @@ export interface WatchCategory {
   icon: string | null; color: string | null; uses: number; description: string | null;
   /** Retired in the app: still named on the history rows that carry it, never offered for a new one. */
   archived: boolean;
+  /** What kind of category it is (core `categoryType`), for matching a well-known shop to it. */
+  type: string | null;
 }
 export interface WatchTag { id: string; name: string; color: string | null; category_ids: string[]; uses: number; archived: boolean }
 export interface WatchTx {
@@ -69,9 +71,9 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
 
   const categories: WatchCategory[] = db.all<{
     id: string; name: string; preset: string | null; parent_id: string | null; parent_name: string | null; parent_preset: string | null; kind: string;
-    icon: string | null; color: string | null; description: string | null; uses: number; archived: number;
+    icon: string | null; color: string | null; description: string | null; uses: number; archived: number; type: string | null;
   }>(
-    `SELECT c.id, c.name, c.preset, c.parent_id, p.name AS parent_name, p.preset AS parent_preset, c.kind, c.icon, c.color, c.description, c.archived,
+    `SELECT c.id, c.name, c.preset, c.parent_id, p.name AS parent_name, p.preset AS parent_preset, c.kind, c.icon, c.color, c.description, c.archived, c.type,
        (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses
      FROM categories c LEFT JOIN categories p ON p.id=c.parent_id
      WHERE c.deleted=0 ORDER BY c.sort, c.name`,
@@ -83,6 +85,8 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     return {
       id: c.id, name: name(c.name, c.preset), parent_id: c.parent_id, parent_name: c.parent_name === null ? null : name(c.parent_name, c.parent_preset),
       kind: c.kind, icon: m.icon, color: m.color, uses: c.uses, description: categoryMatchText(c), archived: !!c.archived,
+      // What a well-known shop is filed into (core shops.ts); the automation matches it while the app owns the file.
+      type: categoryType(c),
     };
   });
 

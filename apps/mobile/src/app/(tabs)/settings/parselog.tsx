@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, useFocusEffect } from "expo-router";
 import { File, Paths } from "expo-file-system";
 import { SymbolView } from "expo-symbols";
-import { Card, Empty, Row, SectionHeader } from "@/components/ui";
+import { Card, Empty, Row, SectionHeader, Tap } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { dayMonth, todayLocal } from "@/lib/dates";
 import { t } from "@/i18n";
@@ -62,7 +62,7 @@ export default function ParseLogScreen() {
           const expanded = open === id;
           return (
             <View key={id} style={[styles.entry, i ? styles.divider : undefined]}>
-              <Pressable onPress={() => setOpen(expanded ? null : id)} accessibilityRole="button"
+              <Tap onPress={() => setOpen(expanded ? null : id)} accessibilityRole="button"
                 accessibilityLabel={expanded ? t("automation.log.a11yHide", { outcome: o.label, when: when(e.at) }) : t("automation.log.a11yShow", { outcome: o.label, when: when(e.at) })}>
                 <View style={styles.head}>
                   <View style={[styles.badge, { backgroundColor: o.color + "26" }]}><Text style={[styles.badgeText, { color: o.color }]}>{o.label}</Text></View>
@@ -71,7 +71,7 @@ export default function ParseLogScreen() {
                   <SymbolView name={expanded ? "chevron.up" : "chevron.down"} size={11} tintColor={C.tertiary} />
                 </View>
                 <Text style={styles.text} numberOfLines={expanded ? undefined : 2}>{e.text || t("automation.log.empty")}</Text>
-              </Pressable>
+              </Tap>
               {expanded ? (
                 <View style={styles.detail}>
                   <Text style={styles.why}>{o.why}</Text>

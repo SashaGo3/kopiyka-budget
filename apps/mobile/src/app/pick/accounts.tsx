@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
+import { SectionList, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { ButtonText, HeaderBar, Row, accountIcon } from "@/components/ui";
+import { ButtonText, HeaderBar, Row, accountIcon, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
@@ -31,18 +31,18 @@ export default function PickAccounts() {
     <SectionList style={{ flex: 1, backgroundColor: C.bgGrouped }} sections={sections} keyExtractor={(a) => a.id} contentContainerStyle={{ paddingBottom: 60 }} stickySectionHeadersEnabled={false}
       ListHeaderComponent={
         <HeaderBar style={styles.head} title={t("pick.accounts.title")}
-          left={<Pressable onPress={() => setChosen([])} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.accounts.anyA11y")}><ButtonText style={[styles.link, !chosen.length && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{t("pick.any")}</ButtonText></Pressable>}
-          right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{chosen.length ? t("pick.doneCount", { count: chosen.length }) : t("common.done")}</ButtonText></Pressable>} />
+          left={<Tap onPress={() => setChosen([])} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.accounts.anyA11y")}><ButtonText style={[styles.link, !chosen.length && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{t("pick.any")}</ButtonText></Tap>}
+          right={<Tap onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{chosen.length ? t("pick.doneCount", { count: chosen.length }) : t("common.done")}</ButtonText></Tap>} />
       }
       renderSectionHeader={({ section }) => {
         const ids = section.data.map((a) => a.id);
         const all = ids.length > 0 && ids.every((id) => chosen.includes(id));
         const some = !all && ids.some((id) => chosen.includes(id));
         return (
-          <Pressable onPress={() => toggleGroup(ids)} style={styles.group} accessibilityRole="checkbox" accessibilityState={{ checked: all ? true : some ? "mixed" : false }} accessibilityLabel={t("pick.accounts.groupA11y", { group: section.title, count: ids.length })}>
+          <Tap onPress={() => toggleGroup(ids)} style={styles.group} accessibilityRole="checkbox" accessibilityState={{ checked: all ? true : some ? "mixed" : false }} accessibilityLabel={t("pick.accounts.groupA11y", { group: section.title, count: ids.length })}>
             <Text style={styles.groupTitle}>{section.title}</Text>
             <SymbolView name={all ? "checkmark.circle.fill" : some ? "minus.circle" : "circle"} size={22} tintColor={all || some ? C.tint : C.tertiary} />
-          </Pressable>
+          </Tap>
         );
       }}
       renderItem={({ item: a }) => (

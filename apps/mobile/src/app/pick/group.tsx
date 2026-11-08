@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { DEFAULT_ACCOUNT_GROUP, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { Row } from "@/components/ui";
+import { Row, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { groupName } from "@/lib/names";
@@ -41,10 +41,10 @@ export default function PickGroup() {
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.group.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} accessibilityLabel={t("pick.group.searchA11y")} />
           </View>
           {canCreate ? (
-            <Pressable onPress={() => pick(q.trim())} style={styles.row} accessibilityRole="button">
+            <Tap onPress={() => pick(q.trim())} style={styles.row} accessibilityRole="button">
               <SymbolView name="plus.circle" size={20} tintColor={C.tint} />
               <Text style={[styles.rowText, { color: C.tint }]}>{t("pick.group.create", { name: q.trim() })}</Text>
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
       }

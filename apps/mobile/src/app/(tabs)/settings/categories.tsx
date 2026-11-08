@@ -1,7 +1,7 @@
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, categoryImportance, listRows, markableCategories, markableLeaves, unmarkedCount } from "@kopiyka/core";
+import { archivedCategoryIds, categoryImportance, categoryType, folderIds, listRows, markableCategories, markableLeaves, unmarkedCount } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
@@ -36,8 +36,14 @@ export default function CategoriesScreen() {
     const leaves = markableLeaves(asked);
     return { total: leaves.length, unmarked: unmarkedCount(asked), marked: leaves.filter((c) => level.get(c.id)).length };
   });
+  // Categories nothing says the kind of (DATA.md rule 21): a well-known shop cannot be filed into them.
+  const untyped = useQuery((db) => {
+    const all = listRows(db, "categories", "deleted=0");
+    const folders = folderIds(all), gone = archivedCategoryIds(all);
+    return all.filter((c) => !folders.has(c.id) && !gone.has(c.id) && !categoryType(c) && c.type !== "none").length;
+  });
   const add = () => Alert.alert(t("settingsLists.categories.add"), undefined, [
-    { text: t("settingsLists.categories.newCategory"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", parent: groups.list[0]?.parent.id ?? "" } }) },
+    { text: t("settingsLists.categories.newCategory"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new" } }) },
     { text: t("settingsLists.categories.newFolder"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", folder: "1" } }) },
     { text: t("common.cancel"), style: "cancel" },
   ]);
@@ -54,6 +60,10 @@ export default function CategoriesScreen() {
                 : t("settingsLists.categories.mattersAll", { count: matters.marked })}
               subtitleColor={matters.unmarked && matters.marked ? C.orange : undefined}
               onPress={() => router.push("/category/importance")} />
+            <Row title={t("settingsLists.categories.types")} icon="storefront" style={styles.divider}
+              subtitle={untyped ? t("settingsLists.categories.typesMissing", { count: untyped }) : t("settingsLists.categories.typesAll")}
+              subtitleColor={untyped ? C.orange : undefined}
+              onPress={() => router.push("/category/types")} />
           </Card>
         ) : null}
         {groups.list.length === 0 ? <Empty title={t("settingsLists.categories.emptyTitle")} hint={t("settingsLists.categories.emptyHint")} /> : null}

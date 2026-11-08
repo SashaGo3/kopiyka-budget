@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { archivedCategoryIds, debtChoices, folderIds, formatMinor, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { CategoryIcon } from "@/components/ui";
+import { CategoryIcon, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
@@ -116,21 +116,21 @@ export default function PickCategory() {
       contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
         <View>
-          <Pressable onPress={() => setDebtStep(false)} style={styles.back} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("pick.category.debtBack")}>
+          <Tap onPress={() => setDebtStep(false)} style={styles.back} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("pick.category.debtBack")}>
             <SymbolView name="chevron.left" size={14} tintColor={C.tint} /><Text style={styles.backText}>{t("pick.category.debtBack")}</Text>
-          </Pressable>
+          </Tap>
           <Text style={styles.debtTitle}>{t("pick.category.whichDebt")}</Text>
         </View>
       }
       renderItem={({ item: d }) => (
-        <Pressable onPress={() => choose(`debt:${d.id}`)} style={styles.row} accessibilityRole="button" accessibilityLabel={d.person} accessibilityState={{ selected: chosenDebt === d.id }}>
+        <Tap onPress={() => choose(`debt:${d.id}`)} style={styles.row} accessibilityRole="button" accessibilityLabel={d.person} accessibilityState={{ selected: chosenDebt === d.id }}>
           <View style={styles.noIcon}><SymbolView name={d.direction === "i_owe" ? "arrow.up.right" : "arrow.down.left"} size={14} tintColor={C.secondary} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.name} numberOfLines={1}>{d.person}</Text>
             <Text style={styles.folder}>{t(d.direction === "i_owe" ? "pick.category.debtYouOwe" : "pick.category.debtOwedToYou", { amount: `${formatMinor(d.amount_minor, d.currency)} ${d.currency}` })}</Text>
           </View>
           {chosenDebt === d.id ? <Check /> : null}
-        </Pressable>
+        </Tap>
       )}
     />
   );
@@ -150,16 +150,16 @@ export default function PickCategory() {
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.category.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.category.search")} />
           </View>
-          {!ql ? <Pressable onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("common.noCategory")}><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>{t("common.noCategory")}</Text>{!selected ? <Check /> : null}</Pressable> : null}
+          {!ql ? <Tap onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("common.noCategory")}><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>{t("common.noCategory")}</Text>{!selected ? <Check /> : null}</Tap> : null}
           {!ql && debts.length ? (
-            <Pressable onPress={() => setDebtStep(true)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.category.debt")} accessibilityHint={t("pick.category.debtHint")}>
+            <Tap onPress={() => setDebtStep(true)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.category.debt")} accessibilityHint={t("pick.category.debtHint")}>
               <View style={styles.noIcon}><SymbolView name="creditcard.and.123" size={14} tintColor={C.secondary} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.name}>{t("pick.category.debt")}</Text>
                 <Text style={styles.folder} numberOfLines={1}>{chosenDebt ? debts.find((d) => d.id === chosenDebt)?.person ?? "" : t("pick.category.debtSub")}</Text>
               </View>
               {chosenDebt ? <Check /> : <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />}
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
       }
@@ -172,7 +172,7 @@ export default function PickCategory() {
         );
         const c = item.cat;
         return (
-          <Pressable onPress={() => choose(c.id)} style={[styles.row, item.indent && styles.indent]} accessibilityRole="button" accessibilityLabel={c.isFolder ? t("pick.category.wholeA11y", { name: c.label }) : c.folderLabel ? t("pick.category.inA11y", { name: c.label, folder: c.folderLabel }) : c.label} accessibilityState={{ selected: selected === c.id }}>
+          <Tap onPress={() => choose(c.id)} style={[styles.row, item.indent && styles.indent]} accessibilityRole="button" accessibilityLabel={c.isFolder ? t("pick.category.wholeA11y", { name: c.label }) : c.folderLabel ? t("pick.category.inA11y", { name: c.label, folder: c.folderLabel }) : c.label} accessibilityState={{ selected: selected === c.id }}>
             <CategoryIcon name={c.label} icon={c.icon} color={c.color} size={32} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.name} numberOfLines={1}>{c.label}</Text>
@@ -186,11 +186,11 @@ export default function PickCategory() {
               ) : null}
             </View>
             {selected === c.id ? <Check /> : null}
-          </Pressable>
+          </Tap>
         );
       }}
       ListEmptyComponent={ql ? <Text style={styles.empty}>{t("pick.nothingMatches", { query: q.trim() })}</Text> : null}
-      ListFooterComponent={<Pressable onPress={() => router.replace({ pathname: "/category/edit", params: { id: "new", pickKey: key, name: q.trim(), kind: kind === "income" ? "income" : "expense" } })} style={styles.row} accessibilityRole="button" accessibilityLabel={q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.new")}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.newEllipsis")}</Text></Pressable>}
+      ListFooterComponent={<Tap onPress={() => router.replace({ pathname: "/category/edit", params: { id: "new", pickKey: key, name: q.trim(), kind: kind === "income" ? "income" : "expense" } })} style={styles.row} accessibilityRole="button" accessibilityLabel={q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.new")}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.newEllipsis")}</Text></Tap>}
     />
   );
 }

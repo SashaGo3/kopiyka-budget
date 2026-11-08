@@ -8,7 +8,7 @@ import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
 import type { AmountPick } from "@/app/pick/amount";
-import { ButtonText, ModalHeader, TagPill } from "@/components/ui";
+import { ButtonText, ModalHeader, TagPill, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
@@ -144,14 +144,14 @@ export default function SplitEditor() {
           <View style={styles.row}>
             {mainIcon.view}
             <View style={styles.middle}>
-              <Pressable onPress={() => openCat(null, main.category_id)} hitSlop={4} accessibilityRole="button"
+              <Tap onPress={() => openCat(null, main.category_id)} hitSlop={4} accessibilityRole="button"
                 accessibilityLabel={mainIcon.cat ? t("transaction.split.restCategoryA11y", { name: catName(mainIcon.cat) }) : t("transaction.split.chooseRestCategory")}>
                 <Text style={[styles.catText, !mainIcon.cat && styles.missing]}>{mainIcon.cat ? catName(mainIcon.cat) : t("transaction.split.chooseCategory")}</Text>
-              </Pressable>
-              <Pressable onPress={() => openTags(null, main.tag_ids, main.category_id)} hitSlop={4} accessibilityRole="button"
+              </Tap>
+              <Tap onPress={() => openTags(null, main.tag_ids, main.category_id)} hitSlop={4} accessibilityRole="button"
                 accessibilityLabel={main.tag_ids.length ? t("transaction.split.restTagsA11y", { names: main.tag_ids.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ") }) : t("transaction.split.addRestTags")}>
                 {tagLine(main.tag_ids) ?? <Text style={styles.tagHint}>{t("transaction.split.addTags")}</Text>}
-              </Pressable>
+              </Tap>
             </View>
             <View style={styles.right}>
               {money(rest, false, rest <= 0)}
@@ -171,10 +171,10 @@ export default function SplitEditor() {
                   {tagLine(r.tag_ids)}
                 </View>
                 <View style={styles.right}>{money(r.amount_minor, !r.amount_minor)}</View>
-                <Pressable onPress={() => setRows((list) => list.filter((x) => x.key !== r.key))} hitSlop={10}
+                <Tap onPress={() => setRows((list) => list.filter((x) => x.key !== r.key))} hitSlop={10}
                   accessibilityRole="button" accessibilityLabel={t("transaction.split.removePart", { n: i + 2 })} style={styles.remove}>
                   <SymbolView name="minus.circle.fill" size={20} tintColor={C.tertiary} />
-                </Pressable>
+                </Tap>
               </Pressable>
             );
           })}
