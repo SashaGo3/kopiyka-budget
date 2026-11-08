@@ -26,6 +26,12 @@ import { t } from "@/i18n";
  * It also makes marking something both High and Low unreachable rather than a contradiction the app
  * has to settle by some arbitrary rule.
  *
+ * Categories added after a sitting arrive unmarked (a folder with no mark of its own cannot answer
+ * for them). Re-sorting forty categories to place two is the wrong price, so when some are marked
+ * and some are not the flow opens on **the unmarked ones only** — the same two questions, the rest
+ * kept exactly as they were (they are the seed, and only rows whose level changes are written).
+ * "Show all" switches to the whole list at any point, with every tick made so far kept.
+ *
  * Nothing is written until the second question is answered, and the count on its button is what
  * `applyImportance` writes — `importanceMarks` computes both, so the button cannot promise one edit
  * while the save performs another (the `bulk.ts` rule).
@@ -51,9 +57,14 @@ export default function ImportanceFlow() {
   const seed = useMemo(() => {
     const level = categoryImportance(asked);
     const leaves = markableLeaves(asked);
+    const fresh = leaves.filter((c) => !level.get(c.id)).map((c) => c.id);
     return {
       high: new Set(leaves.filter((c) => level.get(c.id) === 3).map((c) => c.id)),
       low: new Set(leaves.filter((c) => level.get(c.id) === 1).map((c) => c.id)),
+      // The ones still unanswered as the flow opened — fixed for the sitting, so a category does not
+      // vanish from the list the moment it is ticked.
+      fresh: new Set(fresh),
+      partial: fresh.length > 0 && fresh.length < leaves.length,
     };
     // Seeded once: coming back after adding categories should start from the answers already given,
     // not from a blank sheet. Later renders must not overwrite what is being edited.
@@ -61,6 +72,7 @@ export default function ImportanceFlow() {
   }, []);
   const [high, setHigh] = useState<Set<string>>(seed.high);
   const [low, setLow] = useState<Set<string>>(seed.low);
+  const [onlyNew, setOnlyNew] = useState(seed.partial);
 
   /** Folders with what is inside them, then the categories that belong to no folder. */
   const groups = useMemo<Group[]>(() => {
@@ -85,7 +97,7 @@ export default function ImportanceFlow() {
   const folderRows = affected.filter((a) => groups.some((g) => g.folder?.id === a.row.id)).length;
 
   /** Step 1 (could stop) offers everything; step 2 (could not live without) only what step 1 did not claim. */
-  const offered = (kids: Category[]) => (step === 0 ? kids : kids.filter((c) => !low.has(c.id)));
+  const offered = (kids: Category[]) => kids.filter((c) => (!onlyNew || seed.fresh.has(c.id)) && (step === 0 || !low.has(c.id)));
   const chosen = step === 0 ? low : high;
   /**
    * Tick or untick `ids` on this step's answer. Ticked on the first question, a category is gone
@@ -170,6 +182,14 @@ export default function ImportanceFlow() {
               <Text style={styles.step}>{t("category.importance.step", { step: step + 1, total: 2 })}</Text>
               <Text style={styles.question}>{steps()[step]!.title}</Text>
               <Text style={styles.hint}>{steps()[step]!.hint}</Text>
+              {seed.partial ? (
+                <View style={styles.scope}>
+                  <Text style={styles.scopeText}>{onlyNew ? t("category.importance.onlyNew", { count: seed.fresh.size }) : t("category.importance.allShown")}</Text>
+                  <Tap onPress={() => setOnlyNew((v) => !v)} hitSlop={8} accessibilityRole="button">
+                    <Text style={styles.scopeLink}>{onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}</Text>
+                  </Tap>
+                </View>
+              ) : null}
             </View>
           }
           renderItem={() => <>{picking}{last ? summary : null}</>}
@@ -191,6 +211,9 @@ const styles = themed(() => StyleSheet.create({
   step: { fontSize: 13, color: C.tertiary, fontWeight: "600" },
   question: { fontSize: 22, fontWeight: "700", color: C.label, paddingTop: 2 },
   hint: { fontSize: 14, color: C.secondary, paddingTop: 6, lineHeight: 19 },
+  scope: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: S.md, marginTop: S.md, paddingVertical: S.sm, paddingHorizontal: S.md, borderRadius: R.card, backgroundColor: C.card },
+  scopeText: { flex: 1, fontSize: 14, color: C.label, lineHeight: 19 },
+  scopeLink: { fontSize: 15, color: C.tint, fontWeight: "600" },
   group: { marginHorizontal: S.lg, marginBottom: S.sm, borderRadius: R.card, paddingVertical: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.md, minHeight: 46 },
   folderRow: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.separator, paddingBottom: 6, marginBottom: 2 },

@@ -385,6 +385,7 @@ export interface Messages {
   "category.icon": undefined;
   /** After a folder name: ticking it ticks all of its count categories. */
   "category.importance.all": { count: string | number };
+  "category.importance.allShown": undefined;
   "category.importance.changes": { count: number };
   "category.importance.empty.hint": undefined;
   "category.importance.empty.title": undefined;
@@ -405,6 +406,10 @@ export interface Messages {
   "category.importance.noFolder": undefined;
   "category.importance.nothingLeft": undefined;
   "category.importance.nothingToChange": undefined;
+  /** Banner in the what-matters flow when some categories are marked and some were added since. */
+  "category.importance.onlyNew": { count: number };
+  "category.importance.showAll": undefined;
+  "category.importance.showNew": undefined;
   /** Progress over the question. */
   "category.importance.step": { step: string | number; total: string | number };
   "category.importance.title": undefined;
