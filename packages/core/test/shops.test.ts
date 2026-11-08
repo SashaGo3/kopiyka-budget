@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createTransaction, locationIgnoredIds, save, setLocationIgnoreChoice, setLocationSuggest } from "../src/repo";
-import { categoryForShop, categoryTypes, isCategoryType, isPlaceless, suggestCategoryTypes, suggestTypesFromHistory, typesToStore } from "../src/categoryTypes";
+import { categoryForShop, categoryTypes, isCategoryType, isPlaceless, suggestCategoryTypes, suggestTypesFromHistory, historySuggestions, typesToStore } from "../src/categoryTypes";
 import { SHOPS, shopType } from "../src/shops";
 import { shopsSwift } from "../scripts/shops";
 
@@ -54,6 +54,7 @@ describe("category types", () => {
     expect(typesToStore(["food.groceries", "food.coffee"], "food.groceries")).toBe('["food.groceries","food.coffee"]');
     expect(typesToStore([], "food.groceries")).toBe("[]");
     expect(typesToStore([], null)).toBeNull();
+    expect(typesToStore([], null, true)).toBe("[]"); // None chosen for a category of your own: decided
   });
   test("a name suggests one or more types, in any language", () => {
     expect(suggestCategoryTypes("Паркування")).toEqual(["transport.parking"]);
@@ -165,6 +166,9 @@ describe("mapping categories to types", () => {
     add(fuel.id, "SOME STATION"); add(eating.id, "SOME STATION"); add(soda.id, "SOME STATION"); add(soda.id, "SOME STATION");
     const out = suggestTypesFromHistory(db);
     expect(out.get(payments.id)).toEqual(["home.rent"]);
+    const why = historySuggestions(db).get(payments.id)!;
+    expect(why.like).toBe(rent.id);
+    expect(why.payees[0]).toBe("E-BOK.VANTAGERENT.PL");
     expect(out.has(soda.id)).toBe(false);
   });
 

@@ -99,7 +99,9 @@ export function createAccount(db: SqlDriver, a: Partial<Account> & Pick<Account,
 }
 
 export function createCategory(db: SqlDriver, c: Partial<Category> & Pick<Category, "name">): Category {
-  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, preset: null, type: null, ...c } as Category);
+  // A new category goes at the end of the custom order (categoryOrder.ts), not in front of everything.
+  const sort = c.sort ?? (db.get<{ n: number | null }>(`SELECT MAX(sort) AS n FROM categories`)?.n ?? -1) + 1;
+  return save(db, "categories", { parent_id: null, icon: null, color: null, kind: "expense", description: null, archived: 0, importance: 0, preset: null, type: null, ...c, sort } as Category);
 }
 
 export function createTag(db: SqlDriver, t: Partial<Tag> & Pick<Tag, "name">): Tag {

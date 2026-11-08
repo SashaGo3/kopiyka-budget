@@ -83,11 +83,16 @@ export function typeIsStated(c: Typed): boolean { return statedTypes(c.type) !==
 /**
  * What to store for `types` on a row with this `preset`: NULL while the list is just what the preset
  * already says (so it keeps following it), otherwise the list — `"[]"` for "none, on purpose".
+ *
+ * An empty list means two different things, and only the caller knows which: nothing was said (an
+ * editor saved without the type ever being looked at — NULL, so the category stays among those that
+ * need a type) or None was *chosen* (`chosen` — `"[]"`, so it stops asking). A ready-made category's
+ * empty list is always a choice: left alone, it would have answered with its preset.
  */
-export function typesToStore(types: string[], preset: string | null | undefined): string | null {
+export function typesToStore(types: string[], preset: string | null | undefined, chosen = false): string | null {
   const list = [...new Set(types.filter((x) => KNOWN.has(x)))];
   if (isCategoryType(preset) && list.length === 1 && list[0] === preset) return null;
-  if (!list.length && !isCategoryType(preset)) return null;
+  if (!list.length && !isCategoryType(preset) && !chosen) return null;
   return JSON.stringify(list);
 }
 
@@ -205,7 +210,23 @@ const payeeKey = (p: string | null | undefined) => (p ? normalizeName(p).split("
  * petrol station sells more than fuel (Sodastream refills: a few Circle K rows out of many).
  * The last two years are enough to know a category by, and keep the scan cheap.
  */
-export function suggestTypesFromHistory(db: SqlDriver, since: string = new Date(Date.now() - 730 * 86_400_000).toISOString()): Map<string, string[]> {
+export function suggestTypesFromHistory(db: SqlDriver, since?: string): Map<string, string[]> {
+  return new Map([...historySuggestions(db, since)].map(([id, h]) => [id, h.types]));
+}
+
+/** Why a type was suggested from payments: the payees that spoke for it, and whose filing lent it. */
+export type HistoryEvidence = {
+  types: string[];
+  /** The payees behind it, most frequent first, as the bank printed them. */
+  payees: string[];
+  /** When your own filing lent the type: the category that payee is filed under elsewhere. */
+  like: string | null;
+  /** How many of the category's payments spoke for it. */
+  votes: number;
+};
+
+/** `suggestTypesFromHistory` with its reasons, for a screen that says why. */
+export function historySuggestions(db: SqlDriver, since: string = new Date(Date.now() - 730 * 86_400_000).toISOString()): Map<string, HistoryEvidence> {
   const cats = listRows(db, "categories", "deleted=0");
   const kindOf = new Map(cats.map((c) => [c.id, c.kind]));
   const typed = new Map(cats.map((c) => [c.id, categoryTypes(c)]).filter(([, t]) => (t as string[]).length) as [string, string[]][]);
@@ -222,14 +243,15 @@ export function suggestTypesFromHistory(db: SqlDriver, since: string = new Date(
     for (const ty of ts) m.set(ty, (m.get(ty) ?? new Set()).add(r.category_id));
     filed.set(k, m);
   }
-  const ownVote = (k: string, self: string): string | null => {
+  const ownVote = (k: string, self: string): { type: string; category: string } | null => {
     const m = filed.get(k);
     if (!m) return null;
-    const others = [...m].filter(([, ids]) => [...ids].some((id) => id !== self));
-    return others.length === 1 ? others[0]![0] : null;
+    const others = [...m].map(([ty, ids]) => [ty, [...ids].filter((id) => id !== self)] as const).filter(([, ids]) => ids.length);
+    return others.length === 1 ? { type: others[0]![0], category: others[0]![1][0]! } : null;
   };
 
-  const per = new Map<string, { total: number; spoken: number; votes: Map<string, { n: number; own: number }> }>();
+  type Vote = { n: number; own: number; payees: Map<string, number>; like: Map<string, number> };
+  const per = new Map<string, { total: number; spoken: number; votes: Map<string, Vote> }>();
   for (const r of rows) {
     const e = per.get(r.category_id) ?? { total: 0, spoken: 0, votes: new Map() };
     per.set(r.category_id, e);
@@ -238,13 +260,17 @@ export function suggestTypesFromHistory(db: SqlDriver, since: string = new Date(
     if (!k) continue;
     e.spoken++;
     const own = ownVote(k, r.category_id);
-    const ty = own ?? shopType(r.payee, r.bank_note, r.notes);
+    const ty = own?.type ?? shopType(r.payee, r.bank_note, r.notes);
     if (!ty) continue;
-    const v = e.votes.get(ty) ?? { n: 0, own: 0 };
-    v.n++; if (own) v.own++;
+    const v = e.votes.get(ty) ?? { n: 0, own: 0, payees: new Map(), like: new Map() };
+    v.n++;
+    const shown = (r.payee || r.bank_note || "").trim();
+    if (shown) v.payees.set(shown, (v.payees.get(shown) ?? 0) + 1);
+    if (own) { v.own++; v.like.set(own.category, (v.like.get(own.category) ?? 0) + 1); }
     e.votes.set(ty, v);
   }
-  const out = new Map<string, string[]>();
+  const most = (m: Map<string, number>) => [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  const out = new Map<string, HistoryEvidence>();
   for (const [id, e] of per) {
     const kind = kindOf.get(id) ?? "expense";
     const inKind = new Set(CATEGORY_TYPES.filter((g) => g.kind === kind).flatMap((g) => g.types.map((t) => t.key)));
@@ -255,7 +281,7 @@ export function suggestTypesFromHistory(db: SqlDriver, since: string = new Date(
     const [type, v] = top;
     const enough = v.n >= 2 && v.n >= known * 0.6 && v.n >= e.spoken * 0.4;
     const broad = v.own > 0 || v.n >= e.total * 0.4;
-    if (enough && broad) out.set(id, [type]);
+    if (enough && broad) out.set(id, { types: [type], payees: most(v.payees), like: most(v.like)[0] ?? null, votes: v.n });
   }
   return out;
 }

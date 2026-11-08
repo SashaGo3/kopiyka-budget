@@ -49,12 +49,17 @@ export type ReorderItem = { id: string; title: string; subtitle?: string; icon?:
  * With `section` rows, a row can never land above the first header (it has to belong to one), and
  * where it lands says which section it is in now — `onDone` reads that off the order.
  */
-export function ReorderList({ title, items, hint, empty, onDone }: {
+export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: {
   title: string;
   items: ReorderItem[];
   hint: string;
   empty: { title: string; hint: string };
   onDone: (ids: string[], removed: string[]) => void;
+  /**
+   * A long press on a row that is not a header — for a move that would be a long drag ("Move to…").
+   * It gets the order as it stands and a way to set a new one; nothing is written until Done.
+   */
+  onLongPress?: (id: string, order: string[], setOrder: (next: string[]) => void) => void;
 }) {
   const byId = useMemo(() => new Map(items.map((x) => [x.id, x])), [items]);
   const [order, setOrder] = useState<string[]>(() => items.map((x) => x.id));
@@ -171,7 +176,8 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
             if (!row || !grip) return null;
             const dragging = dragId === id;
             const content = (
-              <View style={styles.rowInner}>
+              <Pressable style={styles.rowInner} disabled={!onLongPress || row.section || !!dragId} delayLongPress={350}
+                onLongPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onLongPress?.(id, orderRef.current, (next) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOrderBoth(next); }); }}>
                 {row.icon}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={[styles.name, row.section && styles.sectionName]} numberOfLines={1}>{row.title}</Text>
@@ -182,7 +188,7 @@ export function ReorderList({ title, items, hint, empty, onDone }: {
                     <SymbolView name="line.3.horizontal" size={18} tintColor={C.tertiary} />
                   </View>
                 </GestureDetector>
-              </View>
+              </Pressable>
             );
             return (
               <Animated.View key={id} style={[styles.row, row.section && styles.sectionRow, sectioned && !row.section && styles.inSection, dragging && styles.dragging, dragging && { transform: [{ translateY: pan }] }]}

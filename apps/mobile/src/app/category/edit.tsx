@@ -46,13 +46,18 @@ export default function CategoryEdit() {
   // Whether this category's payments may suggest a category where you stand. Untouched (null) it
   // follows the default: out when every type is placeless (parking, taxi), or as Settings has it.
   const [placeOn, setPlaceOn] = useState<boolean | null>(null);
+  // How much it matters (DATA.md rule 15), answered here so a new category is set up in one go rather
+  // than waiting for the What matters flow. The same two questions, never Medium as a third: tick
+  // "could stop" or "could not live without", or neither — in between. Null is untouched: a new
+  // category saved without an answer stays unmarked, and the flow asks about it later.
+  const [level, setLevel] = useState<0 | 1 | 2 | 3 | null>(null);
   const isFolder = shape === "folder";
   const children = useQuery((d) => (existing ? listRows(d, "categories", "deleted=0 AND parent_id=?", [existing.id], "sort, name") : []), [existing?.id]);
   const hasChildren = children.length;
   /** Folder colour → every category inside it, applied on Save so Cancel still undoes everything. */
   const [recolour, setRecolour] = useState(false);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
-  const exit = useDiscardGuard(useDirty([name, shape, parentId, types, placeOn, kind, icon, color, description, recolour]));
+  const exit = useDiscardGuard(useDirty([name, shape, parentId, types, placeOn, level, kind, icon, color, description, recolour]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const uses = useQuery((d) => (existing ? d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE t.deleted=0 AND (t.category_id=? OR c.parent_id=?)`, [existing.id, existing.id])?.n ?? 0 : 0), [existing?.id]);
   const keys = useMemo(() => ({ icon: newPickKey("cicon"), color: newPickKey("ccolor"), folder: newPickKey("cfolder"), where: newPickKey("cwhere"), moveTo: newPickKey("cmoveto"), type: newPickKey("ctype") }), []);
@@ -124,7 +129,8 @@ export default function CategoryEdit() {
   const suggested = types === null && !presetTypes.length ? suggestCategoryTypes(name, kind, parentFolder ? catName(parentFolder) : null) : [];
   const shownTypes = types ?? (presetTypes.length ? presetTypes : suggested);
   // A folder has no type; a ready-made category left alone keeps following its preset (NULL).
-  const typeToSave = isFolder ? null : typesToStore(shownTypes, existing?.preset);
+  // `types` is null until the picker hands something back: then an empty list is None, chosen.
+  const typeToSave = isFolder ? null : typesToStore(shownTypes, existing?.preset, types !== null);
   const lang = getLanguage();
   const typesLine = shownTypes.map((x) => categoryTypeName(x, lang)).join(", ");
   const locationOn = getLocationEnabled();
@@ -133,12 +139,18 @@ export default function CategoryEdit() {
     : (existing && ignored.includes(existing.id)) || (!!parentId && ignored.includes(parentId)) ? false
     : !isPlaceless({ type: JSON.stringify(shownTypes) });
   const placeShown = placeOn ?? placeDefault;
+  // A folder that is marked answers for what is in it; then there is nothing to ask here.
+  const folderLevel = parentFolder?.importance ?? 0;
+  const asksLevel = !isFolder && kind === "expense" && !folderLevel;
+  const levelShown = level ?? existing?.importance ?? 0;
+  const tickLevel = (v: 1 | 3) => setLevel(levelShown === v ? 2 : v);
+  const levelToSave = asksLevel && level !== null ? level : undefined;
   const commit = () => {
     if (!valid) return;
     const c = mutate((d) => {
       const row = existing
-        ? save(d, "categories", { ...existing, name: nameToSave(), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: descriptionToSave() } as Category)
-        : createCategory(d, { name: name.trim(), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null });
+        ? save(d, "categories", { ...existing, name: nameToSave(), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: descriptionToSave(), ...(levelToSave !== undefined ? { importance: levelToSave } : null) } as Category)
+        : createCategory(d, { name: name.trim(), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null, ...(levelToSave !== undefined ? { importance: levelToSave } : null) });
       // Same batch as the folder itself: one refresh, and a half-recoloured folder is impossible.
       if (recolour && isFolder) for (const child of children) save(d, "categories", { ...child, color: shownColor });
       if (!isFolder && placeOn !== null) setLocationSuggest(d, row.id, placeOn);
@@ -225,6 +237,22 @@ export default function CategoryEdit() {
         </Card>
         {!isFolder && inherited && !color ? <Text style={styles.hint}>{t("category.inheritedColour", { folder: folderName ?? "" })}</Text> : null}
         {isFolder ? <Text style={styles.hint}>{t("category.folderHint")}</Text> : null}
+        {!isFolder && kind === "expense" ? (
+          <>
+            <SectionHeader>{t("category.matters.header")}</SectionHeader>
+            {asksLevel ? (
+              <Card>
+                <Row icon="moon.zzz" iconColor="#8E8E93" title={t("ui.value.low")} onPress={() => tickLevel(1)}
+                  right={<SymbolView name={levelShown === 1 ? "checkmark.circle.fill" : "circle"} size={22} tintColor={levelShown === 1 ? C.tint : C.tertiary} />} />
+                <Row icon="heart.fill" iconColor="#FF2D55" title={t("ui.value.high")} onPress={() => tickLevel(3)} style={styles.divider}
+                  right={<SymbolView name={levelShown === 3 ? "checkmark.circle.fill" : "circle"} size={22} tintColor={levelShown === 3 ? C.tint : C.tertiary} />} />
+              </Card>
+            ) : (
+              <Card><Row icon="folder.fill" iconColor="#8E8E93" title={t(folderLevel === 3 ? "ui.value.high" : folderLevel === 1 ? "ui.value.low" : "ui.value.medium")} subtitle={t("category.matters.fromFolder", { folder: folderName ?? "" })} /></Card>
+            )}
+            {asksLevel ? <Text style={styles.hint}>{levelShown === 2 ? t("category.matters.between") : levelShown ? t("category.matters.tapAgain") : t("category.matters.unmarked")}</Text> : null}
+          </>
+        ) : null}
         {existing ? (
           <>
             <SectionHeader>{t("category.transactions.header")}</SectionHeader>

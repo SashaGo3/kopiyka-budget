@@ -29,9 +29,15 @@ export function useTagList(): { live: TagListRow[]; travel: TagListRow[]; archiv
     const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, catName(c)]));
     const usage = new Map<string, number>();
     const withCat = new Map<string, Map<string, number>>();
-    for (const r of db.all<{ tag_ids: string; category_id: string | null }>(`SELECT tag_ids, category_id FROM transactions WHERE deleted=0 AND tag_ids<>'[]'`)) {
+    // "Used with" and the usage order look at the last six months, as the category order does: a trip
+    // two years ago should not decide what a tag is for now. The count printed stays all-time.
+    const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
+    const recent = new Map<string, number>();
+    for (const r of db.all<{ tag_ids: string; category_id: string | null; date: string }>(`SELECT tag_ids, category_id, date FROM transactions WHERE deleted=0 AND tag_ids<>'[]'`)) {
       for (const id of jsonIds(r.tag_ids)) {
         usage.set(id, (usage.get(id) ?? 0) + 1);
+        if (r.date < since) continue;
+        recent.set(id, (recent.get(id) ?? 0) + 1);
         if (!r.category_id) continue;
         const m = withCat.get(id) ?? new Map<string, number>();
         m.set(r.category_id, (m.get(r.category_id) ?? 0) + 1);
@@ -45,7 +51,7 @@ export function useTagList(): { live: TagListRow[]; travel: TagListRow[]; archiv
     return listRows(db, "tags", "deleted=0", [], "name").map((t): TagListRow => ({
       ...t, trip: kinds.get(t.id) ?? null, uses: usage.get(t.id) ?? 0, scope: jsonIds(t.category_ids).map((id) => cats.get(id)).filter(Boolean).join(", "),
       usedWith: [...(withCat.get(t.id) ?? [])].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ name: cats.get(id) ?? "?", n })),
-    })).sort((a, b) => (byName ? 0 : b.uses - a.uses) || a.name.localeCompare(b.name));
+    })).sort((a, b) => (byName ? 0 : (recent.get(b.id) ?? 0) - (recent.get(a.id) ?? 0) || b.uses - a.uses) || a.name.localeCompare(b.name));
   });
   return {
     live: tags.filter((t) => !t.archived && !t.trip),

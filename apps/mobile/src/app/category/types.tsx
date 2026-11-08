@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { archivedCategoryIds, categoryTypeName, categoryTypes, folderIds, getRow, listRows, save, suggestCategoryTypes, suggestTypesFromHistory, typeIsStated, typesToStore, type Category, type SqlDriver } from "@kopiyka/core";
+import { archivedCategoryIds, categoryTypeName, categoryTypes, folderIds, getRow, listRows, save, suggestCategoryTypes, historySuggestions, typeIsStated, type HistoryEvidence, typesToStore, type Category, type SqlDriver } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Card, CategoryIcon, Footnote, ModalHeader, Row, SectionHeader } from "@/components/ui";
+import { ButtonText, Card, CategoryIcon, Footnote, ModalHeader, Row, SectionHeader, Tap } from "@/components/ui";
 import { C, themed } from "@/constants/theme";
-import { catName, orderedCategories } from "@/lib/names";
+import { catName, catNameById, orderedCategories } from "@/lib/names";
 import { getLanguage, t } from "@/i18n";
 
 /**
@@ -20,11 +20,15 @@ import { getLanguage, t } from "@/i18n";
  * "Use all suggestions" writes every suggestion at once, with an Undo until the screen is left. Only rows whose answer actually changes are
  * written (rule 15's lesson) — an untouched row with a fresh `updated_at` would win merges it should lose.
  */
-type Suggestion = { types: string[]; from: "name" | "history" };
+type Suggestion = { types: string[]; from: "name" } | { types: string[]; from: "history"; why: HistoryEvidence };
 
-/** Write `types` on `c` if that changes what the row answers; nothing otherwise. Says whether it wrote. */
+/**
+ * Write `types` on `c` if that changes what the row answers; nothing otherwise. Says whether it wrote.
+ * Everything written here was chosen — an empty list is "no type, on purpose", which takes the row
+ * off the list of those that need one.
+ */
 function writeTypes(d: SqlDriver, c: Category, types: string[]): boolean {
-  const value = typesToStore(types, c.preset);
+  const value = typesToStore(types, c.preset, true);
   const after = { type: value, preset: c.preset };
   if (JSON.stringify(categoryTypes(after)) === JSON.stringify(categoryTypes(c)) && typeIsStated(after) === typeIsStated(c)) return false;
   save(d, "categories", { ...c, type: value });
@@ -47,7 +51,7 @@ export default function CategoryTypes() {
   });
   // What the payments say, read once as the screen opens: it scans every payment of the last two
   // years, and a pick here changes nothing about what a payment was.
-  const [history] = useState(() => suggestTypesFromHistory(db));
+  const [history] = useState(() => historySuggestions(db));
   // The rows "Use all" wrote, as they were before, for its Undo.
   const [undo, setUndo] = useState<{ id: string; type: string | null }[] | null>(null);
 
@@ -58,7 +62,7 @@ export default function CategoryTypes() {
       if (categoryTypes(c).length || typeIsStated(c)) continue;
       const byName = suggestCategoryTypes(catName(c), c.kind, g.folder ? catName(g.folder) : null);
       if (byName.length) out.set(c.id, { types: byName, from: "name" });
-      else if (history.get(c.id)?.length) out.set(c.id, { types: history.get(c.id)!, from: "history" });
+      else { const why = history.get(c.id); if (why) out.set(c.id, { types: why.types, from: "history", why }); }
     }
     return out;
   }, [cats, history]);
@@ -104,11 +108,22 @@ export default function CategoryTypes() {
     const s = suggestions.get(c.id);
     const what = !list ? (undecided(c) ? t("category.types.choose") : t("category.type.none"))
       : s ? (s.from === "history" ? t("category.types.fromHistory", { type: list }) : t("category.type.suggested", { type: list })) : list;
+    // A guess from payments says what it rests on, so a wrong one is plain at a glance.
+    const because = s?.from === "history" ? reason(s.why) : null;
+    const line = (folder ? `${catName(folder)} · ${what}` : what) + (because ? `\n${because}` : "");
+    // Nothing to suggest and nothing chosen: "Not needed" answers it in one tap ("Sodastream" is not
+    // a kind of shop), instead of the picker and its None.
+    const quiet = undecided(c) && !s;
     return (
       <Row key={c.id} title={catName(c)} onPress={() => pick(c)} style={i ? styles.divider : undefined}
         left={<CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={30} />}
-        subtitle={folder ? `${catName(folder)} · ${what}` : what}
-        subtitleColor={s ? C.tint : !list && undecided(c) ? C.orange : !list ? C.tertiary : undefined} />
+        subtitle={line}
+        subtitleColor={s ? C.tint : !list && undecided(c) ? C.orange : !list ? C.tertiary : undefined}
+        right={quiet ? (
+          <Tap onPress={() => mutate((d) => writeTypes(d, c, []))} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("category.types.notNeededA11y", { name: catName(c) })} style={styles.quiet}>
+            <ButtonText style={styles.quietText}>{t("category.types.notNeeded")}</ButtonText>
+          </Tap>
+        ) : undefined} />
     );
   };
 
@@ -143,6 +158,15 @@ export default function CategoryTypes() {
   );
 }
 
+/** "Paid to E-BOK.VANTAGERENT.PL, like Rent" or "Lidl, Biedronka — known shops". */
+function reason(why: HistoryEvidence): string {
+  const short = (p: string) => (p.length > 28 ? `${p.slice(0, 27)}…` : p);
+  if (why.like) return t("category.types.becauseLike", { payee: short(why.payees[0] ?? ""), category: catNameById(why.like) ?? "?" });
+  return t("category.types.becauseShops", { payees: why.payees.slice(0, 2).map(short).join(", ") });
+}
+
 const styles = themed(() => StyleSheet.create({
+  quiet: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: C.fill },
+  quietText: { fontSize: 14, color: C.secondary, fontWeight: "600" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
 }));

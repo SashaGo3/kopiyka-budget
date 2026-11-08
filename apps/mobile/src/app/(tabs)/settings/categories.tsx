@@ -48,6 +48,23 @@ export default function CategoriesScreen() {
   // The order every list of categories follows (core categoryOrder.ts); read through a query so the
   // list below re-sorts the moment it changes.
   const order = useQuery((db) => getCategoryOrder(db));
+  // Only a sitting already started counts as unfinished: never having marked anything is a choice.
+  const mattersDue = matters.marked && matters.unmarked ? matters.unmarked : 0;
+  const toSort = mattersDue + untyped;
+  const mattersRow = (divider: boolean) => (
+    <Row title={t("settingsLists.categories.matters")} icon="heart.text.square" style={divider ? styles.divider : undefined}
+      subtitle={matters.marked === 0 ? t("settingsLists.categories.mattersNone")
+        : matters.unmarked ? t("settingsLists.categories.mattersPartial", { marked: matters.marked, unmarked: matters.unmarked })
+        : t("settingsLists.categories.mattersAll", { count: matters.marked })}
+      subtitleColor={mattersDue ? C.orange : undefined}
+      onPress={() => router.push("/category/importance")} />
+  );
+  const typesRow = (divider: boolean) => (
+    <Row title={t("settingsLists.categories.types")} icon="storefront" style={divider ? styles.divider : undefined}
+      subtitle={untyped ? t("settingsLists.categories.typesMissing", { count: untyped }) : t("settingsLists.categories.typesAll")}
+      subtitleColor={untyped ? C.orange : undefined}
+      onPress={() => router.push("/category/types")} />
+  );
   const add = () => Alert.alert(t("settingsLists.categories.add"), undefined, [
     { text: t("settingsLists.categories.newCategory"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new" } }) },
     { text: t("settingsLists.categories.newFolder"), onPress: () => router.push({ pathname: "/category/edit", params: { id: "new", folder: "1" } }) },
@@ -58,19 +75,21 @@ export default function CategoriesScreen() {
       <Stack.Screen options={{ title: t("settingsLists.categories.title") }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         <ScreenNote more={t("settingsLists.categories.introMore")}>{t("settingsLists.categories.introShort")}</ScreenNote>
-        {matters.total ? (
+        {/* What needs something from you, in one place at the top: categories added since the What
+            matters sitting, and categories no shop can be filed into. Everything settled — and the
+            optional extras — sits quietly below. */}
+        {toSort ? <SectionHeader>{t("settingsLists.categories.toSort", { count: toSort })}</SectionHeader> : null}
+        {toSort ? (
           <Card>
-            <Row title={t("settingsLists.categories.matters")} icon="heart.text.square"
-              subtitle={matters.marked === 0 ? t("settingsLists.categories.mattersNone")
-                : matters.unmarked ? t("settingsLists.categories.mattersPartial", { marked: matters.marked, unmarked: matters.unmarked })
-                : t("settingsLists.categories.mattersAll", { count: matters.marked })}
-              subtitleColor={matters.unmarked && matters.marked ? C.orange : undefined}
-              onPress={() => router.push("/category/importance")} />
-            <Row title={t("settingsLists.categories.types")} icon="storefront" style={styles.divider}
-              subtitle={untyped ? t("settingsLists.categories.typesMissing", { count: untyped }) : t("settingsLists.categories.typesAll")}
-              subtitleColor={untyped ? C.orange : undefined}
-              onPress={() => router.push("/category/types")} />
-            {missing ? <Row title={t("settingsLists.categories.presets.title")} icon="plus.square.on.square" style={styles.divider}
+            {mattersDue ? mattersRow(false) : null}
+            {untyped ? typesRow(!!mattersDue) : null}
+          </Card>
+        ) : null}
+        {matters.total && (!mattersDue || !untyped || missing) ? (
+          <Card style={toSort ? { marginTop: S.lg } : undefined}>
+            {!mattersDue ? mattersRow(false) : null}
+            {!untyped ? typesRow(!mattersDue) : null}
+            {missing ? <Row title={t("settingsLists.categories.presets.title")} icon="plus.square.on.square" style={!mattersDue || !untyped ? styles.divider : undefined}
               subtitle={t("settingsLists.categories.presets.count", { count: missing })}
               onPress={() => router.push("/category/presets")} /> : null}
           </Card>

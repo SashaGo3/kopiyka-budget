@@ -370,6 +370,11 @@ claimed is Medium. Ticking a category on the first question takes it out of the 
 not want to think about goes, and by elimination it honestly means "the things in between". It also
 makes High-and-Low-at-once unreachable rather than a contradiction settled by some arbitrary rule.
 
+The category editor asks the same two questions for one category — tick "could stop" or "could not
+live without", or neither for in between — and only when its folder has no mark (a marked folder
+answers for it). Saved untouched, a new category stays at 0, so the flow's "new only" pass asks
+about it later.
+
 Two things the writer must keep doing:
 
 - **A level that covers a whole folder is written on the folder, and its categories cleared to 0.**
@@ -564,7 +569,10 @@ write it through `typesToStore`:
 - a list on the row is what a person said (or accepted from a suggestion on Save); unknown keys are
   dropped, and a bare key — what the first 1.1.2 build wrote — is a list of one;
 - `"[]"` (or the older `"none"`) is "no type, on purpose" — a ready-made category renamed into
-  something else;
+  something else, or one of your own answered None ("Sodastream" is not a kind of shop). Only a
+  *choice* writes it: `typesToStore(types, preset, chosen)` stores an empty list as NULL ("not said",
+  still asking) unless the caller says it was chosen — the picker handing back nothing, or the types
+  screen's "Not needed";
 - NULL is "not said", and a ready-made category then answers with its `preset`. That is the whole
   migration for anyone already on the default categories: **nothing is backfilled**, no `updated_at`
   moves (rule 15's lesson), and a preset renamed to "Їжа вдома" is still groceries.

@@ -212,7 +212,8 @@ export function Money({ minor, currency, style, colored, sign, approx }: { minor
 
 /** Progress bar whose fill eases to its value; `ratio` 0..1. */
 export function ProgressBar({ ratio, color, height = 6 }: { ratio: number; color: string | ColorValue; height?: number }) {
-  const anim = useRef(new Animated.Value(0)).current;
+  // Made once and kept in state rather than a ref: it is read while rendering (the interpolated width).
+  const [anim] = useState(() => new Animated.Value(0));
   useEffect(() => { Animated.timing(anim, { toValue: Math.max(0, Math.min(1, ratio)), duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(); }, [ratio, anim]);
   return (
     <View style={{ height, borderRadius: height / 2, backgroundColor: C.fill, overflow: "hidden" }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}>
@@ -223,7 +224,7 @@ export function ProgressBar({ ratio, color, height = 6 }: { ratio: number; color
 
 /** Fades and lifts its children in on mount (cards, list groups). */
 export function FadeIn({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
-  const anim = useRef(new Animated.Value(0)).current;
+  const [anim] = useState(() => new Animated.Value(0));
   useEffect(() => { Animated.timing(anim, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(); }, [anim, delay]);
   return <Animated.View style={[style, { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}>{children}</Animated.View>;
 }

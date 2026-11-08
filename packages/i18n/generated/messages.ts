@@ -416,6 +416,12 @@ export interface Messages {
   "category.income": undefined;
   /** folder is the folder's name. */
   "category.inheritedColour": { folder: string | number };
+  "category.matters.between": undefined;
+  "category.matters.fromFolder": { folder: string | number };
+  /** Section in the category editor: how much this category matters. */
+  "category.matters.header": undefined;
+  "category.matters.tapAgain": undefined;
+  "category.matters.unmarked": undefined;
   "category.noFolder": undefined;
   "category.recolour.subtitle": undefined;
   "category.recolour.title": undefined;
@@ -424,6 +430,10 @@ export interface Messages {
   /** Hint on top of the categories reorder screen. */
   "category.reorder.hint": undefined;
   "category.reorder.income": undefined;
+  "category.reorder.moveTitle": { name: string | number };
+  /** names is a comma-separated list of category names. */
+  "category.reorder.stayedBody": { names: string | number };
+  "category.reorder.stayedTitle": undefined;
   "category.reorder.title": undefined;
   /** Segmented control: this row is a category inside a folder. */
   "category.shape.category": undefined;
@@ -445,6 +455,10 @@ export interface Messages {
   /** type is a category type's name, guessed from the category's name; saved on Save. */
   "category.type.suggested": { type: string | number };
   "category.type.title": undefined;
+  /** Why a type was suggested from payments: this payee is filed under the user's category elsewhere. */
+  "category.types.becauseLike": { payee: string | number; category: string | number };
+  /** Why a type was suggested: payees the shop list recognises. */
+  "category.types.becauseShops": { payees: string | number };
   /** Under a category with no type and nothing to suggest. */
   "category.types.choose": undefined;
   /** type was guessed from the shops this category's payments went to; tap to keep or change. */
@@ -453,6 +467,9 @@ export interface Messages {
   "category.types.hint": undefined;
   /** Section at the top of Category types: categories nobody has given a type yet. */
   "category.types.needs": { count: string | number };
+  /** Small button on a category with no type and nothing to suggest: no type, on purpose. */
+  "category.types.notNeeded": undefined;
+  "category.types.notNeededA11y": { name: string | number };
   "category.types.title": undefined;
   /** Button shown after Use all suggestions; puts the types back as they were. */
   "category.types.undo": { count: number };
@@ -1943,6 +1960,8 @@ export interface Messages {
   "settingsLists.categories.presets.none": undefined;
   "settingsLists.categories.presets.title": undefined;
   "settingsLists.categories.title": undefined;
+  /** Section header on Settings → Categories over the rows that need an answer; count = categories waiting. */
+  "settingsLists.categories.toSort": { count: string | number };
   "settingsLists.categories.types": undefined;
   "settingsLists.categories.typesAll": undefined;
   /** Categories a well-known shop cannot be matched to yet. */
