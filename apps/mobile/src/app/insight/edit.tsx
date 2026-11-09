@@ -6,7 +6,8 @@ import { SymbolView } from "expo-symbols";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Card, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow } from "@/components/ui";
+import { Card, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, Tap, ToggleRow } from "@/components/ui";
+import { humanDayTime, todayLocal } from "@/lib/dates";
 import { InsightCard } from "@/components/InsightCard";
 import { C, S, themed, themeTone } from "@/constants/theme";
 import { INSIGHT_GROUPS, INSIGHT_LOOK, addableKinds, comfortDefaults, kindsIn, kindHint, kindTitle, perPeriod, ruleTitle } from "@/lib/insights";
@@ -39,7 +40,7 @@ export default function InsightEdit() {
   const kinds = addableKinds(others);
   const excluded = new Set(p.exclude_rule_ids ?? []);
   const toggleRule = (id: string) => setP((s) => { const ex = new Set(s.exclude_rule_ids ?? []); if (ex.has(id)) ex.delete(id); else ex.add(id); return { ...s, exclude_rule_ids: [...ex] }; });
-  const keys = useMemo(() => ({ title: newPickKey("ititle"), acc: newPickKey("iacc"), accs: newPickKey("iaccs"), target: newPickKey("itarget"), monthly: newPickKey("imonthly"), months: newPickKey("imonths"), cats: newPickKey("icats"), ctags: newPickKey("ictags") }), []);
+  const keys = useMemo(() => ({ title: newPickKey("ititle"), acc: newPickKey("iacc"), accs: newPickKey("iaccs"), target: newPickKey("itarget"), monthly: newPickKey("imonthly"), months: newPickKey("imonths"), deadline: newPickKey("ideadline"), cats: newPickKey("icats"), ctags: newPickKey("ictags") }), []);
   /**
    * The settings a kind starts with. A new safety buffer comes filled in — the comfort level from
    * what is marked most important (or the essentials among the ready-made categories), no goal, and
@@ -65,6 +66,7 @@ export default function InsightEdit() {
   usePickResult<string[]>(keys.accs, useCallback((v: string[]) => setP((s) => { const { account_id: _, ...rest } = s; return { ...rest, account_ids: v }; }), []));
   usePickResult<number>(keys.target, useCallback((v: number) => setP((s) => ({ ...s, target_minor: v })), []));
   usePickResult<number>(keys.monthly, useCallback((v: number) => setP((s) => ({ ...s, monthly_minor: v })), []));
+  usePickResult<string>(keys.deadline, useCallback((v: string) => setP((s) => ({ ...s, deadline: v })), []));
   usePickResult<string>(keys.months, useCallback((v: string) => setP((s) => ({ ...s, months: Number(v) })), []));
   // Tags chosen for a category that is no longer on the list go with it.
   usePickResult<string[]>(keys.cats, useCallback((v: string[]) => setP((s) => {
@@ -136,6 +138,10 @@ export default function InsightEdit() {
                 </>
               ) : null}
               {needsTarget ? <Row icon="flag" iconColor="#34C759" title={t("insights.edit.target")} subtitle={money(p.target_minor)} onPress={() => router.push({ pathname: "/pick/amount", params: { key: keys.target, title: t("insights.edit.target"), currency, value: String(p.target_minor ?? "") } })} style={styles.divider} /> : null}
+              {/* Optional: with a date Siriusia says whether the pace makes it in time, and what would. */}
+              {needsTarget ? <Row icon="calendar" iconColor="#FF9F0A" title={t("future.goal.deadline")} subtitle={p.deadline ? humanDayTime(p.deadline, null, todayLocal(), true) : t("future.goal.noDeadline")}
+                onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.deadline, selected: p.deadline ?? `${Number(todayLocal().slice(0, 4)) + 1}${todayLocal().slice(4)}` } })} style={styles.divider}
+                right={p.deadline ? <Tap onPress={() => setP((s) => { const { deadline: _, ...rest } = s; return rest; })} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("future.goal.clearDeadline")}><SymbolView name="xmark.circle.fill" size={20} tintColor={C.tertiary} /></Tap> : undefined} /> : null}
               {kind === "checklist" || kind === "regular" ? <Row icon="folder" iconColor="#FF9F0A" title={t("insights.edit.categories")} subtitle={catList || (kind === "checklist" && p.include_recurring ? t("insights.edit.none") : t("insights.edit.required"))} subtitleColor={required(!hasCategories)} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cats, selected: (p.category_ids ?? []).join(","), title: t("insights.edit.categories") } })} style={styles.divider} /> : null}
             </Card>
             {/* Each category is waited for once, or once per tag: one Insurance category paid for

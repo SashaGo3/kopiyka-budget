@@ -16,6 +16,7 @@ export * from "./backupSchedule";
 export * from "./insights";
 export * from "./insightHistory";
 export * from "./spendInsights";
+export * from "./forecast";
 export * from "./trips";
 export * from "./debts";
 export * from "./returns";

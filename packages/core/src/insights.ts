@@ -14,6 +14,7 @@ import { latestCachedRate } from "./rates";
 import { convertMinor } from "./money";
 import { shownPaymentIcon } from "./logos";
 import { periodWindows, regularSeries, toSeries, type Series } from "./insightHistory";
+import type { FutureInputs } from "./forecast";
 
 export interface UpcomingTemplate { category_id: string | null; tag_ids: string[]; notes: string | null; amount_minor: number; account_id: string }
 
@@ -65,6 +66,13 @@ export interface InsightParams {
    * `period`; a new period starts with nothing ticked, so the list never has to be cleaned up.
    */
   ticked?: { period: string; keys: string[] };
+  /**
+   * Savings goal: the day the money is wanted by (YYYY-MM-DD). Optional: without one the card says
+   * when the pace gets there; with one, whether it gets there in time (`goalForecast`).
+   */
+  deadline?: string;
+  /** Purrphecy: the calculators' settings, as last left (forecast.ts `FutureInputs`). */
+  future?: FutureInputs;
 }
 
 /**
@@ -79,7 +87,8 @@ export type OfferedInsightKind = Exclude<InsightKind, "recurring_spend" | "upcom
 export const INSIGHT_KINDS: { kind: OfferedInsightKind; title: string; hint: string; instant?: boolean }[] = [
   { instant: true, kind: "free_money", title: "Left in budgets", hint: "What is left of your budgets this period, and what is still to be charged" },
   { instant: true, kind: "days_to_salary", title: "Until salary", hint: "Days left in the period and what you can spend per day" },
-  { kind: "savings_goal", title: "Savings goal", hint: "Progress of an account towards a target" },
+  { instant: true, kind: "forecast", title: "Purrphecy", hint: "Siriusia looks into your money's future: compound interest, a home, freedom" },
+  { kind: "savings_goal", title: "Savings goal", hint: "Progress of an account towards a target, and when you get there" },
   { kind: "account_balance", title: "Account balance", hint: "What is left on one account, and what moved this period" },
   { kind: "checklist", title: "Payments checklist", hint: "Which of these categories still have no transaction this period" },
   { kind: "subscriptions", title: "Subscriptions per year", hint: "What your recurring expenses cost yearly" },

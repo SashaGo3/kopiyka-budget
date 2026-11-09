@@ -261,7 +261,7 @@ export interface Budget extends Synced {
   ended: string | null;
 }
 
-export type InsightKind = "savings_goal" | "account_balance" | "free_money" | "days_to_salary" | "checklist" | "subscriptions" | "upcoming" | "regular" | "recurring_spend" | "values" | "safety_buffer" | "safe_to_spend" | "month_vs_usual" | "one_offs" | "top_shops" | "spending_map";
+export type InsightKind = "savings_goal" | "account_balance" | "free_money" | "days_to_salary" | "checklist" | "subscriptions" | "upcoming" | "regular" | "recurring_spend" | "values" | "safety_buffer" | "safe_to_spend" | "month_vs_usual" | "one_offs" | "top_shops" | "spending_map" | "forecast";
 
 /** A user-added statistics card on the Insights tab. `params` is JSON, shape depends on `kind`. */
 export interface Insight extends Synced {

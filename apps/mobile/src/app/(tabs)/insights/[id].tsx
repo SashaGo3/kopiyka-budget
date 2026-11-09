@@ -4,7 +4,7 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
   accountBalanceMinor, accountHistory, budgetRows, categoryChecklist, categoryImportance, checklistTotals, commitments, formatMinor, getRow, incomeSeries, incomeSources, listRows, parseInsightParams, regularSeries,
-  retiredKind, safetyBuffer, savingsGoal, shownPaymentIcon, spendSeries, spendingPlaces, subscriptionsPerYear, toSeries, type Category, type Insight, type Series,
+  retiredKind, safetyBuffer, shownPaymentIcon, spendSeries, spendingPlaces, subscriptionsPerYear, toSeries, type Category, type Insight, type Series,
 } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -23,6 +23,7 @@ import { budgetTitle, nameMaps } from "@/lib/budgetName";
 import { INSIGHT_LOOK, kindTitle, perPeriod, ruleTitle } from "@/lib/insights";
 import { acctName, catName } from "@/lib/names";
 import { t } from "@/i18n";
+import { future } from "@/components/future/lazy";
 
 /**
  * One insight opened. The card is at the top, as it is on the Insights tab, and under it everything
@@ -69,12 +70,15 @@ export default function InsightDetail() {
           </Tap>
         ) }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120, paddingTop: S.sm, gap: S.md }}>
+        {/* The future has no month: Purrphecy is drawn whole, with no pill and no card above it. */}
+        {kind === "forecast" ? (() => { const { PurrphecyDetails } = future(); return <PurrphecyDetails insight={insight} />; })() : <>
         <View style={styles.pills}>
           <PeriodPill period={period} onPrev={() => setPeriod(shiftPeriod(period, -1))} onNext={() => setPeriod(shiftPeriod(period, 1))} onReset={() => setPeriod(currentPeriod())}
             onPick={() => router.push({ pathname: "/pick/month", params: { key: monthKey, selected: period.start, now: currentPeriod().start } })} />
         </View>
         <InsightCard insight={insight} detail />
         <Details insight={insight} hue={hue} />
+        </>}
       </ScrollView>
     </>
   );
@@ -144,9 +148,8 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
           cats: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, c])) };
       case "savings_goal":
       case "account_balance": {
-        const goal = kind === "savings_goal" ? savingsGoal(d, p) : null;
         const h = p.account_id ? accountHistory(d, p.account_id, { startDay, today: day }) : null;
-        return { kind, goal, h, name: p.account_id ? acctName(getRow(d, "accounts", p.account_id)) : "" };
+        return { kind, h, name: p.account_id ? acctName(getRow(d, "accounts", p.account_id)) : "" };
       }
       case "checklist":
         return { kind, totals: checklistTotals(categoryChecklist(d, p, { start: period.start, end: period.end, accountIds: scoped })),
@@ -242,24 +245,12 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
       const balance = toSeries(h.currency, h.periods.map((x) => ({ start: x.start, end: x.end, minor: x.balance_minor, current: x.current })));
       const done = h.periods.filter((x) => !x.current);
       const pace = done.length ? Math.round(done.reduce((a, x) => a + x.net_minor, 0) / done.length) : null;
-      const goal = data.goal;
-      const toGo = goal ? goal.target - goal.balance : 0;
-      // Months still needed at the average pace, as the month it lands in; nothing to say when the
-      // pace is not taking the balance towards the goal at all.
-      const eta = goal && toGo > 0 && pace && pace > 0 ? (() => {
-        const months = Math.ceil(toGo / pace);
-        const [y, m] = todayLocal().split("-").map(Number) as [number, number];
-        const at = new Date(Date.UTC(y, m - 1 + months, 1));
-        return { months, label: `${monthLong(at.getUTCMonth() + 1)} ${at.getUTCFullYear()}` };
-      })() : null;
       return <>
-        {goal || pace !== null ? (
-          <Section title={goal ? t("insights.detail.goal") : t("insights.detail.pace")}>
+        {/* A goal's road, verdict and milestones (components/future/Goal.tsx); an account's pace. */}
+        {data.kind === "savings_goal" ? (() => { const { GoalDetails } = future(); return <GoalDetails p={p} hue={hue} />; })() : pace !== null ? (
+          <Section title={t("insights.detail.pace")}>
             <Card>
-              {goal ? <Row title={t("insights.detail.target")} right={money(goal.target, goal.currency)} /> : null}
-              {goal ? <Row title={toGo > 0 ? t("insights.detail.toGo") : t("insights.detail.reached")} right={money(Math.abs(toGo), goal.currency, toGo > 0 ? undefined : C.green)} style={styles.divider} /> : null}
-              {pace !== null ? <Row title={t("insights.detail.avgChange", { count: done.length })} right={money(pace, h.currency, pace < 0 ? C.red : C.green)} style={goal ? styles.divider : undefined} /> : null}
-              {goal && toGo > 0 ? <Row title={t("insights.detail.eta")} right={<Text style={styles.amount}>{eta ? t("insights.detail.etaAt", { month: eta.label, count: eta.months }) : t("insights.detail.etaNever")}</Text>} style={styles.divider} /> : null}
+              <Row title={t("insights.detail.avgChange", { count: done.length })} right={money(pace, h.currency, pace < 0 ? C.red : C.green)} />
             </Card>
           </Section>
         ) : null}

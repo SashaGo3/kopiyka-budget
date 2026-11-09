@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, LayoutAnimation, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { accountLeftover, biggestOneOffs, monthVsUsual, spendingPlaces, topShops, categoryChecklist, save, checklistTotals, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, regularSpending, retiredKind, safeToSpend, safetyBuffer, savingsGoal, subscriptionsPerYear, valueSplit, withChecklistTick, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
+import { accountLeftover, biggestOneOffs, monthVsUsual, spendingPlaces, topShops, categoryChecklist, save, checklistTotals, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, regularSpending, retiredKind, safeToSpend, safetyBuffer, subscriptionsPerYear, valueSplit, withChecklistTick, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { CategoryIcon, Money, PressCard, ProgressBar, TagPill, Tap } from "@/components/ui";
 import { PaymentIcon } from "@/components/PaymentIcon";
@@ -15,6 +15,7 @@ import { catName, acctName } from "@/lib/names";
 import { rowText } from "@/lib/rowText";
 import { t, Trans } from "@/i18n";
 import { scopeAccount, scopeAccountIds } from "@/lib/scope";
+import { future } from "@/components/future/lazy";
 
 /**
  * One insight card: its heading and what it computes to for the period Budgets and Transactions are
@@ -64,7 +65,7 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
       // charged out of it before payday. The second half is what "Safe to spend" used to be a card for.
       case "free_money": return { kind: "free_money" as const, v: freeMoney(db, { start: period.start, end: period.end, accountIds: scopeIds, budgetAccount }), safe: isNow ? safeToSpend(db, { today: day, startDay, accountIds: scopeIds, budgetAccount }) : null };
       case "days_to_salary": return { kind: "days_to_salary" as const, v: daysToSalary(db, { today: day, startDay, accountIds: scopeIds, budgetAccount }) };
-      case "savings_goal": return { kind: "savings_goal" as const, v: savingsGoal(db, p), name: p.account_id ? acctName(getRow(db, "accounts", p.account_id)) : undefined };
+      case "savings_goal": return { kind: "savings_goal" as const };
       case "account_balance": return { kind: "account_balance" as const, v: accountLeftover(db, p, { start: period.start, end: period.end }) };
       case "checklist": return { kind: "checklist" as const, v: categoryChecklist(db, p, { start: period.start, end: period.end, accountIds: scopeIds }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])), tags: new Map(listRows(db, "tags", "1=1").map((x) => [x.id, x])), rules: new Map(listRows(db, "recurring_rules", "1=1").map((r) => [r.id, r])) };
       case "subscriptions": return { kind: "subscriptions" as const, v: subscriptionsPerYear(db, p) };
@@ -74,6 +75,7 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
       case "month_vs_usual": return { kind: "month_vs_usual" as const, v: monthVsUsual(db, { start: period.start, end: period.end, today: day, startDay, accountIds: scopeIds }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
       case "one_offs": return { kind: "one_offs" as const, v: biggestOneOffs(db, { start: period.start, end: period.end, accountIds: scopeIds, limit: detail ? 10 : 3 }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
       case "top_shops": return { kind: "top_shops" as const, v: topShops(db, { start: period.start, end: period.end, today: day, startDay, accountIds: scopeIds, limit: detail ? 10 : 3 }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
+      case "forecast": return { kind: "forecast" as const };
       case "spending_map": return { kind: "spending_map" as const, v: spendingPlaces(db, { start: period.start, end: period.end, accountIds: scopeIds }), cats: new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c])) };
       default: return { kind: "gone" as const };
     }
@@ -102,10 +104,13 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
     case "days_to_salary":
       return <View><Text style={styles.big}>{t("insights.days", { count: data.v.days })}</Text>{sub(t("insights.salary.until", { day: humanDayTime(data.v.next) }))}{data.v.per_day.map((m) => <Text key={m.currency} style={styles.line}><Trans k="insights.perDay" vars={{ amount: amt(m.minor, m.currency) }} tags={strong} /></Text>)}</View>;
     case "savings_goal": {
-      if (!data.v) return sub(t("insights.chooseAccount"));
-      const { balance, target, currency, ratio } = data.v;
-      return <View>{sub(data.name ?? "")}<Text style={styles.line}><Trans k="insights.of" vars={{ have: amt(balance, currency), target: amt(target, currency) }} tags={strong} /></Text>
-        <View style={{ marginVertical: 6 }}><ProgressBar ratio={ratio} color={ratio >= 1 ? C.green : C.tint} height={8} /></View>{sub(`${Math.round(ratio * 100)}% · ${formatDiff(target - balance, currency)}`)}</View>;
+      // Siriusia's verdict, the bar with its quarter marks, and when it gets there (components/future/Goal.tsx).
+      const { GoalCardBody } = future();
+      return <GoalCardBody p={p} />;
+    }
+    case "forecast": {
+      const { PurrphecyCardBody } = future();
+      return <PurrphecyCardBody insight={insight} />;
     }
     case "account_balance": {
       if (!data.v) return sub(t("insights.chooseAccount"));
@@ -410,7 +415,6 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
 /** "+38%" / "−12%": a change against the usual, rounded to a whole percent. */
 function pctChange(r: number): string { return `${r > 0 ? "+" : "−"}${Math.round(Math.abs(r) * 100)}%`; }
 
-function formatDiff(minor: number, currency: string) { return minor > 0 ? t("insights.goal.toGo", { amount: `${formatMinor(minor, currency)} ${currency}` }) : t("insights.goal.reached"); }
 
 const styles = themed(() => StyleSheet.create({
   card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, padding: S.lg, gap: 6 },

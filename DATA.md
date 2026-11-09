@@ -606,6 +606,22 @@ days. Three things are load-bearing:
   build ignores the column. The state file carries each category's resolved `type` so the automation
   can match while the app owns the database (rule 10).
 
+## 22. A forecast reads money, and keeps its settings on its own card
+
+Purrphecy (insight kind `forecast`) and the savings goal's forecast (`packages/core/src/forecast.ts`)
+write no money. They read your pace — `moneyPace`: income less spending per complete period, money
+moved between your own accounts left out, a trip's spending counted (unlike the budgets) — and carry
+it forward.
+
+What the calculators were left at — rates, years, a home's price, the habit weighed — lives in that
+card's `params.future`, not in `meta`. It is a fact about that card, so it travels with the card in
+backups and to the other device, and nothing has to be added to `BACKUP_META_KEYS` (rule 7). An
+absent field means "the default, or your own numbers": `futureInputs` fills it in on every read, so
+a stored value is only ever something a person chose.
+
+A savings goal's optional `params.deadline` (YYYY-MM-DD) is the same kind of thing. A build from
+before it ignores both keys, and shows a `forecast` card as one it does not know.
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import

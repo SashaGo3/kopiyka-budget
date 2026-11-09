@@ -151,7 +151,8 @@
   "kind": {
     "free_money": { "title": "Left in budgets", "hint": "What is left of your budgets this period, and what is still to be charged" },
     "days_to_salary": { "title": "Until salary", "hint": "Days left in the period and what you can spend per day" },
-    "savings_goal": { "title": "Savings goal", "hint": "Progress of an account towards a target" },
+    "forecast": { "title": "Purrphecy", "hint": "Siriusia looks into your money's future: compound interest, a home, freedom" },
+    "savings_goal": { "title": "Savings goal", "hint": "An account growing towards a target, and when it gets there" },
     "account_balance": { "title": "Account balance", "hint": "What is left on one account, and what moved this period" },
     "checklist": { "title": "Payments checklist", "hint": "Which of these categories still have no transaction this period" },
     "subscriptions": { "title": "Subscriptions per year", "hint": "What your recurring expenses cost yearly" },
@@ -193,8 +194,9 @@
     "noRulesHint": "Add recurring rules first",
     "remove": "Remove",
     "group": {
+      "future": { "message": "The future", "note": "Section in the Add insight list: forecasts and goals." },
       "spending": { "message": "Spending and budgets", "note": "Section in the Add insight list." },
-      "accounts": { "message": "Accounts and goals", "note": "Section in the Add insight list." },
+      "accounts": { "message": "Accounts", "note": "Section in the Add insight list." },
       "payments": { "message": "Payments", "note": "Section in the Add insight list." }
     },
     "addNow": { "message": "Add", "note": "Right side of a card kind with nothing to set: tapping adds it at once.", "max": 10 },

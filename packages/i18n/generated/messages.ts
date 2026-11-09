@@ -771,6 +771,191 @@ export interface Messages {
   "debt.summary.reminder": { time: string | number };
   "debt.summary.youOwe": undefined;
   "debt.who": undefined;
+  /** Purrphecy card, above the big forecast amount. */
+  "future.card.in": { count: number };
+  "future.card.negative": { amount: string | number };
+  "future.card.noData": undefined;
+  /** Purrphecy card, under the big amount. rate = "7%"; mattress and grew are amounts. */
+  "future.card.vs": { rate: string | number; mattress: string | number; grew: string | number };
+  /** Chart axis label for millions: "1.2M". n is already formatted. */
+  "future.compact.million": { n: string | number };
+  /** Chart axis label for thousands: "350k". n is already formatted. */
+  "future.compact.thousand": { n: string | number };
+  "future.disclaimer": undefined;
+  "future.freedom.at": { year: string | number; total: string | number; pct: string | number };
+  "future.freedom.explain": { rate: string | number; times: string | number };
+  "future.freedom.leanSooner": { span: string | number; amount: string | number };
+  /** Label on the target line of the chart. */
+  "future.freedom.line": undefined;
+  "future.freedom.never": undefined;
+  "future.freedom.noChange": undefined;
+  "future.freedom.noData": undefined;
+  "future.freedom.number": undefined;
+  "future.freedom.pot": { rate: string | number };
+  "future.freedom.progress": { pct: string | number; have: string | number };
+  "future.freedom.road": undefined;
+  "future.freedom.saveMore": { amount: string | number };
+  "future.freedom.sooner": { span: string | number };
+  "future.freedom.spendLess": undefined;
+  "future.freedom.when": { year: string | number; span: string | number };
+  "future.freedom.withdraw": undefined;
+  "future.freedom.yearly": undefined;
+  "future.freedom.yearlySub": undefined;
+  "future.goal.atAhead": { month: string | number; amount: string | number };
+  "future.goal.atPast": { month: string | number; amount: string | number };
+  "future.goal.behind": { need: string | number; pace: string | number };
+  "future.goal.boost": { amount: string | number };
+  "future.goal.boostSub": { count: number; when: string | number };
+  /** Goal card, after the account name: "Savings · by 1 Jun 2027". */
+  "future.goal.by": { deadline: string | number };
+  "future.goal.clearDeadline": undefined;
+  "future.goal.deadline": undefined;
+  "future.goal.done": undefined;
+  "future.goal.etaIn": { count: number; when: string | number };
+  "future.goal.forDeadline": { amount: string | number };
+  "future.goal.milestone": { pct: string | number; amount: string | number };
+  "future.goal.monthsLeft": { count: number };
+  "future.goal.need": undefined;
+  "future.goal.noDeadline": undefined;
+  /** Goal card: "<balance> of 20 000 PLN". */
+  "future.goal.of": { target: string | number };
+  "future.goal.onTrack": { when: string | number; deadline: string | number };
+  "future.goal.open": { pace: string | number; when: string | number };
+  "future.goal.overdue": { amount: string | number };
+  "future.goal.pace": undefined;
+  "future.goal.reachedIn": { when: string | number };
+  "future.goal.road": undefined;
+  "future.goal.sooner": undefined;
+  "future.goal.stalled": undefined;
+  "future.goal.stalledBy": { need: string | number; deadline: string | number };
+  /** Label on the target line of the chart. */
+  "future.goal.target": undefined;
+  /** Line above the columns for the touched year. */
+  "future.grow.at": { year: string | number; total: string | number; put: string | number; grew: string | number };
+  "future.grow.cross": { year: string | number };
+  "future.grow.crossSub": undefined;
+  /** years is a formatted decimal, "10.2". */
+  "future.grow.doubles": { years: string | number };
+  "future.grow.doublesSub": undefined;
+  "future.grow.inputs": undefined;
+  "future.grow.itGrew": undefined;
+  "future.grow.mine": undefined;
+  "future.grow.monthly": undefined;
+  "future.grow.moreThanYou": undefined;
+  "future.grow.noCross": undefined;
+  "future.grow.raise": undefined;
+  "future.grow.real": { rate: string | number };
+  "future.grow.result": { count: number };
+  "future.grow.start": undefined;
+  "future.grow.total": undefined;
+  "future.grow.youPut": undefined;
+  "future.habit.average": { category: string | number };
+  "future.habit.averageSub": undefined;
+  "future.habit.cut": undefined;
+  "future.habit.freed": undefined;
+  "future.habit.inYears": { count: number };
+  "future.habit.invested": { rate: string | number };
+  "future.habit.none": undefined;
+  /** Chip that opens the category picker. */
+  "future.habit.other": undefined;
+  "future.habit.says": { category: string | number; amount: string | number };
+  "future.habit.which": undefined;
+  "future.home.down": undefined;
+  "future.home.downTitle": { amount: string | number };
+  "future.home.extra": undefined;
+  "future.home.extraHint": undefined;
+  "future.home.fastLegend": undefined;
+  "future.home.inputs": undefined;
+  "future.home.instalment": undefined;
+  "future.home.interest": undefined;
+  "future.home.interestSub": { pct: string | number };
+  "future.home.loanTitle": { amount: string | number };
+  "future.home.monthly": undefined;
+  "future.home.never": undefined;
+  "future.home.overpay": undefined;
+  "future.home.owed": { year: string | number; owed: string | number };
+  "future.home.owedFast": { year: string | number; owed: string | number; fast: string | number };
+  "future.home.owedLegend": undefined;
+  "future.home.price": undefined;
+  "future.home.progress": { have: string | number; down: string | number; pct: string | number };
+  "future.home.rate": undefined;
+  "future.home.ready": undefined;
+  "future.home.saved": undefined;
+  "future.home.saves": undefined;
+  "future.home.share": { pct: string | number };
+  "future.home.sooner": { span: string | number };
+  "future.home.total": undefined;
+  "future.home.when": { when: string | number; span: string | number };
+  "future.home.years": undefined;
+  /** when = "Feb 2029", span = "2 years 3 months". */
+  "future.inMonths": { when: string | number; span: string | number };
+  "future.inflation.at": { year: string | number; market: string | number; deposit: string | number; cash: string | number };
+  "future.inflation.hint": undefined;
+  "future.inflation.keep": { count: number };
+  "future.inflation.keepSub": undefined;
+  "future.inflation.rate": undefined;
+  "future.inflation.says": { count: number; amount: string | number; real: string | number };
+  "future.inflation.title": undefined;
+  /** Label on the line marking today's value. */
+  "future.inflation.today": undefined;
+  "future.milestones": undefined;
+  "future.never": undefined;
+  /** Left end of a forecast chart's axis. */
+  "future.now": undefined;
+  "future.nudge.late": undefined;
+  "future.nudge.lateSub": undefined;
+  "future.nudge.more": { amount: string | number };
+  "future.nudge.moreSub": { count: number };
+  "future.nudge.title": undefined;
+  /** Chart legend and row. rate = "4%". */
+  "future.path.deposit": { rate: string | number };
+  /** Chart legend and row. rate = "7%". */
+  "future.path.market": { rate: string | number };
+  "future.path.mattress": undefined;
+  /** Siriusia the cat's speech bubble on the Purrphecy screen, one a day. Playful. */
+  "future.prophecy.p1": undefined;
+  "future.prophecy.p2": undefined;
+  "future.prophecy.p3": undefined;
+  "future.prophecy.p4": undefined;
+  "future.prophecy.p5": undefined;
+  "future.prophecy.p6": undefined;
+  "future.prophecy.p7": undefined;
+  "future.prophecy.p8": undefined;
+  "future.rate.deposit": undefined;
+  "future.rate.market": undefined;
+  "future.real.subtitle": { rate: string | number };
+  "future.real.title": undefined;
+  /** "2 years 3 months"; both parts already formatted. */
+  "future.span.both": { years: string | number; months: string | number };
+  "future.span.months": { count: number };
+  "future.span.years": { count: number };
+  /** Purrphecy tab chip: financial independence. */
+  "future.tab.freedom": undefined;
+  /** Purrphecy tab chip. */
+  "future.tab.grow": undefined;
+  /** Purrphecy tab chip: what cutting a category would grow into. */
+  "future.tab.habit": undefined;
+  /** Purrphecy tab chip: the home-buying calculator. */
+  "future.tab.home": undefined;
+  /** Purrphecy tab chip. */
+  "future.tab.inflation": undefined;
+  /** Purrphecy tab chip: your own forecast. */
+  "future.tab.you": undefined;
+  "future.yearsCount": { count: number };
+  "future.yearsLabel": undefined;
+  /** Line above the chart for the touched year. */
+  "future.you.at": { year: string | number; market: string | number; deposit: string | number; mattress: string | number };
+  "future.you.have": undefined;
+  "future.you.inYears": { count: number };
+  "future.you.income": undefined;
+  "future.you.negative": undefined;
+  "future.you.now": undefined;
+  "future.you.over": { count: number };
+  "future.you.paths": { count: number };
+  "future.you.putIn": undefined;
+  "future.you.rate": { pct: string | number };
+  "future.you.saved": undefined;
+  "future.you.spend": undefined;
   "insights.add": undefined;
   /** What came in and went out this period. */
   "insights.balance.inOut": { income: string | number; spent: string | number };
@@ -926,6 +1111,8 @@ export interface Messages {
   "insights.edit.goalHint": undefined;
   /** Section in the Add insight list. */
   "insights.edit.group.accounts": undefined;
+  /** Section in the Add insight list: forecasts and goals. */
+  "insights.edit.group.future": undefined;
   /** Section in the Add insight list. */
   "insights.edit.group.payments": undefined;
   /** Section in the Add insight list. */
@@ -1001,6 +1188,8 @@ export interface Messages {
   "insights.kind.checklist.title": undefined;
   "insights.kind.days_to_salary.hint": undefined;
   "insights.kind.days_to_salary.title": undefined;
+  "insights.kind.forecast.hint": undefined;
+  "insights.kind.forecast.title": undefined;
   "insights.kind.free_money.hint": undefined;
   "insights.kind.free_money.title": undefined;
   "insights.kind.month_vs_usual.hint": undefined;

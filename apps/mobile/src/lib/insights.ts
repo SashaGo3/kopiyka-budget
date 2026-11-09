@@ -24,15 +24,17 @@ export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }
   one_offs: { icon: "bag", color: "#FF2D55" },
   top_shops: { icon: "storefront", color: "#5856D6" },
   spending_map: { icon: "map", color: "#34C759" },
+  forecast: { icon: "sparkles", color: "#AF52DE" },
 };
 
 /**
  * How the "Add insight" list is sectioned: by what a card is about. A kind core gains and nobody files
  * here is not lost: `kindsIn` puts it in the last group rather than leaving a card nobody can add.
  */
-export const INSIGHT_GROUPS: { id: "spending" | "accounts" | "payments"; kinds: InsightKind[] }[] = [
+export const INSIGHT_GROUPS: { id: "future" | "spending" | "accounts" | "payments"; kinds: InsightKind[] }[] = [
+  { id: "future", kinds: ["forecast", "savings_goal"] },
   { id: "spending", kinds: ["free_money", "days_to_salary", "month_vs_usual", "regular", "values", "one_offs", "top_shops", "spending_map"] },
-  { id: "accounts", kinds: ["account_balance", "savings_goal", "safety_buffer"] },
+  { id: "accounts", kinds: ["account_balance", "safety_buffer"] },
   { id: "payments", kinds: ["checklist", "subscriptions"] },
 ];
 
