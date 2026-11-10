@@ -1,3 +1,4 @@
+import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { Image } from "expo-image";
@@ -5,7 +6,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, categoryForShop, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, itemsToStore, sharesOf, categoryForShop, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -97,6 +98,8 @@ export default function TransactionSheet() {
   // the state here is what will be stored, not what is stored now. Turning the chip back on keeps the
   // row in the Pending queue — the only way an edited row stays pending.
   const [pending, setPending] = useState(existing ? false : p.pending === "1");
+  // Marked to be split later (core/people.ts): it waits in the To split queue until it is.
+  const [toSplit, setToSplit] = useState(existing?.to_split === 1);
   const [coords, setCoords] = useState<Coords | null>(
     existing && existing.lat != null && existing.lon != null ? { lat: existing.lat, lon: existing.lon }
       : !existing && p.lat && p.lon ? { lat: Number(p.lat), lon: Number(p.lon) } : null);
@@ -213,6 +216,10 @@ export default function TransactionSheet() {
     router.push({ pathname: "/transaction/split", params: {
       key: keys.split, currency, kind, total: String(toMinor(value, currency)),
       main: JSON.stringify({ category_id: categoryId, tag_ids: tagIds }), parts: JSON.stringify(parts),
+      ...(photoSrc ? { photo: photoSrc } : {}),
+      // A tip changes what the entry is for. Not on a payment the bank charged in another currency:
+      // its original is shared out in proportion, and nothing says what the tip was in that currency.
+      ...(existing?.entered_amount_minor ? {} : { tips: "1" }),
     } });
   };
   usePickResult<string>(keys.date, useCallback((day: string) => setDate((d) => (day === d.slice(0, 10) ? d : day === todayLocal() ? localIso() : dayWithNow(day))), []));
@@ -334,19 +341,22 @@ export default function TransactionSheet() {
   }, [isNew]);
 
   // `split` is what the split editor just handed back, saved before the state it also sets has landed.
-  const persist = (split?: { categoryId: string | null; tagIds: string[]; parts: SplitPart[] }) => {
+  const persist = (split?: { categoryId: string | null; tagIds: string[]; parts: SplitPart[]; note?: string; toSplit?: boolean; total?: number }) => {
     const cat = split ? split.categoryId : categoryId;
     const tagList = split ? split.tagIds : tagIds;
     const partList = split ? split.parts : parts;
-    const minors = split ? (value !== null && partList.length ? splitAmounts(toMinor(value, currency), partList.map((x) => x.amount_minor)) : null) : splitMinors;
-    if (value === null || value <= 0 || !account || (partList.length && !minors)) return false;
-    const minor = toMinor(value!, currency) * (kind === "expense" ? -1 : 1);
+    // The split's total, tip included, when one was added there; otherwise the amount on the sheet.
+    const whole = split?.total ?? (value !== null ? toMinor(value, currency) : null);
+    const minors = split ? (whole !== null && partList.length ? splitAmounts(whole, partList.map((x) => x.amount_minor)) : null) : splitMinors;
+    if (whole === null || whole <= 0 || !account || (partList.length && !minors)) return false;
+    const minor = whole * (kind === "expense" ? -1 : 1);
     // A new shot replaces the stored file; clearing the photo removes it.
     let photoName = photo;
     if (shot) { try { photoName = keepPhoto(shot); if (existing?.photo) releasePhoto(existing.photo, existing.id); } catch { photoName = photo; } }
     else if (existing?.photo && !photo) releasePhoto(existing.photo, existing.id);
     mutate((d) => {
-      const base = { account_id: account.id, date, amount_minor: minor, category_id: cat, debt_id: debtId, payee, notes: note.trim() || null, tag_ids: JSON.stringify(tagList), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName } as const;
+      const marked = split?.toSplit ?? toSplit;
+      const base = { account_id: account.id, date, amount_minor: minor, category_id: cat, debt_id: debtId, payee, notes: (split?.note ?? note).trim() || null, tag_ids: JSON.stringify(tagList), pending: pending ? 1 : 0, lat: coords?.lat ?? null, lon: coords?.lon ?? null, place, photo: photoName, to_split: marked ? 1 as const : 0 as const } as const;
       if (!partList.length || !minors) {
         if (existing) {
           const saved = save(d, "transactions", { ...existing, ...base } as Transaction);
@@ -369,15 +379,24 @@ export default function TransactionSheet() {
       const sign = kind === "expense" ? -1 : 1;
       const entered = existing?.entered_amount_minor ? shareEntered(existing.entered_amount_minor, minors) : null;
       const shared = { account_id: base.account_id, date, payee, notes: base.notes, bank_note: existing?.bank_note ?? null, pending: base.pending, lat: base.lat, lon: base.lon, place, photo: photoName, source: existing?.source ?? null } as const;
+      // A friend's part is their share, not yours (core/people.ts, DATA.md rule 23): no category and
+      // no tags — a trip tag would count it against the trip — and the purchase it was carved from,
+      // so their page can say what it was. Splitting is what the "to split" mark was waiting for.
+      let mainId = existing?.id ?? "";
       minors.forEach((magnitude, i) => {
         const money = { amount_minor: magnitude * sign, ...(entered ? { entered_amount_minor: entered[i]!, entered_currency: existing!.entered_currency, exchange_rate: existing!.exchange_rate } : {}) };
         if (i === 0) {
-          const first = { ...shared, ...money, category_id: cat, debt_id: debtId, tag_ids: JSON.stringify(tagList) };
+          const first = { ...shared, ...money, category_id: cat, debt_id: debtId, tag_ids: JSON.stringify(tagList), to_split: 0 as const };
           if (existing) save(d, "transactions", { ...existing, ...first } as Transaction);
-          else createTransaction(d, first);
+          else mainId = createTransaction(d, first).id;
           return;
         }
         const part = partList[i - 1]!;
+        if (part.person_id) {
+          // A share has nothing to file, so it never waits in Pending however the purchase arrived.
+          createTransaction(d, { ...shared, ...money, pending: 0, category_id: null, tag_ids: "[]", person_id: part.person_id, share_of: mainId, items: itemsToStore(part.items) });
+          return;
+        }
         createTransaction(d, { ...shared, ...money, category_id: part.category_id, tag_ids: JSON.stringify(part.tag_ids) });
       });
       if (debtId) settleIfPaid(d, debtId, todayLocal());
@@ -391,11 +410,22 @@ export default function TransactionSheet() {
   // to press Add a second time was a step with nothing in it.
   const [leave, setLeave] = useState(false);
   usePickResult<SplitResult>(keys.split, (r: SplitResult) => {
+    // "Later" saves the entry as it stands, marked; nothing is split yet.
+    if (r.later) {
+      setToSplit(true);
+      if (persist({ categoryId, tagIds, parts: [], toSplit: true })) setLeave(true);
+      else router.back();
+      return;
+    }
+    // Who owes what goes on a line of its own under whatever the note already says.
+    const nextNote = r.noteLine ? (note.trim() ? `${note.trim()}\n${r.noteLine}` : r.noteLine) : note;
     setCategoryId(r.main.category_id);
     setSuggested(false);
     setTagIds(r.main.tag_ids);
     setParts(r.parts);
-    if (persist({ categoryId: r.main.category_id, tagIds: r.main.tag_ids, parts: r.parts })) setLeave(true);
+    setNote(nextNote);
+    if (r.total) { const v = trimNumber(fromMinor(r.total, currency)); setExpr(kind === "expense" ? `−${v}` : String(v)); }
+    if (persist({ categoryId: r.main.category_id, tagIds: r.main.tag_ids, parts: r.parts, note: nextNote, toSplit: false, total: r.total })) setLeave(true);
     else router.back();
   });
   // After the render that sets `done`, so the unsaved-entry prompt below is already switched off.
@@ -429,10 +459,32 @@ export default function TransactionSheet() {
         } });
       } },
     ]);
-  const del = () => existing && Alert.alert(t("transaction.entry.deleteTitle"), undefined, [
-    { text: t("common.cancel"), style: "cancel" },
-    { text: t("common.delete"), style: "destructive", onPress: () => { setDone(true); releasePhoto(existing.photo, existing.id); mutate((d) => remove(d, "transactions", existing.id)); router.back(); } },
-  ]);
+  // A purchase friends' shares were carved from asks about them too: left behind, they would still
+  // owe you for something that is no longer there (DATA.md rule 23).
+  const del = () => {
+    if (!existing) return;
+    const shares = sharesOf(db, existing.id);
+    // Nothing is asked before a delete; the toast offers the way back instead (lib/undo.ts). The
+    // photo goes from disk only once that chance has passed — Undo puts back a row, not a file.
+    const gone = (withShares: boolean) => {
+      setDone(true);
+      const rows = [existing, ...(withShares ? shares : [])];
+      mutate((d) => { for (const r of rows) remove(d, "transactions", r.id); });
+      offerUndo({
+        label: t("misc.deleted", { count: rows.length }),
+        undo: () => mutate((d) => { for (const r of rows) save(d, "transactions", { ...r, deleted: 0 }); }),
+        commit: () => releasePhoto(existing.photo, existing.id),
+      });
+      router.back();
+    };
+    // The one question left is a real choice, not a confirmation: whether the friends still owe it.
+    if (!shares.length) { gone(false); return; }
+    Alert.alert(t("people.event.deleteShares", { count: shares.length }), t("people.event.deleteSharesBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("people.event.keepShares"), onPress: () => gone(false) },
+      { text: t("people.event.deleteAll"), style: "destructive", onPress: () => gone(true) },
+    ]);
+  };
   // ± and the segmented control both negate the signed expression; on an empty expression
   // there's nothing to negate, so they just switch the default mode instead.
   const negate = () => {
@@ -512,6 +564,11 @@ export default function TransactionSheet() {
             {note ? (
               <Tap onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
                 <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4}>{note}</Text>
+              </Tap>
+            ) : null}
+            {toSplit ? (
+              <Tap onPress={() => setToSplit(false)} style={styles.line} accessibilityRole="button" accessibilityLabel={t("people.toSplit.markedA11y")}>
+                <SymbolView name="square.split.2x1" size={14} tintColor={C.tint} /><Text style={[styles.lineText, { color: C.tint }]}>{t("people.toSplit.mark")}</Text>
               </Tap>
             ) : null}
             {/* What the bank said, under your note and apart from it: read here, never edited. */}

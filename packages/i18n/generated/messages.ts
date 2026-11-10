@@ -771,8 +771,6 @@ export interface Messages {
   "debt.summary.reminder": { time: string | number };
   "debt.summary.youOwe": undefined;
   "debt.who": undefined;
-  /** Forecast card, second line: the six calculators inside. */
-  "future.card.inside": undefined;
   "future.card.noData": undefined;
   /** Forecast card on the Insights tab, first line. */
   "future.card.teaser": undefined;
@@ -977,7 +975,10 @@ export interface Messages {
   "insights.buffer.noEssentialsHint": undefined;
   /** currencies is "USD, EUR". */
   "insights.buffer.noRate": { currencies: string | number };
-  "insights.checklist.allDone": { period: string | number };
+  /** Big line on the payments checklist when every line of the period is paid. */
+  "insights.checklist.allDone": undefined;
+  /** Under "All paid": how many lines, and the period; the amount paid follows after another ·. */
+  "insights.checklist.allDoneSub": { count: number; period: string | number };
   /** Alert after tapping an open checklist line; its title is the line's name. */
   "insights.checklist.askBody": undefined;
   /** Alert button: opens a new entry prefilled from the last payment. */
@@ -1320,11 +1321,15 @@ export interface Messages {
   "keypad.add": undefined;
   /** Under the amount: the most this part can be. */
   "keypad.amount.available": { amount: string | number; currency: string | number };
+  /** Under a friend's share while it is typed: what you and the friends on an equal share each come to. */
+  "keypad.amount.othersEach": { amount: string | number; currency: string | number };
   /** Default title over the calculator screen. */
   "keypad.amount.title": undefined;
   "keypad.amount.tooMuch": undefined;
   "keypad.amount.tooMuchShort": undefined;
   "keypad.amount.use": undefined;
+  /** Under a friend's share while it is typed, when you are the only one left on an equal share. */
+  "keypad.amount.yoursLeft": { amount: string | number; currency: string | number };
   /** Wide keypad key that opens the category picker. */
   "keypad.category": undefined;
   "keypad.categoryA11y": { name: string | number };
@@ -1348,6 +1353,7 @@ export interface Messages {
   "layout.error.title": undefined;
   "layout.pending": undefined;
   "layout.recurringDue": undefined;
+  "misc.deleted": { count: number };
   "misc.discard.changesBody": undefined;
   /** Alert when closing an editor with unsaved changes. */
   "misc.discard.changesTitle": undefined;
@@ -1357,6 +1363,8 @@ export interface Messages {
   "misc.discard.flowTitle": undefined;
   "misc.discard.keepEditing": undefined;
   "misc.discard.keepGoing": undefined;
+  /** Button on the toast after a delete. */
+  "misc.undo": undefined;
   /** Title of a transfer in the watch's history list. */
   "misc.watch.transfer": undefined;
   /** Title of a history row on the watch with no note, shop or category. */
@@ -1491,6 +1499,118 @@ export interface Messages {
   "pending.transfer.fill": undefined;
   /** Title of a pending transfer between two of your accounts, found in bank notifications. */
   "pending.transfer.title": undefined;
+  /** Line on the card for the debts screen. */
+  "people.card.debts": undefined;
+  /** Subtitle of the Owed to you section on the Budgets reorder screen. */
+  "people.card.reorderSection": undefined;
+  /** Card on the Budgets screen. */
+  "people.card.title": undefined;
+  "people.card.toSplit": { count: number };
+  "people.event.deleteAll": undefined;
+  /** Asked when deleting a purchase that friends' shares were carved from. */
+  "people.event.deleteShares": { count: number };
+  "people.event.deleteSharesBody": undefined;
+  "people.event.keepShares": undefined;
+  "people.event.nobody": undefined;
+  /** Row on the trip/event sheet that picks the friends. */
+  "people.event.people": undefined;
+  "people.items.add": undefined;
+  "people.items.amount": undefined;
+  "people.items.done": undefined;
+  "people.items.intro": undefined;
+  "people.items.name": undefined;
+  /** Title of the items list for one friend's share. */
+  "people.items.title": { name: string | number };
+  /** amount is "52,00 PLN". */
+  "people.items.total": { amount: string | number };
+  "people.list.even": undefined;
+  /** Under a friend's name when you owe them. */
+  "people.list.owed": { amount: string | number };
+  /** Under a friend's name; amount is "40,00 PLN". */
+  "people.list.owes": { amount: string | number };
+  /** Section header on the Debts screen and the Budgets card. */
+  "people.list.title": undefined;
+  /** Running balance after a history line; amount is "85,00 PLN". */
+  "people.page.after": { amount: string | number };
+  "people.page.history": undefined;
+  "people.page.letGo": undefined;
+  "people.page.letGoAction": undefined;
+  /** Confirmation; amount is "40,00 PLN". */
+  "people.page.letGoBody": { amount: string | number; name: string | number };
+  "people.page.letGoTitle": undefined;
+  "people.page.noAccount": undefined;
+  /** Over a friend's balance. */
+  "people.page.owesYou": undefined;
+  "people.page.paidBack": undefined;
+  /** Title over the calculator. */
+  "people.page.paidBackTitle": { name: string | number };
+  "people.page.remind": undefined;
+  /** One line of the reminder message. */
+  "people.page.remindLine": { what: string | number; date: string | number; amount: string | number };
+  /** Message sent from the share sheet; lines are "Bistro, 7 Nov: 40,00 PLN" one per line. */
+  "people.page.remindText": { name: string | number; amount: string | number; lines: string | number };
+  "people.page.remove": undefined;
+  "people.page.removeBody": undefined;
+  "people.page.removeTitle": { name: string | number };
+  "people.page.rename": undefined;
+  "people.page.renameTitle": undefined;
+  /** A history line for money from the friend. */
+  "people.page.repaid": undefined;
+  "people.page.settled": undefined;
+  /** A history line without a shop name. */
+  "people.page.share": undefined;
+  /** Over a friend's balance when they paid more than their shares. */
+  "people.page.youOwe": undefined;
+  /** Row that creates a friend with the name typed. */
+  "people.pick.add": { name: string | number };
+  "people.pick.contacts": undefined;
+  "people.pick.contactsFailed": undefined;
+  "people.pick.empty": undefined;
+  "people.pick.search": undefined;
+  "people.pick.searchA11y": undefined;
+  /** Title of the friends picker. */
+  "people.pick.title": undefined;
+  /** In place of a category on money from a friend. */
+  "people.row.repaid": { name: string | number };
+  /** In place of a category on a friend's share of a purchase. */
+  "people.row.share": { name: string | number };
+  "people.split.addItems": undefined;
+  /** Switch under the friends: writes who owes what into the entry's note. */
+  "people.split.addToNote": undefined;
+  /** Link beside the friends header: opens the people picker to add or remove friends. */
+  "people.split.edit": undefined;
+  "people.split.equalA11y": undefined;
+  /** Caption: this friend's amount was typed rather than an equal share. */
+  "people.split.fixed": undefined;
+  /** VoiceOver label of a friend's row. */
+  "people.split.friendA11y": { name: string | number; amount: string | number; currency: string | number };
+  "people.split.hideReceipt": undefined;
+  /** Title over the calculator for a friend's share. */
+  "people.split.howMuch": { name: string | number };
+  /** The items a friend had, joined with commas: "Lamp, beer". */
+  "people.split.items": { list: string | number };
+  /** Line added to the entry's note; list is "Ola 40,00 PLN, Max 40,00 PLN". */
+  "people.split.noteLine": { list: string | number };
+  /** Section header over the friends' shares on the split screen. */
+  "people.split.owes": undefined;
+  "people.split.receiptA11y": undefined;
+  "people.split.removeFriend": { name: string | number };
+  "people.split.showReceipt": undefined;
+  /** One-tap suggestion while an event or trip with people runs; names are "Ola, Max". */
+  "people.split.withEvent": { names: string | number };
+  /** Button on the split screen. */
+  "people.split.withFriends": undefined;
+  /** Section header over your own parts once friends are in the split. */
+  "people.split.you": undefined;
+  "people.toSplit.empty": undefined;
+  "people.toSplit.emptyHint": undefined;
+  /** Header button on the split screen: save the entry marked to split later. */
+  "people.toSplit.later": undefined;
+  /** Chip on the entry sheet that marks the payment for the To split queue. */
+  "people.toSplit.mark": undefined;
+  "people.toSplit.markedA11y": undefined;
+  /** Screen of payments marked to be split later. */
+  "people.toSplit.title": undefined;
   "period.calendar.next": undefined;
   "period.calendar.previous": undefined;
   /** currencies is a list of codes, "USD, PLN". */
@@ -2516,6 +2636,8 @@ export interface Messages {
   "transaction.split.addPart": undefined;
   "transaction.split.addRestTags": undefined;
   "transaction.split.addTags": undefined;
+  /** Link under the total on the split screen: adds a tip on top, shared like the rest. */
+  "transaction.split.addTip": undefined;
   "transaction.split.chooseCategory": undefined;
   "transaction.split.chooseRestCategory": undefined;
   "transaction.split.entries": { count: number };
@@ -2530,14 +2652,19 @@ export interface Messages {
   "transaction.split.notYet": undefined;
   /** n is the part's number (2, 3…); category is its name or "no category". */
   "transaction.split.partA11y": { n: string | number; amount: string | number; currency: string | number; category: string | number };
-  "transaction.split.ready": { count: number };
   "transaction.split.removePart": { n: string | number };
   /** Small caption under the amount that stays on the entry itself. */
   "transaction.split.rest": undefined;
   "transaction.split.restCategoryA11y": { name: string | number };
   "transaction.split.restTagsA11y": { names: string | number };
   "transaction.split.save": undefined;
+  /** Title over the calculator that types the tip. */
+  "transaction.split.tip": undefined;
   "transaction.split.title": undefined;
+  /** Label beside the whole amount being split, at the top of the split screen. */
+  "transaction.split.total": undefined;
+  /** Under the total once a tip is added; tap to change it. */
+  "transaction.split.withTip": { amount: string | number; currency: string | number };
   /** One converted amount and the rate used. */
   "transactions.approx.at": { amount: string | number; currency: string | number; rate: string | number };
   "transactions.approx.expensesBody": { lines: string | number; currency: string | number };

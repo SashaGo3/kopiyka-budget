@@ -26,6 +26,11 @@ export interface AmountPick { minor: number; category_id: string | null; tag_ids
  * minor unit, so the ceiling is a kopiyka under the amount on the entry and printing the ceiling
  * would put an odd 99.99 under a round 100.00. The round number is the one that means something.
  *
+ * `pool` and `ways` are for a friend's share: what is left to divide equally once this share is
+ * taken out, and between how many (you, and the friends not given an amount of their own). While a
+ * number is typed the line under it says what everyone else comes to, so changing one person's share
+ * shows at once what it does to the others — nobody else has to be opened to check.
+ *
  * With `kind` the keypad grows the two keys the Log sheet has — Category and Tags, in the same
  * corner — and the answer becomes an `AmountPick` instead of a number. A part of a split is a whole
  * small entry, and asking "how much" and "what of" on one screen is one screen instead of three.
@@ -36,7 +41,7 @@ export interface AmountPick { minor: number; category_id: string | null; tag_ids
  * caller's, never the answer's.
  */
 export default function PickAmount() {
-  const p = useLocalSearchParams<{ key: string; title?: string; currency?: string; value?: string; max?: string; available?: string; kind?: string; category?: string; tags?: string }>();
+  const p = useLocalSearchParams<{ key: string; title?: string; currency?: string; value?: string; max?: string; available?: string; pool?: string; ways?: string; kind?: string; category?: string; tags?: string }>();
   const cur = p.currency ?? "EUR";
   const [expr, setExpr] = useState(p.value && Number(p.value) ? String(Math.abs(Number(p.value)) / 100) : "");
   const [categoryId, setCategoryId] = useState<string | null>(p.category || null);
@@ -57,6 +62,10 @@ export default function PickAmount() {
   const shown = p.available ? Math.abs(Number(p.available)) : ceiling;
   const minor = abs !== null ? toMinor(abs, cur) : null;
   const tooMuch = ceiling !== null && minor !== null && minor > ceiling;
+  const ways = Number(p.ways) || 0;
+  // The equal share the rest come to with this number taken out — the first of them (you) takes
+  // the odd cent, so this is the share everyone after you gets.
+  const each = p.pool && ways > 0 ? Math.floor(Math.max(Number(p.pool) - (minor ?? 0), 0) / ways) : null;
   const use = () => {
     resolvePick(p.key, p.kind ? ({ minor: minor!, category_id: categoryId, tag_ids: tagIds } satisfies AmountPick) : minor!);
     exit(() => router.back());
@@ -73,7 +82,13 @@ export default function PickAmount() {
             <Text style={styles.cur}>{cur}</Text>
           </View>
           <CalcLine expr={expr} />
-          {shown !== null ? <Text style={[styles.limit, tooMuch && { color: C.red }]}>{tooMuch ? t("keypad.amount.tooMuch") : t("keypad.amount.available", { amount: formatMinor(shown, cur), currency: cur })}</Text> : null}
+          {shown !== null || each !== null ? (
+            <Text style={[styles.limit, tooMuch && { color: C.red }]}>
+              {tooMuch ? t("keypad.amount.tooMuch")
+                : each !== null ? t(ways > 1 ? "keypad.amount.othersEach" : "keypad.amount.yoursLeft", { amount: formatMinor(each, cur), currency: cur })
+                : t("keypad.amount.available", { amount: formatMinor(shown!, cur), currency: cur })}
+            </Text>
+          ) : null}
           {tags.length ? (
             <View style={styles.tagLine}>
               <SymbolView name="number" size={14} tintColor={C.secondary} />

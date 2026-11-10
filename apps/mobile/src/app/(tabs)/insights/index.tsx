@@ -5,6 +5,7 @@ import { listRows, type Insight } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Empty, FadeIn } from "@/components/ui";
+import { staggerDelay } from "@/lib/motion";
 import { InsightCard } from "@/components/InsightCard";
 import { PeriodPill } from "@/components/PeriodPill";
 import { S, themed } from "@/constants/theme";
@@ -52,7 +53,7 @@ export default function InsightsScreen() {
         {/* Cards worth adding, from how the app is used: the way in for someone new, and a nudge later. */}
         <InsightHints insights={insights} />
         {insights.length === 0 ? <Empty title={t("insights.empty")} hint={t("insights.emptyHint")} /> : null}
-        {insights.map((i, n) => <FadeIn key={i.id} delay={n * 60}><InsightCard insight={i} cat={i.id === catOwner} /></FadeIn>)}
+        {insights.map((i, n) => <FadeIn key={i.id} delay={staggerDelay(n, 60)}><InsightCard insight={i} cat={i.id === catOwner} /></FadeIn>)}
       </ScrollView>
     </>
   );

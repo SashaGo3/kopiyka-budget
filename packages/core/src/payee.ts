@@ -125,7 +125,7 @@ export function payeeHistory(db: SqlDriver, payee: string | null | undefined, no
   const newest = (cols: string, has: string, keep: (row: Row) => boolean = () => true) => {
     for (const t of tries) {
       const rows = db.all<Row>(
-        `SELECT ${cols} FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${has} AND ${t.where} ORDER BY date DESC LIMIT 20`, t.binds);
+        `SELECT ${cols} FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND ${has} AND ${t.where} ORDER BY date DESC LIMIT 20`, t.binds);
       const row = rows.find(keep);
       if (row) return { row, match: t.match };
     }
@@ -180,7 +180,7 @@ export interface PayeeOption {
 export function payeeOptions(db: SqlDriver, payee: string | null | undefined, note?: string | null, limit = 6): PayeeOption[] {
   for (const t of nameTries(payee, note)) {
     const rows = db.all<Row>(
-      `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND ${FILED} AND ${t.where} ORDER BY date DESC LIMIT 200`, t.binds);
+      `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND ${FILED} AND ${t.where} ORDER BY date DESC LIMIT 200`, t.binds);
     if (!rows.length) continue;
     const out = new Map<string, PayeeOption>();
     const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));

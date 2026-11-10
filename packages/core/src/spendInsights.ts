@@ -117,7 +117,7 @@ export function biggestOneOffs(db: SqlDriver, o: { start: string; end: string; a
   const rows = db.all<OneOff>(
     `SELECT t.id, t.date, t.amount_minor, a.currency, t.category_id, t.payee, t.notes, t.bank_note
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.recurring_id IS NULL AND t.debt_id IS NULL AND t.amount_minor<0
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.recurring_id IS NULL AND t.debt_id IS NULL AND t.amount_minor<0
        AND t.date>=? AND t.date<?${scope}
      ORDER BY t.amount_minor ASC, t.date DESC`,
     [o.start, o.end, ...(o.accountIds ?? [])]);
@@ -170,7 +170,7 @@ export function topShops(db: SqlDriver, o: { start: string; end: string; today: 
   const read = (win: { start: string; end: string }) => db.all<{ payee: string; amount_minor: number; currency: string; category_id: string | null }>(
     `SELECT COALESCE(NULLIF(trim(t.payee), ''), NULLIF(trim(t.place), '')) AS payee, t.amount_minor, a.currency, t.category_id
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.recurring_id IS NULL AND t.debt_id IS NULL AND t.amount_minor<0
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.recurring_id IS NULL AND t.debt_id IS NULL AND t.amount_minor<0
        AND COALESCE(NULLIF(trim(t.payee), ''), NULLIF(trim(t.place), '')) IS NOT NULL AND t.date>=? AND t.date<?${scope}`,
     [win.start, win.end, ...(o.accountIds ?? [])]);
   type Acc = ShopLine & { names: Map<string, number>; cats: Map<string, number> };
@@ -219,7 +219,7 @@ export function spendingPlaces(db: SqlDriver, o: { start: string; end: string; a
   const scope = o.accountIds?.length ? ` AND t.account_id IN (${o.accountIds.map(() => "?").join(",")})` : "";
   const rows = db.all<{ lat: number | null; lon: number | null; place: string | null; amount_minor: number; currency: string; category_id: string | null }>(
     `SELECT t.lat, t.lon, t.place, t.amount_minor, a.currency, t.category_id FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.amount_minor<0 AND t.date>=? AND t.date<?${scope}`,
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.amount_minor<0 AND t.date>=? AND t.date<?${scope}`,
     [o.start, o.end, ...(o.accountIds ?? [])]);
   // Places are grown, not cut from a grid: a fixed grid split one shop in two whenever its fixes
   // fell either side of a cell's edge, and each half then lost to a smaller place elsewhere. Rows

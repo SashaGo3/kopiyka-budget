@@ -90,7 +90,8 @@
     "summaryLeft": "≈ {amount} ще попереду",
     "times": "{paid} з {total}",
     "timesLabel": "сплачено {paid} з {total} разів",
-    "allDone": "Усе сплачено · {period}",
+    "allDone": "Усе сплачено",
+    "allDoneSub": "{count, plural, one {# платіж} few {# платежі} many {# платежів} other {# платежу}} · {period}",
     "paidCount": "Сплачено: {count}",
     "choose": "Обери категорії для відстеження."
   },

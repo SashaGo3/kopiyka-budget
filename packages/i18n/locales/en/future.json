@@ -1,7 +1,6 @@
 {
   "card": {
     "teaser": { "message": "What your money becomes in years", "note": "Forecast card on the Insights tab, first line." },
-    "inside": { "message": "Compound interest, a home, freedom, small habits, inflation — on your own numbers.", "note": "Forecast card, second line: the six calculators inside." },
     "noData": "Siriusia needs a month or two of income and spending to read your future. The calculators work already."
   },
   "compact": {

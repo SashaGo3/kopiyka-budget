@@ -2,6 +2,7 @@
   "ios": {
     "CFBundleDisplayName": "Kopiyka Budget",
     "NSCameraUsageDescription": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
+    "NSContactsUsageDescription": "Pick friends from your contacts when you split a bill or plan an event, so Kopiyka knows who owes you what. Only the names you choose are saved, and they stay on your phone.",
     "NSLocationAlwaysAndWhenInUseUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
     "NSLocationAlwaysUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
     "NSLocationWhenInUseUsageDescription": "Remember where you log expenses so the category can be suggested next time.",

@@ -20,6 +20,7 @@ export * from "./spendInsights";
 export * from "./forecast";
 export * from "./trips";
 export * from "./debts";
+export * from "./people";
 export * from "./returns";
 export * from "./split";
 export * from "./regions";

@@ -21,6 +21,7 @@
           "UIInterfaceOrientationLandscapeRight"
         ],
         "NSCameraUsageDescription": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
+        "NSContactsUsageDescription": "Pick friends from your contacts when you split a bill or plan an event, so Kopiyka knows who owes you what. Only the names you choose are saved, and they stay on your phone.",
         "ITSAppUsesNonExemptEncryption": false,
         "EXDevMenuShowFloatingActionButton": false,
         "NSUbiquitousContainers": {
@@ -54,7 +55,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "100"
+      "buildNumber": "102"
     },
     "android": {
       "package": "dev.kopiyka.app",
@@ -100,6 +101,12 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#2B2B2E",
           "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Pick friends from your contacts when you split a bill or plan an event, so Kopiyka knows who owes you what. Only the names you choose are saved, and they stay on your phone."
         }
       ],
       [

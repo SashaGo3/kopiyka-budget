@@ -1,9 +1,10 @@
+import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, save, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import type { SearchBarCommands } from "react-native-screens";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
@@ -350,10 +351,13 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const deleteChosen = () => {
     if (!chosen.length) return;
     const transfers = chosen.filter((x) => x.transfer_id).length;
-    Alert.alert(t("transactions.deleteTitle", { count: chosen.length }), transfers ? t("transactions.deleteTransfers") : undefined, [
-      { text: t("common.cancel"), style: "cancel" },
-      { text: t("common.delete"), style: "destructive", onPress: () => { const ids = chosenIds(); mutate((d) => { for (const id of ids) remove(d, "transactions", id); }); setSelected(null); } },
-    ]);
+    // Deleting asks nothing and offers the way back instead (lib/undo.ts): the rows become tombstones,
+    // and Undo writes them back exactly as they were.
+    void transfers;
+    const ids = chosenIds();
+    const rows = mutate((d) => { const was = ids.map((id) => getRow(d, "transactions", id)).filter((r) => !!r && !r.deleted); for (const id of ids) remove(d, "transactions", id); return was; });
+    setSelected(null);
+    offerUndo({ label: t("misc.deleted", { count: rows.length }), undo: () => mutate((d) => { for (const r of rows) save(d, "transactions", { ...r!, deleted: 0 }); }) });
   };
   const pickCategory = () => {
     if (!chosen.length) return;

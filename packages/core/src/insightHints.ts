@@ -49,7 +49,7 @@ export function suggestInsights(db: SqlDriver, o: { today: string; startDay: num
 
   const windows = periodWindows(o.today, o.startDay, 7).filter((w) => !w.current);
   const perWindow = windows.map((w) => db.get<{ n: number; income: number }>(
-    `SELECT COUNT(*) AS n, SUM(CASE WHEN amount_minor>0 AND transfer_id IS NULL THEN 1 ELSE 0 END) AS income
+    `SELECT COUNT(*) AS n, SUM(CASE WHEN amount_minor>0 AND transfer_id IS NULL AND person_id IS NULL THEN 1 ELSE 0 END) AS income
      FROM transactions WHERE deleted=0 AND date>=? AND date<?`, [w.start, w.end]) ?? { n: 0, income: 0 });
   const months = perWindow.filter((w) => w.n >= ACTIVE_PERIOD_ROWS).length;
 
@@ -82,7 +82,7 @@ export function suggestInsights(db: SqlDriver, o: { today: string; startDay: num
   const folders = new Set(cats.map((c) => c.parent_id).filter(Boolean));
   const top = db.all<{ category_id: string; n: number }>(
     `SELECT category_id, COUNT(*) AS n FROM transactions
-     WHERE deleted=0 AND amount_minor<0 AND transfer_id IS NULL AND recurring_id IS NULL AND category_id IS NOT NULL AND date>=?
+     WHERE deleted=0 AND amount_minor<0 AND transfer_id IS NULL AND person_id IS NULL AND recurring_id IS NULL AND category_id IS NOT NULL AND date>=?
      GROUP BY category_id ORDER BY n DESC LIMIT 5`, [since90]);
   const habit = top.find((x) => !folders.has(x.category_id) && !covered.has(x.category_id) && cats.some((c) => c.id === x.category_id));
   const perWeek = habit ? Math.round((habit.n / 90) * 7) : 0;

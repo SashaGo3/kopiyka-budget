@@ -162,7 +162,7 @@ describe("backup", () => {
 
     const b = fresh();
     const report = importBackup(b, json);
-    expect(report.imported).toEqual({ accounts: 1, categories: 2, tags: 1, transactions: 1, recurring_rules: 1, budgets: 1, insights: 0, debts: 0 });
+    expect(report.imported).toEqual({ accounts: 1, categories: 2, tags: 1, transactions: 1, recurring_rules: 1, budgets: 1, insights: 0, debts: 0, people: 0 });
     expect(getRow(b, "categories", cat.id)?.icon).toBe("cup.and.saucer.fill");
     expect(getRow(b, "tags", tag.id)?.category_ids).toBe(JSON.stringify([folder.id]));
     expect(getMeta(b, "period_start_day")).toBe("15");

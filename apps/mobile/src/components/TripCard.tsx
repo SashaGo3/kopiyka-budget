@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LayoutAnimation, StyleSheet, Text, View } from "react-native";
+import { Collapsible } from "@/components/Collapsible";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { formatMinor, getRow, tripKind, tripStats, type Budget } from "@kopiyka/core";
@@ -90,13 +91,13 @@ export function TripCard({ budget, compact, onPress, onShow }: { budget: Budget;
       ) : null}
       {s.unconverted.length ? <Text style={styles.warn}>{t("travel.card.unconverted", { amounts: s.unconverted.map((u) => `${formatMinor(u.minor, u.currency)} ${u.currency}`).join(", ") })}</Text> : null}
       {!compact && s.by_category.length ? (
-        <Tap onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v); }} style={styles.fold}
+        <Tap onPress={() => setOpen((v) => !v)} style={styles.fold}
           accessibilityRole="button" accessibilityLabel={open ? t("travel.card.hideSpent") : t("travel.card.showSpent")} accessibilityState={{ expanded: open }}>
           <Text style={[styles.sub, { flex: 1 }]}>{t("travel.card.byCategory")}</Text>
           <SymbolView name={open ? "chevron.up" : "chevron.down"} size={13} tintColor={C.secondary} />
         </Tap>
       ) : null}
-      {!compact && open && s.by_category.map((ch) => {
+      {!compact && s.by_category.length ? <Collapsible open={open} lazy>{s.by_category.map((ch) => {
         const c = cats.get(ch.category_id);
         const name = c ? catName(c) : t("budgets.title.uncategorized");
         return (
@@ -108,7 +109,7 @@ export function TripCard({ budget, compact, onPress, onShow }: { budget: Budget;
             <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
           </Tap>
         );
-      })}
+      })}</Collapsible> : null}
     </View>
   );
 }

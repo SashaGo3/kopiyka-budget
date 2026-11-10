@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Alert, LayoutAnimation, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
+import { animateNextLayout } from "@/lib/motion";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { accountLeftover, biggestOneOffs, monthVsUsual, spendingPlaces, topShops, categoryChecklist, save, checklistTotals, daysToSalary, formatMinor, freeMoney, getRow, listRows, parseInsightParams, regularSpending, retiredKind, safeToSpend, safetyBuffer, subscriptionsPerYear, valueSplit, withChecklistTick, type Insight, type InsightParams, type ValuePeriod } from "@kopiyka/core";
@@ -84,6 +85,10 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
     }
   }, [insight.id, insight.kind, insight.params, period.start, scope, startDay, detail]);
   const sub = (s: string) => <Text style={styles.sub}>{s}</Text>;
+  // The Insights tab is for a glance: the number, a bar, the few lines that moved. The sentences
+  // that explain them — how it was worked out, what it is compared with, what is left out — are on
+  // the details screen, which draws this same card with `detail`.
+  const more = (s: string | null | false | undefined) => (detail && s ? sub(s) : null);
   const pn = period.subtitle ?? period.title;
   const strong = { b: (c: ReactNode) => <Text style={styles.lineStrong}>{c}</Text>, g: (c: ReactNode) => <Text style={[styles.lineStrong, { color: C.green }]}>{c}</Text> };
   const amt = (minor: number, currency: string) => `${formatMinor(minor, currency)} ${currency}`;
@@ -98,14 +103,14 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
           {data.v.length ? data.v.map((m) => <Money key={m.currency} minor={m.minor} currency={m.currency} style={[styles.big, { color: m.minor < 0 ? C.red : C.green }]} />) : sub(t("insights.noBudgets"))}
           {sub(t("insights.free.left", { period: pn }))}
           {/* Only for the period running now: "still to be charged" is about days still to come. */}
-          {s && s.committed.length ? <Text style={styles.line}>{t("insights.free.committed", { amount: s.committed.map((c) => amt(c.minor, c.currency)).join(" · "), day: humanDayTime(s.next) })}</Text> : null}
+          {detail && s && s.committed.length ? <Text style={styles.line}>{t("insights.free.committed", { amount: s.committed.map((c) => amt(c.minor, c.currency)).join(" · "), day: humanDayTime(s.next) })}</Text> : null}
           {s && s.safe.length && s.committed.length ? s.per_day.map((m) => <Text key={m.currency} style={styles.line}><Trans k="insights.free.perDayAfter" vars={{ amount: amt(m.minor, m.currency) }} tags={strong} /></Text>) : null}
           {s && s.short.length ? <Text style={[styles.sub, { color: C.orange }]}>{t("insights.safe.short", { amount: s.short.map((m) => amt(m.minor, m.currency)).join(" · ") })}</Text> : null}
         </View>
       );
     }
     case "days_to_salary":
-      return <View><Text style={styles.big}>{t("insights.days", { count: data.v.days })}</Text>{sub(t("insights.salary.until", { day: humanDayTime(data.v.next) }))}{data.v.per_day.map((m) => <Text key={m.currency} style={styles.line}><Trans k="insights.perDay" vars={{ amount: amt(m.minor, m.currency) }} tags={strong} /></Text>)}</View>;
+      return <View><Text style={styles.big}>{t("insights.days", { count: data.v.days })}</Text>{more(t("insights.salary.until", { day: humanDayTime(data.v.next) }))}{data.v.per_day.map((m) => <Text key={m.currency} style={styles.line}><Trans k="insights.perDay" vars={{ amount: amt(m.minor, m.currency) }} tags={strong} /></Text>)}</View>;
     case "savings_goal": {
       // Siriusia's verdict, the bar with its quarter marks, and when it gets there (components/future/Goal.tsx).
       const { GoalCardBody } = future();
@@ -121,11 +126,11 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
       const waiting = a.with_pending_minor - a.balance_minor;
       return <View>
         <Money minor={a.balance_minor} currency={a.currency} style={[styles.big, { color: a.balance_minor < 0 ? C.red : C.label }]} />
-        {sub(waiting ? t("insights.balance.leftPending", { account: acctName(a), amount: formatMinor(a.with_pending_minor, a.currency) }) : t("insights.balance.left", { account: acctName(a) }))}
+        {more(waiting ? t("insights.balance.leftPending", { account: acctName(a), amount: formatMinor(a.with_pending_minor, a.currency) }) : t("insights.balance.left", { account: acctName(a) }))}
         <Text style={styles.line}>
           <Trans k="insights.balance.inOut" vars={{ income: amt(a.in_minor, a.currency), spent: amt(a.out_minor, a.currency) }} tags={strong} />
         </Text>
-        {sub(period.subtitle ?? period.title)}
+        {more(period.subtitle ?? period.title)}
       </View>;
     }
     case "checklist": {
@@ -137,7 +142,19 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
       const paid = data.v.length - open.length;
       const lines = detail ? data.v : open;
       const left = detail ? [] : checklistTotals(data.v).filter((x) => x.expected_minor);
+      // Everything paid is news worth a moment of its own: a seal, "All paid", and what it came to.
+      const allPaid = data.v.length > 0 && !open.length;
+      const paidSums = allPaid ? checklistTotals(data.v).filter((x) => x.paid_minor).map((x) => amt(x.paid_minor, x.currency)) : [];
       return <View style={{ gap: 4 }}>
+        {allPaid ? (
+          <View style={styles.allPaid} accessible accessibilityLabel={[t("insights.checklist.allDone"), t("insights.checklist.allDoneSub", { count: data.v.length, period: pn }), ...paidSums].join(", ")}>
+            <SymbolView name="checkmark.seal.fill" size={36} tintColor={C.green} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.allPaidTitle}>{t("insights.checklist.allDone")}</Text>
+              <Text style={styles.sub}>{[t("insights.checklist.allDoneSub", { count: data.v.length, period: pn }), ...paidSums].join(" · ")}</Text>
+            </View>
+          </View>
+        ) : null}
         {left.map((x) => <Text key={x.currency} style={styles.sub}>{t("insights.checklist.summaryLeft", { amount: amt(x.expected_minor, x.currency) })}</Text>)}
         {data.v.length ? lines.map((c) => {
         const cat = data.cats.get(c.category_id);
@@ -194,21 +211,21 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                 <Text style={styles.sub}>{t("insights.checklist.times", { paid: times.paid, total: times.total })}</Text>
               </View>
             ) : null}
-            {hint ? <Text style={styles.sub}>{hint}</Text> : null}
+            {detail && hint ? <Text style={styles.sub}>{hint}</Text> : null}
           </View>
           {detail && c.spent_minor && c.currency && (c.done || times) ? <Money minor={-c.spent_minor} currency={c.currency} style={styles.sub} /> : null}
         </Tap>;
       }) : sub(t("insights.checklist.choose"))}
-        {!data.v.length ? null : !open.length ? sub(t("insights.checklist.allDone", { period: pn })) : !detail && paid ? sub(t("insights.checklist.paidCount", { count: paid })) : null}</View>;
+        {!data.v.length || !open.length ? null : !detail && paid ? sub(t("insights.checklist.paidCount", { count: paid })) : null}</View>;
     }
     case "subscriptions": {
       // The payments themselves are on the details screen, where there is room for every one of them.
       const included = data.v.lines.filter((l) => l.included);
-      return <View>{data.v.totals.map((x) => <Money key={x.currency} minor={x.minor} currency={x.currency} style={styles.big} />)}{sub(t("insights.subscriptions.perYear", { included: included.length, count: data.v.lines.length }))}
+      return <View>{data.v.totals.map((x) => <Money key={x.currency} minor={x.minor} currency={x.currency} style={styles.big} />)}{more(t("insights.subscriptions.perYear", { included: included.length, count: data.v.lines.length }))}
         {data.v.totals.map((x) => <Text key={x.currency} style={styles.line}><Trans k="insights.subscriptions.perMonth" vars={{ amount: amt(Math.round(x.minor / 12), x.currency) }} tags={strong} /></Text>)}</View>;
     }
     case "regular":
-      return <View>{data.v.length ? data.v.map((r) => <View key={r.currency}><Money minor={r.average_minor} currency={r.currency} style={styles.big} />{sub(r.frequency === "weekly" ? t("insights.regular.weekly", { names: data.names, last: amt(r.last_minor, r.currency) }) : t("insights.regular.monthly", { names: data.names, last: amt(r.last_minor, r.currency) }))}{p.window_months ? sub(t("insights.regular.window", { count: p.window_months })) : null}</View>) : sub(t("insights.regular.choose"))}</View>;
+      return <View>{data.v.length ? data.v.map((r) => <View key={r.currency}><Money minor={r.average_minor} currency={r.currency} style={styles.big} />{sub(r.frequency === "weekly" ? t("insights.regular.weekly", { names: data.names, last: amt(r.last_minor, r.currency) }) : t("insights.regular.monthly", { names: data.names, last: amt(r.last_minor, r.currency) }))}{p.window_months ? more(t("insights.regular.window", { count: p.window_months })) : null}</View>) : sub(t("insights.regular.choose"))}</View>;
     case "values": {
       const v = data.v[0];
       if (!v) return sub(t("insights.values.nothing"));
@@ -247,7 +264,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                   <Money minor={now.by_level[lv]} currency={v.currency} style={styles.legendMoney} />
                   <Text style={styles.legendPct}>{pct(now.by_level[lv])}%</Text>
                 </View>
-                {list.length ? (
+                {detail && list.length ? (
                   <Text style={styles.legendCats}>
                     {shown.map((x, i) => (
                       <Text key={x.id ?? "none"}>
@@ -255,7 +272,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                         <Text style={styles.catLink} onPress={() => openCat(x)} accessibilityRole="link" accessibilityLabel={t("insights.values.openCategory", { name: x.name })}>{x.name}</Text>
                       </Text>
                     ))}
-                    {list.length > shown.length ? <Text style={styles.catLink} onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen(true); }} accessibilityRole="button">{` ${t("insights.values.more", { count: list.length - shown.length })}`}</Text> : null}
+                    {list.length > shown.length ? <Text style={styles.catLink} onPress={() => { animateNextLayout(); setOpen(true); }} accessibilityRole="button">{` ${t("insights.values.more", { count: list.length - shown.length })}`}</Text> : null}
                   </Text>
                 ) : null}
               </View>
@@ -270,10 +287,10 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
               </View>
             ))}
           </View>
-          {first && first !== now && first.essential_share !== null && now.essential_share !== null
+          {!detail ? null : first && first !== now && first.essential_share !== null && now.essential_share !== null
             ? sub(Math.abs(now.essential_share - first.essential_share) < 0.02 ? t("insights.values.trendSame", { pct: Math.round(first.essential_share * 100) }) : now.essential_share > first.essential_share ? t("insights.values.trendLess", { pct: Math.round(first.essential_share * 100) }) : t("insights.values.trendMore", { pct: Math.round(first.essential_share * 100) }))
             : sub(t("insights.values.sixPeriods"))}
-          {v.unmarked_minor > 0 ? sub(t("insights.values.unmarked")) : null}
+          {v.unmarked_minor > 0 ? more(t("insights.values.unmarked")) : null}
         </View>
       );
     }
@@ -282,11 +299,11 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
       if (!v) return sub(t("insights.usual.nothing"));
       const r = v.usual_minor ? (v.now_minor - v.usual_minor) / v.usual_minor : null;
       // On the card only what actually moved: a tenth either way, or spending that is new.
-      const lines = detail ? v.lines : v.lines.filter((l) => l.ratio === null || Math.abs(l.ratio) >= 0.1).slice(0, 4);
+      const lines = detail ? v.lines : v.lines.filter((l) => l.ratio === null || Math.abs(l.ratio) >= 0.1).slice(0, 3);
       return (
         <View style={{ gap: 4 }}>
           <Text style={[styles.big, r !== null && Math.abs(r) >= 0.03 && { color: r > 0 ? C.orange : C.green }]}>{r === null ? amt(v.now_minor, v.currency) : Math.abs(r) < 0.03 ? t("insights.usual.same") : pctChange(r)}</Text>
-          {sub(t(v.partial ? "insights.usual.soFar" : "insights.usual.whole", { amount: amt(v.now_minor, v.currency), usual: amt(v.usual_minor, v.currency) }))}
+          {more(t(v.partial ? "insights.usual.soFar" : "insights.usual.whole", { amount: amt(v.now_minor, v.currency), usual: amt(v.usual_minor, v.currency) }))}
           {lines.map((l) => {
             const cat = data.cats.get(l.category_id);
             const name = cat ? catName(cat) : t("common.noCategory");
@@ -298,7 +315,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                 <CategoryIcon name={name} icon={cat?.icon} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.line} numberOfLines={1}>{name}</Text>
-                  <Text style={styles.sub}>{`${amt(l.now_minor, v.currency)} · ${amt(l.usual_minor, v.currency)}`}</Text>
+                  {more(`${amt(l.now_minor, v.currency)} · ${amt(l.usual_minor, v.currency)}`)}
                 </View>
                 <Text style={[styles.lineStrong, { color: up ? C.orange : C.green }]}>{change}</Text>
               </Tap>
@@ -322,7 +339,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                 <CategoryIcon name={cat ? catName(cat) : title} icon={cat?.icon} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.line} numberOfLines={1}>{title}</Text>
-                  <Text style={styles.sub} numberOfLines={1}>{cat ? `${when} · ${catName(cat)}` : when}</Text>
+                  {detail ? <Text style={styles.sub} numberOfLines={1}>{cat ? `${when} · ${catName(cat)}` : when}</Text> : null}
                 </View>
                 <Money minor={-r.amount_minor} currency={v.currency} style={styles.lineStrong} />
               </Tap>
@@ -344,7 +361,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                 <CategoryIcon name={cat ? catName(cat) : s.name} icon={cat?.icon} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.line} numberOfLines={1}>{s.name}</Text>
-                  <Text style={styles.sub}>{t("insights.shops.count", { count: s.count })}</Text>
+                  {more(t("insights.shops.count", { count: s.count }))}
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
                   <Money minor={s.spent_minor} currency={v.currency} style={styles.lineStrong} />
@@ -371,13 +388,13 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                 <CategoryIcon name={cat ? catName(cat) : name} icon={cat?.icon ?? "mappin"} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.line} numberOfLines={1}>{name}</Text>
-                  <Text style={styles.sub}>{t("insights.shops.count", { count: pl.count })}</Text>
+                  {more(t("insights.shops.count", { count: pl.count }))}
                 </View>
                 <Money minor={pl.spent_minor} currency={v.currency} style={styles.lineStrong} />
               </View>
             );
           })}
-          {sub(t("insights.map.located", { pct: v.total_minor ? Math.round((v.located_minor / v.total_minor) * 100) : 0 }))}
+          {more(t("insights.map.located", { pct: v.total_minor ? Math.round((v.located_minor / v.total_minor) * 100) : 0 }))}
         </View>
       );
     }
@@ -387,7 +404,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
       if (b.no_essentials) return (
         <View>
           <Text style={styles.line}>{t("insights.buffer.noEssentials")}</Text>
-          {sub(t("insights.buffer.noEssentialsHint"))}
+          {more(t("insights.buffer.noEssentialsHint"))}
         </View>
       );
       // Which accounts are counted is the card's settings, not its news: the detail screen says it,
@@ -396,18 +413,18 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
       return (
         <View style={{ gap: 6 }}>
           <Text style={styles.big}>{b.months_covered === null ? "—" : t("insights.months", { count: Number(b.months_covered.toFixed(1)) })}</Text>
-          {sub(t(b.basis === "chosen" ? "insights.buffer.liveChosenPlain" : "insights.buffer.liveImportantPlain"))}
+          {more(t(b.basis === "chosen" ? "insights.buffer.liveChosenPlain" : "insights.buffer.liveImportantPlain"))}
           {goal ? <ProgressBar ratio={b.ratio} color={b.ratio >= 1 ? ValueRamp[3] : ValueRamp[2]} /> : null}
           {goal ? (
             <Text style={styles.line}>
               <Trans k="insights.of" vars={{ have: amt(b.have_minor, b.currency), target: amt(b.target_minor, b.currency) }} tags={strong} />
             </Text>
           ) : null}
-          {goal
+          {!detail ? null : goal
             ? sub(t(b.basis === "chosen" ? "insights.buffer.explainChosen" : "insights.buffer.explain", { count: b.months_wanted, amount: amt(b.essential_minor, b.currency), periods: b.periods }))
             : sub(t("insights.buffer.monthCosts", { amount: amt(b.essential_minor, b.currency), periods: b.periods }))}
-          {b.extra_pct ? sub(t("insights.buffer.cushion", { pct: b.extra_pct, amount: amt(b.base_minor, b.currency) })) : null}
-          {detail ? sub(t("insights.buffer.accounts", { accounts: data.names, amount: amt(b.have_minor, b.currency) })) : null}
+          {b.extra_pct ? more(t("insights.buffer.cushion", { pct: b.extra_pct, amount: amt(b.base_minor, b.currency) })) : null}
+          {more(t("insights.buffer.accounts", { accounts: data.names, amount: amt(b.have_minor, b.currency) }))}
           {b.missing.length ? <Text style={[styles.sub, { color: C.orange }]}>{t("insights.buffer.noRate", { currencies: b.missing.join(", ") })}</Text> : null}
         </View>
       );
@@ -442,4 +459,6 @@ const styles = themed(() => StyleSheet.create({
   trendRow: { flexDirection: "row", alignItems: "flex-end", gap: 4, height: 34, marginTop: S.sm },
   trendSlot: { flex: 1, justifyContent: "flex-end" },
   trendBar: { borderRadius: 2 },
+  allPaid: { flexDirection: "row", alignItems: "center", gap: S.md, paddingVertical: S.xs },
+  allPaidTitle: { fontSize: 22, fontWeight: "700", color: C.green },
 }));

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { formatMinor, fromMinor, getRow, jsonIds, rateOrFallback, remove, save, toMinor, tripKind, tripStats, type Budget } from "@kopiyka/core";
+import { budgetPeople, formatMinor, fromMinor, getRow, jsonIds, listPeople, rateOrFallback, remove, save, toMinor, tripKind, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -23,12 +23,14 @@ export default function TripSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const trip = useQuery((d) => getRow(d, "budgets", id) ?? null, [id]);
   const s = useQuery((d) => (trip ? tripStats(d, trip) : null), [trip?.id, trip?.updated_at]);
-  const keys = useMemo(() => ({ amount: newPickKey("tripamt"), currency: newPickKey("tripcur") }), []);
+  const keys = useMemo(() => ({ amount: newPickKey("tripamt"), currency: newPickKey("tripcur"), people: newPickKey("trippeople") }), []);
+  const peopleNames = useQuery((d) => { const all = new Map(listPeople(d).map((x) => [x.id, x.name])); return budgetPeople(trip?.people).map((x) => all.get(x)).filter(Boolean).join(", "); }, [trip?.people]);
   const change = useCallback((patch: Partial<Budget>) => {
     const b = getRow(db, "budgets", id);
     if (b) mutate((d) => save(d, "budgets", { ...b, ...patch }));
   }, [id]);
   usePickResult<number>(keys.amount, useCallback((minor: number) => change({ amount_minor: minor }), [change]));
+  usePickResult<string[]>(keys.people, useCallback((ids: string[]) => change({ people: ids.length ? JSON.stringify(ids) : null }), [change]));
   // Another currency keeps the same budget, converted at today's rate; with no rate there is
   // nothing honest to convert it with, so it is refused rather than guessed.
   usePickResult<string>(keys.currency, useCallback((next: string) => {
@@ -80,6 +82,8 @@ export default function TripSettings() {
             onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: trip.currency, title: t("travel.start.currency") } })} />
           <Row icon="calendar" iconColor="#FF9F0A" title={t("travel.trip.dates")} subtitle={`${humanDayTime(trip.starts, null, undefined, true)} → ${humanDayTime(last, null, undefined, true)}`} style={styles.divider}
             onPress={() => router.push({ pathname: "/travel/dates", params: { budget: trip.id } })} />
+          <Row icon="person.2.fill" iconColor="#AF52DE" title={t("people.event.people")} subtitle={peopleNames || t("people.event.nobody")} style={styles.divider}
+            onPress={() => router.push({ pathname: "/pick/people", params: { key: keys.people, selected: budgetPeople(trip.people).join(",") } })} />
         </Card>
         <SectionHeader>{t("travel.trip.transactions")}</SectionHeader>
         <Card>

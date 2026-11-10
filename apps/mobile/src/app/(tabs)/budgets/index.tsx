@@ -1,10 +1,13 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from "react";
 import { LayoutAnimation, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Collapsible } from "@/components/Collapsible";
+import { staggerDelay } from "@/lib/motion";
 import { Stack, router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, sumInBase, tagSpend, tripTagIds } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
+import { OwedCard } from "@/components/OwedCard";
 import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, PressCard, ProgressBar, SectionHeader, StatPair, Tap } from "@/components/ui";
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
@@ -134,11 +137,13 @@ export default function BudgetsScreen() {
   const openCategory = (id: string | null | undefined, name: string, tag?: string | null) => router.push({ pathname: "/transactions", params: { ...(id !== undefined ? { category: id ?? "none" } : {}), name, ...(tag ? { tag } : {}), from: start, to: end, accounts: scopeIds.join(","), nonce: String(Date.now()) } });
   /** A trip's line in Spending: everything with its tag in this period, whatever the category. */
   const openTrip = (tag: string, name: string) => openCategory(undefined, name, tag);
-  const toggle = (key: string) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
+  const toggle = (key: string) => { setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
 
   // The sections in the order chosen on the reorder screen (Settings key `budgets_sections`).
   const sections = useQuery(() => getBudgetsSections());
   const blocks: Record<BudgetsSection, ReactNode> = {
+    // Friends who owe you, open debts and payments waiting to be split; drawn only when there are any.
+    owed: <OwedCard />,
     budgets: (
       <>
           {data.rows.length ? (
@@ -172,7 +177,7 @@ export default function BudgetsScreen() {
             const saved = b.limit - b.spent;
             const status = over ? t("budgets.status.exceeded") : exact ? t("budgets.status.exact") : kept ? t("budgets.status.saved", { amount: `${formatMinor(saved, b.currency)} ${b.currency}` }) : t("budgets.available");
             return (
-              <FadeIn key={b.id} delay={bi * 40}>
+              <FadeIn key={b.id} delay={staggerDelay(bi, 40)}>
               {/* The whole card is the way in to the budget's details; changing it is Edit there, and
                   moving it is Reorder above the list. */}
               <PressCard style={styles.budget} onPress={() => router.push({ pathname: "/budgets/[id]", params: { id: b.id } })}
@@ -225,7 +230,8 @@ export default function BudgetsScreen() {
                       <Money minor={-g.spent} currency={g.currency} />
                       <SymbolView name={expandable ? (open ? "chevron.down" : "chevron.right") : "chevron.right"} size={12} tintColor={C.tertiary} />
                     </Tap>
-                    {open ? (
+                    {expandable ? (
+                      <Collapsible open={open} lazy>
                       <View style={styles.children}>
                         {g.debts ? null : (
                           <Tap onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.spending.allLabel", { name: g.name })}>
@@ -243,6 +249,7 @@ export default function BudgetsScreen() {
                           </Tap>
                         ))}
                       </View>
+                      </Collapsible>
                     ) : null}
                   </View>
                 );
@@ -262,9 +269,11 @@ export default function BudgetsScreen() {
     travel: (
       <>
           {pastTrips.length ? (
-            <SectionHeader right={pastTrips.length > 3 ? <Tap onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><Text style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</Text></Tap> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
+            <SectionHeader right={pastTrips.length > 3 ? <Tap onPress={() => setPastOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><Text style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</Text></Tap> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
           ) : null}
-          {(pastTrips.length > 3 ? (pastOpen ? pastTrips : []) : pastTrips).map((x) => <TripCard key={x.id} budget={x} compact />)}
+          {pastTrips.length > 3
+            ? <Collapsible open={pastOpen} lazy>{pastTrips.map((x) => <TripCard key={x.id} budget={x} compact />)}</Collapsible>
+            : pastTrips.map((x) => <TripCard key={x.id} budget={x} compact />)}
       </>
     ),
   };

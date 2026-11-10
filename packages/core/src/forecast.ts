@@ -286,8 +286,8 @@ export function moneyPace(db: SqlDriver, o: { today: string; startDay: number; p
   windows.forEach((w, i) => {
     const rows = db.all<{ currency: string; income: number | null; spend: number | null }>(
       `SELECT a.currency AS currency,
-              SUM(CASE WHEN t.amount_minor>0 AND t.debt_id IS NULL THEN t.amount_minor ELSE 0 END) AS income,
-              SUM(CASE WHEN t.amount_minor<0 THEN -t.amount_minor WHEN t.debt_id IS NOT NULL THEN -t.amount_minor ELSE 0 END) AS spend
+              SUM(CASE WHEN t.amount_minor>0 AND t.debt_id IS NULL AND t.person_id IS NULL THEN t.amount_minor ELSE 0 END) AS income,
+              SUM(CASE WHEN t.amount_minor<0 THEN -t.amount_minor WHEN t.debt_id IS NOT NULL OR t.person_id IS NOT NULL THEN -t.amount_minor ELSE 0 END) AS spend
        FROM transactions t JOIN accounts a ON a.id=t.account_id
        WHERE t.deleted=0 AND a.deleted=0 AND ${which} AND t.date>=? AND t.date<?
          AND (t.transfer_id IS NULL OR NOT EXISTS (

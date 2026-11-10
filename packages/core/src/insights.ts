@@ -576,7 +576,7 @@ export function categoryChecklist(db: SqlDriver, p: InsightParams, o: { start: s
   const kidsOf = (id: string) => all.filter((c) => c.parent_id === id).map((c) => c.id);
   const inAccounts = (accountId: string) => !o.accountIds?.length || o.accountIds.includes(accountId);
   // Every expense of the period once, so each line below is a filter rather than a query.
-  const period = (listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND amount_minor<0 AND date>=? AND date<?", [o.start, o.end]) as Transaction[]).filter((t) => inAccounts(t.account_id));
+  const period = (listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND amount_minor<0 AND date>=? AND date<?", [o.start, o.end]) as Transaction[]).filter((t) => inAccounts(t.account_id));
   const lastOf = (txs: Transaction[]) => {
     const t = txs.find((x) => x.date < o.start) ?? txs[0];
     return t ? { id: t.id, amount_minor: t.amount_minor, currency: accounts.get(t.account_id)?.currency ?? "", date: t.date, tag_ids: tagIdsOf(t), notes: t.notes, account_id: t.account_id, payee: t.payee } : null;
@@ -590,7 +590,7 @@ export function categoryChecklist(db: SqlDriver, p: InsightParams, o: { start: s
     scopes.set(key, scope);
     const hit = (t: Transaction) => !!t.category_id && scope.includes(t.category_id) && (!tagId || tagIdsOf(t).includes(tagId));
     const rows = period.filter(hit);
-    const history = (listRows(db, "transactions", `deleted=0 AND transfer_id IS NULL AND category_id IN (${scope.map(() => "?").join(",")})`, scope, "date DESC") as Transaction[]).filter((t) => !tagId || tagIdsOf(t).includes(tagId));
+    const history = (listRows(db, "transactions", `deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND category_id IN (${scope.map(() => "?").join(",")})`, scope, "date DESC") as Transaction[]).filter((t) => !tagId || tagIdsOf(t).includes(tagId));
     const last = lastOf(history);
     const before = last ? history.filter((t) => t.amount_minor < 0 && t.date >= prevStart && t.date < o.start && inAccounts(t.account_id) && accounts.get(t.account_id)?.currency === last.currency) : [];
     const previous = before.length > 1 ? { total_minor: before.reduce((a, t) => a - t.amount_minor, 0), count: before.length, currency: last!.currency } : null;
@@ -710,7 +710,7 @@ export function upcomingPayments(db: SqlDriver, p: InsightParams, o: { start: st
   const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a]));
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
   const tags = new Map(listRows(db, "tags", "1=1").map((t) => [t.id, t]));
-  const txs = listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND date>=? AND date<?", [o.start, o.end], "date DESC");
+  const txs = listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND date>=? AND date<?", [o.start, o.end], "date DESC");
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
   return (p.templates ?? []).map((tpl) => {
     const hit = txs.find((t) => (t.category_id ?? null) === (tpl.category_id ?? null) && same(tagIdsOf(t), tpl.tag_ids) && normTitle(t.notes) === normTitle(tpl.notes));

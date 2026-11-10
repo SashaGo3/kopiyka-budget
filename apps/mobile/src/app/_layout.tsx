@@ -1,3 +1,4 @@
+import { UndoToast } from "@/components/UndoToast";
 import { useEffect, useRef, useState } from "react";
 import { Stack, router, useNavigationContainerRef, ThemeProvider, DarkTheme, DefaultTheme, type ErrorBoundaryProps } from "expo-router";
 import { useColorScheme, AppState, InteractionManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
@@ -189,6 +190,8 @@ export default function RootLayout() {
           <Stack.Screen name="accounts/[id]" options={{ ...pushed, title: "", headerBackTitle: t("common.back") }} />
           <Stack.Screen name="search" options={{ ...pushed, title: t("transactions.searchTitle"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="pending" options={{ ...pushed, title: t("layout.pending"), headerBackTitle: t("common.back") }} />
+          <Stack.Screen name="person/[id]" options={{ ...pushed, title: "", headerBackTitle: t("common.back") }} />
+          <Stack.Screen name="tosplit" options={{ ...pushed, title: t("people.toSplit.title"), headerBackTitle: t("common.back") }} />
           <Stack.Screen name="transaction/[id]" options={fit} />
           <Stack.Screen name="transaction/split" options={modal} />
           {/* A list that has to be read before it is agreed to, so a full card rather than a sheet. */}
@@ -234,6 +237,9 @@ export default function RootLayout() {
           <Stack.Screen name="pick/option" options={fit} />
           <Stack.Screen name="pick/month" options={fit} />
           <Stack.Screen name="pick/amount" options={fit} />
+          <Stack.Screen name="pick/split-amount" options={{ ...fit, sheetLargestUndimmedDetentIndex: "last" }} />
+          <Stack.Screen name="pick/people" options={picker} />
+          <Stack.Screen name="pick/items" options={modal} />
           <Stack.Screen name="pick/accounts" options={picker} />
           <Stack.Screen name="pick/categories" options={picker} />
           <Stack.Screen name="pick/types" options={picker} />
@@ -244,6 +250,7 @@ export default function RootLayout() {
           <Stack.Screen name="insight/reorder" options={{ ...modal, gestureEnabled: false }} />
           <Stack.Screen name="filter" options={modal} />
         </Stack>
+        <UndoToast />
       </View>}
       <LaunchCover />
     </ThemeProvider>

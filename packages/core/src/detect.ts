@@ -119,7 +119,7 @@ export function detectRecurring(db: SqlDriver, opts: DetectOptions): RecurringCa
   const txs = db.all(
     `SELECT t.id, t.account_id, t.category_id, c.name AS category_name, t.payee, t.notes, t.bank_note, t.amount_minor, t.date, t.tag_ids, a.currency
      FROM transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN categories c ON c.id=t.category_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.pending=0 AND t.recurring_id IS NULL ORDER BY t.date`) as unknown as Tx[];
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.pending=0 AND t.recurring_id IS NULL ORDER BY t.date`) as unknown as Tx[];
   const tol = opts.amountTolerance ?? 0.15;
   const groups = new Map<string, Tx[]>();
   for (const t of txs) (groups.get(groupKey(t)) ?? groups.set(groupKey(t), []).get(groupKey(t))!).push(t);

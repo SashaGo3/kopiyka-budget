@@ -84,6 +84,8 @@ export interface Backup {
   budgets: RowByTable["budgets"][];
   insights?: RowByTable["insights"][];
   debts?: RowByTable["debts"][];
+  /** From v25. A file without the key leaves the phone's people alone, even when replacing. */
+  people?: RowByTable["people"][];
   rates?: BackupRate[];
 }
 
@@ -111,7 +113,7 @@ export function exportBackup(db: SqlDriver, opts: { includeDeleted?: boolean; no
     format: BACKUP_FORMAT, version: BACKUP_VERSION, schema: Number(getMeta(db, "schema_version") ?? 0) || undefined, exported_at: now.toISOString(), settings,
     accounts: pick("accounts"), categories: pick("categories"), tags: pick("tags"),
     transactions: pick("transactions"), recurring_rules: pick("recurring_rules"), budgets: pick("budgets"), insights: pick("insights"),
-    debts: pick("debts"),
+    debts: pick("debts"), people: pick("people"),
     rates: db.all<BackupRate>(`SELECT base, quote, day, rate, fetched_at FROM exchange_rates ORDER BY base, quote, day`),
   };
 }
@@ -139,6 +141,7 @@ const ROW_DEFAULTS: Record<SyncedTable, Record<string, unknown>> = {
     tag_id: null, ends: null, ended: null },
   insights: { kind: "", params: "{}", sort: 0 },
   debts: { person: "", direction: "owed_to_me", amount_minor: 0, currency: "", account_id: null, opened_date: "1970-01-01", due_date: null, notes: null, settled_date: null, notify: 1, notify_time: DEFAULT_DEBT_NOTIFY_TIME, transaction_id: null },
+  people: { name: "", contact_id: null, color: null, sort: 0, archived: 0 },
 };
 
 /** Fills in columns a compact row lacks; present values always win. */
@@ -171,7 +174,7 @@ export function importBackup(db: SqlDriver, input: string | Backup, opts: { appl
   if (!b || b.format !== BACKUP_FORMAT || !Array.isArray(b.accounts)) throw new KopiykaError("not_a_backup", "Not a Kopiyka backup");
   const replace = opts.mode === "replace";
   const fileSchema = Number(b.schema) || 0;
-  const report: BackupReport = { imported: { accounts: 0, categories: 0, tags: 0, transactions: 0, recurring_rules: 0, budgets: 0, insights: 0, debts: 0 }, skipped: 0, settings: 0, rates: 0, removed: 0 };
+  const report: BackupReport = { imported: { accounts: 0, categories: 0, tags: 0, transactions: 0, recurring_rules: 0, budgets: 0, insights: 0, debts: 0, people: 0 }, skipped: 0, settings: 0, rates: 0, removed: 0 };
   db.transaction(() => {
     for (const t of SYNCED_TABLES) {
       const keep = new Set<string>();
@@ -189,7 +192,9 @@ export function importBackup(db: SqlDriver, input: string | Backup, opts: { appl
       }
       // Anything the file does not mention is gone. Deleted outright rather than tombstoned: the file
       // is the new truth, and a tombstone would only make the next export carry rows about nothing.
-      if (replace) {
+      // People are the exception: a file from before them would otherwise wipe every friend while
+      // the rows that name them stay (DATA.md rule 23).
+      if (replace && !(t === "people" && b.people === undefined)) {
         for (const row of listRows(db, t, "1=1")) {
           if (keep.has(row.id)) continue;
           db.run(`DELETE FROM ${t} WHERE id=?`, [row.id]);

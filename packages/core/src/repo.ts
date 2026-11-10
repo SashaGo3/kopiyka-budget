@@ -3,7 +3,7 @@ import { nowMs } from "./db";
 import { newId } from "./ids";
 import { getMeta, setMeta } from "./schema";
 import { DEFAULT_ACCOUNT_GROUP, DEFAULT_DEBT_NOTIFY_TIME } from "./models";
-import type { Account, Budget, Category, Debt, Insight, RecurringRule, RowByTable, Synced, SyncedTable, Tag, Transaction } from "./models";
+import type { Account, Budget, Category, Debt, Insight, Person, RecurringRule, RowByTable, Synced, SyncedTable, Tag, Transaction } from "./models";
 import { SYNCED_TABLES } from "./models";
 import { isPlaceless } from "./categoryTypes";
 
@@ -13,12 +13,13 @@ export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset", "type"],
   tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
-    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref", "debt_id", "bank_note"],
+    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref", "debt_id", "bank_note", "person_id", "share_of", "items", "to_split"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
     "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee", "icon"],
-  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids", "kind"],
+  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids", "kind", "people"],
   insights: ["kind", "params", "sort"],
-  debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
+  debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id", "person_id"],
+  people: ["name", "contact_id", "color", "sort", "archived"],
 };
 
 export function isSyncedTable(t: string): t is SyncedTable {
@@ -112,7 +113,7 @@ export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<
   return save(db, "transactions", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", pending: 0, transfer_id: null,
     entered_amount_minor: null, entered_currency: null, exchange_rate: null, recurring_id: null, lat: null, lon: null, place: null, photo: null,
-    source: null, refunded_minor: 0, bank_ref: null, debt_id: null, bank_note: null, ...t,
+    source: null, refunded_minor: 0, bank_ref: null, debt_id: null, bank_note: null, person_id: null, share_of: null, items: null, to_split: 0, ...t,
   } as Transaction);
 }
 
@@ -168,6 +169,12 @@ export function inBudgetScope(ids: string[], cats: Map<string, { parent_id: stri
 
 export function createInsight(db: SqlDriver, i: Partial<Insight> & Pick<Insight, "kind">): Insight {
   return save(db, "insights", { params: "{}", sort: 0, ...i } as Insight);
+}
+
+/** A friend, at the end of the custom order. */
+export function createPerson(db: SqlDriver, p: Partial<Person> & Pick<Person, "name">): Person {
+  const sort = p.sort ?? (db.get<{ n: number | null }>(`SELECT MAX(sort) AS n FROM people`)?.n ?? -1) + 1;
+  return save(db, "people", { contact_id: null, color: null, archived: 0, ...p, name: p.name.trim(), sort } as Person);
 }
 
 export function createDebt(db: SqlDriver, d: Partial<Debt> & Pick<Debt, "person" | "amount_minor" | "currency" | "opened_date">): Debt {
@@ -281,7 +288,7 @@ export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, acc
   return db.all<Row>(
     `SELECT t.category_id, a.currency, SUM(t.amount_minor) AS spent_minor
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}${except}
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}${except}
      GROUP BY t.category_id, a.currency`,
     [fromIso, toIso, ...(accountIds?.length ? accountIds : []), ...(o.exceptTags ?? []).map((x) => `%"${x}"%`)],
   ) as unknown as CategorySpend[];
@@ -299,7 +306,7 @@ export function recurringSpend(db: SqlDriver, fromIso: string, toIso: string, ac
   return db.all<Row>(
     `SELECT t.recurring_id, a.currency, SUM(t.amount_minor) AS spent_minor, COUNT(*) AS n
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.recurring_id IS NOT NULL AND t.date>=? AND t.date<?${scope}
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.recurring_id IS NOT NULL AND t.date>=? AND t.date<?${scope}
      GROUP BY t.recurring_id, a.currency`,
     [fromIso, toIso, ...(accountIds?.length ? accountIds : [])],
   ) as unknown as RecurringSpend[];
@@ -314,7 +321,7 @@ export interface TagSpend { category_id: string | null; currency: string; spent_
  * `oneOff` leaves out what a recurring rule posted or claimed — both for trips (trips.ts).
  */
 export function tagSpend(db: SqlDriver, tagId: string, o: { fromIso?: string; toIso?: string; accountIds?: string[]; exceptTags?: string[]; oneOff?: boolean } = {}): TagSpend[] {
-  const conds = ["t.deleted=0", "t.transfer_id IS NULL", "t.amount_minor<0", "t.tag_ids LIKE ?"];
+  const conds = ["t.deleted=0", "t.transfer_id IS NULL", "t.person_id IS NULL", "t.amount_minor<0", "t.tag_ids LIKE ?"];
   const params: SqlParam[] = [`%"${tagId}"%`];
   for (const x of o.exceptTags ?? []) { if (x === tagId) continue; conds.push("(t.recurring_id IS NOT NULL OR t.tag_ids NOT LIKE ?)"); params.push(`%"${x}"%`); }
   if (o.oneOff) conds.push("t.recurring_id IS NULL");

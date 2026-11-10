@@ -44,6 +44,14 @@
       "message": "{amount} {currency} available",
       "note": "Under the amount: the most this part can be."
     },
+    "othersEach": {
+      "message": "Everyone else: {amount} {currency} each",
+      "note": "Under a friend's share while it is typed: what you and the friends on an equal share each come to."
+    },
+    "yoursLeft": {
+      "message": "Yours: {amount} {currency}",
+      "note": "Under a friend's share while it is typed, when you are the only one left on an equal share."
+    },
     "tooMuchShort": "More than there is to give",
     "use": "Use this amount"
   }

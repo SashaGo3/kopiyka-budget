@@ -91,7 +91,8 @@
     "summaryLeft": { "message": "≈ {amount} to go", "note": "Checklist summary part: roughly what the open lines will still cost." },
     "times": { "message": "{paid} of {total}", "note": "A weekly payment paid once of the four times it falls this period: \"1 of 4\"." },
     "timesLabel": { "message": "paid {paid} of {total} times", "note": "VoiceOver for the progress dots of a payment due several times this period." },
-    "allDone": { "message": "All paid · {period}" },
+    "allDone": { "message": "All paid", "note": "Big line on the payments checklist when every line of the period is paid.", "max": 24 },
+    "allDoneSub": { "message": "{count, plural, one {# payment} other {# payments}} · {period}", "note": "Under \"All paid\": how many lines, and the period; the amount paid follows after another ·." },
     "paidCount": { "message": "{count} paid", "note": "Under the checklist card: how many lines are already paid; they are listed on the details screen." },
     "choose": "Choose categories to watch."
   },

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { activeBudgets, budgetCategoryIds, formatMinor, getRow, listTrips, remove, save, type Budget } from "@kopiyka/core";
+import { activeBudgets, budgetCategoryIds, debtTotals, formatMinor, getRow, listDebts, listTrips, personBalances, remove, save, toSplitQueue, type Budget } from "@kopiyka/core";
 import { SymbolView } from "expo-symbols";
 import { View } from "react-native";
 import { mutate, useQuery } from "@/store";
@@ -26,6 +26,8 @@ export default function BudgetReorder() {
     return activeBudgets(d, todayLocal(), scopeAccount(getBudgetScope())).map((b) => ({ b, title: budgetTitle(b, names), icon: iconOf(b, d) }));
   });
   const hasTravel = useQuery((d) => listTrips(d).some((t) => t.ended));
+  // Owed to you is only on the screen when it has something to show, and so only in this list then.
+  const hasOwed = useQuery((d) => personBalances(d).length > 0 || debtTotals(listDebts(d, { settled: false })).length > 0 || toSplitQueue(d).length > 0);
   const items = useMemo(() => getBudgetsSections().flatMap((sec) => {
     if (sec === "budgets") return budgets.map(({ b, title, icon }) => ({
       id: b.id, title, deletable: true,
@@ -33,8 +35,9 @@ export default function BudgetReorder() {
       icon: <CategoryIcon name={title} icon={icon?.icon ?? null} color={icon?.color ?? null} size={30} />,
     }));
     if (sec === "travel" && !hasTravel) return [];
+    if (sec === "owed" && !hasOwed) return [];
     return [sectionRow(sec)];
-  }), [budgets, hasTravel]);
+  }), [budgets, hasTravel, hasOwed]);
   const commit = (ids: string[], removed: string[]) => {
     const budgetIds = ids.filter((id) => !id.startsWith(SECTION));
     mutate((d) => {
@@ -55,12 +58,14 @@ export default function BudgetReorder() {
 }
 
 const SECTION = "section:";
-const sectionIcon = (name: "chart.bar.fill" | "airplane", color: string) => (
+const sectionIcon = (name: "chart.bar.fill" | "airplane" | "person.2.fill", color: string) => (
   <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: themeTone(color).fill, alignItems: "center", justifyContent: "center" }}>
     <SymbolView name={name} size={15} tintColor={themeTone(color).glyph} />
   </View>
 );
-const sectionRow = (sec: Exclude<BudgetsSection, "budgets">): ReorderItem => sec === "spending"
+const sectionRow = (sec: Exclude<BudgetsSection, "budgets">): ReorderItem => sec === "owed"
+  ? { id: SECTION + "owed", title: t("people.card.title"), subtitle: t("people.card.reorderSection"), icon: sectionIcon("person.2.fill", "#AF52DE") }
+  : sec === "spending"
   ? { id: SECTION + "spending", title: t("budgets.spending.title"), subtitle: t("budgets.reorder.spendingSection"), icon: sectionIcon("chart.bar.fill", "#FF9F0A") }
   : { id: SECTION + "travel", title: t("budgets.travelHistory.title"), subtitle: t("budgets.reorder.travelSection"), icon: sectionIcon("airplane", "#0A84FF") };
 

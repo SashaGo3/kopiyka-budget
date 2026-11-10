@@ -16,6 +16,13 @@ export interface SplitPart {
   amount_minor: number;
   category_id: string | null;
   tag_ids: string[];
+  /**
+   * A friend's share rather than a part of your own (people.ts): written with their `person_id`, no
+   * category and no tags, because it is not your spending. Absent or null for an ordinary part.
+   */
+  person_id?: string | null;
+  /** What a friend's share was for. Only on a part with a person. */
+  items?: import("./models").ShareItem[];
 }
 
 /**

@@ -1,0 +1,96 @@
+{
+  "$comment": "Friends you split with: the picker, the split screen's friends, a friend's page, the To split queue (DATA.md rule 23).",
+  "pick": {
+    "title": { "message": "Who was there?", "note": "Title of the friends picker." },
+    "search": "Name",
+    "searchA11y": "Search or add a friend",
+    "add": { "message": "Add “{name}”", "note": "Row that creates a friend with the name typed." },
+    "contacts": "From Contacts",
+    "empty": "Type a name to add your first friend.",
+    "contactsFailed": "Contacts could not be opened."
+  },
+  "split": {
+    "withFriends": { "message": "Split with friends", "note": "Button on the split screen.", "max": 24 },
+    "withEvent": { "message": "Split with {names}", "note": "One-tap suggestion while an event or trip with people runs; names are \"Ola, Max\"." },
+    "you": { "message": "Yours", "note": "Section header over your own parts once friends are in the split.", "max": 16 },
+    "owes": { "message": "Owe you", "note": "Section header over the friends' shares on the split screen.", "max": 16 },
+    "edit": { "message": "Edit", "note": "Link beside the friends header: opens the people picker to add or remove friends.", "max": 10 },
+    "fixed": { "message": "typed", "note": "Caption: this friend's amount was typed rather than an equal share.", "max": 12 },
+    "addItems": "What they had",
+    "items": { "message": "{list}", "note": "The items a friend had, joined with commas: \"Lamp, beer\"." },
+    "equalA11y": "Back to an equal share",
+    "friendA11y": { "message": "{name}: {amount} {currency}. Tap to type an amount.", "note": "VoiceOver label of a friend's row." },
+    "removeFriend": "Remove {name}",
+    "noteLine": { "message": "Split with {list}", "note": "Line added to the entry's note; list is \"Ola 40,00 PLN, Max 40,00 PLN\"." },
+    "addToNote": { "message": "Add to the note", "note": "Switch under the friends: writes who owes what into the entry's note.", "max": 28 },
+    "howMuch": { "message": "{name}’s share", "note": "Title over the calculator for a friend's share." },
+    "showReceipt": "Show receipt",
+    "hideReceipt": "Hide receipt",
+    "receiptA11y": "Receipt photo. Pinch to zoom."
+  },
+  "items": {
+    "title": { "message": "What {name} had", "note": "Title of the items list for one friend's share." },
+    "intro": "List what was only theirs. The rest is shared equally.",
+    "name": "Item",
+    "amount": "Amount",
+    "add": "Add an item",
+    "total": { "message": "Their items: {amount}", "note": "amount is \"52,00 PLN\"." },
+    "done": "Done"
+  },
+  "page": {
+    "owesYou": { "message": "Owes you", "note": "Over a friend's balance." },
+    "youOwe": { "message": "You owe them", "note": "Over a friend's balance when they paid more than their shares." },
+    "settled": "All settled",
+    "history": "History",
+    "share": { "message": "Their share", "note": "A history line without a shop name." },
+    "repaid": { "message": "Paid you back", "note": "A history line for money from the friend." },
+    "after": { "message": "then {amount}", "note": "Running balance after a history line; amount is \"85,00 PLN\"." },
+    "paidBack": "Paid back",
+    "paidBackTitle": { "message": "{name} paid you back", "note": "Title over the calculator." },
+    "remind": "Remind",
+    "letGo": "Let it go",
+    "letGoTitle": "Let it go?",
+    "letGoBody": { "message": "{amount} that {name} still owes becomes your own spending, under the category of what it was for.", "note": "Confirmation; amount is \"40,00 PLN\"." },
+    "letGoAction": "Make it mine",
+    "remindText": { "message": "Hi {name}! You owe me {amount}:\n{lines}", "note": "Message sent from the share sheet; lines are \"Bistro, 7 Nov: 40,00 PLN\" one per line." },
+    "remindLine": { "message": "{what}, {date}: {amount}", "note": "One line of the reminder message." },
+    "rename": "Rename",
+    "renameTitle": "Name",
+    "remove": "Delete friend",
+    "removeTitle": "Delete {name}?",
+    "removeBody": "Their history stays in your entries, under no name.",
+    "noAccount": "Add an account in this currency first."
+  },
+  "row": {
+    "share": { "message": "{name}’s share", "note": "In place of a category on a friend's share of a purchase." },
+    "repaid": { "message": "{name} paid you back", "note": "In place of a category on money from a friend." }
+  },
+  "list": {
+    "title": { "message": "Friends", "note": "Section header on the Debts screen and the Budgets card." },
+    "owes": { "message": "owes you {amount}", "note": "Under a friend's name; amount is \"40,00 PLN\"." },
+    "owed": { "message": "you owe {amount}", "note": "Under a friend's name when you owe them." },
+    "even": "all settled"
+  },
+  "card": {
+    "reorderSection": { "message": "Friends, debts and payments to split", "note": "Subtitle of the Owed to you section on the Budgets reorder screen." },
+    "title": { "message": "Owed to you", "note": "Card on the Budgets screen.", "max": 24 },
+    "debts": { "message": "Debts", "note": "Line on the card for the debts screen." },
+    "toSplit": "{count, plural, one {# payment to split} other {# payments to split}}"
+  },
+  "toSplit": {
+    "later": { "message": "Later", "note": "Header button on the split screen: save the entry marked to split later.", "max": 10 },
+    "title": { "message": "To split", "note": "Screen of payments marked to be split later." },
+    "mark": { "message": "Split later", "note": "Chip on the entry sheet that marks the payment for the To split queue.", "max": 14 },
+    "markedA11y": "Marked to split later. Tap to unmark.",
+    "empty": "Nothing to split",
+    "emptyHint": "Mark a payment with “Split later” on its entry, and it waits here."
+  },
+  "event": {
+    "people": { "message": "Who’s coming", "note": "Row on the trip/event sheet that picks the friends." },
+    "nobody": "Just you",
+    "deleteShares": { "message": "Also delete {count, plural, one {the friend’s share} other {# friends’ shares}}?", "note": "Asked when deleting a purchase that friends' shares were carved from." },
+    "deleteSharesBody": "They would otherwise still owe you for it.",
+    "deleteAll": "Delete them too",
+    "keepShares": "Keep their shares"
+  }
+}

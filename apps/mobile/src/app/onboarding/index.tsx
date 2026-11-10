@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
+import { reduceMotion } from "@/lib/motion";
 import { C, S, themed } from "@/constants/theme";
 import { pickAndImport } from "@/lib/importers";
 import { errorText } from "@/lib/errors";
@@ -127,7 +128,7 @@ export default function Welcome() {
       </View>
       <View style={styles.points}>
         {points().map((p, i) => (
-          <FadeIn key={p.title} delay={200 + i * 90} style={styles.point}>
+          <FadeIn key={p.title} delay={reduceMotion() ? 0 : 200 + i * 90} style={styles.point}>
             <View style={styles.badge}><SymbolView name={p.icon} size={22} tintColor={C.tint} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.pointTitle}>{p.title}</Text>

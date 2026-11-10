@@ -74,13 +74,19 @@ export function setShowBalance(on: boolean): void { write("show_balance", on ? "
  * Income from the filter sheet never lands on a deliberately empty list.
  */
 /** The Budgets screen's sections, top to bottom. Missing or unknown entries fall back to the default order. */
-export type BudgetsSection = "budgets" | "spending" | "travel";
-export const BUDGETS_SECTIONS: BudgetsSection[] = ["budgets", "spending", "travel"];
+export type BudgetsSection = "owed" | "budgets" | "spending" | "travel";
+export const BUDGETS_SECTIONS: BudgetsSection[] = ["owed", "budgets", "spending", "travel"];
+/**
+ * A section missing from a saved order arrives where the default puts it: Owed to you (new in 1.1.2)
+ * at the top, ahead of an order saved before it existed, and anything else at the end.
+ */
 export function getBudgetsSections(): BudgetsSection[] {
   let saved: unknown = [];
   try { saved = JSON.parse(read("budgets_sections") ?? "[]"); } catch { /* the default */ }
-  const known = (Array.isArray(saved) ? saved : []).filter((x): x is BudgetsSection => BUDGETS_SECTIONS.includes(x as BudgetsSection));
-  return [...new Set([...known, ...BUDGETS_SECTIONS])];
+  const known = [...new Set((Array.isArray(saved) ? saved : []).filter((x): x is BudgetsSection => BUDGETS_SECTIONS.includes(x as BudgetsSection)))];
+  const missing = BUDGETS_SECTIONS.filter((x) => !known.includes(x));
+  const first = missing.filter((x) => x === "owed");
+  return [...first, ...known, ...missing.filter((x) => x !== "owed")];
 }
 export function setBudgetsSections(order: BudgetsSection[]): void { write("budgets_sections", JSON.stringify(order)); }
 

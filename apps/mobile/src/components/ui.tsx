@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Animated, Easing, FlatList, LayoutAnimation, Pressable, SectionList, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
+import { Collapsible } from "@/components/Collapsible";
+import { reduceMotion } from "@/lib/motion";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
@@ -212,20 +214,30 @@ export function Money({ minor, currency, style, colored, sign, approx }: { minor
 
 /** Progress bar whose fill eases to its value; `ratio` 0..1. */
 export function ProgressBar({ ratio, color, height = 6 }: { ratio: number; color: string | ColorValue; height?: number }) {
-  // Made once and kept in state rather than a ref: it is read while rendering (the interpolated width).
-  const [anim] = useState(() => new Animated.Value(0));
-  useEffect(() => { Animated.timing(anim, { toValue: Math.max(0, Math.min(1, ratio)), duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(); }, [ratio, anim]);
+  // The fill is a full-width bar slid in from the left, so it moves on the UI thread (a transform)
+  // rather than re-laying the row out every frame (a width); its rounded right end stays round.
+  // Made once and kept in state rather than a ref: it is read while rendering.
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const [anim] = useState(() => new Animated.Value(reduceMotion() ? clamped : 0));
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (reduceMotion()) { anim.setValue(clamped); return; }
+    Animated.timing(anim, { toValue: clamped, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [clamped, anim]);
   return (
-    <View style={{ height, borderRadius: height / 2, backgroundColor: C.fill, overflow: "hidden" }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}>
-      <Animated.View style={{ height, borderRadius: height / 2, backgroundColor: color, width: anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }} />
+    <View style={{ height, borderRadius: height / 2, backgroundColor: C.fill, overflow: "hidden" }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}>
+      <Animated.View style={{ height, borderRadius: height / 2, backgroundColor: color, width: "100%", opacity: width ? 1 : 0,
+        transform: [{ translateX: anim.interpolate({ inputRange: [0, 1], outputRange: [-width, 0] }) }] }} />
     </View>
   );
 }
 
 /** Fades and lifts its children in on mount (cards, list groups). */
 export function FadeIn({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
-  const [anim] = useState(() => new Animated.Value(0));
-  useEffect(() => { Animated.timing(anim, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(); }, [anim, delay]);
+  // With Reduce Motion it is simply there: no fade, no lift, no wait.
+  const [anim] = useState(() => new Animated.Value(reduceMotion() ? 1 : 0));
+  useEffect(() => { if (!reduceMotion()) Animated.timing(anim, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(); }, [anim, delay]);
   return <Animated.View style={[style, { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}>{children}</Animated.View>;
 }
 
@@ -466,7 +478,7 @@ export function Footnote({ children, more, style }: { children: ReactNode; more?
 
 function InfoNote({ children, more, style }: { children: ReactNode; more?: ReactNode; style?: StyleProp<ViewStyle> }) {
   const [open, setOpen] = useState(false);
-  const toggle = () => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v); };
+  const toggle = () => setOpen((v) => !v);
   return (
     <View style={style}>
       <View style={styles.noteRow}>
@@ -478,7 +490,7 @@ function InfoNote({ children, more, style }: { children: ReactNode; more?: React
           </Pressable>
         ) : null}
       </View>
-      {more && open ? <Text style={[styles.noteText, styles.noteMore]}>{more}</Text> : null}
+      {more ? <Collapsible open={open} lazy><Text style={[styles.noteText, styles.noteMore]}>{more}</Text></Collapsible> : null}
     </View>
   );
 }

@@ -908,6 +908,9 @@ enum KPStore {
     let bankCol = hasColumn(db, "transactions", "bank_note")
     let byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE\(bankCol ? " OR bank_note = ? COLLATE NOCASE" : ""))"
     let names = { (n: String) in Array(repeating: n, count: bankCol ? 3 : 2) }
+    // A friend's share of a purchase (v25, DATA.md rule 23) carries the shop's name but is not a
+    // payment at that shop of yours, so it never answers what the shop is.
+    let mine = hasColumn(db, "transactions", "person_id") ? " AND person_id IS NULL" : ""
     var tries: [(clause: String, binds: [String], exact: Bool)] = []
     if let s = shop, !s.isEmpty { tries.append((byName, names(s), true)) }
     if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, names(t), true)) }
@@ -923,7 +926,7 @@ enum KPStore {
     func newest(_ cols: String, _ has: String) -> (stmt: OpaquePointer, exact: Bool)? {
       for t in tries {
         var stmt: OpaquePointer?
-        let sql = "SELECT \(cols) FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND \(has) AND \(t.clause) ORDER BY date DESC LIMIT 1"
+        let sql = "SELECT \(cols) FROM transactions WHERE deleted=0 AND transfer_id IS NULL\(mine) AND \(has) AND \(t.clause) ORDER BY date DESC LIMIT 1"
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
         for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
         if sqlite3_step(stmt) == SQLITE_ROW, let stmt { return (stmt, t.exact) }
@@ -938,7 +941,7 @@ enum KPStore {
     var filed: (rows: [(categoryId: String?, tagIds: [String])], exact: Bool)?
     for t in tries {
       var stmt: OpaquePointer?
-      let sql = "SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) ORDER BY date DESC LIMIT 200"
+      let sql = "SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL\(mine) AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) ORDER BY date DESC LIMIT 200"
       guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
       for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
       var rows: [(categoryId: String?, tagIds: [String])] = []

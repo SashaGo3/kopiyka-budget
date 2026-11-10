@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { Stack, router } from "expo-router";
-import { debtPaid, debtTotals, formatMinor, isOverdue, listDebts, listRows, type Debt, type DebtTotal } from "@kopiyka/core";
+import { debtPaid, debtTotals, formatMinor, isOverdue, listDebts, listPeople, listRows, personBalances, type Debt, type DebtTotal } from "@kopiyka/core";
+import { PersonAvatar } from "@/components/PersonAvatar";
 import { useQuery } from "@/store";
 import { Card, Empty, Money, Row, ScreenNote, SectionHeader } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
@@ -17,7 +18,11 @@ export default function DebtsSettings() {
   const data = useQuery((db) => {
     const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, acctName(a)]));
     const debts = listDebts(db).map((d): DebtWithAccount => ({ ...d, accountName: d.account_id ? accounts.get(d.account_id) : undefined, paid: debtPaid(db, d) }));
-    return { debts, totals: debtTotals(debts) };
+    // Friends you split with, the ones with something open first (core/people.ts).
+    const balances = personBalances(db);
+    const friends = listPeople(db).map((p) => ({ ...p, balances: balances.filter((b) => b.person_id === p.id) }))
+      .sort((a, b) => Number(b.balances.length > 0) - Number(a.balances.length > 0));
+    return { debts, totals: debtTotals(debts), friends };
   });
   const today = todayLocal();
   const owedToMe = data.debts.filter((d) => !d.settled_date && d.direction === "owed_to_me");
@@ -29,6 +34,16 @@ export default function DebtsSettings() {
       <Stack.Screen options={{ title: t("settingsLists.debts.title"), headerLargeTitle: true }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }} onScroll={onScroll} scrollEventThrottle={16}>
         <ScreenNote more={t("settingsLists.debts.introMore")}>{t("settingsLists.debts.introShort")}</ScreenNote>
+        {data.friends.length ? <SectionHeader>{t("people.list.title")}</SectionHeader> : null}
+        {data.friends.length ? (
+          <Card>
+            {data.friends.map((p, i) => (
+              <Row key={p.id} title={p.name} left={<PersonAvatar person={p} />} style={i ? styles.divider : undefined}
+                subtitle={p.balances.length ? p.balances.map((b) => t(b.owed_minor > 0 ? "people.list.owes" : "people.list.owed", { amount: `${formatMinor(Math.abs(b.owed_minor), b.currency)} ${b.currency}` })).join(" · ") : t("people.list.even")}
+                onPress={() => router.push({ pathname: "/person/[id]", params: { id: p.id } })} />
+            ))}
+          </Card>
+        ) : null}
         {data.totals.length ? <Summary totals={data.totals} /> : <Empty title={t("settingsLists.debts.emptyTitle")} hint={t("settingsLists.debts.emptyHint")} />}
         {owedToMe.length ? <SectionHeader>{t("settingsLists.debts.owedToYou")}</SectionHeader> : null}
         {owedToMe.length ? <Card>{owedToMe.map((d, i) => <DebtRow key={d.id} d={d} first={i === 0} today={today} />)}</Card> : null}

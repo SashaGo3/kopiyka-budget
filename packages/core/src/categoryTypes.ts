@@ -232,7 +232,7 @@ export function historySuggestions(db: SqlDriver, since: string = new Date(Date.
   const typed = new Map(cats.map((c) => [c.id, categoryTypes(c)]).filter(([, t]) => (t as string[]).length) as [string, string[]][]);
   const rows = db.all<{ category_id: string; payee: string | null; notes: string | null; bank_note: string | null }>(
     `SELECT category_id, payee, notes, bank_note FROM transactions
-     WHERE deleted=0 AND category_id IS NOT NULL AND transfer_id IS NULL AND date>=?`, [since]);
+     WHERE deleted=0 AND category_id IS NOT NULL AND transfer_id IS NULL AND person_id IS NULL AND date>=?`, [since]);
 
   // Which kinds of thing each payee is filed under, by the categories that say what they are.
   const filed = new Map<string, Map<string, Set<string>>>(); // payee → type → categories

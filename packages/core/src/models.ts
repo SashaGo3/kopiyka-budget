@@ -144,6 +144,18 @@ export interface Transaction extends Synced {
    */
   debt_id: string | null;
   /**
+   * The friend this row is money with (`people.ts`, DATA.md rule 23): going out, their share of
+   * something you paid; coming in, them paying you back. Neither is your spending or your income, so
+   * every total leaves it out. NULL on everything else.
+   */
+  person_id?: string | null;
+  /** The purchase (your own part of it) a friend's share was carved from. NULL otherwise. */
+  share_of?: string | null;
+  /** What a friend's share was for, as JSON `ShareItem[]`. NULL when it is just "their part". */
+  items?: string | null;
+  /** 1 = marked to be split later (the To split queue); cleared when it is split. */
+  to_split?: 0 | 1;
+  /**
    * What the bank's notification said about this payment — the reference, the shop and town as
    * printed, the original currency — written by the notification automation and never edited in the
    * app. `notes` is the person's own words. NULL on everything else, and on automation rows written
@@ -247,6 +259,9 @@ export interface Budget extends Synced {
    * Read it through `tripKind`.
    */
   kind: TripKind | null;
+  /** One-off budgets on a tag only: who the trip or event is with, as JSON person ids — the friends
+   * the entry sheet offers to split with while it runs. NULL is nobody. */
+  people?: string | null;
   /** "monthly" renews every period; "once" is a one-off pot (a trip) that runs from `starts` until it is ended. */
   period: "monthly" | "once";
   /** YYYY-MM-DD, budget applies from this month on until superseded (monthly), or the first day of the trip (once). */
@@ -294,9 +309,24 @@ export interface Debt extends Synced {
   notify_time: string;
   /** The transaction written when it was settled, if one was. */
   transaction_id: string | null;
+  /** The friend (`people`) this debt is with, so their page shows it beside their shares. */
+  person_id?: string | null;
 }
 
-export const SYNCED_TABLES = ["accounts", "categories", "tags", "transactions", "recurring_rules", "budgets", "insights", "debts"] as const;
+/** Someone you split with. Their balance is what their rows add up to (`personBalances`). */
+export interface Person extends Synced {
+  name: string;
+  /** The Contacts identifier they were picked from, if they were; only to find them again. */
+  contact_id: string | null;
+  color: string | null;
+  sort: number;
+  archived: 0 | 1;
+}
+
+/** One thing a friend's share was for: "Lamp", 40.00. */
+export interface ShareItem { name: string; amount_minor: number }
+
+export const SYNCED_TABLES = ["accounts", "categories", "tags", "transactions", "recurring_rules", "budgets", "insights", "debts", "people"] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
 
 export interface RowByTable {
@@ -308,4 +338,5 @@ export interface RowByTable {
   budgets: Budget;
   insights: Insight;
   debts: Debt;
+  people: Person;
 }

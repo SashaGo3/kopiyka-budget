@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, LayoutAnimation, Pressable, StyleSheet, Text, View } from "react-native";
+import { animateNextLayout } from "@/lib/motion";
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { router } from "expo-router";
@@ -99,7 +100,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
   const commit = () => { onDone(orderRef.current, removed); router.back(); };
   const del = useCallback((id: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    animateNextLayout();
     setOrderBoth(orderRef.current.filter((x) => x !== id));
     setRemoved((r) => [...r, id]);
   }, [setOrderBoth]);
@@ -129,7 +130,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
         if (byId.get(x)?.section) { head = x; blocks.set(x, []); } else if (head) blocks.get(head)!.push(x); else before.push(x);
       }
       folded.current = blocks;
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      animateNextLayout();
       setOrderBoth([...before, ...blocks.keys()]);
     }
     const at = orderRef.current.indexOf(id);
@@ -185,7 +186,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
     const blocks = folded.current;
     if (blocks) {
       folded.current = null;
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      animateNextLayout();
       setOrderBoth(orderRef.current.flatMap((x) => [x, ...(blocks.get(x) ?? [])]));
     }
     setDragId(null); pan.setValue(0);
@@ -237,7 +238,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
             const dragging = dragId === id;
             const content = (
               <Pressable style={[styles.rowInner, row.section && styles.sectionInner]} disabled={!onLongPress || row.section || !!dragId} delayLongPress={350}
-                onLongPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onLongPress?.(id, orderRef.current, (next) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOrderBoth(next); }); }}>
+                onLongPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onLongPress?.(id, orderRef.current, (next) => { animateNextLayout(); setOrderBoth(next); }); }}>
                 {row.icon}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={[styles.name, row.section && styles.sectionName]} numberOfLines={1}>{row.title}</Text>

@@ -635,6 +635,41 @@ a stored value is only ever something a person chose.
 A savings goal's optional `params.deadline` (YYYY-MM-DD) is the same kind of thing. A build from
 before it ignores both keys, and shows a `forecast` card as one it does not know.
 
+## 23. A friend's share is theirs, and what they owe is what their rows add up to
+
+You pay 120.00 for a dinner for three. The bank took 120.00, so the account says −120.00 — but only
+40.00 was your dinner. A split with friends (`packages/core/src/people.ts`) writes the purchase as
+several rows, like any split (rule 11): your part keeps the entry's id and its category, and each
+friend's share is a row of its own carrying their `transactions.person_id` (v25), the purchase it was
+carved from (`share_of`) and, if you listed them, what it was for (`items`, JSON `[{name,
+amount_minor}]`). No category and no tags: a trip tag would count it against the trip. The rows
+still add up to what left the account.
+
+- **A row with a person is never your spending or your income.** Going out, it is their share;
+  coming in, it is them paying you back. Every total leaves it out — `NO_PERSON`, added beside
+  `transfer_id IS NULL` in budgets, insights, trips, detection and payee history (and its Swift copy
+  in `KPShared`, guarded for a database from before v25). The forecast is the exception, as it is for
+  debts (rule 19): money lent is money gone until it comes back, so a share counts as spent and a
+  repayment nets it off.
+- **What a friend owes is what their rows add up to** (`personBalances`), per currency, never across
+  them. Nothing is stored, so a repayment is pointed at the friend and covers whatever is oldest
+  rather than any one dinner.
+- **"Let it go" keeps the ids.** What is still owed — the newest shares, since repayments cover the
+  oldest — loses its person and takes the purchase's category (`letItGo`). A share only partly paid
+  is split in two: the paid part stays theirs, and the rest is a new row of yours.
+- **A share never teaches a shop.** It carries the shop's name and no category, so payee history
+  must not read it as "this shop has no category".
+- **People are a synced table** (`people`: a name, the Contacts identifier they were picked from,
+  colour, order, archived) and travel with backups. A file without the `people` key — every backup
+  from before v25 — leaves the phone's people alone *even when replacing*; otherwise restoring one
+  would wipe every friend while their rows still name them. A debt can name a person too
+  (`debts.person_id`), so their page shows it beside their shares.
+- **`to_split = 1`** marks a payment to be split later (`toSplitQueue`); writing a split clears it.
+- **`budgets.people`** is who a trip or an event is with (JSON person ids, read through
+  `budgetPeople`): the friends the entry sheet offers to split with while it runs.
+- **None of the new columns is in `ROW_DEFAULTS`**: a backup from before v25 leaves the phone's
+  links alone, and an older build ignores them.
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import
@@ -647,7 +682,8 @@ back. What to tell it:
    renamed category stops being translated on its own (rule 16), so there is never a reason to edit it.
    Leave `bank_ref` and an account's `numbers` alone too: they are how bank notifications find
    accounts and pair transfers (rule 18). And `debt_id`: it is what a debt counts as paid (rule 19).
-   And `bank_note`: it is what the bank said, which nothing else records (rule 20). `type` may be
+   And `bank_note`: it is what the bank said, which nothing else records (rule 20). And `person_id`,
+   `share_of` and `items`: they are what a friend owes you (rule 23). `type` may be
    set to any key of `CATEGORY_TYPES`, or `"none"` (rule 21).
 4. Leave `amount_minor` and every transaction alone unless the point of the pass is the transactions.
    Leave `importance` alone too, or say nothing about it: a column the file omits keeps whatever the

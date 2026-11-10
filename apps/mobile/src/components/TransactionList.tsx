@@ -13,18 +13,21 @@ import { dayLabel, humanDayTime, timeLabel } from "@/lib/dates";
 import { t } from "@/i18n";
 import { catName, acctName } from "@/lib/names";
 import { rowText } from "@/lib/rowText";
+import { PersonAvatar } from "@/components/PersonAvatar";
 
 interface TagRef { id: string; name: string; color: string | null }
 
 export interface TxRow extends Transaction { currency: string; account_name: string; category_name: string | null; parent_name: string | null; cat_preset: string | null; parent_preset: string | null; cat_icon: string | null; cat_color: string | null; parent_icon: string | null; parent_color: string | null; source: string | null;
   /** Who the debt this row pays is with (`debt_id`); null when it is not a debt payment. */
-  debt_person: string | null }
+  debt_person: string | null;
+  /** The friend a share or a repayment is with (`person_id`, DATA.md rule 23); null otherwise. */
+  person_name: string | null; person_color: string | null }
 
 export function useTransactions(where: string, params: (string | number)[] = [], limit = 500) {
   return useQuery((db) => db.all(
-    `SELECT t.*, a.currency, a.name AS account_name, c.name AS category_name, p.name AS parent_name, c.preset AS cat_preset, p.preset AS parent_preset, c.icon AS cat_icon, c.color AS cat_color, p.icon AS parent_icon, p.color AS parent_color, d.person AS debt_person
+    `SELECT t.*, a.currency, a.name AS account_name, c.name AS category_name, p.name AS parent_name, c.preset AS cat_preset, p.preset AS parent_preset, c.icon AS cat_icon, c.color AS cat_color, p.icon AS parent_icon, p.color AS parent_color, d.person AS debt_person, pp.name AS person_name, pp.color AS person_color
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id LEFT JOIN debts d ON d.id=t.debt_id
+     LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id LEFT JOIN debts d ON d.id=t.debt_id LEFT JOIN people pp ON pp.id=t.person_id
      WHERE t.deleted=0 AND ${where} ORDER BY t.date DESC, t.rowid DESC LIMIT ${limit}`, params) as unknown as TxRow[], [where, ...params]);
 }
 
@@ -253,7 +256,9 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
   const text = rowText(tx);
   const names = rowCategory(tx);
   // A debt payment has no category: what it pays is the debt, and it says whose.
-  const debtLabel = tx.debt_id ? t("transactions.list.debt", { person: tx.debt_person ?? "?" }) : null;
+  const debtLabel = tx.debt_id ? t("transactions.list.debt", { person: tx.debt_person ?? "?" })
+    // A friend's share is theirs, not a category of yours; money from them is them paying back.
+    : tx.person_id ? t(tx.amount_minor < 0 ? "people.row.share" : "people.row.repaid", { name: tx.person_name ?? "?" }) : null;
   // A transfer is titled as one, with your note in it; the payment's words still go underneath.
   const note = tx.notes?.trim() && tx.notes.trim() !== tx.payee ? tx.notes.trim() : null;
   const title = tx.transfer_id
@@ -273,7 +278,8 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
   const a11yBits = [sub, tags.length ? t("transactions.list.tagsA11y", { names: tags.map((x) => x.name).join(", ") }) : null, tx.pending ? t("transactions.list.pendingA11y") : null].filter(Boolean).join(", ");
   return (
     <Pressable
-      onPress={() => mode.on.current ? onToggle?.(tx.id) : router.push(tx.transfer_id ? { pathname: "/transfer/[id]", params: { id: tx.transfer_id } } : { pathname: "/transaction/[id]", params: { id: tx.id } })}
+      onPress={() => mode.on.current ? onToggle?.(tx.id) : router.push(tx.transfer_id ? { pathname: "/transfer/[id]", params: { id: tx.transfer_id } }
+        : tx.person_id ? { pathname: "/person/[id]", params: { id: tx.person_id } } : { pathname: "/transaction/[id]", params: { id: tx.id } })}
       // Touch and hold starts selecting, with this row chosen; while selecting it is a tap like any other.
       onLongPress={onSelect ? () => { if (mode.on.current) onToggle?.(tx.id); else { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onSelect(tx.id); } } : undefined}
       delayLongPress={350}
@@ -286,6 +292,7 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
       <View style={styles.iconSlot}>
         <Animated.View style={slide.icon}>
           {tx.transfer_id ? <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
+            : tx.person_id ? <PersonAvatar person={{ id: tx.person_id, name: tx.person_name ?? "?", color: tx.person_color }} size={34} />
             : <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon ?? (tx.debt_id && !tx.category_id ? "creditcard.and.123" : null)} color={tx.cat_color ?? tx.parent_color} size={34} />}
         </Animated.View>
         <Animated.View style={[styles.check, slide.check]} pointerEvents="none" importantForAccessibility="no-hide-descendants"><SymbolView name={on ? "checkmark.circle.fill" : "circle"} size={26} tintColor={on ? C.tint : C.tertiary} /></Animated.View>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Animated, Pressable, StyleSheet, useColorScheme, useWindowDimensions, type ColorValue, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
+import { reduceMotion } from "@/lib/motion";
 import { router } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -38,7 +39,7 @@ export function BottomBar({ children, above, style, visible = true }: { children
   const glass = useGlass();
   const { width } = useWindowDimensions();
   const anim = useRef(new Animated.Value(1)).current;
-  useEffect(() => { Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 220, useNativeDriver: true }).start(); }, [visible, anim]);
+  useEffect(() => { Animated.timing(anim, { toValue: visible ? 1 : 0, duration: reduceMotion() ? 0 : 220, useNativeDriver: true }).start(); }, [visible, anim]);
   // Hidden is 0.02 rather than 0 while glass is on: opacity 0 on a glass view or any ancestor
   // switches the material off natively and it does not come back. The bar is translated clear
   // of the screen anyway, so the floor is never visible.

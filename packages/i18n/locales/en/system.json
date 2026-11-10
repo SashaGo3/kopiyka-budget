@@ -8,5 +8,6 @@
   "NSLocationAlwaysAndWhenInUseUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
   "NSLocationAlwaysUsageDescription": "Kopiyka only uses your location while the app is open, to suggest the category you used near where you are. It never tracks you in the background.",
   "NSMotionUsageDescription": "Kopiyka doesn't use motion or fitness data.",
+  "NSContactsUsageDescription": "Pick friends from your contacts when you split a bill or plan an event, so Kopiyka knows who owes you what. Only the names you choose are saved, and they stay on your phone.",
   "quickActionLog": { "message": "Log expense", "note": "Home-screen quick action (long-press the icon)." }
 }

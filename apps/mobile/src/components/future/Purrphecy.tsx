@@ -116,7 +116,6 @@ export function PurrphecyCardBody({ cat = true }: { insight: Insight; cat?: bool
       {cat ? <Siriusia mood="seer" size={56} float /> : null}
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Text style={styles.teaser}>{t("future.card.teaser")}</Text>
-        <Text style={styles.sub}>{t("future.card.inside")}</Text>
       </View>
     </View>
   );

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { activeTrip, countryCurrency, formatMinor, rateOrFallback, toMinor, type TripKind } from "@kopiyka/core";
+import { activeTrip, countryCurrency, formatMinor, listPeople, rateOrFallback, toMinor, type TripKind } from "@kopiyka/core";
 import { SymbolView } from "expo-symbols";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { db } from "@/db";
@@ -54,6 +54,11 @@ export default function TravelStart() {
   const chosenRef = useRef(false);               // the same, for the location lookup that lands later
   const curKey = useMemo(() => newPickKey("tripcur"), []);
   const [name, setName] = useState("");
+  // Who it is with: while it runs, the split screen offers to share with them in one tap.
+  const [people, setPeople] = useState<string[]>([]);
+  const peopleKey = useMemo(() => newPickKey("trippeople"), []);
+  usePickResult<string[]>(peopleKey, setPeople);
+  const names = useMemo(() => { const all = new Map(listPeople(db).map((x) => [x.id, x.name])); return people.map((id) => all.get(id)).filter(Boolean).join(", "); }, [people]);
   // The city the phone is in, when it could tell; it is both the placeholder and the name if none is typed.
   const [city, setCity] = useState<string | null>(null);
   const placeCity = kind === "trip" && !past ? city : null;
@@ -68,7 +73,7 @@ export default function TravelStart() {
     const id = setTimeout(() => { if (!nameRef.current?.isFocused()) setNaming(false); }, 600);
     return () => clearTimeout(id);
   }, []);
-  const exit = useDiscardGuard(useDirty([name, expr, chosen]));
+  const exit = useDiscardGuard(useDirty([name, expr, chosen, people]));
   // Where the phone is, asked once: it names a trip happening now and picks its currency. Not while
   // another one runs, since then this one is over and was somewhere else.
   useEffect(() => {
@@ -118,7 +123,7 @@ export default function TravelStart() {
   usePickResult<{ start: string; end: string }>(key, useCallback(({ start, end }: { start: string; end: string }) => {
     const over = end < todayLocal();
     try {
-      const trip = { name: finalName, kind, currency, amount_minor: limitless ? 0 : toMinor(value ?? 0, currency), starts: start, ends: end };
+      const trip = { name: finalName, kind, currency, amount_minor: limitless ? 0 : toMinor(value ?? 0, currency), starts: start, ends: end, people };
       const { tag } = over ? addPastTravel(trip) : startTravel(trip);
       // A finished trip's purchases are looked for in its own days; a running one's in the months before it.
       const range = over ? { from: start, to: nextDay(end) } : {};
@@ -129,7 +134,7 @@ export default function TravelStart() {
     } catch (e) {
       Alert.alert(over ? t("travel.start.addFailed") : t("travel.start.startFailed", { kind }), errorText(e));
     }
-  }, [finalName, currency, value, limitless, exit, past, kind]));
+  }, [finalName, currency, value, limitless, exit, past, kind, people]));
   return (
     <SheetFrame
       top={
@@ -153,6 +158,13 @@ export default function TravelStart() {
             </Tap>
           </View>
           <CalcLine expr={expr} style={{ textAlign: "left" }} />
+          <Tap onPress={() => router.push({ pathname: "/pick/people", params: { key: peopleKey, selected: people.join(",") } })} style={styles.people} accessibilityRole="button"
+            accessibilityLabel={`${t("people.event.people")}: ${names || t("people.event.nobody")}`}>
+            <SymbolView name="person.2.fill" size={15} tintColor={C.tint} />
+            <Text style={styles.peopleLabel}>{t("people.event.people")}</Text>
+            <Text style={styles.peopleNames} numberOfLines={1}>{names || t("people.event.nobody")}</Text>
+            <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
+          </Tap>
         </View>
       }
       bottom={
@@ -171,6 +183,9 @@ export default function TravelStart() {
 }
 
 const styles = themed(() => StyleSheet.create({
+  people: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 44 },
+  peopleLabel: { fontSize: 15, fontWeight: "600", color: C.tint },
+  peopleNames: { flex: 1, fontSize: 15, color: C.secondary, textAlign: "right" },
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.xs, gap: 4 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
   input: { flex: 1, fontSize: 22, fontWeight: "600", color: C.label, paddingVertical: S.sm },
