@@ -1,8 +1,7 @@
 {
   "card": {
-    "in": { "message": "{count, plural, one {In # year, at your pace} other {In # years, at your pace}}", "note": "Forecast card, above the big forecast amount." },
-    "grew": { "message": "<b>+{grew}</b> of it is growth, at {rate} a year", "note": "Forecast card, under the big amount. grew is an amount, rate = \"7%\"." },
-    "negative": "More goes out than comes in: about {amount} a month.",
+    "teaser": { "message": "What your money becomes in years", "note": "Forecast card on the Insights tab, first line." },
+    "inside": { "message": "Compound interest, a home, freedom, small habits, inflation — on your own numbers.", "note": "Forecast card, second line: the six calculators inside." },
     "noData": "Siriusia needs a month or two of income and spending to read your future. The calculators work already."
   },
   "compact": {
@@ -10,13 +9,6 @@
     "million": { "message": "{n}M", "note": "Chart axis label for millions: \"1.2M\". n is already formatted.", "max": 8 }
   },
   "disclaimer": "A forecast, not a promise: markets go up and down, and Siriusia is a cat. The figures assume the same rates every year and no taxes or fees.",
-  "promo": {
-    "says": { "message": "{count, plural, one {At your pace: {amount} in # year. Tap to see how.} other {At your pace: {amount} in # years. Tap to see how.}}", "note": "Insights tab, invitation card for the forecast. amount is the user's own forecast." },
-    "generic": "What your money becomes in years: growth, a home, freedom.",
-    "open": { "message": "Look into the future", "note": "Link at the bottom of the invitation card.", "max": 28 },
-    "close": "Not now",
-    "a11y": "Siriusia sees the future. Opens the forecast."
-  },
   "setup": {
     "title": "Your numbers",
     "accounts": "Accounts",

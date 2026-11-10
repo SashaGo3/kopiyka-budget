@@ -54,7 +54,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "99"
+      "buildNumber": "100"
     },
     "android": {
       "package": "dev.kopiyka.app",

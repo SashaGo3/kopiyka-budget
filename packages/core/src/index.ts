@@ -14,6 +14,7 @@ export * from "./backup";
 export * from "./bundle";
 export * from "./backupSchedule";
 export * from "./insights";
+export * from "./insightHints";
 export * from "./insightHistory";
 export * from "./spendInsights";
 export * from "./forecast";

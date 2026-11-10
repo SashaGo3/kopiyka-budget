@@ -771,12 +771,11 @@ export interface Messages {
   "debt.summary.reminder": { time: string | number };
   "debt.summary.youOwe": undefined;
   "debt.who": undefined;
-  /** Forecast card, under the big amount. grew is an amount, rate = "7%". */
-  "future.card.grew": { grew: string | number; rate: string | number };
-  /** Forecast card, above the big forecast amount. */
-  "future.card.in": { count: number };
-  "future.card.negative": { amount: string | number };
+  /** Forecast card, second line: the six calculators inside. */
+  "future.card.inside": undefined;
   "future.card.noData": undefined;
+  /** Forecast card on the Insights tab, first line. */
+  "future.card.teaser": undefined;
   /** Chart axis label for millions: "1.2M". n is already formatted. */
   "future.compact.million": { n: string | number };
   /** Chart axis label for thousands: "350k". n is already formatted. */
@@ -913,13 +912,6 @@ export interface Messages {
   /** Chart legend and row. rate = "7%". */
   "future.path.market": { rate: string | number };
   "future.path.mattress": undefined;
-  "future.promo.a11y": undefined;
-  "future.promo.close": undefined;
-  "future.promo.generic": undefined;
-  /** Link at the bottom of the invitation card. */
-  "future.promo.open": undefined;
-  /** Insights tab, invitation card for the forecast. amount is the user's own forecast. */
-  "future.promo.says": { count: number; amount: string | number };
   "future.rate.deposit": undefined;
   "future.rate.market": undefined;
   "future.real.subtitle": { rate: string | number };
@@ -1172,6 +1164,26 @@ export interface Messages {
   "insights.goal.reached": undefined;
   "insights.goal.toGo": { amount: string | number };
   "insights.gone": undefined;
+  "insights.hints.add": undefined;
+  "insights.hints.dismissA11y": { title: string | number };
+  "insights.hints.more": undefined;
+  /** A suggestion that needs one more answer (a goal's target) opens the editor. */
+  "insights.hints.setUp": undefined;
+  "insights.hints.title": undefined;
+  "insights.hints.titleFirst": undefined;
+  "insights.hints.why.budgets": { count: number };
+  /** name is a category. */
+  "insights.hints.why.habit": { count: number; name: string | number };
+  "insights.hints.why.history": { count: number };
+  "insights.hints.why.importance": undefined;
+  "insights.hints.why.manual": { count: number };
+  "insights.hints.why.places": { count: number };
+  "insights.hints.why.recurring": { count: number };
+  "insights.hints.why.salary": undefined;
+  /** name is an account. */
+  "insights.hints.why.savings": { name: string | number };
+  "insights.hints.why.shops": { count: number };
+  "insights.hints.why.usual": { count: number };
   "insights.history.avg.month": { count: number };
   "insights.history.avg.week": { count: number };
   /** VoiceOver label of a history chart. */

@@ -33,13 +33,15 @@ export function LogoTile({ logo, size }: { logo: Logo; size: number }) {
  * "Subscriptions". With nothing of its own it wears the category's icon, badged with a repeat
  * arrow so it still reads as a payment that comes back.
  */
-export function PaymentIcon({ icon, category, size = 24, cutout = C.card }: {
+export function PaymentIcon({ icon, category, size = 24, cutout = C.card, bare }: {
   /** The stored value, or what a checklist line resolved it to. */
   icon: string | null | undefined;
   category?: { name: string; icon?: string | null; color?: string | null } | null;
   size?: number;
   /** The background behind the badge, drawn as a ring so the badge reads as cut out of the tile. */
   cutout?: ColorValue;
+  /** The picture alone, without the "recurring" badge: for a size too small to carry two marks. */
+  bare?: boolean;
 }) {
   const own = parsePaymentIcon(icon);
   const badge = Math.round(size * 0.52);
@@ -52,6 +54,7 @@ export function PaymentIcon({ icon, category, size = 24, cutout = C.card }: {
       ? <View style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: size * 0.62 }} allowFontScaling={false}>{own.emoji}</Text></View>
       : <View style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: (cat?.color ?? "#8E8E93") + TILE_ALPHA, alignItems: "center", justifyContent: "center" }}><SymbolView name={own.name as SFSymbol} size={size * 0.55} tintColor={cat?.color ?? C.secondary} /></View>;
   const showCategory = !!own && own.kind !== "category" && !!cat;
+  if (bare) return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{main}</View>;
   return (
     <View style={{ width: size + badge * 0.3, height: size + badge * 0.3 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {main}

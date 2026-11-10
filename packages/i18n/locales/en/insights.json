@@ -148,6 +148,27 @@
     "toGo": { "message": "{amount} to go" },
     "reached": "Goal reached 🎉"
   },
+  "hints": {
+    "title": "Suggested for you",
+    "titleFirst": "Start with these",
+    "add": { "message": "Add", "max": 12 },
+    "setUp": { "message": "Set up", "note": "A suggestion that needs one more answer (a goal's target) opens the editor.", "max": 12 },
+    "dismissA11y": "Don't suggest {title}",
+    "more": "More cards are under the + button.",
+    "why": {
+      "history": "{count, plural, one {A month of your money so far — see where it takes you in years} other {# months of your money — see where it takes you in years}}",
+      "savings": { "message": "{name}: set a goal and see when you get there", "note": "name is an account." },
+      "budgets": "{count, plural, one {# budget — what is left, and what is still to be charged} other {# budgets — what is left, and what is still to be charged}}",
+      "manual": "{count, plural, one {# payment you confirm yourself — tick it off each month} other {# payments you confirm yourself — tick them off each month}}",
+      "recurring": "{count, plural, one {# regular payment — what it costs a year} other {# regular payments — what they cost a year}}",
+      "habit": { "message": "{count, plural, one {{name} about once a week — your weekly average} other {{name} about # times a week — your weekly average}}", "note": "name is a category." },
+      "salary": "Income comes in every month — days to the next and what you can spend a day",
+      "usual": "{count, plural, one {A month of history — what is above or below your usual} other {# months of history — what is above or below your usual}}",
+      "shops": "{count, plural, one {# shop in three months — where the money goes} other {# shops in three months — where the money goes}}",
+      "places": "{count, plural, one {# payment with a place — on a map} other {# payments with a place — on a map}}",
+      "importance": "Categories marked by how much they matter — what this month went on"
+    }
+  },
   "kind": {
     "free_money": { "title": "Left in budgets", "hint": "What is left of your budgets this period, and what is still to be charged" },
     "days_to_salary": { "title": "Until salary", "hint": "Days left in the period and what you can spend per day" },

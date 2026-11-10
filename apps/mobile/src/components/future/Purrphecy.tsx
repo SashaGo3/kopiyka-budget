@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { router } from "expo-router";
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import type { SFSymbol } from "expo-symbols";
 import { Host, Slider } from "@expo/ui/swift-ui";
 import {
-  categoryImportance, categorySpend, convertMinor, createInsight, crossoverYear, currencyDecimals, doublingYears, formatMinor, freedomNumber, futureInputs, getRow, growth, listRows, monthAfter, monthsToTarget,
-  moneyPace, mortgage, numberFormat, paceIn, parseInsightParams, periodWindows, realValue, roundNice, save, setMeta, type Category, type FutureInputs, type Insight, type MoneyPace,
+  categoryImportance, categorySpend, convertMinor, crossoverYear, currencyDecimals, doublingYears, formatMinor, freedomNumber, futureInputs, getRow, growth, listRows, monthAfter, monthsToTarget,
+  moneyPace, mortgage, numberFormat, paceIn, parseInsightParams, periodWindows, realValue, roundNice, save, type Category, type FutureInputs, type Insight, type MoneyPace,
 } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Card, Chip, PressCard, ProgressBar, Row, SectionHeader, Tap, ToggleRow } from "@/components/ui";
+import { Card, Chip, ProgressBar, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { Legend, LineChart, StackChart } from "@/components/FutureChart";
 import { Siriusia, SiriusiaSays, type SiriusiaMood } from "@/components/Siriusia";
 import { C, S, themed, themeHue } from "@/constants/theme";
@@ -17,12 +17,11 @@ import { monthPill, todayLocal } from "@/lib/dates";
 import { getPeriodStartDay } from "@/lib/period";
 import { acctName, catName } from "@/lib/names";
 import { getBaseCurrency, useRates } from "@/lib/rates";
-import { t, Trans } from "@/i18n";
+import { t } from "@/i18n";
 
 /**
- * Purrphecy ("Siriusia sees the future"): she looks into your money's future. The card says one
- * thing — where your own pace takes you in a number of years, and how much of that the market would
- * add — and opens to six calculators, each a question people actually ask, each answered first in one
+ * Purrphecy ("Siriusia sees the future"): she looks into your money's future. The card only says
+ * what is inside; it opens to six calculators, each a question people actually ask, each answered first in one
  * sentence by the one Siriusia on the screen:
  *
  * - **You**: your balance and your average month, carried forward three ways (mattress, deposit,
@@ -105,78 +104,23 @@ function threePaths(f: Inputs, start: number, monthly: number, real: boolean) {
 
 /* ── The card ─────────────────────────────────────────────────────────────────────────────── */
 
-/** The card on the Insights tab. `cat` is false when another card on the screen already shows her. */
-export function PurrphecyCardBody({ insight, cat = true }: { insight: Insight; cat?: boolean }) {
-  const { pace, f } = useFuture(insight);
-  if (!known(pace) && !f.start_minor && !f.monthly_minor) {
-    return <View style={styles.cardRow}>{cat ? <Siriusia mood="sleep" size={64} /> : null}<Text style={[styles.sub, { flex: 1 }]}>{t("future.card.noData")}</Text></View>;
-  }
-  const cur = f.currency;
-  const paths = threePaths(f, f.start_minor, f.monthly_minor, false);
-  const end = paths.market[paths.market.length - 1]!;
-  const mattress = paths.mattress[paths.mattress.length - 1]!;
-  const losing = !f.monthly_minor && (pace?.net_minor ?? 0) < 0;
+/**
+ * The card on the Insights tab says what is inside, not a number: a sum twenty years out means little
+ * without the assumptions under it, and those are on the screen it opens, next to their sliders.
+ * Nothing is computed here, so the card costs the list nothing. `cat` is false when another card on
+ * the screen already shows her.
+ */
+export function PurrphecyCardBody({ cat = true }: { insight: Insight; cat?: boolean }) {
   return (
-    <View>
-      <View style={styles.cardRow}>
-        {cat ? <Siriusia mood={losing ? "behind" : "seer"} size={64} float /> : null}
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.sub}>{t("future.card.in", { count: f.years })}</Text>
-          <Text style={styles.big} numberOfLines={1} adjustsFontSizeToFit>{money(end, cur)}</Text>
-          <Text style={styles.line}>
-            {losing
-              ? t("future.card.negative", { amount: money(-(pace?.net_minor ?? 0), cur) })
-              : <Trans k="future.card.grew" vars={{ rate: pct(f.rate_pct), grew: money(end - mattress, cur) }} tags={strong} />}
-          </Text>
-        </View>
-      </View>
-      <View pointerEvents="none" style={{ marginHorizontal: -S.lg, marginBottom: -S.sm }}>
-        <LineChart currency={cur} height={44} interactive={false} series={[
-          { key: "m", color: C.secondary, values: paths.mattress, dashed: true, width: 1.5 },
-          { key: "d", color: themeHue("#FF9F0A"), values: paths.deposit, width: 2 },
-          { key: "x", color: C.tint, values: paths.market, fill: true },
-        ]} />
+    <View style={styles.cardRow}>
+      {cat ? <Siriusia mood="seer" size={56} float /> : null}
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+        <Text style={styles.teaser}>{t("future.card.teaser")}</Text>
+        <Text style={styles.sub}>{t("future.card.inside")}</Text>
       </View>
     </View>
   );
 }
-
-/**
- * The way in, on the Insights tab, until there is a Purrphecy card or it is waved away: your own
- * number, a tap from the screen that explains it. The tap adds the card first in the list and opens
- * it; the cross remembers the answer (`meta.forecast_promo`, travels with backups — DATA.md rule 7).
- */
-export function PurrphecyPromo({ cat = true }: { cat?: boolean }) {
-  const { pace, currency } = usePace(undefined);
-  const f = futureInputs({ currency }, pace);
-  const end = known(pace) && f.monthly_minor > 0 ? growth({ start_minor: f.start_minor, monthly_minor: f.monthly_minor, rate_pct: f.rate_pct, years: f.years }).at(-1)!.total_minor : null;
-  const open = () => {
-    const id = mutate((d) => {
-      const first = d.get<{ s: number | null }>("SELECT MIN(sort) AS s FROM insights WHERE deleted=0")?.s ?? 0;
-      return createInsight(d, { kind: "forecast", sort: first - 1 }).id;
-    });
-    router.push({ pathname: "/insights/[id]", params: { id } });
-  };
-  const close = () => mutate((d) => setMeta(d, PROMO_KEY, "dismissed"));
-  return (
-    <PressCard style={styles.promo} onPress={open} accessibilityLabel={t("future.promo.a11y")}>
-      <View style={styles.cardRow}>
-        {cat ? <Siriusia mood="seer" size={64} float /> : null}
-        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text style={styles.promoTitle}>{t("insights.kind.forecast.title")}</Text>
-          <Text style={styles.line}>{end !== null ? t("future.promo.says", { count: f.years, amount: money(end, currency) }) : t("future.promo.generic")}</Text>
-          <Text style={styles.promoGo}>{t("future.promo.open")}</Text>
-        </View>
-      </View>
-      <Tap onPress={close} hitSlop={10} style={styles.promoClose} accessibilityRole="button" accessibilityLabel={t("future.promo.close")}>
-        <SymbolView name="xmark" size={12} weight="semibold" tintColor={C.tertiary} />
-      </Tap>
-    </PressCard>
-  );
-}
-
-/** Set once the promo's cross is tapped. Read by the Insights tab (which loads this file only to draw it). */
-export const PROMO_KEY = "forecast_promo";
 
 /* ── The details ──────────────────────────────────────────────────────────────────────────── */
 
@@ -651,7 +595,6 @@ function SliderRow({ label, value, min, max, step, format, onChange, onCommit, f
   );
 }
 
-const strong = { b: (s: ReactNode) => <Text style={{ fontWeight: "600", color: C.label }}>{s}</Text> };
 
 const styles = themed(() => StyleSheet.create({
   cardRow: { flexDirection: "row", alignItems: "center", gap: S.md },
@@ -664,10 +607,7 @@ const styles = themed(() => StyleSheet.create({
   hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.lg },
   link: { color: C.tint, fontSize: 16 },
   value: { fontSize: 16, color: C.secondary },
-  promo: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, padding: S.lg },
-  promoTitle: { fontSize: 17, fontWeight: "700", color: C.label },
-  promoGo: { fontSize: 15, fontWeight: "600", color: C.tint, marginTop: 4 },
-  promoClose: { position: "absolute", top: S.md, right: S.md, width: 24, height: 24, borderRadius: 12, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  teaser: { fontSize: 16, fontWeight: "600", color: C.label },
   amount: { fontSize: 16, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
   amountBig: { fontSize: 18, fontWeight: "700" },
   slider: { paddingHorizontal: S.lg, paddingTop: 10, paddingBottom: 6 },

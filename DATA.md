@@ -192,9 +192,12 @@ also offered `name`, and briefly a `tag_order`; a stored `name` reads as `custom
 off the list again — the Tags screen is always most used first. Ordering only reads. `sort` is
 written by the Reorder screen (and `parent_id`, for a category dropped into another folder) and by
 `keepOrder`, which makes the usage order the custom one when you switch; both write only the rows
-whose place or folder changed. `forecast_promo` joined on 2026-11-10: `dismissed` once the
-invitation to the forecast on the Insights tab was waved away (rule 22), so a restored phone does
-not ask again. `backup.test.ts` pins the list so the
+whose place or folder changed. `insight_hints_dismissed` joined on 2026-11-10: the insight
+cards suggested on the Insights tab that were waved away, as a JSON list of suggestion keys
+(`suggestInsights`, `packages/core/src/insightHints.ts` — a kind, and the account or category it is
+about), so a restored phone does not suggest them again. It replaced `forecast_promo` the same day
+(one TestFlight build had it); a `forecast_promo` of `dismissed` still counts as the forecast waved
+away, and a backup carrying the key is otherwise ignored. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:

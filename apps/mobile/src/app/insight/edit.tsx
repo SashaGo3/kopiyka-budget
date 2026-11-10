@@ -23,11 +23,13 @@ import { dismissTo } from "@/lib/nav";
  * marked until it is given.
  */
 export default function InsightEdit() {
-  const { id, kind: presetKind } = useLocalSearchParams<{ id: string; kind?: string }>();
+  // `kind` and `params` start a new card part-way set up — a suggestion from the Insights tab that
+  // needs only the answer a person must give (a goal's target).
+  const { id, kind: presetKind, params: presetParams } = useLocalSearchParams<{ id: string; kind?: string; params?: string }>();
   const existing = id === "new" ? null : (getRow(db, "insights", id) as Insight | undefined) ?? null;
   // A card of a kind folded into another ("Safe to spend") is edited, and saved, as that other kind.
   const [kind, setKind] = useState<InsightKind | null>((existing ? retiredKind(existing.kind) ?? existing.kind : null) ?? (presetKind as InsightKind) ?? null);
-  const [p, setP] = useState<InsightParams>(() => (existing ? parseInsightParams(existing.params) : {}));
+  const [p, setP] = useState<InsightParams>(() => (existing ? parseInsightParams(existing.params) : presetParams ? parseInsightParams(presetParams) : {}));
   // Closing with changes asks first (lib/discard.ts); saving and converting leave through `leave`. Deleting
   // goes to the Insights tab instead: the screen underneath may be the deleted card's own page.
   const exit = useDiscardGuard(useDirty([kind, p]));
