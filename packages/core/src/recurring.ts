@@ -293,3 +293,45 @@ export function budgetPeriod(day: string, startDay = 1): { start: string; end: s
   const end = clampStart(sy, sm); // next month's start (sm is 1-based, so sm as 0-based index = next month)
   return { start, end };
 }
+
+/** One payment on the recurring calendar. */
+export interface CalendarPayment {
+  day: string;
+  rule: RecurringRule;
+  currency: string;
+  amount_minor: number;
+  /**
+   * `paid`: a transaction carries the rule's id (posted by it, or a charge that claimed it — rule 13).
+   * `late`: the day has passed and nothing has claimed it yet, so it is still to leave.
+   * `expected`: still to come.
+   */
+  status: "paid" | "late" | "expected";
+  transaction_id: string | null;
+}
+
+/**
+ * Every recurring payment falling in `[from, to)`, for a calendar: what already left (the rows a rule
+ * posted or a charge claimed, at the amount actually charged), and what is still to come from each
+ * active rule. The two never overlap: posting or claiming an occurrence moves the rule's `next_date`
+ * past it, so `occurrencesBetween` only ever names occurrences nothing has dealt with — an overdue
+ * one included, on the day it was due.
+ */
+export function recurringCalendar(db: SqlDriver, o: { from: string; to: string; today: string }): CalendarPayment[] {
+  const rules = new Map((listRows(db, "recurring_rules", "1=1") as RecurringRule[]).map((r) => [r.id, r]));
+  const currency = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a.currency]));
+  const out: CalendarPayment[] = [];
+  const paid = db.all<{ id: string; day: string; amount_minor: number; recurring_id: string; account_id: string }>(
+    `SELECT id, substr(date,1,10) AS day, amount_minor, recurring_id, account_id FROM transactions
+     WHERE deleted=0 AND recurring_id IS NOT NULL AND substr(date,1,10)>=? AND substr(date,1,10)<?`, [o.from, o.to]);
+  for (const t of paid) {
+    const rule = rules.get(t.recurring_id);
+    if (rule) out.push({ day: t.day, rule, currency: currency.get(t.account_id) ?? "", amount_minor: t.amount_minor, status: "paid", transaction_id: t.id });
+  }
+  for (const rule of rules.values()) {
+    if (rule.deleted) continue;
+    for (const day of occurrencesBetween(rule, o.from, o.to)) {
+      out.push({ day, rule, currency: currency.get(rule.account_id) ?? "", amount_minor: rule.amount_minor, status: day < o.today ? "late" : "expected", transaction_id: null });
+    }
+  }
+  return out.sort((a, b) => a.day.localeCompare(b.day) || a.amount_minor - b.amount_minor);
+}

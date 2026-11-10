@@ -771,12 +771,12 @@ export interface Messages {
   "debt.summary.reminder": { time: string | number };
   "debt.summary.youOwe": undefined;
   "debt.who": undefined;
-  /** Purrphecy card, above the big forecast amount. */
+  /** Forecast card, under the big amount. grew is an amount, rate = "7%". */
+  "future.card.grew": { grew: string | number; rate: string | number };
+  /** Forecast card, above the big forecast amount. */
   "future.card.in": { count: number };
   "future.card.negative": { amount: string | number };
   "future.card.noData": undefined;
-  /** Purrphecy card, under the big amount. rate = "7%"; mattress and grew are amounts. */
-  "future.card.vs": { rate: string | number; mattress: string | number; grew: string | number };
   /** Chart axis label for millions: "1.2M". n is already formatted. */
   "future.compact.million": { n: string | number };
   /** Chart axis label for thousands: "350k". n is already formatted. */
@@ -841,11 +841,12 @@ export interface Messages {
   "future.grow.itGrew": undefined;
   "future.grow.mine": undefined;
   "future.grow.monthly": undefined;
-  "future.grow.moreThanYou": undefined;
   "future.grow.noCross": undefined;
   "future.grow.raise": undefined;
   "future.grow.real": { rate: string | number };
   "future.grow.result": { count: number };
+  /** Siriusia's speech bubble on the Compound interest tab. */
+  "future.grow.says": { count: number; total: string | number; grew: string | number };
   "future.grow.start": undefined;
   "future.grow.total": undefined;
   "future.grow.youPut": undefined;
@@ -912,50 +913,56 @@ export interface Messages {
   /** Chart legend and row. rate = "7%". */
   "future.path.market": { rate: string | number };
   "future.path.mattress": undefined;
-  /** Siriusia the cat's speech bubble on the Purrphecy screen, one a day. Playful. */
-  "future.prophecy.p1": undefined;
-  "future.prophecy.p2": undefined;
-  "future.prophecy.p3": undefined;
-  "future.prophecy.p4": undefined;
-  "future.prophecy.p5": undefined;
-  "future.prophecy.p6": undefined;
-  "future.prophecy.p7": undefined;
-  "future.prophecy.p8": undefined;
+  "future.promo.a11y": undefined;
+  "future.promo.close": undefined;
+  "future.promo.generic": undefined;
+  /** Link at the bottom of the invitation card. */
+  "future.promo.open": undefined;
+  /** Insights tab, invitation card for the forecast. amount is the user's own forecast. */
+  "future.promo.says": { count: number; amount: string | number };
   "future.rate.deposit": undefined;
   "future.rate.market": undefined;
   "future.real.subtitle": { rate: string | number };
   "future.real.title": undefined;
+  "future.setup.accounts": undefined;
+  /** Value of the Accounts row: every account counts. */
+  "future.setup.accountsAll": undefined;
+  "future.setup.accountsSome": { count: number };
+  "future.setup.currency": undefined;
+  "future.setup.have": undefined;
+  "future.setup.haveSub": undefined;
+  /** list = "USD, EUR". */
+  "future.setup.missing": { list: string | number };
+  "future.setup.monthly": undefined;
+  /** Under "You put away a month": where the number comes from. */
+  "future.setup.pace": { count: number; income: string | number; spend: string | number };
+  "future.setup.title": undefined;
+  "future.setup.yours": undefined;
   /** "2 years 3 months"; both parts already formatted. */
   "future.span.both": { years: string | number; months: string | number };
   "future.span.months": { count: number };
   "future.span.years": { count: number };
-  /** Purrphecy tab chip: financial independence. */
+  /** Forecast tab chip: financial independence. */
   "future.tab.freedom": undefined;
-  /** Purrphecy tab chip. */
+  /** Forecast tab chip. */
   "future.tab.grow": undefined;
-  /** Purrphecy tab chip: what cutting a category would grow into. */
+  /** Forecast tab chip: what cutting a category would grow into. */
   "future.tab.habit": undefined;
-  /** Purrphecy tab chip: the home-buying calculator. */
+  /** Forecast tab chip: the home-buying calculator. */
   "future.tab.home": undefined;
-  /** Purrphecy tab chip. */
+  /** Forecast tab chip. */
   "future.tab.inflation": undefined;
-  /** Purrphecy tab chip: your own forecast. */
+  /** Forecast tab chip: your own forecast. */
   "future.tab.you": undefined;
   "future.yearsCount": { count: number };
   "future.yearsLabel": undefined;
   /** Line above the chart for the touched year. */
   "future.you.at": { year: string | number; market: string | number; deposit: string | number; mattress: string | number };
-  "future.you.have": undefined;
-  "future.you.inYears": { count: number };
-  "future.you.income": undefined;
   "future.you.negative": undefined;
-  "future.you.now": undefined;
-  "future.you.over": { count: number };
   "future.you.paths": { count: number };
-  "future.you.putIn": undefined;
-  "future.you.rate": { pct: string | number };
-  "future.you.saved": undefined;
-  "future.you.spend": undefined;
+  "future.you.putInSub": undefined;
+  /** Siriusia's speech bubble on the You tab. */
+  "future.you.says": { count: number; amount: string | number; grew: string | number };
   "insights.add": undefined;
   /** What came in and went out this period. */
   "insights.balance.inOut": { income: string | number; spent: string | number };
@@ -2182,6 +2189,18 @@ export interface Messages {
   "settingsLists.recurring.addA11y": undefined;
   "settingsLists.recurring.addAll": undefined;
   "settingsLists.recurring.auto": undefined;
+  "settingsLists.recurring.calendar.dayA11y": { count: number; day: string | number };
+  "settingsLists.recurring.calendar.emptyDay": undefined;
+  "settingsLists.recurring.calendar.emptyMonth": undefined;
+  "settingsLists.recurring.calendar.expected": undefined;
+  "settingsLists.recurring.calendar.late": undefined;
+  /** Recurring screen: switch to the list of rules. */
+  "settingsLists.recurring.calendar.list": undefined;
+  "settingsLists.recurring.calendar.paid": undefined;
+  /** Under the month grid; amounts in the base currency, with their sign. */
+  "settingsLists.recurring.calendar.summary": { left: string | number; paid: string | number };
+  /** Recurring screen: switch to the month of payment dates. */
+  "settingsLists.recurring.calendar.title": undefined;
   /** How long a rule waits for the bank's charge. */
   "settingsLists.recurring.days": { count: number };
   "settingsLists.recurring.defaultReminder": undefined;

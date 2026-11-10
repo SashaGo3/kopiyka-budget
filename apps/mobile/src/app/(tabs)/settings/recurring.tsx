@@ -9,6 +9,7 @@ import { ensureNotificationPermission, notificationStatus } from "@/lib/notifica
 import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow, Tap } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { PaymentIcon } from "@/components/PaymentIcon";
+import { PaymentsCalendar } from "@/components/PaymentsCalendar";
 import { SymbolView } from "expo-symbols";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
@@ -40,6 +41,8 @@ const toEditor = (extra: Record<string, string>) => router.push({ pathname: "/re
 export default function RecurringList() {
   // The Add bar slides away while scrolling down, as on Transactions, and comes back on the way up.
   const { visible, onScroll } = useScrollHide();
+  // The same rules two ways: as a list to manage, or as a month of dates to see what leaves when.
+  const [view, setView] = useState<"list" | "calendar">("list");
   const rules = useQuery((db) => {
     const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a]));
     const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
@@ -129,6 +132,13 @@ export default function RecurringList() {
           ]} />
         ) : null}
         {yearly.missing.length ? <Text style={styles.warn}>{t("settingsLists.recurring.noRate", { currencies: yearly.missing.join(", ") })}</Text> : null}
+        {rules.length ? (
+          <View style={styles.views} accessibilityRole="tablist">
+            <Chip icon="list.bullet" label={t("settingsLists.recurring.calendar.list")} active={view === "list"} onPress={() => setView("list")} />
+            <Chip icon="calendar" label={t("settingsLists.recurring.calendar.title")} active={view === "calendar"} onPress={() => setView("calendar")} />
+          </View>
+        ) : null}
+        {view === "calendar" && rules.length ? <PaymentsCalendar /> : <>
         <Card style={{ marginTop: S.sm }}>
           <ToggleRow icon="bell.badge" iconColor="#FF3B30" title={t("settings.notifications.title")} subtitle={notif === "granted" ? t("settings.notifications.granted") : notif === "denied" ? t("settings.notifications.denied") : t("settings.notifications.ask")} value={notif === "granted"} onChange={(v) => void toggleNotifications(v)} />
           <Row icon="bell" iconColor="#FF375F" title={t("settingsLists.recurring.defaultReminder")} subtitle={reminderLabel(remind)} onPress={pickRemind} style={styles.divider} />
@@ -175,6 +185,7 @@ export default function RecurringList() {
           </Card>
         ) : null}
         <Footnote style={styles.foot} more={wait ? t("settingsLists.recurring.footMoreWait") : t("settingsLists.recurring.footMoreNoWait")}>{t("settingsLists.recurring.footShort")}</Footnote>
+        </>}
       </ScrollView>
       <BottomBar visible={visible}><BarButton icon="plus" label={t("settingsLists.recurring.add")} onPress={addRule} a11y={t("settingsLists.recurring.addA11y")} /></BottomBar>
     </>
@@ -212,6 +223,7 @@ function catRef(c: CatRef | undefined) { return c ? { name: catName(c), icon: c.
 
 const styles = themed(() => StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "center", gap: S.sm },
+  views: { flexDirection: "row", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.md },
   dismiss: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   foot: { marginTop: S.xl },

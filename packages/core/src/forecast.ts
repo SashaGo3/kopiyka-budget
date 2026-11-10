@@ -19,6 +19,7 @@ import type { SqlDriver } from "./db";
 import type { InsightParams } from "./insights";
 import { accountHistory, periodWindows } from "./insightHistory";
 import { accountBalanceMinor, listRows } from "./repo";
+import { convertMinor } from "./money";
 
 /* ── Plain maths ─────────────────────────────────────────────────────────────────────────── */
 
@@ -207,8 +208,10 @@ export function monthsBetween(from: string, to: string): number {
  * `futureInputs` fills in the rest. Amounts are minor units of `currency`.
  */
 export interface FutureInputs {
-  /** Which currency the card speaks; absent is the one your income comes in most. */
+  /** Which currency the card speaks; absent is the app's base currency. Every account is converted into it. */
   currency?: string;
+  /** The accounts your pace is read from; absent (or empty) is every account that counts towards net worth. */
+  account_ids?: string[];
   /** Expected yearly return on investments. */
   rate_pct?: number;
   /** What a savings account pays. */
@@ -256,19 +259,25 @@ export interface MoneyPace {
 
 /**
  * How fast money is actually piling up, per currency: the average budget period over the last
- * `periods` complete ones. Money moved between your own accounts is not counted (it is neither
- * earned nor spent), and neither is a running period, which would pull every average down. What a
+ * `periods` complete ones, over every account that counts towards net worth or the ones picked
+ * (`accountIds`). Money moved between two of those accounts is not counted (it is neither earned
+ * nor spent); moved in from, or out to, an account outside them it is, because for these accounts
+ * it arrived or left. A running period is left out too, as it would pull every average down. What a
  * trip cost *is* counted — unlike the budgets, the future does not care which holiday the money
  * went on.
  *
  * Sorted the way the app would pick "your" currency: the one income comes in most often, then the
  * one with the most money in it.
  */
-export function moneyPace(db: SqlDriver, o: { today: string; startDay: number; periods?: number }): MoneyPace[] {
+export function moneyPace(db: SqlDriver, o: { today: string; startDay: number; periods?: number; accountIds?: string[] }): MoneyPace[] {
   const count = o.periods ?? 6;
   const windows = periodWindows(o.today, o.startDay, count + 1).filter((w) => !w.current);
   const balances: { currency: string; minor: number }[] = [];
-  for (const a of listRows(db, "accounts", "deleted=0 AND include_in_net_worth=1")) {
+  // Accounts picked by hand are taken at their word, net worth or not; otherwise net worth decides.
+  const ids = o.accountIds?.length ? o.accountIds : null;
+  const which = ids ? `a.id IN (${ids.map(() => "?").join(",")})` : "a.include_in_net_worth=1";
+  const whichArgs = ids ?? [];
+  for (const a of listRows(db, "accounts", ids ? `deleted=0 AND id IN (${ids.map(() => "?").join(",")})` : "deleted=0 AND include_in_net_worth=1", whichArgs)) {
     const minor = accountBalanceMinor(db, a.id, { includePending: true });
     const b = balances.find((x) => x.currency === a.currency);
     if (b) b.minor += minor; else balances.push({ currency: a.currency, minor });
@@ -280,8 +289,11 @@ export function moneyPace(db: SqlDriver, o: { today: string; startDay: number; p
               SUM(CASE WHEN t.amount_minor>0 AND t.debt_id IS NULL THEN t.amount_minor ELSE 0 END) AS income,
               SUM(CASE WHEN t.amount_minor<0 THEN -t.amount_minor WHEN t.debt_id IS NOT NULL THEN -t.amount_minor ELSE 0 END) AS spend
        FROM transactions t JOIN accounts a ON a.id=t.account_id
-       WHERE t.deleted=0 AND a.deleted=0 AND a.include_in_net_worth=1 AND t.transfer_id IS NULL AND t.date>=? AND t.date<?
-       GROUP BY a.currency`, [w.start, w.end]);
+       WHERE t.deleted=0 AND a.deleted=0 AND ${which} AND t.date>=? AND t.date<?
+         AND (t.transfer_id IS NULL OR NOT EXISTS (
+           SELECT 1 FROM transactions o JOIN accounts oa ON oa.id=o.account_id
+           WHERE o.transfer_id=t.transfer_id AND o.id<>t.id AND o.deleted=0 AND ${which.replaceAll("a.", "oa.")}))
+       GROUP BY a.currency`, [...whichArgs, w.start, w.end, ...whichArgs]);
     for (const r of rows) {
       const e = per.get(r.currency) ?? { income: new Array<number>(windows.length).fill(0), spend: new Array<number>(windows.length).fill(0) };
       e.income[i] = r.income ?? 0; e.spend[i] = r.spend ?? 0; per.set(r.currency, e);
@@ -308,8 +320,28 @@ export function moneyPace(db: SqlDriver, o: { today: string; startDay: number; p
     .map(({ incomePeriods: _, ...p }) => p);
 }
 
+/**
+ * Every currency's pace as one, in `currency`. A salary paid in dollars and a life spent in złoty is
+ * one person saving, not one currency losing money and another piling it up: each currency's
+ * balance and average month are converted at the latest known rate and added. A currency with no
+ * rate yet is left out and named in `missing`, so the screen can say so instead of guessing.
+ */
+export function paceIn(paces: MoneyPace[], currency: string, rateFor: (from: string, to: string) => number | null): (MoneyPace & { missing: string[] }) | null {
+  if (!paces.length) return null;
+  let balance = 0, income = 0, spend = 0, periods = 0;
+  const missing: string[] = [];
+  for (const p of paces) {
+    const rate = p.currency === currency ? 1 : rateFor(p.currency, currency);
+    if (rate == null) { missing.push(p.currency); continue; }
+    const c = (m: number) => (p.currency === currency ? m : convertMinor(m, p.currency, currency, rate));
+    balance += c(p.balance_minor); income += c(p.income_minor); spend += c(p.spend_minor);
+    periods = Math.max(periods, p.periods);
+  }
+  return { currency, balance_minor: balance, income_minor: income, spend_minor: spend, net_minor: income - spend, periods, savings_rate: income > 0 ? (income - spend) / income : null, missing };
+}
+
 /** The Purrphecy card's inputs with every gap filled: from the card, else the defaults, else your pace. */
-export function futureInputs(f: FutureInputs | undefined, pace: MoneyPace | null): Required<Omit<FutureInputs, "habit_category_id">> & { habit_category_id: string | null } {
+export function futureInputs(f: FutureInputs | undefined, pace: MoneyPace | null): Required<Omit<FutureInputs, "habit_category_id" | "account_ids">> & { habit_category_id: string | null; account_ids: string[] } {
   const x = f ?? {};
   const monthly = x.monthly_minor ?? Math.max(0, pace?.net_minor ?? 0);
   return {
@@ -328,6 +360,7 @@ export function futureInputs(f: FutureInputs | undefined, pace: MoneyPace | null
     mortgage_years: x.mortgage_years ?? FUTURE_DEFAULTS.mortgage_years,
     mortgage_extra_minor: x.mortgage_extra_minor ?? 0,
     habit_category_id: x.habit_category_id ?? null,
+    account_ids: x.account_ids ?? [],
     habit_cut_pct: x.habit_cut_pct ?? FUTURE_DEFAULTS.habit_cut_pct,
     withdraw_pct: x.withdraw_pct ?? FUTURE_DEFAULTS.withdraw_pct,
   };

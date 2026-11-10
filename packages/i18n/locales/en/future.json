@@ -1,8 +1,8 @@
 {
   "card": {
-    "in": { "message": "{count, plural, one {In # year, at your pace} other {In # years, at your pace}}", "note": "Purrphecy card, above the big forecast amount." },
-    "vs": { "message": "Invested at {rate}. Under the mattress it would be {mattress}: <b>{grew}</b> is the market's work.", "note": "Purrphecy card, under the big amount. rate = \"7%\"; mattress and grew are amounts." },
-    "negative": "For now more goes out than comes in, about {amount} a month. Open the card to see what changes that.",
+    "in": { "message": "{count, plural, one {In # year, at your pace} other {In # years, at your pace}}", "note": "Forecast card, above the big forecast amount." },
+    "grew": { "message": "<b>+{grew}</b> of it is growth, at {rate} a year", "note": "Forecast card, under the big amount. grew is an amount, rate = \"7%\"." },
+    "negative": "More goes out than comes in: about {amount} a month.",
     "noData": "Siriusia needs a month or two of income and spending to read your future. The calculators work already."
   },
   "compact": {
@@ -10,23 +10,33 @@
     "million": { "message": "{n}M", "note": "Chart axis label for millions: \"1.2M\". n is already formatted.", "max": 8 }
   },
   "disclaimer": "A forecast, not a promise: markets go up and down, and Siriusia is a cat. The figures assume the same rates every year and no taxes or fees.",
-  "prophecy": {
-    "p1": { "message": "I stare into my bowl and I see… compound interest. And tuna.", "note": "Siriusia the cat's speech bubble on the Purrphecy screen, one a day. Playful." },
-    "p2": "The stars say: put money away before you see it, not after.",
-    "p3": "Every coin you do not spend grows whiskers of its own.",
-    "p4": "I see a home. With a warm windowsill. For me, obviously.",
-    "p5": "Time does the heavy lifting. You only have to keep feeding it.",
-    "p6": "Spending less is good. Starting earlier is better. Both is purrfect.",
-    "p7": "The future is not written. But your pace is, and I have read it.",
-    "p8": "A small amount every month beats a big plan for someday."
+  "promo": {
+    "says": { "message": "{count, plural, one {At your pace: {amount} in # year. Tap to see how.} other {At your pace: {amount} in # years. Tap to see how.}}", "note": "Insights tab, invitation card for the forecast. amount is the user's own forecast." },
+    "generic": "What your money becomes in years: growth, a home, freedom.",
+    "open": { "message": "Look into the future", "note": "Link at the bottom of the invitation card.", "max": 28 },
+    "close": "Not now",
+    "a11y": "Siriusia sees the future. Opens the forecast."
+  },
+  "setup": {
+    "title": "Your numbers",
+    "accounts": "Accounts",
+    "accountsAll": { "message": "All", "note": "Value of the Accounts row: every account counts.", "max": 16 },
+    "accountsSome": "{count, plural, one {# account} other {# accounts}}",
+    "currency": "Currency",
+    "missing": { "message": "{list} left out: no exchange rate yet", "note": "list = \"USD, EUR\"." },
+    "have": "You have now",
+    "haveSub": "On these accounts",
+    "monthly": "You put away a month",
+    "yours": "Set by you",
+    "pace": { "message": "{count, plural, one {{income} in, {spend} out · last month} other {{income} in, {spend} out · last # months}}", "note": "Under \"You put away a month\": where the number comes from." }
   },
   "tab": {
-    "you": { "message": "You", "note": "Purrphecy tab chip: your own forecast.", "max": 20 },
-    "grow": { "message": "Compound interest", "note": "Purrphecy tab chip.", "max": 24 },
-    "home": { "message": "A home", "note": "Purrphecy tab chip: the home-buying calculator.", "max": 20 },
-    "freedom": { "message": "Freedom", "note": "Purrphecy tab chip: financial independence.", "max": 20 },
-    "habit": { "message": "Small habits", "note": "Purrphecy tab chip: what cutting a category would grow into.", "max": 20 },
-    "inflation": { "message": "Inflation", "note": "Purrphecy tab chip.", "max": 20 }
+    "you": { "message": "You", "note": "Forecast tab chip: your own forecast.", "max": 20 },
+    "grow": { "message": "Compound interest", "note": "Forecast tab chip.", "max": 24 },
+    "home": { "message": "A home", "note": "Forecast tab chip: the home-buying calculator.", "max": 20 },
+    "freedom": { "message": "Freedom", "note": "Forecast tab chip: financial independence.", "max": 20 },
+    "habit": { "message": "Small habits", "note": "Forecast tab chip: what cutting a category would grow into.", "max": 20 },
+    "inflation": { "message": "Inflation", "note": "Forecast tab chip.", "max": 20 }
   },
   "now": { "message": "Now", "note": "Left end of a forecast chart's axis.", "max": 12 },
   "yearsCount": "{count, plural, one {# year} other {# years}}",
@@ -53,18 +63,11 @@
     "mattress": "Under the mattress"
   },
   "you": {
-    "now": "Where you are",
-    "have": "You have",
-    "income": "Comes in a month",
-    "over": "{count, plural, one {average of the last month} other {average of the last # months}}",
-    "spend": "Goes out a month",
-    "saved": "Left over a month",
-    "rate": "{pct}% of what comes in",
-    "negative": "Right now more goes out than comes in, so the future here is only the money you already have. Small habits and Freedom show what would turn it around.",
+    "says": { "message": "{count, plural, one {At your pace, in # year: {amount}. {grew} of it is growth.} other {At your pace, in # years: {amount}. {grew} of it is growth.}}", "note": "Siriusia's speech bubble on the You tab." },
+    "negative": "More goes out than comes in, so this is only the money you have. Set what you could put away a month below.",
     "paths": "{count, plural, one {Your money in # year} other {Your money in # years}}",
     "at": { "message": "Year {year}: invested {market} · deposit {deposit} · mattress {mattress}", "note": "Line above the chart for the touched year." },
-    "inYears": "{count, plural, one {In # year} other {In # years}}",
-    "putIn": "Of it, put in by you"
+    "putInSub": "Only what you put in"
   },
   "nudge": {
     "title": "What moves it",
@@ -77,15 +80,15 @@
     "inputs": "Your numbers",
     "start": "Start with",
     "monthly": "Add every month",
-    "mine": "Use my balance and pace",
+    "mine": "Use my own numbers",
     "raise": "Raise the monthly amount, a year",
+    "says": { "message": "{count, plural, one {In # year: {total}. {grew} of it grew on its own.} other {In # years: {total}. {grew} of it grew on its own.}}", "note": "Siriusia's speech bubble on the Compound interest tab." },
     "result": "{count, plural, one {After # year} other {After # years}}",
     "at": { "message": "Year {year}: {total} · you put in {put}, it grew {grew}", "note": "Line above the columns for the touched year." },
     "youPut": "You put in",
     "itGrew": "It grew on its own",
     "total": "You end up with",
     "real": "In today's money ({rate} inflation)",
-    "moreThanYou": "Look at that: the money earned more on its own than you ever put in.",
     "doubles": { "message": "Money doubles every {years} years", "note": "years is a formatted decimal, \"10.2\"." },
     "doublesSub": "At this rate, without adding anything",
     "cross": "From year {year} it earns more than you add",

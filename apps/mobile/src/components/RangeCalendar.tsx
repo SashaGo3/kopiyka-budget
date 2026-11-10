@@ -8,7 +8,7 @@ import { humanDayTime, monthBounds, shiftMonth } from "@/lib/dates";
 import { getLocale, t } from "@/i18n";
 
 /** One-letter weekday headers, Monday first, in the app's language (1 Jan 2024 was a Monday). */
-function weekdays(): string[] {
+export function weekdays(): string[] {
   const locale = getLocale();
   return Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: "narrow" }));
 }
@@ -17,6 +17,17 @@ function weekdays(): string[] {
 function day(y: number, m: number, d: number): string {
   const x = new Date(y, m - 1, d);
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+}
+
+/** The weeks of the month `month` (YYYY-MM-01), Monday first; days outside it are null. */
+export function monthWeeks(month: string): (string | null)[][] {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  // Monday first: the week a trip is planned in, weekends together at the end.
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const count = new Date(y, m, 0).getDate();
+  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: count }, (_, i) => day(y, m, i + 1))];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
 }
 
 /**
@@ -35,13 +46,7 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
   start: string; end: string | null; onChange: (start: string, end: string | null) => void; maxStart?: string; maxEnd?: string;
 }) {
   const [month, setMonth] = useState(() => monthBounds(end ?? start).start);
-  const [y, m] = month.split("-").map(Number) as [number, number];
-  // Monday first: the week a trip is planned in, weekends together at the end.
-  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
-  const count = new Date(y, m, 0).getDate();
-  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: count }, (_, i) => day(y, m, i + 1))];
-  while (cells.length % 7) cells.push(null);
-  const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+  const weeks = monthWeeks(month);
 
   const tap = (d: string) => {
     void Haptics.selectionAsync();

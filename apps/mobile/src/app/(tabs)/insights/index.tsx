@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
-import { listRows, type Insight } from "@kopiyka/core";
+import { getMeta, listRows, type Insight } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Empty, FadeIn } from "@/components/ui";
@@ -10,6 +10,7 @@ import { PeriodPill } from "@/components/PeriodPill";
 import { S, themed } from "@/constants/theme";
 import { currentPeriod, getPeriodStartDay, periodContaining, usePeriod } from "@/lib/period";
 import { shownInsights } from "@/lib/insights";
+import { future } from "@/components/future/lazy";
 import { t } from "@/i18n";
 
 /**
@@ -20,6 +21,11 @@ import { t } from "@/i18n";
 export default function InsightsScreen() {
   const insights = shownInsights(useQuery((db) => listRows(db, "insights", "deleted=0", [], "sort, rowid") as Insight[]));
   const canReorder = insights.length > 1;
+  // The forecast's invitation, until there is a forecast card or it was waved away. The key is
+  // spelled here rather than imported so the tab does not load the forecast to decide not to show it.
+  const promo = useQuery((db) => getMeta(db, "forecast_promo") !== "dismissed") && !insights.some((i) => i.kind === "forecast");
+  // Siriusia appears once a screen: on the invitation, else on the first card that draws her.
+  const catOwner = promo ? null : insights.find((i) => i.kind === "forecast" || i.kind === "savings_goal")?.id;
   const reorder = () => router.push("/insight/reorder");
   const [period, setPeriod] = usePeriod();
   const monthKey = useMemo(() => newPickKey("imonth"), []);
@@ -46,8 +52,9 @@ export default function InsightsScreen() {
               onPick={() => router.push({ pathname: "/pick/month", params: { key: monthKey, selected: period.start, now: currentPeriod().start } })} />
           </View>
         ) : null}
-        {insights.length === 0 ? <Empty title={t("insights.empty")} hint={t("insights.emptyHint")} /> : null}
-        {insights.map((i, n) => <FadeIn key={i.id} delay={n * 60}><InsightCard insight={i} /></FadeIn>)}
+        {promo ? (() => { const { PurrphecyPromo } = future(); return <FadeIn><PurrphecyPromo /></FadeIn>; })() : null}
+        {insights.length === 0 && !promo ? <Empty title={t("insights.empty")} hint={t("insights.emptyHint")} /> : null}
+        {insights.map((i, n) => <FadeIn key={i.id} delay={(n + (promo ? 1 : 0)) * 60}><InsightCard insight={i} cat={i.id === catOwner} /></FadeIn>)}
       </ScrollView>
     </>
   );

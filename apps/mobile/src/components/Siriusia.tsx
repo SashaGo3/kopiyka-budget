@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 import type { GoalStatus } from "@kopiyka/core";
@@ -17,6 +18,11 @@ import { C, S, themed } from "@/constants/theme";
  * - `sleep`: nothing is moving, so there is nothing to see.
  *
  * `float` lifts her gently up and down, as a seer over a crystal ball would; never with Reduce Motion.
+ * A tap spins her round once — a cat does what it likes — and, with Reduce Motion, only taps back.
+ *
+ * One screen shows her once: two of the same picture side by side reads as a template, not a cat.
+ * The Insights tab gives her to the first card that wants her (`cat` on `InsightCard`), and
+ * Purrphecy's details have a single Siriusia whose words change with the tab.
  */
 export type SiriusiaMood = "seer" | "wow" | "happy" | "proud" | "behind" | "sleep";
 
@@ -51,11 +57,20 @@ export function Siriusia({ mood, size = 72, float, style }: { mood: SiriusiaMood
     ), -1);
     return () => cancelAnimation(y);
   }, [float, reduced, y]);
-  const lift = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
+  const turn = useSharedValue(0);
+  const lift = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }, { rotate: `${turn.value}deg` }] }));
+  const spin = () => {
+    void Haptics.selectionAsync();
+    if (reduced) return;
+    // Whole turns only, so a tap during a spin finishes on her feet rather than at an angle.
+    turn.set(withTiming(Math.round(turn.get() / 360) * 360 + 360, { duration: 750, easing: Easing.inOut(Easing.cubic) }));
+  };
   return (
-    <Animated.View style={[{ width: size, height: size }, lift, style]}>
-      <Image source={PICTURES[mood]} style={{ width: size, height: size }} contentFit="contain" accessible={false} accessibilityIgnoresInvertColors />
-    </Animated.View>
+    <Pressable onPress={spin} accessible={false} hitSlop={6}>
+      <Animated.View style={[{ width: size, height: size }, lift, style]}>
+        <Image source={PICTURES[mood]} style={{ width: size, height: size }} contentFit="contain" accessible={false} accessibilityIgnoresInvertColors />
+      </Animated.View>
+    </Pressable>
   );
 }
 

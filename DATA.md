@@ -192,7 +192,9 @@ also offered `name`, and briefly a `tag_order`; a stored `name` reads as `custom
 off the list again — the Tags screen is always most used first. Ordering only reads. `sort` is
 written by the Reorder screen (and `parent_id`, for a category dropped into another folder) and by
 `keepOrder`, which makes the usage order the custom one when you switch; both write only the rows
-whose place or folder changed. `backup.test.ts` pins the list so the
+whose place or folder changed. `forecast_promo` joined on 2026-11-10: `dismissed` once the
+invitation to the forecast on the Insights tab was waved away (rule 22), so a restored phone does
+not ask again. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -608,10 +610,18 @@ days. Three things are load-bearing:
 
 ## 22. A forecast reads money, and keeps its settings on its own card
 
-Purrphecy (insight kind `forecast`) and the savings goal's forecast (`packages/core/src/forecast.ts`)
-write no money. They read your pace — `moneyPace`: income less spending per complete period, money
-moved between your own accounts left out, a trip's spending counted (unlike the budgets) — and carry
-it forward.
+"Siriusia sees the future" (uk «Сірюсюкен баче майбутнє»; insight kind `forecast`, called Purrphecy
+in the code) and the savings goal's forecast (`packages/core/src/forecast.ts`) write no money. They
+read your pace — `moneyPace`: income less spending per complete period, money moved between two of
+the accounts read left out (moved in from, or out to, one outside them counted, because for them it
+arrived or left), a trip's spending counted (unlike the budgets) — and carry it forward.
+
+The forecast speaks **one currency**: `paceIn` converts every currency's balance and average month
+at the latest cached rate and adds them, because a salary paid in dollars and a life spent in złoty
+is one person saving, not one currency losing money while another piles it up. A currency with no
+rate yet is left out and named on the screen, never guessed. The currency is `params.future.currency`,
+absent meaning the base currency; the accounts are `params.future.account_ids`, absent or empty
+meaning every account that counts towards net worth.
 
 What the calculators were left at — rates, years, a home's price, the habit weighed — lives in that
 card's `params.future`, not in `meta`. It is a fact about that card, so it travels with the card in

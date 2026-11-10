@@ -23,8 +23,11 @@ import { future } from "@/components/future/lazy";
  * and a tap opens one (`(tabs)/insights/[id].tsx`, drawn there with `detail`); the editor draws one
  * from the settings being chosen (`preview`), so what Save will add is on screen while it is being
  * set up rather than discovered afterwards.
+ *
+ * `cat` says whether this card may draw Siriusia: a screen shows her once, so the Insights tab gives
+ * her to the first card that wants her and the rest go without (`components/Siriusia.tsx`).
  */
-export function InsightCard({ insight, preview, detail }: { insight: Insight; preview?: boolean; detail?: boolean }) {
+export function InsightCard({ insight, preview, detail, cat = true }: { insight: Insight; preview?: boolean; detail?: boolean; cat?: boolean }) {
   const p = parseInsightParams(insight.params);
   const shownKind = retiredKind(insight.kind) ?? insight.kind;
   const title = p.title || kindTitle(shownKind);
@@ -37,18 +40,18 @@ export function InsightCard({ insight, preview, detail }: { insight: Insight; pr
       {still ? null : <SymbolView name="chevron.right" size={13} tintColor={C.tertiary} />}
     </View>
   );
-  if (still) return <View style={styles.card}>{head}<Body insight={insight} p={p} preview={preview} detail={detail} /></View>;
+  if (still) return <View style={styles.card}>{head}<Body insight={insight} p={p} preview={preview} detail={detail} cat={cat} /></View>;
   // On the Insights tab the whole card is the way in, and answers a touch; the checklist lines and
   // the links inside it are buttons of their own and take the touch first.
   return (
     <PressCard style={styles.card} onPress={() => router.push({ pathname: "/insights/[id]", params: { id: insight.id } })} accessibilityLabel={t("insights.openLabel", { title })}>
       {head}
-      <Body insight={insight} p={p} preview={preview} detail={detail} />
+      <Body insight={insight} p={p} preview={preview} detail={detail} cat={cat} />
     </PressCard>
   );
 }
 
-function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightParams; preview?: boolean; detail?: boolean }) {
+function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: InsightParams; preview?: boolean; detail?: boolean; cat: boolean }) {
   const startDay = useQuery(() => getPeriodStartDay());
   const scope = useQuery(() => getBudgetScope());
   const accounts = useQuery((db) => listRows(db, "accounts", "1=1"));
@@ -106,11 +109,11 @@ function Body({ insight, p, preview, detail }: { insight: Insight; p: InsightPar
     case "savings_goal": {
       // Siriusia's verdict, the bar with its quarter marks, and when it gets there (components/future/Goal.tsx).
       const { GoalCardBody } = future();
-      return <GoalCardBody p={p} />;
+      return <GoalCardBody p={p} cat={cat} />;
     }
     case "forecast": {
       const { PurrphecyCardBody } = future();
-      return <PurrphecyCardBody insight={insight} />;
+      return <PurrphecyCardBody insight={insight} cat={cat} />;
     }
     case "account_balance": {
       if (!data.v) return sub(t("insights.chooseAccount"));

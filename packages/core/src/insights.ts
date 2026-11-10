@@ -87,7 +87,7 @@ export type OfferedInsightKind = Exclude<InsightKind, "recurring_spend" | "upcom
 export const INSIGHT_KINDS: { kind: OfferedInsightKind; title: string; hint: string; instant?: boolean }[] = [
   { instant: true, kind: "free_money", title: "Left in budgets", hint: "What is left of your budgets this period, and what is still to be charged" },
   { instant: true, kind: "days_to_salary", title: "Until salary", hint: "Days left in the period and what you can spend per day" },
-  { instant: true, kind: "forecast", title: "Purrphecy", hint: "Siriusia looks into your money's future: compound interest, a home, freedom" },
+  { instant: true, kind: "forecast", title: "Siriusia sees the future", hint: "Your money in years: growth, a home, freedom" },
   { kind: "savings_goal", title: "Savings goal", hint: "Progress of an account towards a target, and when you get there" },
   { kind: "account_balance", title: "Account balance", hint: "What is left on one account, and what moved this period" },
   { kind: "checklist", title: "Payments checklist", hint: "Which of these categories still have no transaction this period" },

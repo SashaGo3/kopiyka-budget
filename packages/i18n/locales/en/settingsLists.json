@@ -86,6 +86,17 @@
   },
   "recurring": {
     "title": "Recurring",
+    "calendar": {
+      "list": { "message": "List", "note": "Recurring screen: switch to the list of rules.", "max": 14 },
+      "title": { "message": "Calendar", "note": "Recurring screen: switch to the month of payment dates.", "max": 14 },
+      "summary": { "message": "Still to come {left} · paid {paid}", "note": "Under the month grid; amounts in the base currency, with their sign." },
+      "emptyMonth": "No recurring payments this month.",
+      "emptyDay": "Nothing on this day.",
+      "paid": "Paid",
+      "late": "Day passed, not paid yet",
+      "expected": "Expected",
+      "dayA11y": "{count, plural, one {{day}, # payment} other {{day}, # payments}}"
+    },
     "fallbackTitle": { "message": "Recurring", "note": "Name of a rule with no payee and no category." },
     "perMonth": "Per month",
     "perYear": "Per year",

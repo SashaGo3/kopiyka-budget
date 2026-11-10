@@ -62,13 +62,13 @@ function GoalBar({ ratio, color }: { ratio: number; color: ColorValue }) {
   );
 }
 
-export function GoalCardBody({ p }: { p: InsightParams }) {
+export function GoalCardBody({ p, cat = true }: { p: InsightParams; cat?: boolean }) {
   const { g, name } = useGoal(p);
   if (!g) return <Text style={styles.sub}>{t("insights.chooseAccount")}</Text>;
   const color = g.ratio >= 1 ? C.green : C.tint;
   return (
     <View style={styles.row}>
-      <Siriusia mood={goalMood(g.status)} size={60} />
+      {cat ? <Siriusia mood={goalMood(g.status)} size={60} /> : null}
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
         <Text style={styles.sub} numberOfLines={1}>{name}{g.deadline ? ` · ${t("future.goal.by", { deadline: humanDayTime(g.deadline, null, todayLocal(), true) })}` : ""}</Text>
         <Text style={styles.line} numberOfLines={1} adjustsFontSizeToFit>

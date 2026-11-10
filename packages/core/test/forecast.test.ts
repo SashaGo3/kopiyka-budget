@@ -3,7 +3,7 @@ import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createTransaction, createTransfer } from "../src/repo";
 import {
-  crossoverYear, doublingYears, freedomNumber, futureInputs, goalForecast, growth, monthAfter, monthsBetween, monthsToTarget, moneyPace, mortgage,
+  crossoverYear, doublingYears, freedomNumber, futureInputs, goalForecast, growth, monthAfter, monthsBetween, monthsToTarget, moneyPace, mortgage, paceIn,
   realValue, requiredMonthly, roundNice,
 } from "../src/forecast";
 
@@ -150,5 +150,28 @@ describe("forecast from your data", () => {
     const { db, usd } = seed();
     const g = goalForecast(db, { account_id: usd.id, target_minor: 1000_00 }, { today: "2026-11-09", startDay: 1 })!;
     expect(g).toMatchObject({ status: "stalled", months_left: null, eta: null });
+  });
+});
+
+describe("paceIn", () => {
+  const pln = { currency: "PLN", balance_minor: 5_000_00, income_minor: 0, spend_minor: 8_000_00, net_minor: -8_000_00, periods: 6, savings_rate: null };
+  const usd = { currency: "USD", balance_minor: 1_000_00, income_minor: 3_000_00, spend_minor: 0, net_minor: 3_000_00, periods: 3, savings_rate: 1 };
+  test("adds a salary in one currency to a life spent in another", () => {
+    const p = paceIn([pln, usd], "PLN", (f, t) => (f === "USD" && t === "PLN" ? 4 : null))!;
+    expect(p).toMatchObject({ currency: "PLN", balance_minor: 9_000_00, income_minor: 12_000_00, spend_minor: 8_000_00, net_minor: 4_000_00, periods: 6, missing: [] });
+    expect(p.savings_rate).toBeCloseTo(1 / 3);
+  });
+  test("leaves out, and names, a currency with no rate", () => {
+    const p = paceIn([pln, usd], "PLN", () => null)!;
+    expect(p).toMatchObject({ net_minor: -8_000_00, missing: ["USD"] });
+  });
+  test("is null with nothing to go on", () => expect(paceIn([], "PLN", () => 1)).toBeNull());
+});
+
+describe("moneyPace over chosen accounts", () => {
+  test("a transfer in from outside the chosen accounts is money arriving", () => {
+    const { db, sav } = seed();
+    const [only] = moneyPace(db, { today: "2026-11-09", startDay: 1, accountIds: [sav.id] });
+    expect(only).toMatchObject({ currency: "PLN", balance_minor: 3000_00, income_minor: 1000_00, spend_minor: 0, net_minor: 1000_00, periods: 3 });
   });
 });
