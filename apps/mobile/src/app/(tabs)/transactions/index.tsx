@@ -4,7 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, save, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, save, toSplitQueue, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import type { SearchBarCommands } from "react-native-screens";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
@@ -85,8 +85,8 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const lastTabPress = useRef(0);
   // What the tab-press handler needs to read without being re-subscribed on every keystroke — and
   // written in an effect, not during render, because the React Compiler is on.
-  const shown = useRef({ filter, period });
-  useEffect(() => { shown.current = { filter, period }; }, [filter, period]);
+  const shown = useRef({ filter, period, sort: "date" as "date" | "amount" });
+  useEffect(() => { shown.current = { filter, period, sort }; }, [filter, period, sort]);
   /** Everything back to the defaults: no filters, no account scope, this month, by date. */
   const showEverything = useCallback(() => {
     setBudgetScope("");
@@ -100,33 +100,38 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
     setSort("date"); setSortGen((g) => g + 1);
   }, []);
   /**
-   * Clearing the screen asks first, and says what it is about to clear.
+   * Clearing the screen happens at once, and the toast it leaves is the way back.
    *
    * Three things narrow this list and only one of them is the filter sheet — the account scope and
-   * the month are shared with Budgets and have pills of their own — so "reset" is two different
-   * answers and the alert offers whichever apply. It used to just happen, silently, on a gesture
-   * nobody could see: a double tap that threw away a filter set up a minute ago and said nothing
-   * about it. Returns false when there is nothing on, so a caller can stay quiet rather than
-   * buzzing and opening an alert about nothing.
+   * the month are shared with Budgets and have pills of their own. With filters on, it is the
+   * filters that go (the month and the scope stay); with none, the screen goes back to this month
+   * across every account. Either way Undo puts back exactly what was there, sort included: an alert
+   * asked first here once, and a question before every reset is a tap trained through, where a way
+   * back costs nothing when the reset was meant (lib/undo.ts). Returns false when there is nothing
+   * on, so a caller can stay quiet rather than buzzing about nothing.
    *
    * Read through `shown` rather than the render's own values: the tab listener below is subscribed
    * once and would otherwise be asking about the screen as it was when the tab was first opened.
    */
-  const askReset = useCallback(() => {
+  const resetNow = useCallback(() => {
     const inScope = isSearch ? NO_ACCOUNTS : scopeAccountIds(getBudgetScope(), listRows(db, "accounts", "deleted=0"));
-    const { filter: f, period: per } = shown.current;
+    const { filter: f, period: per, sort: sortWas } = shown.current;
     const count = activeCount(f, { accounts: inScope, period: isSearch ? null : per });
     // Search has no month or scope to reset: it looks through all of them.
-    const scoped = !isSearch && !!getBudgetScope(), month = !isSearch && per.start !== currentPeriod().start;
+    const scopeWas = getBudgetScope();
+    const scoped = !isSearch && !!scopeWas, month = !isSearch && per.start !== currentPeriod().start;
     if (!count && !scoped && !month) return false;
-    const on = [count ? t("transactions.reset.filters", { count }) : "", scoped ? t("transactions.reset.scope") : "", month ? (per.subtitle ?? per.title) : ""].filter(Boolean);
-    Alert.alert(t("transactions.reset.title"), t("transactions.reset.body", { what: on.join(", ") }), [
-      { text: t("common.cancel"), style: "cancel" },
-      ...(count ? [{ text: t("transactions.reset.clear", { count }), onPress: () => clearFilters(inScope) }] : []),
-      ...(scoped || month ? [{ text: t("transactions.reset.defaults"), onPress: showEverything }] : []),
-    ]);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (count) clearFilters(inScope); else showEverything();
+    offerUndo({
+      label: count ? t("transactions.reset.cleared", { count }) : t("transactions.reset.defaults"),
+      undo: () => {
+        if (!count) { setBudgetScope(scopeWas); setPeriod(per); }
+        setFilter(f); setSort(sortWas); setSortGen((g) => g + 1);
+      },
+    });
     return true;
-  }, [clearFilters, showEverything, isSearch]);
+  }, [clearFilters, showEverything, isSearch, setPeriod]);
   useEffect(() => {
     const tabs = navigation.getParent();
     if (!tabs || isSearch) return;   // the root copy answers for the tab; a press while Search is open pops back to it
@@ -140,20 +145,20 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
       if (navigation.isFocused()) {
         // Re-tap of the tab already on screen: iOS scrolls to the top, and a single press means
         // nothing else. A second one straight after it offers the way back to the whole month from
-        // wherever Budgets or a category editor sent you — the same question the Filter button
-        // asks when it is held, because a native tab bar reports nothing but a press and a hidden
+        // wherever Budgets or a category editor sent you — the same reset the Filter button
+        // does when it is held, because a native tab bar reports nothing but a press and a hidden
         // gesture cannot be the only way to reach something.
         const now = Date.now();
         const twice = now - lastTabPress.current < DOUBLE_PRESS_MS;
         lastTabPress.current = twice ? 0 : now;
         if (!twice) return;
-        if (askReset()) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);   // nothing on: no jolt, no alert
+        resetNow();   // nothing on: no jolt, no toast
         return;
       }
       setFilter({ ...EMPTY_FILTER, accounts: scoped() });
       setSort("date"); setSortGen((g) => g + 1);   // the period is shared with Budgets: whatever month is open stays open
     });
-  }, [navigation, askReset, isSearch]);
+  }, [navigation, resetNow, isSearch]);
   const keys = useMemo(() => ({ filter: newPickKey("filter"), month: newPickKey("month"), scope: newPickKey("scope"), cat: newPickKey("mcat"), tags: newPickKey("mtags"), date: newPickKey("mdate"), note: newPickKey("mnote"), bulk: newPickKey("mbulk") }), []);
   usePickResult<TxFilter>(keys.filter, useCallback((f: TxFilter) => setFilter(f), []));
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
@@ -210,6 +215,9 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
        FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.deleted=0 AND t.pending=1 GROUP BY a.currency`);
     return { n: groups.reduce((a, g) => a + g.n, 0), per: groups.map((g) => ({ currency: g.currency, minor: g.minor })) };
   }, []);
+  // Payments marked "Split later" (core/people.ts). Like Pending, outside the filter and the period:
+  // the dinner from last month still has to be split, and this is where entries are dealt with.
+  const toSplit = useQuery((d) => toSplitQueue(d).length, []);
   const perCurrency = useMemo(() => {
     const inc = new Map<string, number>(), exp = new Map<string, number>();
     for (const t of rows) {
@@ -476,6 +484,17 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}
+          {toSplit > 0 && !isSearch ? (
+            <Pressable onPress={() => router.push("/tosplit")} accessibilityRole="button" accessibilityLabel={`${t("people.card.toSplit", { count: toSplit })}. ${t("transactions.toSplitSub")}`}
+              style={({ pressed }) => [styles.toSplit, pressed && { opacity: 0.7 }]}>
+              <SymbolView name="square.split.2x1.fill" size={20} tintColor={C.tint} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.pendingTitle}>{t("people.card.toSplit", { count: toSplit })}</Text>
+                <Text style={styles.pendingSub}>{t("transactions.toSplitSub")}</Text>
+              </View>
+              <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
+            </Pressable>
+          ) : null}
         </>
       } />
       {/* Nothing chosen yet: no bar at all. A `BarButton` that is merely inactive looks exactly like
@@ -497,7 +516,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
                 puzzle; on a phone the bar is in the thumb zone and the count is all that fits. */}
             <BarButton icon="line.3.horizontal.decrease" label={isPad ? (n ? t("transactions.bar.filters", { count: n }) : t("transactions.bar.filter")) : n ? String(n) : undefined}
               active={n > 0} onPress={openFilter}
-              onLongPress={askReset} a11y={n ? t("transactions.bar.filtersActiveA11y", { count: n }) : t("transactions.bar.filtersA11y")} a11yHint={t("transactions.bar.filtersHint")} />
+              onLongPress={resetNow} a11y={n ? t("transactions.bar.filtersActiveA11y", { count: n }) : t("transactions.bar.filtersA11y")} a11yHint={t("transactions.bar.filtersHint")} />
             <BarButton icon={sort === "date" ? "arrow.up.arrow.down" : "arrow.down.to.line"} label={isPad ? (sort === "date" ? t("transactions.bar.byDate") : t("transactions.bar.byAmount")) : undefined}
               active={sort === "amount"} onPress={toggleSort} a11y={sort === "date" ? t("transactions.bar.sortByAmount") : t("transactions.bar.sortByDate")} />
             <LogButton />
@@ -515,6 +534,7 @@ const styles = themed(() => StyleSheet.create({
   pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.orangeSoft },
   due: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.redSoft },
   dueSum: { fontSize: 16, fontWeight: "700", color: C.red },
+  toSplit: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.card },
   pendingTitle: { fontSize: 16, fontWeight: "600", color: C.label },
   pendingSub: { fontSize: 13, color: C.secondary },
   pendingSum: { fontSize: 16, fontWeight: "700", color: C.orange },

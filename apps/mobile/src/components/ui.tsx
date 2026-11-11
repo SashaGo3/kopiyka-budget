@@ -67,7 +67,9 @@ export function Tap({ style, onPressIn, onPressOut, dim = 0.45, ...rest }: Omit<
   );
 }
 
-export function Chip({ label, icon, active, onPress, tint, compact, disabled, cell }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean;
+export function Chip({ label, icon, active, onPress, onLongPress, a11yHint, tint, compact, disabled, cell }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean;
+  /** A second answer on the same chip, for whoever knows it is there; say what it does in `a11yHint`. */
+  onLongPress?: () => void; a11yHint?: string;
   /**
    * Fills one cell of a `ChipGrid`: the icon sits above the label, so the label has the cell's whole
    * width (beside the icon, "Повернення" had a third of the room it needs), and shrinks to fit it on
@@ -75,7 +77,8 @@ export function Chip({ label, icon, active, onPress, tint, compact, disabled, ce
    */
   cell?: boolean }) {
   return (
-    <Tap onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active, disabled: !!disabled }}
+    <Tap onPress={onPress} onLongPress={onLongPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={a11yHint} accessibilityState={{ selected: !!active, disabled: !!disabled }}
+      accessibilityActions={onLongPress ? [{ name: "longpress", label: a11yHint ?? label }] : undefined} onAccessibilityAction={onLongPress ? (e) => { if (e.nativeEvent.actionName === "longpress") onLongPress(); } : undefined}
       style={[styles.chip, compact && styles.chipCompact, cell && styles.chipCell, active && styles.chipActive, disabled && { opacity: 0.4 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
       {cell

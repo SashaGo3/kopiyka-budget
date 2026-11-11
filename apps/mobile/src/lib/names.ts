@@ -20,7 +20,7 @@ import { db } from "@/db";
 import { dbVersion } from "@/store";
 import { getLanguage } from "@/i18n";
 
-export function catName(c: Pick<Category, "name"> & { preset?: string | null }): string {
+export function catName(c: Pick<Category, "name"> & { preset?: string | null; names?: string | null }): string {
   return categoryName(c, getLanguage());
 }
 

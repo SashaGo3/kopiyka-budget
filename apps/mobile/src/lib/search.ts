@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { jsonIds, listRows, listTrips, searchEntry, searchMatches, searchTokens, type SearchEntry, type SqlDriver } from "@kopiyka/core";
+import { categorySearchNames, jsonIds, listRows, listTrips, searchEntry, searchMatches, searchTokens, type SearchEntry, type SqlDriver } from "@kopiyka/core";
 import { useQuery } from "@/store";
-import { acctName, catName } from "./names";
+import { acctName } from "./names";
 import { monthLong } from "./dates";
 
 /**
@@ -25,7 +25,8 @@ function buildIndex(d: SqlDriver): { id: string; entry: SearchEntry }[] {
   const legs = new Map<string, string[]>();
   for (const r of rows) if (r.transfer_id) legs.set(r.transfer_id, [...(legs.get(r.transfer_id) ?? []), r.account_id]);
   for (const r of rows) if (r.transfer_id) { const o = legs.get(r.transfer_id)!.find((a) => a !== r.account_id); if (o) otherLeg.set(r.id, o); }
-  const shown = (c: { name: string; preset?: string | null } | undefined) => (c ? [catName(c), c.name] : []);
+  // A category by every name it has, in every language (core `categorySearchNames`).
+  const shown = (c: { name: string; preset?: string | null; names?: string | null } | undefined) => (c ? categorySearchNames(c) : []);
   const shownAcct = (id: string | undefined) => { const a = id ? accounts.get(id) : undefined; return a ? [acctName(a), a.name] : []; };
   return rows.map((r) => {
     const c = r.category_id ? cats.get(r.category_id) : undefined;

@@ -9,7 +9,7 @@ import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { ConfirmBar } from "@/components/Keypad";
 import type { AmountPick } from "@/app/pick/amount";
-import { ButtonText, ModalHeader, TagPill, Tap, ToggleRow } from "@/components/ui";
+import { ButtonText, ModalHeader, TagPill, Tap } from "@/components/ui";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -29,7 +29,7 @@ export interface SplitResult {
   main: { category_id: string | null; tag_ids: string[] };
   /** Own parts first, then one per friend (with `person_id`): what the entry sheet writes. */
   parts: SplitPart[];
-  /** A line for the entry's note saying who owes what, when that was asked for. */
+  /** A line for the entry's note saying who owes what: always written when friends are in. */
   noteLine?: string | null;
   /** The new total when a tip was added: what the entry is for now, tip included. */
   total?: number;
@@ -101,8 +101,6 @@ export default function SplitEditor() {
         .map((x) => ({ key: newPickKey("friend"), person_id: x.person_id!, items: x.items ?? [], fixed: x.amount_minor }));
     } catch { return []; }
   });
-  const [toNote, setToNote] = useState(true);
-
   // Closing with parts added or changed asks first (lib/discard.ts); keeping the split does not.
   const exit = useDiscardGuard(useDirty([tip, main, rows.map(({ key: _k, ...part }) => part), friends.map(({ key: _k, ...f }) => f)]));
 
@@ -167,7 +165,7 @@ export default function SplitEditor() {
     ? t("people.split.noteLine", { list: friends.map((f, i) => `${personName(f.person_id)} ${formatMinor(owed[i]!, currency)} ${currency}`).join(", ") })
     : null;
   // The entry sheet saves and leaves from here, taking this screen with it.
-  const done = () => exit(() => resolvePick(p.key, { main, parts: allParts, noteLine: toNote ? noteLine : null, ...(tip ? { total } : {}) } satisfies SplitResult));
+  const done = () => exit(() => resolvePick(p.key, { main, parts: allParts, noteLine, ...(tip ? { total } : {}) } satisfies SplitResult));
   const openTip = () => router.push({ pathname: "/pick/split-amount", params: { key: keys.tip, title: t("transaction.split.tip"), currency, value: String(tip) } });
   const openPeople = () => router.push({ pathname: "/pick/people", params: { key: keys.people, selected: friends.map((f) => f.person_id).join(",") } });
   // Typing one friend's amount takes them out of the equal share and leaves everyone else on it: the
@@ -369,13 +367,15 @@ export default function SplitEditor() {
                         </Tap>
                       ) : null}
                     </View>
-                    <Tap onPress={() => openItems(f)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("people.split.addItems")} style={styles.remove}>
-                      <SymbolView name="list.bullet" size={17} tintColor={f.items.length ? C.tint : C.tertiary} />
+                    {/* What they had: a basket, filled once there is something in it. A bare list glyph
+                        read as a menu or a drag handle. */}
+                    <Tap onPress={() => openItems(f)} hitSlop={6} accessibilityRole="button" accessibilityLabel={t("people.split.addItems")}
+                      style={[styles.remove, styles.items, f.items.length ? styles.itemsOn : null]}>
+                      <SymbolView name={f.items.length ? "basket.fill" : "basket"} size={19} tintColor={f.items.length ? "white" : C.tint} />
                     </Tap>
                   </Pressable>
                 );
               })}
-              {noteLine ? <ToggleRow title={t("people.split.addToNote")} value={toNote} onChange={setToNote} style={[styles.divider, styles.toggle]} /> : null}
             </View>
           </View>
         ) : null}
@@ -392,38 +392,40 @@ export default function SplitEditor() {
 
 const styles = themed(() => StyleSheet.create({
   content: { padding: S.md, gap: S.md },
-  intro: { fontSize: 14, lineHeight: 19, color: C.secondary, paddingHorizontal: S.xs },
+  intro: { fontSize: 15, lineHeight: 20, color: C.secondary, paddingHorizontal: S.xs },
   card: { backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.md },
-  row: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 60, paddingVertical: S.sm },
+  row: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 64, paddingVertical: S.sm },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-  catIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  catIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   middle: { flex: 1, gap: 4 },
-  catText: { fontSize: 16, color: C.label },
+  catText: { fontSize: 17, color: C.label },
   missing: { color: C.tertiary },
   tags: { flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" },
-  tagHint: { fontSize: 13, color: C.tint },
+  tagHint: { fontSize: 14, color: C.tint },
   // The amounts are one column: right-aligned, same width of figure, whatever sits beside them.
   right: { alignItems: "flex-end", flexShrink: 0 },
-  amount: { fontSize: 17, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"], textAlign: "right" },
-  cur: { fontSize: 13, fontWeight: "500", color: C.secondary },
-  caption: { fontSize: 12, color: C.secondary },
-  remove: { width: 22, alignItems: "center" },
+  amount: { fontSize: 18, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"], textAlign: "right" },
+  cur: { fontSize: 14, fontWeight: "500", color: C.secondary },
+  caption: { fontSize: 13, color: C.secondary },
+  remove: { width: 36, alignItems: "center", justifyContent: "center" },
+  items: { height: 36, borderRadius: 18, backgroundColor: C.fill },
+  itemsOn: { backgroundColor: C.tint },
   add: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 50, paddingLeft: 5 },
-  addText: { fontSize: 16, fontWeight: "600", color: C.tint },
+  addText: { fontSize: 17, fontWeight: "600", color: C.tint },
   receipt: { flexGrow: 0, backgroundColor: C.card },
   receiptToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 36 },
-  receiptToggleText: { fontSize: 13, fontWeight: "600", color: C.tint },
-  itemsText: { fontSize: 13, color: C.secondary },
+  receiptToggleText: { fontSize: 14, fontWeight: "600", color: C.tint },
+  itemsText: { fontSize: 14, color: C.secondary },
   equal: { flexDirection: "row", alignItems: "center", gap: 3 },
   suggest: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, minHeight: 44, paddingHorizontal: S.md, borderRadius: 22, backgroundColor: C.card, alignSelf: "center" },
-  suggestText: { fontSize: 15, fontWeight: "600", color: C.tint, flexShrink: 1 },
+  suggestText: { fontSize: 16, fontWeight: "600", color: C.tint, flexShrink: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: S.xs, paddingBottom: 6 },
-  headerText: { fontSize: 13, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
+  headerText: { fontSize: 14, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
   friendsButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, minHeight: 50, borderRadius: 16, backgroundColor: C.card },
-  headerLink: { fontSize: 15, color: C.tint },
-  total: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: S.xs, paddingLeft: S.xs, paddingRight: S.md + 22 + S.md },
-  tip: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-end", marginRight: S.md + 22 + S.md, minHeight: 28 },
-  tipText: { fontSize: 14, color: C.tint },
-  totalAmount: { fontSize: 22, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
-  toggle: { paddingHorizontal: 0, backgroundColor: "transparent", minHeight: 52 },
+  headerLink: { fontSize: 16, color: C.tint },
+  // Flush with the screen's edges, the same inset both sides as the section headers below it.
+  total: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: S.xs },
+  tip: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-end", marginRight: S.xs, minHeight: 30 },
+  tipText: { fontSize: 15, color: C.tint },
+  totalAmount: { fontSize: 26, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
 }));

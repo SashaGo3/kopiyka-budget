@@ -2,11 +2,11 @@ import { useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { formatMinor, listRows } from "@kopiyka/core";
+import { categorySearchNames, formatMinor, listRows } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { rowCategory, useTransactions } from "@/components/TransactionList";
 import { useQuery } from "@/store";
-import { catName, acctName } from "@/lib/names";
+import { acctName } from "@/lib/names";
 import { t } from "@/i18n";
 import { AmountPill, CategoryIcon, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
@@ -36,7 +36,7 @@ export default function PickTransaction() {
   // Category names are matched as shown too (DATA.md rule 16): a preset stored in English is found by
   // its Ukrainian name, which SQL cannot see, so those ids are worked out here and handed to it.
   const ql = q.trim().toLowerCase();
-  const shownIds = useQuery((d) => (ql ? listRows(d, "categories", "deleted=0").filter((c) => catName(c).toLowerCase().includes(ql)).map((c) => c.id) : []), [ql]);
+  const shownIds = useQuery((d) => (ql ? listRows(d, "categories", "deleted=0").filter((c) => categorySearchNames(c).some((n) => n.toLowerCase().includes(ql))).map((c) => c.id) : []), [ql]);
   if (q.trim()) {
     const ids = shownIds.length ? ` OR t.category_id IN (${shownIds.map(() => "?").join(",")}) OR c.parent_id IN (${shownIds.map(() => "?").join(",")})` : "";
     conds.push(`(t.notes LIKE ? OR t.bank_note LIKE ? OR t.payee LIKE ? OR c.name LIKE ? OR p.name LIKE ?${ids})`);

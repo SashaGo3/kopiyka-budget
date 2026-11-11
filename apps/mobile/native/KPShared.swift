@@ -525,6 +525,15 @@ enum KPStore {
   }
 
   /// Whether a column exists — the direct path runs on whatever schema the file is at.
+  /// A category's name in the app's language, as SQL over the row aliased `a`: its own translation
+  /// (`categories.names`, v27, DATA.md rule 16) when it has one for this language, else the stored name —
+  /// which `KPPreset.name` then translates if it is still a ready-made one. Core `categoryName`.
+  static func nameSQL(_ db: OpaquePointer, _ a: String) -> String {
+    guard hasColumn(db, "categories", "names") else { return "\(a).name" }
+    let lang = KPL.language.filter { $0.isLetter || $0 == "-" }
+    return "COALESCE(CASE WHEN json_valid(\(a).names) THEN NULLIF(TRIM(json_extract(\(a).names, '$.\"\(lang)\"')), '') END, \(a).name)"
+  }
+
   static func hasColumn(_ db: OpaquePointer, _ table: String, _ column: String) -> Bool {
     var stmt: OpaquePointer?
     guard sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM pragma_table_info(?) WHERE name=?", -1, &stmt, nil) == SQLITE_OK else { return false }
@@ -580,13 +589,14 @@ enum KPStore {
       return out
     }
     let uses = "(SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses"
+    let cn = nameSQL(db, "c"), pn = nameSQL(db, "p")
     // "Has nothing inside it" is what makes a row pickable, the same rule as core's `folderIds`.
     let leaf = "NOT EXISTS (SELECT 1 FROM categories k WHERE k.deleted=0 AND k.parent_id=c.id)"
     // Older databases lack `type` (v24), `preset` (v18) or `description`: each falls back to a query without it.
-    return run("SELECT c.id, c.name, p.name, c.description, \(uses), c.preset, p.preset, c.type FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true, typed: true)
-      ?? run("SELECT c.id, c.name, p.name, c.description, \(uses), c.preset, p.preset FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
-      ?? run("SELECT c.id, c.name, p.name, c.description, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
-      ?? run("SELECT c.id, c.name, p.name, NULL, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: false)
+    return run("SELECT c.id, \(cn), \(pn), c.description, \(uses), c.preset, p.preset, c.type FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true, typed: true)
+      ?? run("SELECT c.id, \(cn), \(pn), c.description, \(uses), c.preset, p.preset FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
+      ?? run("SELECT c.id, \(cn), \(pn), c.description, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
+      ?? run("SELECT c.id, \(cn), \(pn), NULL, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: false)
       ?? []
   }
 
@@ -623,7 +633,7 @@ enum KPStore {
     func run(_ described: String, _ presets: String = "c.preset, p.preset") -> [KPWatchState.Category]? {
       var stmt: OpaquePointer?
       let sql = """
-        SELECT c.id, c.name, c.parent_id, p.name, c.kind, c.icon, c.color,
+        SELECT c.id, \(nameSQL(db, "c")), c.parent_id, \(nameSQL(db, "p")), c.kind, c.icon, c.color,
           (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses, \(described), \(presets)
         FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 ORDER BY c.sort, c.name
         """
@@ -687,7 +697,7 @@ enum KPStore {
     var stmt: OpaquePointer?
     let bankNote = hasColumn(db, "transactions", "bank_note") ? "t.bank_note" : "NULL"
     let sql = """
-      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets), \(bankNote),
+      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, \(nameSQL(db, "c")), \(nameSQL(db, "p")), t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets), \(bankNote),
         t.place, t.lat, t.lon, t.entered_amount_minor, t.entered_currency
       FROM transactions t JOIN accounts a ON a.id=t.account_id
       LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id

@@ -405,6 +405,13 @@ export default function TransactionSheet() {
     return true;
   };
   const commit = () => { if (persist()) router.back(); };
+  // Split held: the split screen's "Later" without opening it — the dinner paid in a hurry is saved
+  // as it stands, marked for the To split queue, and the sheet closes.
+  const splitLater = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setToSplit(true);
+    if (persist({ categoryId, tagIds, parts: [], toSplit: true })) router.back();
+  };
   // Keeping the split is saving the entry: the parts were the last thing left to decide, so the
   // entries are written there and then and the list opens on them — coming back to this sheet only
   // to press Add a second time was a step with nothing in it.
@@ -677,7 +684,8 @@ export default function TransactionSheet() {
             <Chip cell icon="mappin.and.ellipse" label={t("transaction.entry.chip.place")} active={!!coords || !!place} onPress={openLocation} />
             <Chip cell icon="camera" label={t("transaction.entry.chip.photo")} active={!!photoSrc} onPress={openPhoto} />
             <Chip cell icon="hourglass" label={t("transaction.entry.chip.pending")} active={pending} onPress={() => setPending((v) => !v)} />
-            <Chip cell icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} disabled={!valid} onPress={openSplit} />
+            <Chip cell icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} disabled={!valid} onPress={openSplit}
+              onLongPress={splitLater} a11yHint={t("transaction.entry.splitLaterHint")} />
             {isNew
               ? <Chip cell icon="arrow.uturn.backward" label={t("transaction.entry.chip.return")} disabled={!valid} onPress={askForReturn} />
               : <Chip cell icon="plus.square.on.square" label={t("transaction.entry.chip.duplicate")} onPress={duplicate} />}

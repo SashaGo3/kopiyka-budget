@@ -1,14 +1,14 @@
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, getCategoryOrder, keepOrder, type CategoryOrder, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, missingPresets, unmarkedCount } from "@kopiyka/core";
+import { archivedCategoryIds, getCategoryOrder, keepOrder, type CategoryOrder, categoryImportance, categoryTypes, folderIds, listRows, markableCategories, markableLeaves, missingPresets, unmarkedCount, categoryName, categoryNames, getCategoryNamesSeen, wantsTranslation } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { Card, CategoryIcon, Empty, Row, ScreenNote, SectionHeader, Segmented } from "@/components/ui";
 import { setCategoryOrderSetting } from "@/lib/settings";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { C, S, themed } from "@/constants/theme";
 import { catName, orderedCategories } from "@/lib/names";
-import { t } from "@/i18n";
+import { getLanguage, LANGUAGES, t } from "@/i18n";
 
 /** Folders and their categories; tap any row to edit it. Add lives in the thumb zone. */
 export default function CategoriesScreen() {
@@ -40,6 +40,16 @@ export default function CategoriesScreen() {
   // Categories nothing says the kind of (DATA.md rule 21): a well-known shop cannot be filed into them.
   // Ready-made categories this phone has nothing for — new in a later version, or skipped at onboarding.
   const missing = useQuery((db) => missingPresets(db).length);
+  // Categories named in another language than the app's — there only once the language was changed
+  // after they were named. Then, and only then, they can be given names in this one (category/names).
+  const lang = getLanguage();
+  // Once saved there, the way in goes away until a category turns up it has not listed yet — a new one.
+  const foreign = useQuery((db) => {
+    const seen = getCategoryNamesSeen(db);
+    return listRows(db, "categories", "deleted=0 AND archived=0").filter((c) => !seen.has(c.id) && wantsTranslation(c, lang) && !categoryNames(c.names)[lang]);
+  }, [lang]);
+  // Still in the other language: nothing the suggestion list knows.
+  const untranslated = foreign.filter((c) => categoryName(c, lang) === c.name).length;
   const untyped = useQuery((db) => {
     const all = listRows(db, "categories", "deleted=0");
     const folders = folderIds(all), gone = archivedCategoryIds(all);
@@ -105,6 +115,12 @@ export default function CategoriesScreen() {
             {missing ? <Row title={t("settingsLists.categories.presets.title")} icon="plus.square.on.square" style={!mattersDue || !untyped ? styles.divider : undefined}
               subtitle={t("settingsLists.categories.presets.count", { count: missing })}
               onPress={() => router.push("/category/presets")} /> : null}
+          </Card>
+        ) : null}
+        {foreign.length ? (
+          <Card style={{ marginTop: S.lg }}>
+            <Row icon="character.bubble" iconColor="#5E5CE6" title={t("category.names.row", { language: LANGUAGES.find((l) => l.code === lang)?.name ?? lang })}
+              subtitle={untranslated ? t("category.names.rowCount", { count: untranslated }) : t("category.names.rowNew", { count: foreign.length })} onPress={() => router.push("/category/names")} />
           </Card>
         ) : null}
         {groups.list.length ? (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, debtChoices, folderIds, formatMinor, listRows, type Category } from "@kopiyka/core";
+import { archivedCategoryIds, categorySearchNames, debtChoices, folderIds, formatMinor, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, Tap } from "@/components/ui";
@@ -14,7 +14,7 @@ import { t } from "@/i18n";
 const RECENT = 6;
 
 /** `label` and `folderLabel` are the names as shown (DATA.md rule 16); search matches them and the stored ones. */
-type Pickable = Category & { folder: Category | null; uses: number; isFolder: boolean; label: string; folderLabel: string | null };
+type Pickable = Category & { folder: Category | null; uses: number; isFolder: boolean; label: string; folderLabel: string | null; also: string[] };
 type Item =
   | { row: "header"; id: string; title: string; folder?: Category }
   | { row: "cat"; id: string; cat: Pickable; showFolder: boolean; indent?: boolean };
@@ -64,7 +64,7 @@ export default function PickCategory() {
       .filter((c) => c.id === selected || (!retired.has(c.id) && (allowFolders || !folders.has(c.id)) && (c.kind === wanted || (c.parent_id && byId.get(c.parent_id)?.kind === wanted))))
       .map((c) => {
         const folder = c.parent_id ? byId.get(c.parent_id) ?? null : null;
-        return { ...c, folder, uses: usage.get(c.id) ?? 0, isFolder: folders.has(c.id), label: catName(c), folderLabel: folder ? catName(folder) : null };
+        return { ...c, folder, uses: usage.get(c.id) ?? 0, isFolder: folders.has(c.id), label: catName(c), folderLabel: folder ? catName(folder) : null, also: [...categorySearchNames(c), ...(folder ? categorySearchNames(folder) : [])].map((n) => n.toLowerCase()) };
       });
 
     const out: Item[] = [];
@@ -91,7 +91,7 @@ export default function PickCategory() {
   }, [kind, selected, allowFolders]);
 
   const ql = q.trim().toLowerCase();
-  const found = useMemo(() => pickable.filter((c) => [c.label, c.name, c.folderLabel, c.folder?.name].some((n) => n?.toLowerCase().includes(ql))), [pickable, ql]);
+  const found = useMemo(() => pickable.filter((c) => c.also.some((n) => n.includes(ql))), [pickable, ql]);
   const data: Item[] = ql ? found.map((c) => ({ row: "cat" as const, id: `s-${c.id}`, cat: c, showFolder: true })) : sections;
   const chosen = useRef(false);
   const choose = (id: string | null) => { if (chosen.current) return; chosen.current = true; resolvePick(key, id); router.back(); };
@@ -102,7 +102,7 @@ export default function PickCategory() {
     if (ql.length < 3) return;
     // Never a folder: "the whole of Food" is a deliberate choice, not something to be jumped to.
     const leaves = pickable.filter((c) => !c.isFolder);
-    const starts = leaves.filter((c) => c.label.toLowerCase().startsWith(ql) || c.name.toLowerCase().startsWith(ql));
+    const starts = leaves.filter((c) => categorySearchNames(c).some((n) => n.toLowerCase().startsWith(ql)));
     const inc = found.filter((c) => !c.isFolder);
     const hit = starts.length === 1 ? starts[0] : starts.length === 0 ? (inc.length === 1 ? inc[0] : undefined) : undefined;
     if (hit) choose(hit.id);

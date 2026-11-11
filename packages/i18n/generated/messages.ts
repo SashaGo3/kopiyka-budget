@@ -278,6 +278,8 @@ export interface Messages {
   "budgets.plannedOf": { counted: string | number; total: string | number };
   /** amount is "300.00 EUR". */
   "budgets.reorder.amountOff": { amount: string | number };
+  "budgets.reorder.budgetsSection": undefined;
+  "budgets.reorder.budgetsTitle": undefined;
   "budgets.reorder.button": undefined;
   "budgets.reorder.emptyHint": undefined;
   "budgets.reorder.emptyTitle": undefined;
@@ -422,6 +424,18 @@ export interface Messages {
   "category.matters.header": undefined;
   "category.matters.tapAgain": undefined;
   "category.matters.unmarked": undefined;
+  "category.names.a11y": { name: string | number; language: string | number };
+  /** language is the app's language name. */
+  "category.names.intro": { language: string | number };
+  /** Chip: leave the category's own name untranslated. */
+  "category.names.keep": { name: string | number };
+  "category.names.none": { language: string | number };
+  /** Row on Settings → Categories. */
+  "category.names.row": { language: string | number };
+  "category.names.rowCount": { count: number };
+  "category.names.rowNew": { count: number };
+  /** language is the app's language name, e.g. "Українська". */
+  "category.names.title": { language: string | number };
   "category.noFolder": undefined;
   "category.recolour.subtitle": undefined;
   "category.recolour.title": undefined;
@@ -449,6 +463,12 @@ export interface Messages {
   "category.transactions.header": undefined;
   "category.transactions.inCategory": undefined;
   "category.transactions.inFolder": undefined;
+  /** language is the app's language name, e.g. "English". */
+  "category.translations.hint": { language: string | number };
+  "category.translations.original": undefined;
+  /** Section header in the category editor; language is "English" or "Українська". */
+  "category.translations.originalIn": { language: string | number };
+  "category.translations.useOriginal": undefined;
   /** Under a category type in the picker: the user's other categories that already have this type. names = comma-separated category names. */
   "category.type.also": { names: string | number };
   "category.type.none": undefined;
@@ -1514,6 +1534,18 @@ export interface Messages {
   "people.event.nobody": undefined;
   /** Row on the trip/event sheet that picks the friends. */
   "people.event.people": undefined;
+  "people.group.a11y": { name: string | number; count: string | number };
+  /** Joins the last two first names in a group's name: "Ola, Max & Ira". */
+  "people.group.and": undefined;
+  /** Row under an opened group on Debts. */
+  "people.group.edit": undefined;
+  /** Link beside the Friends header on Debts: pick friends to keep together. */
+  "people.group.make": undefined;
+  "people.group.makeA11y": undefined;
+  /** Under a group's name; amount is "40,00 PLN". */
+  "people.group.owe": { amount: string | number };
+  /** Under a group's name when you owe them. */
+  "people.group.owed": { amount: string | number };
   "people.items.add": undefined;
   "people.items.amount": undefined;
   "people.items.done": undefined;
@@ -1575,8 +1607,6 @@ export interface Messages {
   /** In place of a category on a friend's share of a purchase. */
   "people.row.share": { name: string | number };
   "people.split.addItems": undefined;
-  /** Switch under the friends: writes who owes what into the entry's note. */
-  "people.split.addToNote": undefined;
   /** Link beside the friends header: opens the people picker to add or remove friends. */
   "people.split.edit": undefined;
   "people.split.equalA11y": undefined;
@@ -2621,6 +2651,8 @@ export interface Messages {
   "transaction.entry.returnedLine": { back: string | number; paid: string | number };
   "transaction.entry.showBalance": undefined;
   "transaction.entry.splitA11y": { count: number };
+  /** VoiceOver hint on the Split chip: holding it saves the entry into the To split queue. */
+  "transaction.entry.splitLaterHint": undefined;
   "transaction.entry.splitNeedsTotal.body": undefined;
   "transaction.entry.splitNeedsTotal.title": undefined;
   /** Split summary line: a part without a category. Lowercase, it follows an amount. */
@@ -2781,14 +2813,10 @@ export interface Messages {
   "transactions.range.until": { day: string | number };
   "transactions.rates.fetching": { currencies: string | number };
   "transactions.rates.missing": { currencies: string | number };
-  /** what is a comma-separated list of what narrows the list: "2 filters, an account scope, August 2026". */
-  "transactions.reset.body": { what: string | number };
-  "transactions.reset.clear": { count: number };
+  /** Undo toast after holding the Filter button (or double-tapping the tab) cleared the filters. */
+  "transactions.reset.cleared": { count: number };
+  /** Undo toast after the list went back to the current month and every account. */
   "transactions.reset.defaults": undefined;
-  "transactions.reset.filters": { count: number };
-  /** Part of the reset question: the list shows only some accounts. */
-  "transactions.reset.scope": undefined;
-  "transactions.reset.title": undefined;
   /** Title of the account-scope picker. */
   "transactions.scopeTitle": undefined;
   "transactions.searchPlaceholder": undefined;
@@ -2799,6 +2827,8 @@ export interface Messages {
   /** Screen title in selection mode. */
   "transactions.selected": { count: string | number };
   "transactions.title": undefined;
+  /** Under the count of payments marked Split later, on Transactions. */
+  "transactions.toSplitSub": undefined;
   "transactions.travel": undefined;
   /** Title when the list shows future-dated entries. */
   "transactions.upcoming": undefined;

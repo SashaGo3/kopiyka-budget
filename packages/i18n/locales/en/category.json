@@ -15,6 +15,22 @@
   "expense": "Expense",
   "income": "Income",
   "contains": "{count, plural, one {Contains # category.} other {Contains # categories.}}",
+  "names": {
+    "title": { "message": "Names in {language}", "note": "language is the app's language name, e.g. \"Українська\"." },
+    "intro": { "message": "Names the app knows are translated already. Change any of them, type the ones it doesn’t know, or keep a name as it is. What you choose shows while the app is in {language}.", "note": "language is the app's language name." },
+    "none": "Every category already has a name in {language}.",
+    "keep": { "message": "Keep “{name}”", "note": "Chip: leave the category's own name untranslated." },
+    "a11y": "Name of {name} in {language}",
+    "row": { "message": "Names in {language}", "note": "Row on Settings → Categories." },
+    "rowNew": "{count, plural, one {# new category to name} other {# new categories to name}}",
+    "rowCount": "{count, plural, one {# still in another language} other {# still in another language}}"
+  },
+  "translations": {
+    "original": "Original name",
+    "originalIn": { "message": "Original name · {language}", "note": "Section header in the category editor; language is \"English\" or \"Українська\"." },
+    "useOriginal": { "message": "Use original", "max": 18 },
+    "hint": { "message": "The name above is what you see while the app is in {language}. Make it the same as the original to keep the original everywhere.", "note": "language is the app's language name, e.g. \"English\"." }
+  },
   "description": {
     "header": "Description",
     "placeholder": "What goes here, e.g. supermarkets, bakery, snacks",

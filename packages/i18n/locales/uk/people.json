@@ -21,7 +21,6 @@
     "friendA11y": "{name}: {amount} {currency}. Торкнись, щоб ввести суму.",
     "removeFriend": "Прибрати: {name}",
     "noteLine": "Поділено: {list}",
-    "addToNote": "Дописати в нотатку",
     "howMuch": "Частка: {name}",
     "showReceipt": "Показати чек",
     "hideReceipt": "Сховати чек",
@@ -70,8 +69,17 @@
     "owed": "ти винен(-на) {amount}",
     "even": "усе повернуто"
   },
+  "group": {
+    "and": "і",
+    "make": "Обʼєднати",
+    "makeA11y": "Обʼєднати друзів у групу",
+    "edit": "Змінити, хто в групі",
+    "owe": "винні тобі {amount}",
+    "owed": "ти винен(-на) їм {amount}",
+    "a11y": "{name}, група з {count}"
+  },
   "card": {
-    "reorderSection": "Друзі, борги й платежі, щоб поділити",
+    "reorderSection": "Друзі й борги",
     "title": "Тобі винні",
     "debts": "Борги",
     "toSplit": "{count, plural, one {# платіж, щоб поділити} few {# платежі, щоб поділити} many {# платежів, щоб поділити} other {# платежу, щоб поділити}}"

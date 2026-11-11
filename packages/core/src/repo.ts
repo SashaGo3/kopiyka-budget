@@ -10,7 +10,7 @@ import { isPlaceless } from "./categoryTypes";
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor", "numbers"],
-  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset", "type"],
+  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset", "type", "names"],
   tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
     "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref", "debt_id", "bank_note", "person_id", "share_of", "items", "to_split"],
@@ -19,7 +19,7 @@ export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids", "kind", "people"],
   insights: ["kind", "params", "sort"],
   debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id", "person_id"],
-  people: ["name", "contact_id", "color", "sort", "archived"],
+  people: ["name", "contact_id", "color", "sort", "archived", "group_id"],
 };
 
 export function isSyncedTable(t: string): t is SyncedTable {

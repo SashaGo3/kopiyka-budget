@@ -45,3 +45,4 @@ export * from "./themeColors";
 export * from "./transferPair";
 export * from "./transferAmounts";
 export * from "./search";
+export * from "./commonNames";

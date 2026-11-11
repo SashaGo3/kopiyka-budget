@@ -103,7 +103,7 @@ function seed() {
   const sav = createAccount(db, { name: "Savings", currency: "PLN" });
   const usd = createAccount(db, { name: "Dollars", currency: "USD", opening_balance_minor: 500_00 });
   const food = createCategory(db, { name: "Food" });
-  const salary = createCategory(db, { name: "Salary" });
+  const salary = createCategory(db, { name: "Salary", kind: "income" });
   // Three full months of salary and spending, and a running one; saving 1 000 a month into Savings.
   for (const m of ["08", "09", "10"]) {
     createTransaction(db, { account_id: main.id, date: `2026-${m}-02T10:00:00+02:00`, amount_minor: 8000_00, category_id: salary.id });
@@ -173,5 +173,29 @@ describe("moneyPace over chosen accounts", () => {
     const { db, sav } = seed();
     const [only] = moneyPace(db, { today: "2026-11-09", startDay: 1, accountIds: [sav.id] });
     expect(only).toMatchObject({ currency: "PLN", balance_minor: 3000_00, income_minor: 1000_00, spend_minor: 0, net_minor: 1000_00, periods: 3 });
+  });
+});
+
+describe("moneyPace reads what was earned, not what moved", () => {
+  test("a salary that moved currency is not counted twice, and money back under an expense category is not income", async () => {
+    const { openBunDb } = await import("../src/drivers/bun");
+    const { migrate } = await import("../src/schema");
+    const { createAccount, createCategory, createTransaction } = await import("../src/repo");
+    const { moneyPace } = await import("../src/forecast");
+    const db = openBunDb(":memory:"); migrate(db);
+    const pln = createAccount(db, { name: "PLN", currency: "PLN" });
+    const usd = createAccount(db, { name: "USD", currency: "USD" });
+    const salary = createCategory(db, { name: "Salary", kind: "income" });
+    const savings = createCategory(db, { name: "Savings", kind: "expense" });
+    // Paid in złoty for the first three months, in dollars for the last three.
+    for (const [d, acc, m] of [["2026-05-20", pln, 600000], ["2026-06-20", pln, 600000], ["2026-07-20", pln, 600000],
+      ["2026-08-20", usd, 150000], ["2026-09-20", usd, 150000], ["2026-10-20", usd, 150000]] as const)
+      createTransaction(db, { account_id: acc.id, date: d, amount_minor: m, category_id: salary.id });
+    createTransaction(db, { account_id: pln.id, date: "2026-06-25", amount_minor: 100000, category_id: savings.id });
+    const pace = moneyPace(db, { today: "2026-11-25", startDay: 1, periods: 6 });
+    const p = pace.find((x) => x.currency === "PLN")!, u = pace.find((x) => x.currency === "USD")!;
+    expect(u.income_minor).toBe(75000);
+    expect(p.income_minor).toBe(300000);
+    expect(p.spend_minor).toBe(Math.round(-100000 / 6));
   });
 });

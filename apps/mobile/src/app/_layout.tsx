@@ -202,6 +202,7 @@ export default function RootLayout() {
           {/* Two questions and a list to read before agreeing to it, so a full card rather than a sheet. */}
           <Stack.Screen name="category/importance" options={modal} />
           <Stack.Screen name="category/types" options={modal} />
+          <Stack.Screen name="category/names" options={modal} />
           <Stack.Screen name="category/presets" options={picker} />
           {/* A drag list, like budget/reorder: the sheet's own swipe would fight every row. */}
           <Stack.Screen name="category/reorder" options={{ ...modal, gestureEnabled: false }} />

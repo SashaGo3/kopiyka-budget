@@ -47,6 +47,7 @@ export const BACKUP_META_KEYS = [
   "current_account", "budget_scope", "hide_income", "show_balance", "backup_keep_days",
   "shortcut_notify", "recurring_wait", "recurring_wait_days", "budgets_sections", "language", "theme", "appearance",
   "recurring_dismissed", "location_ignore", "location_allow", "category_order", "insight_hints_dismissed",
+  "category_names_seen",
 ] as const;
 
 /**

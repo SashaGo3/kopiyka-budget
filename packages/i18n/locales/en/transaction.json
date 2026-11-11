@@ -15,6 +15,7 @@
     "splitA11y": "Split into {count, plural, one {# entry} other {# entries}}. Tap to edit.",
     "splitThisEntry": { "message": "this entry", "note": "Split summary line: the part that stays on the entry being edited when it has no category." },
     "splitNoCategory": { "message": "no category", "note": "Split summary line: a part without a category. Lowercase, it follows an amount." },
+    "splitLaterHint": { "message": "Touch and hold to save it marked to split later.", "note": "VoiceOver hint on the Split chip: holding it saves the entry into the To split queue." },
     "returnedLine": { "message": "{back} came back · paid {paid}", "note": "An entry part of which was paid back; both are formatted amounts." },
     "returnedA11y": "{back} {currency} came back; paid {paid}. Tap to forget the returns.",
     "photoA11y": "Photo attached",

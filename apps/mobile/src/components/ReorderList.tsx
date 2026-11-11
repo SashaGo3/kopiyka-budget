@@ -74,8 +74,14 @@ export type ReorderItem = { id: string; title: string; subtitle?: string; icon?:
  * With `section` rows, a row can never land above the first header (it has to belong to one), and
  * where it lands says which section it is in now — `onDone` reads that off the order.
  */
-export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: {
+export function ReorderList({ title, items, hint, empty, onDone, onLongPress, keepInSection }: {
   title: string;
+  /**
+   * Rows stay in the section they started in: a row is dragged only among its own section's rows,
+   * and only a header moves a section. For lists whose sections are kinds of thing rather than
+   * folders — the budgets are one block on the Budgets screen, not something filed under Spending.
+   */
+  keepInSection?: boolean;
   items: ReorderItem[];
   hint: string;
   empty: { title: string; hint: string };
@@ -113,7 +119,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
    * the gesture — the row would jump back under the finger and the next swap would be measured from
    * the wrong place.
    */
-  const from = useRef({ index: 0, at: 0 });
+  const from = useRef({ index: 0, at: 0, min: 0, max: Infinity });
   // The list as the drag sees it: where it is scrolled to (and was at the grab), its size and place
   // on screen, and the finger's last travel and screen position — read again every frame it scrolls.
   const scrollRef = useRef<ScrollView>(null);
@@ -134,24 +140,31 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress }: 
       setOrderBoth([...before, ...blocks.keys()]);
     }
     const at = orderRef.current.indexOf(id);
-    from.current = { index: at, at };
+    let min = 0, max = Infinity;
+    if (keepInSection && !byId.get(id)?.section) {
+      const o = orderRef.current;
+      for (let i = at - 1; i >= 0; i--) if (byId.get(o[i]!)?.section) { min = i + 1; break; }
+      const next = o.findIndex((x, i) => i > at && byId.get(x)?.section);
+      max = next < 0 ? o.length - 1 : next - 1;
+    }
+    from.current = { index: at, at, min, max };
     live.current.start = live.current.y;
     frame.current?.measureInWindow((_x, top, _w, height) => { live.current.top = top; live.current.height = height; });
     pan.setValue(0);
     setDragId(id);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, [pan, byId, setOrderBoth]);
+  }, [pan, byId, setOrderBoth, keepInSection]);
   /** Put the row where `ty` of finger travel, plus however far the list has scrolled, takes it. */
   const place = useCallback((ty: number) => {
     const dy = ty + (live.current.y - live.current.start);
-    const { index, at } = from.current;
+    const { index, at, min, max } = from.current;
     // A row belongs to a section: the first place it may go is just under the first header.
-    const first = folded.current ? 0 : orderRef.current.findIndex((x) => byId.get(x)?.section) + 1;
-    const target = Math.min(orderRef.current.length - 1, Math.max(first, index + Math.round(dy / PITCH)));
+    const first = Math.max(min, folded.current ? 0 : orderRef.current.findIndex((x) => byId.get(x)?.section) + 1);
+    const target = Math.min(orderRef.current.length - 1, max, Math.max(first, index + Math.round(dy / PITCH)));
     if (target !== at) {
       const next = [...orderRef.current];
       next.splice(target, 0, ...next.splice(at, 1));
-      from.current = { index, at: target };
+      from.current = { index, at: target, min, max };
       setOrderBoth(next);
       void Haptics.selectionAsync();
     }

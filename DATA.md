@@ -197,7 +197,9 @@ cards suggested on the Insights tab that were waved away, as a JSON list of sugg
 (`suggestInsights`, `packages/core/src/insightHints.ts` — a kind, and the account or category it is
 about), so a restored phone does not suggest them again. It replaced `forecast_promo` the same day
 (one TestFlight build had it); a `forecast_promo` of `dismissed` still counts as the forecast waved
-away, and a backup carrying the key is otherwise ignored. `backup.test.ts` pins the list so the
+away, and a backup carrying the key is otherwise ignored. `category_names_seen` joined on 2026-11-11: the
+categories already looked at on Settings → Categories → Names in <language> (JSON ids, `markCategoryNamesSeen`),
+so the way in stays hidden after a Save until a new category named in another language turns up. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -436,6 +438,21 @@ Three things are load-bearing:
 - **A file without the column keeps what the phone knows.** `preset` is not in `ROW_DEFAULTS`, so a
   backup from a 1.0.2 build — newer or not — never clears a key, and an older build importing a newer
   backup simply ignores the column.
+- **A category of your own reads in the app's language too** (v27). Named in another language than
+  the app's — the language was changed after naming it (`nameLooksIn`: Cyrillic is Ukrainian) — it
+  is shown translated when `COMMON_NAMES` (`commonNames.ts`) knows the name, whole or part by part
+  ("Car (General)" → «Авто (загальне)»): `autoName`. Nothing is written for that, so no `updated_at`
+  moves (rule 15's lesson), and an unknown name ("Ola Wishes") is shown as written.
+  `categories.names` is JSON `{"uk": "Коти"}`: a name given in a language, which wins over all of
+  the above — including the category's own name kept on purpose (`{"uk": "Cats"}`), which is how
+  "don't translate this one" is stored. `name` is never rewritten, so CSV, older builds and backups
+  still read a real name. Read through `categoryName`; write through `namesToStore`, which leaves out
+  a name that only repeats what `autoName` would show. Set on Settings → Categories → Names in
+  <language> (`category/names.tsx`, offered only when some category is named in another language) and
+  in the category editor, where for such a category the top field is this language's name and the
+  stored one is the "Original name" below it. Swift's `KPStore.nameSQL` reads `names` but has no copy
+  of the list, so Shortcuts' own category lists show an untranslated name as stored. Not in
+  `ROW_DEFAULTS`: a backup from before v27 leaves the phone's translations alone.
 
 ## 17. So do the names the app chose for you
 
@@ -615,7 +632,7 @@ days. Three things are load-bearing:
 
 "Siriusia sees the future" (uk «Сірюсюкен баче майбутнє»; insight kind `forecast`, called Purrphecy
 in the code) and the savings goal's forecast (`packages/core/src/forecast.ts`) write no money. They
-read your pace — `moneyPace`: income less spending per complete period, money moved between two of
+read your pace — `moneyPace`: income less spending per complete period, every currency averaged over the same periods (from the first one anything happened in, in any currency — a salary that moved from złoty to dollars is not counted twice), money coming in under an expense category (a refund, savings taken back out) lowering spending rather than counting as income, money moved between two of
 the accounts read left out (moved in from, or out to, one outside them counted, because for them it
 arrived or left), a trip's spending counted (unlike the budgets) — and carry it forward.
 
@@ -664,6 +681,13 @@ still add up to what left the account.
   from before v25 — leaves the phone's people alone *even when replacing*; otherwise restoring one
   would wipe every friend while their rows still name them. A debt can name a person too
   (`debts.person_id`), so their page shows it beside their shares.
+- **Friends can be kept together** (v26): `people.group_id` is shared by the members of a group — a
+  couple, flatmates — and is a fresh id with no table behind it, because a group is named after
+  whoever is in it ("Ola & Max", `groupName`) and so has nothing else to store. Read through
+  `peopleGroups`, which ignores a group of one; `groupPeople` makes a group exactly the friends
+  given and clears any group a friend left alone (`packages/core/src/people.ts`). A group adds up its
+  members' balances for display only: shares and repayments still name one person each. Not in
+  `ROW_DEFAULTS`, so a backup from before v26 leaves the phone's groups alone.
 - **`to_split = 1`** marks a payment to be split later (`toSplitQueue`); writing a split clears it.
 - **`budgets.people`** is who a trip or an event is with (JSON person ids, read through
   `budgetPeople`): the friends the entry sheet offers to split with while it runs.

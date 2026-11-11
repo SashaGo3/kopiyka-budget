@@ -2,17 +2,17 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { COLORS, autoIcon, categoryTypeName, categoryTypes, convertCategoryToTag, getLocationAllow, getLocationIgnore, isPlaceless, setLocationSuggest, suggestCategoryTypes, typeIsStated, typesToStore, createCategory, getRow, listRows, remove, save, type Category } from "@kopiyka/core";
+import { COLORS, autoIcon, categoryNames, nameLooksIn, namesToStore, wantsTranslation, categoryTypeName, categoryTypes, convertCategoryToTag, getLocationAllow, getLocationIgnore, isPlaceless, setLocationSuggest, suggestCategoryTypes, typeIsStated, typesToStore, createCategory, getRow, listRows, remove, save, type Category } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
-import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, ToggleRow, runBusy } from "@/components/ui";
+import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, Tap, ToggleRow, runBusy } from "@/components/ui";
 import { dismissTo } from "@/lib/nav";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { catDescription, catName, catNameById } from "@/lib/names";
 import { getLocationEnabled } from "@/lib/settings";
-import { getLanguage, t } from "@/i18n";
+import { getLanguage, LANGUAGES, t } from "@/i18n";
 import { colorLabel } from "@/app/pick/color";
 
 /**
@@ -30,6 +30,14 @@ export default function CategoryEdit() {
   const shownName = existing ? catName(existing) : null;
   const shownDescription = existing ? catDescription(existing) ?? "" : null;
   const [name, setName] = useState(shownName ?? presetName ?? "");
+  // A category named in another language than the app's ("Cats" on a Ukrainian phone — the app's
+  // language was changed after it was named) can have a name of its own in this one (`categories.names`,
+  // v27). Then the field above is that name, and the name it was given stays below as the original.
+  // Nothing about translation is shown for a category named in the language the app is in.
+  const here = getLanguage();
+  const stored = useMemo(() => categoryNames(existing?.names), [existing?.names]);
+  const translatable = !!existing && (!!stored[here] || wantsTranslation(existing, here));
+  const [original, setOriginal] = useState(existing?.name ?? "");
   // Folder or category is its own answer, not read off `parentId`: a new category starts in no folder
   // until one is picked — never silently in the first one — and is not a folder for that.
   // An EXISTING top-level row reads as a folder, which is how the Categories list shows it too.
@@ -57,7 +65,7 @@ export default function CategoryEdit() {
   /** Folder colour → every category inside it, applied on Save so Cancel still undoes everything. */
   const [recolour, setRecolour] = useState(false);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
-  const exit = useDiscardGuard(useDirty([name, shape, parentId, types, placeOn, level, kind, icon, color, description, recolour]));
+  const exit = useDiscardGuard(useDirty([name, original, shape, parentId, types, placeOn, level, kind, icon, color, description, recolour]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const uses = useQuery((d) => (existing ? d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE t.deleted=0 AND (t.category_id=? OR c.parent_id=?)`, [existing.id, existing.id])?.n ?? 0 : 0), [existing?.id]);
   const keys = useMemo(() => ({ icon: newPickKey("cicon"), color: newPickKey("ccolor"), folder: newPickKey("cfolder"), where: newPickKey("cwhere"), moveTo: newPickKey("cmoveto"), type: newPickKey("ctype") }), []);
@@ -121,9 +129,14 @@ export default function CategoryEdit() {
   const shownColor = color ?? inherited ?? auto?.color ?? "#8E8E93";
   const colorName = COLORS.find((c) => c.hex === shownColor)?.name;
   // Untouched fields write back what was stored, so a preset stays one (DATA.md rule 16).
-  const nameToSave = () => (existing && name.trim() === shownName?.trim() ? existing.name : name.trim());
+  // Translatable, the field above is this language's name and `original` is the stored one; the same
+  // as the original (or empty) means "no name of its own here".
+  const nameToSave = () => (translatable ? original.trim() || existing!.name : existing && name.trim() === shownName?.trim() ? existing.name : name.trim());
+  const namesToSave = (base: string) => namesToStore(translatable ? { ...stored, [here]: name.trim() } : stored, { name: base, preset: existing?.preset });
+  const languageName = (code: string) => LANGUAGES.find((l) => l.code === code)?.name ?? code;
+  const originalLang = LANGUAGES.find((l) => l.code !== here && nameLooksIn(original, l.code))?.code ?? null;
   const descriptionToSave = () => (existing && description.trim() === shownDescription?.trim() ? existing.description : description.trim() || null);
-  const valid = name.trim().length > 0;
+  const valid = name.trim().length > 0 && (!translatable || original.trim().length > 0);
   const parentToSave = isFolder ? null : parentId;
   const presetTypes = categoryTypes({ preset: existing?.preset ?? null });
   const suggested = types === null && !presetTypes.length ? suggestCategoryTypes(name, kind, parentFolder ? catName(parentFolder) : null) : [];
@@ -149,8 +162,8 @@ export default function CategoryEdit() {
     if (!valid) return;
     const c = mutate((d) => {
       const row = existing
-        ? save(d, "categories", { ...existing, name: nameToSave(), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: descriptionToSave(), ...(levelToSave !== undefined ? { importance: levelToSave } : null) } as Category)
-        : createCategory(d, { name: name.trim(), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null, ...(levelToSave !== undefined ? { importance: levelToSave } : null) });
+        ? save(d, "categories", { ...existing, name: nameToSave(), names: namesToSave(nameToSave()), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: descriptionToSave(), ...(levelToSave !== undefined ? { importance: levelToSave } : null) } as Category)
+        : createCategory(d, { name: name.trim(), names: namesToSave(name.trim()), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null, ...(levelToSave !== undefined ? { importance: levelToSave } : null) });
       // Same batch as the folder itself: one refresh, and a half-recoloured folder is impossible.
       if (recolour && isFolder) for (const child of children) save(d, "categories", { ...child, color: shownColor });
       if (!isFolder && placeOn !== null) setLocationSuggest(d, row.id, placeOn);
@@ -209,6 +222,16 @@ export default function CategoryEdit() {
           <Segmented value={kind} onChange={setKind} options={[{ value: "expense", label: t("category.expense") }, { value: "income", label: t("category.income") }]} />
         </View>
         {isFolder && hasChildren ? <Text style={styles.hint}>{t("category.contains", { count: hasChildren })}</Text> : null}
+        {translatable ? (
+          <>
+            <SectionHeader right={name.trim() !== original.trim() ? <Tap onPress={() => setName(original)} hitSlop={8} accessibilityRole="button"><Text style={styles.useOriginal}>{t("category.translations.useOriginal")}</Text></Tap> : undefined}>
+              {originalLang ? t("category.translations.originalIn", { language: languageName(originalLang) }) : t("category.translations.original")}
+            </SectionHeader>
+            <TextInput value={original} onChangeText={setOriginal} style={styles.original} placeholderTextColor={C.tertiary} returnKeyType="done"
+              accessibilityLabel={t("category.translations.original")} />
+            <Text style={styles.hint}>{t("category.translations.hint", { language: languageName(here) })}</Text>
+          </>
+        ) : null}
         {!isFolder ? (
           <>
             <SectionHeader>{t("category.description.header")}</SectionHeader>
@@ -287,6 +310,8 @@ export default function CategoryEdit() {
 
 const styles = themed(() => StyleSheet.create({
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
+  original: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingVertical: S.md, fontSize: 16, color: C.label },
+  useOriginal: { color: C.tint, fontSize: 13, fontWeight: "600" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.md, padding: S.lg },
   preview: { width: 50, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },

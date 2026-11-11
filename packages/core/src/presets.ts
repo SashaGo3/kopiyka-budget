@@ -18,6 +18,7 @@ import type { SqlDriver } from "./db";
 import type { Category } from "./models";
 import { createCategory, listRows } from "./repo";
 import { categoryTypes, suggestCategoryTypes, typeIsStated } from "./categoryTypes";
+import { nameLooksIn, suggestName } from "./commonNames";
 import { CATEGORY_PRESET, FORMER_PRESET_NAMES, presetDescription, presetKey, presetName } from "./presetData";
 
 export { CATEGORY_PRESET, presetDescription, presetKey, presetName, type PresetCategory, type PresetFolder } from "./presetData";
@@ -36,13 +37,65 @@ function isPresetDescription(preset: string, d: string): boolean {
   return LANGUAGES.some((l) => { const own = presetDescription(preset, l.code); return own !== null && norm(own) === n; });
 }
 
-type Named = Pick<Category, "name"> & { preset?: string | null };
+type Named = Pick<Category, "name"> & { preset?: string | null; names?: string | null };
 type Described = Pick<Category, "description"> & { preset?: string | null };
 
-/** The name to show for a category: its preset's, in `lang`, while unrenamed; otherwise what the user wrote. */
+/**
+ * The name to show for a category in `lang`:
+ *  1. the name it was given in that language (`names`, v27) — which may be its own name, kept on purpose;
+ *  2. a ready-made one's, while it still has the preset's name;
+ *  3. one named in another language than `lang` — the app's language changed after it was named —
+ *     in `lang` when `COMMON_NAMES` knows it ("Cats" reads «Коти»), so nobody has to translate
+ *     "Rent" by hand;
+ *  4. what the user wrote.
+ */
 export function categoryName(c: Named, lang: string): string {
-  if (!c.preset || !isPresetName(c.preset, c.name)) return c.name;
-  return presetName(c.preset, lang) ?? c.name;
+  const own = categoryNames(c.names)[lang];
+  if (own) return own;
+  return autoName(c, lang);
+}
+
+/**
+ * Every name a category goes by — as stored, as given in each language, and as shown in each language —
+ * for search: typing "cats" finds «Коти» on a Ukrainian phone, and «продукти» finds "Groceries".
+ */
+export function categorySearchNames(c: Named): string[] {
+  return [...new Set([c.name, ...Object.values(categoryNames(c.names)), ...LANGUAGES.map((l) => categoryName(c, l.code))])];
+}
+
+/** What `categoryName` shows when the category has no name of its own in `lang`. */
+export function autoName(c: Named, lang: string): string {
+  if (c.preset && isPresetName(c.preset, c.name)) return presetName(c.preset, lang) ?? c.name;
+  if (!nameLooksIn(c.name, lang)) return suggestName(c.name, lang) ?? c.name;
+  return c.name;
+}
+
+/**
+ * A category's own names in other languages (`categories.names`, v27): `{"uk": "Коти"}`. Whatever is
+ * not a non-empty string is dropped, and a column that is not JSON reads as none, so a hand-edited
+ * backup can only lose a translation, never break a name.
+ */
+export function categoryNames(json: string | null | undefined): Record<string, string> {
+  if (!json) return {};
+  try {
+    const v: unknown = JSON.parse(json);
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const out: Record<string, string> = {};
+    for (const [k, n] of Object.entries(v)) if (typeof n === "string" && n.trim()) out[k] = n.trim();
+    return out;
+  } catch { return {}; }
+}
+
+/**
+ * What to store for `names` on category `c` (its stored `name` and `preset` as they will be saved):
+ * the languages that have a name of their own, NULL when none does. A name that is what the category
+ * would read anyway (`autoName`) says nothing and is left out — so it keeps following the suggestion —
+ * while its own `name` kept in a language it would otherwise be translated in is stored: that is a choice.
+ */
+export function namesToStore(names: Record<string, string>, c: Named): string | null {
+  const out: Record<string, string> = {};
+  for (const [k, n] of Object.entries(names)) { const v = n.trim(); if (v && v !== autoName(c, k)) out[k] = v; }
+  return Object.keys(out).length ? JSON.stringify(out) : null;
 }
 
 /** The description to show (and edit) in `lang` — the preset's while it is untouched, else the user's own. */

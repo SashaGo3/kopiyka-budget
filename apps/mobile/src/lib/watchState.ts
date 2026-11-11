@@ -67,13 +67,13 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
   const lang = getLanguage();
   // Names in the app's language (DATA.md rule 16): a ready-made category the user never renamed is
   // shown translated here exactly as it is in the app.
-  const name = (n: string, preset: string | null) => categoryName({ name: n, preset }, lang);
+  const name = (n: string, preset: string | null, names: string | null = null) => categoryName({ name: n, preset, names }, lang);
 
   const categories: WatchCategory[] = db.all<{
-    id: string; name: string; preset: string | null; parent_id: string | null; parent_name: string | null; parent_preset: string | null; kind: string;
+    id: string; name: string; preset: string | null; names: string | null; parent_id: string | null; parent_name: string | null; parent_preset: string | null; parent_names: string | null; kind: string;
     icon: string | null; color: string | null; description: string | null; uses: number; archived: number; type: string | null;
   }>(
-    `SELECT c.id, c.name, c.preset, c.parent_id, p.name AS parent_name, p.preset AS parent_preset, c.kind, c.icon, c.color, c.description, c.archived, c.type,
+    `SELECT c.id, c.name, c.preset, c.names, c.parent_id, p.name AS parent_name, p.preset AS parent_preset, p.names AS parent_names, c.kind, c.icon, c.color, c.description, c.archived, c.type,
        (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses
      FROM categories c LEFT JOIN categories p ON p.id=c.parent_id
      WHERE c.deleted=0 ORDER BY c.sort, c.name`,
@@ -83,7 +83,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     // `description` is what the receipt reader matches against, not something shown: an untouched
     // preset's is every language's keywords at once, since a receipt is in the shop's language.
     return {
-      id: c.id, name: name(c.name, c.preset), parent_id: c.parent_id, parent_name: c.parent_name === null ? null : name(c.parent_name, c.parent_preset),
+      id: c.id, name: name(c.name, c.preset, c.names), parent_id: c.parent_id, parent_name: c.parent_name === null ? null : name(c.parent_name, c.parent_preset, c.parent_names),
       kind: c.kind, icon: m.icon, color: m.color, uses: c.uses, description: categoryMatchText(c), archived: !!c.archived,
       // What a well-known shop is filed into (core shops.ts); the automation matches it while the app owns the file.
       types: categoryTypes(c),
@@ -111,12 +111,12 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
 
   const history: WatchTx[] = db.all<{
     id: string; date: string; amount_minor: number; currency: string; account_name: string; account_id: string;
-    category_id: string | null; cat_name: string | null; cat_preset: string | null; parent_name: string | null; parent_preset: string | null; notes: string | null; bank_note: string | null; payee: string | null;
+    category_id: string | null; cat_name: string | null; cat_preset: string | null; cat_names: string | null; parent_name: string | null; parent_preset: string | null; parent_names: string | null; notes: string | null; bank_note: string | null; payee: string | null;
     tag_ids: string; pending: number; transfer_id: string | null; debt_id: string | null; debt_person: string | null;
     place: string | null; lat: number | null; lon: number | null; entered_amount_minor: number | null; entered_currency: string | null;
   }>(
     `SELECT t.id, t.date, t.amount_minor, a.currency, a.name AS account_name, t.account_id, t.category_id,
-       c.name AS cat_name, c.preset AS cat_preset, p.name AS parent_name, p.preset AS parent_preset, t.notes, t.bank_note, t.payee, t.tag_ids, t.pending, t.transfer_id, t.debt_id, d.person AS debt_person,
+       c.name AS cat_name, c.preset AS cat_preset, c.names AS cat_names, p.name AS parent_name, p.preset AS parent_preset, p.names AS parent_names, t.notes, t.bank_note, t.payee, t.tag_ids, t.pending, t.transfer_id, t.debt_id, d.person AS debt_person,
        t.place, t.lat, t.lon, t.entered_amount_minor, t.entered_currency
      FROM transactions t JOIN accounts a ON a.id=t.account_id
      LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id LEFT JOIN debts d ON d.id=t.debt_id
@@ -126,8 +126,8 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     // A debt payment has no category: it is named after whose debt it pays, as in the app's list.
     const debtLabel = r.debt_id ? t("transactions.list.debt", { person: r.debt_person ?? "?" }) : null;
     const note = r.notes?.split("\n")[0] || r.bank_note?.split("\n")[0] || "";
-    const catName = r.cat_name === null ? null : name(r.cat_name, r.cat_preset);
-    const parentName = r.parent_name === null ? null : name(r.parent_name, r.parent_preset);
+    const catName = r.cat_name === null ? null : name(r.cat_name, r.cat_preset, r.cat_names);
+    const parentName = r.parent_name === null ? null : name(r.parent_name, r.parent_preset, r.parent_names);
     const title = transfer ? t("misc.watch.transfer") : r.payee || note || catName || parentName || debtLabel || t("misc.watch.uncategorized");
     const catLabel = transfer ? null : catName ? (parentName ? `${parentName} › ${catName}` : catName) : parentName;
     const sub = [accountName({ name: r.account_name }, lang), catLabel].filter((x): x is string => !!x).join(" · ");

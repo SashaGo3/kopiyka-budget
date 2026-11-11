@@ -17,7 +17,7 @@ import { PersonAvatar } from "@/components/PersonAvatar";
 
 interface TagRef { id: string; name: string; color: string | null }
 
-export interface TxRow extends Transaction { currency: string; account_name: string; category_name: string | null; parent_name: string | null; cat_preset: string | null; parent_preset: string | null; cat_icon: string | null; cat_color: string | null; parent_icon: string | null; parent_color: string | null; source: string | null;
+export interface TxRow extends Transaction { currency: string; account_name: string; category_name: string | null; parent_name: string | null; cat_preset: string | null; parent_preset: string | null; cat_names: string | null; parent_names: string | null; cat_icon: string | null; cat_color: string | null; parent_icon: string | null; parent_color: string | null; source: string | null;
   /** Who the debt this row pays is with (`debt_id`); null when it is not a debt payment. */
   debt_person: string | null;
   /** The friend a share or a repayment is with (`person_id`, DATA.md rule 23); null otherwise. */
@@ -25,7 +25,7 @@ export interface TxRow extends Transaction { currency: string; account_name: str
 
 export function useTransactions(where: string, params: (string | number)[] = [], limit = 500) {
   return useQuery((db) => db.all(
-    `SELECT t.*, a.currency, a.name AS account_name, c.name AS category_name, p.name AS parent_name, c.preset AS cat_preset, p.preset AS parent_preset, c.icon AS cat_icon, c.color AS cat_color, p.icon AS parent_icon, p.color AS parent_color, d.person AS debt_person, pp.name AS person_name, pp.color AS person_color
+    `SELECT t.*, a.currency, a.name AS account_name, c.name AS category_name, p.name AS parent_name, c.preset AS cat_preset, p.preset AS parent_preset, c.names AS cat_names, p.names AS parent_names, c.icon AS cat_icon, c.color AS cat_color, p.icon AS parent_icon, p.color AS parent_color, d.person AS debt_person, pp.name AS person_name, pp.color AS person_color
      FROM transactions t JOIN accounts a ON a.id=t.account_id
      LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id LEFT JOIN debts d ON d.id=t.debt_id LEFT JOIN people pp ON pp.id=t.person_id
      WHERE t.deleted=0 AND ${where} ORDER BY t.date DESC, t.rowid DESC LIMIT ${limit}`, params) as unknown as TxRow[], [where, ...params]);
@@ -36,10 +36,10 @@ export function useTransactions(where: string, params: (string | number)[] = [],
  * language until it is renamed (DATA.md rule 16). `category_name` / `parent_name` stay the stored
  * names — what the icon guess and search read.
  */
-export function rowCategory(tx: Pick<TxRow, "category_name" | "parent_name" | "cat_preset" | "parent_preset">): { name: string | null; parent: string | null } {
+export function rowCategory(tx: Pick<TxRow, "category_name" | "parent_name" | "cat_preset" | "parent_preset"> & Partial<Pick<TxRow, "cat_names" | "parent_names">>): { name: string | null; parent: string | null } {
   return {
-    name: tx.category_name ? catName({ name: tx.category_name, preset: tx.cat_preset }) : null,
-    parent: tx.parent_name ? catName({ name: tx.parent_name, preset: tx.parent_preset }) : null,
+    name: tx.category_name ? catName({ name: tx.category_name, preset: tx.cat_preset, names: tx.cat_names }) : null,
+    parent: tx.parent_name ? catName({ name: tx.parent_name, preset: tx.parent_preset, names: tx.parent_names }) : null,
   };
 }
 

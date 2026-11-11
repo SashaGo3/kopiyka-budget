@@ -18,6 +18,7 @@
 import type { SqlDriver } from "./db";
 import type { Person, ShareItem, Transaction } from "./models";
 import { createTransaction, getRow, listRows, save } from "./repo";
+import { newId } from "./ids";
 
 /** The condition every spending or income total adds: `t` is the transactions alias. */
 export const NO_PERSON = "t.person_id IS NULL";
@@ -25,6 +26,76 @@ export const NO_PERSON = "t.person_id IS NULL";
 /** Friends in their order; archived ones only when asked for. */
 export function listPeople(db: SqlDriver, o: { archived?: boolean } = {}): Person[] {
   return listRows(db, "people", o.archived ? "deleted=0" : "deleted=0 AND archived=0", [], "sort, name COLLATE NOCASE");
+}
+
+/**
+ * Friends kept together (v26): each group with two or more live members, in the order the members'
+ * own list puts them, keyed by `group_id`. A group left with one member is no group — that member
+ * is listed alone — so leaving never has to tidy up after itself for the list to read right.
+ */
+export function peopleGroups(people: Person[]): Map<string, Person[]> {
+  const all = new Map<string, Person[]>();
+  for (const p of people) if (p.group_id) all.set(p.group_id, [...(all.get(p.group_id) ?? []), p]);
+  for (const [id, members] of all) if (members.length < 2) all.delete(id);
+  return all;
+}
+
+/**
+ * A group is named after the friends in it, by first name: "Ola & Marek", "Ola, Marek & Ira".
+ * `and` is the language's own word for the last join.
+ */
+export function groupName(names: string[], and: string): string {
+  const first = names.map((n) => n.trim().split(/\s+/)[0] || n.trim()).filter(Boolean);
+  if (first.length < 2) return first[0] ?? "";
+  return `${first.slice(0, -1).join(", ")} ${and} ${first[first.length - 1]}`;
+}
+
+/**
+ * Makes these friends one group, exactly: `groupId` is the group being edited (its id is kept, and
+ * whoever is no longer picked leaves it), or none for a new one. Each friend comes out of whatever
+ * group they were in. Only rows whose group changes are written (rule 15's lesson), and a group left
+ * with one member is cleared, so no stale id waits to pull a later friend in. Fewer than two friends
+ * is no group: the edited one is dissolved. Returns the group's id, or null.
+ */
+export function groupPeople(db: SqlDriver, ids: string[], groupId?: string): string | null {
+  const members = [...new Set(ids)].map((id) => getRow(db, "people", id)).filter((p): p is Person => !!p && !p.deleted);
+  if (members.length < 2) { if (groupId) ungroup(db, groupId); return null; }
+  const id = groupId ?? newId();
+  const keep = new Set(members.map((p) => p.id));
+  const left = new Set<string>();
+  db.transaction(() => {
+    for (const p of listRows(db, "people", "deleted=0 AND group_id=?", [id])) if (!keep.has(p.id)) save(db, "people", { ...p, group_id: null });
+    for (const p of members) {
+      if (p.group_id === id) continue;
+      if (p.group_id) left.add(p.group_id);
+      save(db, "people", { ...p, group_id: id });
+    }
+    for (const g of left) clearLoneGroup(db, g);
+  });
+  return id;
+}
+
+/** Takes a friend out of their group; the one left behind, if alone, is no longer grouped either. */
+export function leaveGroup(db: SqlDriver, personId: string): void {
+  const p = getRow(db, "people", personId);
+  if (!p?.group_id) return;
+  const g = p.group_id;
+  db.transaction(() => {
+    save(db, "people", { ...p, group_id: null });
+    clearLoneGroup(db, g);
+  });
+}
+
+/** Everyone out of a group: the group is gone. */
+export function ungroup(db: SqlDriver, groupId: string): void {
+  db.transaction(() => {
+    for (const p of listRows(db, "people", "deleted=0 AND group_id=?", [groupId])) save(db, "people", { ...p, group_id: null });
+  });
+}
+
+function clearLoneGroup(db: SqlDriver, groupId: string): void {
+  const rest = listRows(db, "people", "deleted=0 AND group_id=?", [groupId]);
+  if (rest.length === 1) save(db, "people", { ...rest[0]!, group_id: null });
 }
 
 /** What a share was for, read safely: anything that is not a list of named amounts reads as none. */

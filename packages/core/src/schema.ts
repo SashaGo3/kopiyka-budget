@@ -218,6 +218,17 @@ export const MIGRATIONS: string[][] = [
     `ALTER TABLE debts ADD COLUMN person_id TEXT`,
     `ALTER TABLE budgets ADD COLUMN people TEXT`,
   ],
+  [
+    // v26: friends kept together — a couple, flatmates. Members of a group share a `group_id` (a
+    // fresh id, no table of its own): the group is named after whoever is in it, so there is no name
+    // to store or to go stale. Read through `peopleGroups` (people.ts), which ignores a group of one.
+    `ALTER TABLE people ADD COLUMN group_id TEXT`,
+  ],
+  [
+    // v27: a category of your own named in each language — JSON `{"uk": "Коти"}`, read through
+    // `categoryName` (presets.ts). The stored `name` stays the name everywhere a language has none.
+    `ALTER TABLE categories ADD COLUMN names TEXT`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

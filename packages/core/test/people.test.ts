@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { categorySpend, createAccount, createCategory, createPerson, createTransaction, getRow, listRows } from "../src/repo";
-import { budgetPeople, divideShares, itemsToStore, letItGo, listPeople, personBalances, personHistory, shareItems, sharesOf, toSplitQueue } from "../src/people";
+import { budgetPeople, divideShares, groupName, groupPeople, leaveGroup, peopleGroups, ungroup, itemsToStore, letItGo, listPeople, personBalances, personHistory, shareItems, sharesOf, toSplitQueue } from "../src/people";
 import { exportBackup, importBackup } from "../src/backup";
 import { payeeHistory } from "../src/payee";
 
@@ -165,5 +165,53 @@ describe("backups", () => {
     delete file.people;
     importBackup(a.db, file as never, { mode: "replace" });
     expect(listPeople(a.db).length).toBe(2);
+  });
+});
+
+describe("friend groups (v26)", () => {
+  test("named after the friends in it, by first name", () => {
+    expect(groupName(["Ola Kowalska", "Max"], "&")).toBe("Ola & Max");
+    expect(groupName(["Ola", "Max", "Ira"], "і")).toBe("Ola, Max і Ira");
+    expect(groupName(["Ola"], "&")).toBe("Ola");
+  });
+
+  test("grouping, joining, leaving: a group of one is no group", () => {
+    const s = seed();
+    const ira = createPerson(s.db, { name: "Ira" });
+    const g = groupPeople(s.db, [s.ola.id, s.max.id])!;
+    expect([...peopleGroups(listPeople(s.db)).get(g)!.map((p) => p.id)].sort()).toEqual([s.ola.id, s.max.id].sort());
+    // Ira added to the couple: same group, not a new one.
+    expect(groupPeople(s.db, [s.ola.id, s.max.id, ira.id], g)).toBe(g);
+    expect(peopleGroups(listPeople(s.db)).get(g)!.length).toBe(3);
+    leaveGroup(s.db, ira.id);
+    leaveGroup(s.db, s.max.id);
+    // Ola, left alone, is cleared rather than kept in a group of one.
+    expect(getRow(s.db, "people", s.ola.id)!.group_id).toBeNull();
+    expect(peopleGroups(listPeople(s.db)).size).toBe(0);
+  });
+
+  test("moving a friend to another group clears the one left alone; untouched rows keep updated_at", () => {
+    const s = seed();
+    const ira = createPerson(s.db, { name: "Ira" }), jan = createPerson(s.db, { name: "Jan" });
+    const a = groupPeople(s.db, [s.ola.id, s.max.id])!;
+    groupPeople(s.db, [ira.id, jan.id]);
+    const janBefore = getRow(s.db, "people", jan.id)!.updated_at;
+    const b = groupPeople(s.db, [ira.id, s.ola.id])!;
+    expect(getRow(s.db, "people", s.max.id)!.group_id).toBeNull();
+    expect(getRow(s.db, "people", jan.id)!.group_id).toBeNull();
+    expect(b).not.toBe(a);
+    // Editing a group down to one member dissolves it.
+    expect(groupPeople(s.db, [ira.id], b)).toBeNull();
+    expect(peopleGroups(listPeople(s.db)).size).toBe(0);
+    expect(janBefore).toBeGreaterThan(0);
+  });
+
+  test("a backup from before v26 leaves the phone's groups alone", () => {
+    const s = seed();
+    const g = groupPeople(s.db, [s.ola.id, s.max.id])!;
+    const file = exportBackup(s.db);
+    const old = { ...file, people: file.people!.map(({ group_id: _g, ...p }) => ({ ...p, updated_at: p.updated_at + 1000 })) };
+    importBackup(s.db, old);
+    expect(getRow(s.db, "people", s.ola.id)!.group_id).toBe(g);
   });
 });

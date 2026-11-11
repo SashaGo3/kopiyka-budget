@@ -33,18 +33,8 @@
     "max": 16
   },
   "reset": {
-    "title": "Reset the list?",
-    "body": {
-      "message": "Showing {what}.",
-      "note": "what is a comma-separated list of what narrows the list: \"2 filters, an account scope, August 2026\"."
-    },
-    "filters": "{count, plural, one {# filter} other {# filters}}",
-    "scope": {
-      "message": "an account scope",
-      "note": "Part of the reset question: the list shows only some accounts."
-    },
-    "clear": "{count, plural, one {Clear the filter} other {Clear the filters}}",
-    "defaults": "Back to defaults"
+    "cleared": { "message": "{count, plural, one {Filter cleared} other {# filters cleared}}", "note": "Undo toast after holding the Filter button (or double-tapping the tab) cleared the filters.", "max": 32 },
+    "defaults": { "message": "Back to this month, all accounts", "note": "Undo toast after the list went back to the current month and every account.", "max": 40 }
   },
   "approx": {
     "incomeTitle": "Income is approximate",
@@ -88,6 +78,7 @@
     "tap": "Tap to post or skip",
     "tapMore": "Tap to post or skip · {count} more expected"
   },
+  "toSplitSub": { "message": "Tap to share them out", "note": "Under the count of payments marked Split later, on Transactions." },
   "pending": {
     "title": "{count, plural, one {# pending entry} other {# pending entries}}",
     "sub": "Tap to check and approve"

@@ -22,7 +22,6 @@
     "friendA11y": { "message": "{name}: {amount} {currency}. Tap to type an amount.", "note": "VoiceOver label of a friend's row." },
     "removeFriend": "Remove {name}",
     "noteLine": { "message": "Split with {list}", "note": "Line added to the entry's note; list is \"Ola 40,00 PLN, Max 40,00 PLN\"." },
-    "addToNote": { "message": "Add to the note", "note": "Switch under the friends: writes who owes what into the entry's note.", "max": 28 },
     "howMuch": { "message": "{name}’s share", "note": "Title over the calculator for a friend's share." },
     "showReceipt": "Show receipt",
     "hideReceipt": "Hide receipt",
@@ -71,8 +70,17 @@
     "owed": { "message": "you owe {amount}", "note": "Under a friend's name when you owe them." },
     "even": "all settled"
   },
+  "group": {
+    "and": { "message": "&", "note": "Joins the last two first names in a group's name: \"Ola, Max & Ira\"." },
+    "make": { "message": "Group", "note": "Link beside the Friends header on Debts: pick friends to keep together.", "max": 14 },
+    "makeA11y": "Group friends together",
+    "edit": { "message": "Change who is in it", "note": "Row under an opened group on Debts.", "max": 32 },
+    "owe": { "message": "owe you {amount}", "note": "Under a group's name; amount is \"40,00 PLN\"." },
+    "owed": { "message": "you owe them {amount}", "note": "Under a group's name when you owe them." },
+    "a11y": "{name}, a group of {count}"
+  },
   "card": {
-    "reorderSection": { "message": "Friends, debts and payments to split", "note": "Subtitle of the Owed to you section on the Budgets reorder screen." },
+    "reorderSection": { "message": "Friends and debts", "note": "Subtitle of the Owed to you section on the Budgets reorder screen." },
     "title": { "message": "Owed to you", "note": "Card on the Budgets screen.", "max": 24 },
     "debts": { "message": "Debts", "note": "Line on the card for the debts screen." },
     "toSplit": "{count, plural, one {# payment to split} other {# payments to split}}"

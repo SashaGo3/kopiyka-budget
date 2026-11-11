@@ -260,7 +260,9 @@ export interface MoneyPace {
 /**
  * How fast money is actually piling up, per currency: the average budget period over the last
  * `periods` complete ones, over every account that counts towards net worth or the ones picked
- * (`accountIds`). Money moved between two of those accounts is not counted (it is neither earned
+ * (`accountIds`). Money coming in under an *expense* category — a refund, savings taken back out
+ * under "Savings" — is spending undone, not earnings: it lowers what went out instead of adding to
+ * what came in, or the salary on the card reads higher than any payslip. Money moved between two of those accounts is not counted (it is neither earned
  * nor spent); moved in from, or out to, an account outside them it is, because for these accounts
  * it arrived or left. A running period is left out too, as it would pull every average down. What a
  * trip cost *is* counted — unlike the budgets, the future does not care which holiday the money
@@ -286,9 +288,9 @@ export function moneyPace(db: SqlDriver, o: { today: string; startDay: number; p
   windows.forEach((w, i) => {
     const rows = db.all<{ currency: string; income: number | null; spend: number | null }>(
       `SELECT a.currency AS currency,
-              SUM(CASE WHEN t.amount_minor>0 AND t.debt_id IS NULL AND t.person_id IS NULL THEN t.amount_minor ELSE 0 END) AS income,
-              SUM(CASE WHEN t.amount_minor<0 THEN -t.amount_minor WHEN t.debt_id IS NOT NULL OR t.person_id IS NOT NULL THEN -t.amount_minor ELSE 0 END) AS spend
-       FROM transactions t JOIN accounts a ON a.id=t.account_id
+              SUM(CASE WHEN t.amount_minor>0 AND t.debt_id IS NULL AND t.person_id IS NULL AND (c.kind IS NULL OR c.kind<>'expense') THEN t.amount_minor ELSE 0 END) AS income,
+              SUM(CASE WHEN t.amount_minor<0 THEN -t.amount_minor WHEN t.debt_id IS NOT NULL OR t.person_id IS NOT NULL OR c.kind='expense' THEN -t.amount_minor ELSE 0 END) AS spend
+       FROM transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN categories c ON c.id=t.category_id
        WHERE t.deleted=0 AND a.deleted=0 AND ${which} AND t.date>=? AND t.date<?
          AND (t.transfer_id IS NULL OR NOT EXISTS (
            SELECT 1 FROM transactions o JOIN accounts oa ON oa.id=o.account_id
@@ -300,18 +302,20 @@ export function moneyPace(db: SqlDriver, o: { today: string; startDay: number; p
     }
   });
   const currencies = new Set([...per.keys(), ...balances.filter((b) => b.minor).map((b) => b.currency)]);
+  // History starts at the first period anything happened in, in *any* currency — the same months for
+  // every one. Each currency from its own first month double-counted a salary that moved: paid into
+  // złoty until August and into dollars from September, the dollars were averaged over the three
+  // months they existed and the złoty over all six, so the months in between earned twice (2026-11-11).
+  const first = windows.findIndex((_, i) => [...per.values()].some((e) => e.income[i]! || e.spend[i]!));
+  const idx = first < 0 ? [] : windows.map((_, i) => i).slice(first);
   const out: (MoneyPace & { incomePeriods: number })[] = [];
   for (const currency of currencies) {
     const e = per.get(currency);
-    // History starts at the first period anything happened in: a currency taken up last month is
-    // not averaged against the months before it existed.
-    const first = e ? windows.findIndex((_, i) => e.income[i]! || e.spend[i]!) : -1;
-    const idx = first < 0 ? [] : windows.map((_, i) => i).slice(first);
     const avg = (arr: number[] | undefined) => (arr && idx.length ? Math.round(idx.reduce((a, i) => a + arr[i]!, 0) / idx.length) : 0);
     const income = avg(e?.income), spend = avg(e?.spend);
     out.push({
       currency, balance_minor: balances.find((b) => b.currency === currency)?.minor ?? 0,
-      income_minor: income, spend_minor: spend, net_minor: income - spend, periods: idx.length,
+      income_minor: income, spend_minor: spend, net_minor: income - spend, periods: e ? idx.length : 0,
       savings_rate: income > 0 ? (income - spend) / income : null,
       incomePeriods: e ? idx.filter((i) => e.income[i]! > 0).length : 0,
     });

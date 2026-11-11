@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate, MIGRATIONS } from "../src/schema";
 import { createCategory, getRow, listRows } from "../src/repo";
-import { CATEGORY_PRESET, categoryDescription, categoryMatchText, categoryName, missingPresets, presetCounts, presetDescription, presetKey, presetName, seedCategories } from "../src/presets";
+import { CATEGORY_PRESET, categoryDescription, categoryMatchText, categoryName, categorySearchNames, namesToStore, missingPresets, presetCounts, presetDescription, presetKey, presetName, seedCategories } from "../src/presets";
 import { exportBackup, importBackup } from "../src/backup";
 import { ICON_PRESETS } from "../src/icons";
 import { LANGUAGES } from "@kopiyka/i18n/generated";
@@ -65,9 +65,10 @@ describe("a preset category is translated only while it keeps the preset's name"
 
   test("renamed, or made by the user: shown exactly as written", () => {
     expect(categoryName({ ...groceries, name: "Їжа вдома" }, "en")).toBe("Їжа вдома");
-    expect(categoryName({ name: "Groceries", preset: null }, "uk")).toBe("Groceries");
-    expect(categoryName({ name: "Groceries" }, "uk")).toBe("Groceries");
-    expect(categoryName({ name: "Groceries", preset: "a.key.from.a.newer.build" }, "uk")).toBe("Groceries");
+    expect(categoryName({ name: "Zorgs & co", preset: null }, "uk")).toBe("Zorgs & co");
+    expect(categoryName({ name: "Groceries", preset: null }, "uk")).toBe("Продукти");
+    expect(categoryName({ name: "Groceries" }, "en")).toBe("Groceries");
+    expect(categoryName({ name: "Groceries", preset: "a.key.from.a.newer.build" }, "en")).toBe("Groceries");
   });
 
   test("an untouched description matches every language's keywords; an edited one only its own", () => {
@@ -155,5 +156,61 @@ describe("adding ready-made categories later", () => {
     const made = listRows(db, "categories", "deleted=0 AND preset='bills.services'")[0]!;
     expect(made.parent_id).toBe(bills.id); // the folder already there, found by its name
     expect(missingPresets(db)).not.toContain("bills.services");
+  });
+});
+
+describe("a category of your own can be named in each language (v27)", () => {
+  test("shown in the app's language when it has a name there, the stored name otherwise", () => {
+    const c = { name: "Cats", preset: null, names: JSON.stringify({ uk: "Коти" }) };
+    expect(categoryName(c, "uk")).toBe("Коти");
+    expect(categoryName(c, "en")).toBe("Cats");
+  });
+
+  test("a translation beats the preset's own", () => {
+    expect(categoryName({ name: "Groceries", preset: "food.groceries", names: JSON.stringify({ uk: "Супермаркет" }) }, "uk")).toBe("Супермаркет");
+  });
+
+  test("a broken column reads as none", () => {
+    expect(categoryName({ name: "Cats", names: "{not json" }, "en")).toBe("Cats");
+    expect(categoryName({ name: "Cats", names: "{not json" }, "uk")).toBe("Коти");
+    expect(categoryName({ name: "Ola Wishes", names: JSON.stringify({ uk: 5, en: "  " }) }, "uk")).toBe("Ola Wishes");
+  });
+
+  test("stored only when it says something", () => {
+    expect(namesToStore({ uk: " ", en: "Cats" }, { name: "Cats" })).toBeNull();
+    // «Коти» is what "Cats" reads in Ukrainian anyway; keeping "Cats" is a choice, and stored.
+    expect(namesToStore({ uk: "Коти " }, { name: "Cats" })).toBeNull();
+    expect(namesToStore({ uk: "Cats" }, { name: "Cats" })).toBe(JSON.stringify({ uk: "Cats" }));
+    expect(namesToStore({ uk: "Котики" }, { name: "Cats" })).toBe(JSON.stringify({ uk: "Котики" }));
+  });
+
+  test("a name in another language than the app's reads translated when the list knows it", () => {
+    expect(categoryName({ name: "Car Wash" }, "uk")).toBe("Мийка авто");
+    expect(categoryName({ name: "Car Wash" }, "en")).toBe("Car Wash");
+    expect(categoryName({ name: "Ola Wishes" }, "uk")).toBe("Ola Wishes");
+    expect(categoryName({ name: "Повернення" }, "en")).toBe("Refunds");
+    expect(categoryName({ name: "Cats", names: JSON.stringify({ uk: "Cats" }) }, "uk")).toBe("Cats");
+  });
+
+  test("travels with a backup, and a backup from before v27 leaves it alone", () => {
+    const db = openBunDb(":memory:");
+    migrate(db);
+    const c = createCategory(db, { name: "Cats" });
+    db.run(`UPDATE categories SET names=? WHERE id=?`, [JSON.stringify({ uk: "Коти" }), c.id]);
+    const file = exportBackup(db);
+    expect(file.categories.find((x) => x.id === c.id)?.names).toBe(JSON.stringify({ uk: "Коти" }));
+    const old = { ...file, categories: file.categories.map(({ names: _n, ...rest }) => rest) };
+    importBackup(db, old as typeof file, { mode: "replace" });
+    expect(getRow(db, "categories", c.id)?.names).toBe(JSON.stringify({ uk: "Коти" }));
+  });
+});
+
+describe("a category is found by every name it has", () => {
+  test("stored, translated, given, and a preset's in every language", () => {
+    expect(categorySearchNames({ name: "Cats" })).toEqual(["Cats", "Коти"]);
+    expect(categorySearchNames({ name: "Cats", names: JSON.stringify({ uk: "Котики" }) })).toEqual(["Cats", "Котики"]);
+    const g = categorySearchNames({ name: "Groceries", preset: "food.groceries" });
+    expect(g).toContain("Groceries");
+    expect(g.length).toBeGreaterThan(1);
   });
 });

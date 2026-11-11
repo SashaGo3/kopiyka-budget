@@ -146,6 +146,11 @@ export default function BudgetsScreen() {
     owed: <OwedCard />,
     budgets: (
       <>
+          {/* The section's header comes first, over Planned and Available: without it the two
+              blocks sat right under whatever section was above, and read as part of it. */}
+          {data.rows.length ? (
+            <SectionHeader>{scope ? t("budgets.monthlyScoped", { period: period.subtitle ?? period.title, scope: scopeName }) : t("budgets.monthly", { period: period.subtitle ?? period.title })}</SectionHeader>
+          ) : null}
           {data.rows.length ? (
             <StatPair stats={[
               { label: data.rows.length > counted.length ? t("budgets.plannedOf", { counted: counted.length, total: data.rows.length }) : t("budgets.planned.title"), minor: planned.minor, currency: base, color: C.green, onPress: () => router.push("/budget/planned") },
@@ -160,11 +165,6 @@ export default function BudgetsScreen() {
             </View>
           ) : null}
           {data.rows.length === 0 ? <Empty title={budgetAccount ? t("budgets.emptyFor", { account: scopeName }) : t("budgets.empty")} hint={t("budgets.emptyHint")} /> : null}
-          {data.rows.length ? (
-            <SectionHeader right={data.rows.length > 1 || data.spending.length || pastTrips.length
-              ? <Tap onPress={() => router.push("/budget/reorder")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("budgets.reorder.title")}><Text style={styles.addText}>{t("budgets.reorder.button")}</Text></Tap>
-              : undefined}>{scope ? t("budgets.monthlyScoped", { period: period.subtitle ?? period.title, scope: scopeName }) : t("budgets.monthly", { period: period.subtitle ?? period.title })}</SectionHeader>
-          ) : null}
           {data.rows.map((b, bi) => {
             const ratio = b.limit > 0 ? Math.min(1, b.spent / b.limit) : 0;
             const over = b.spent > b.limit;
@@ -277,9 +277,16 @@ export default function BudgetsScreen() {
       </>
     ),
   };
+  // Something to put in order: two budgets, or a budget and another section beside it.
+  const canReorder = data.rows.length > 1 || (data.rows.length > 0 && (data.spending.length > 0 || pastTrips.length > 0));
   return (
     <>
-      <Stack.Screen options={{ title: t("budgets.screenTitle"), headerLargeTitle: true }} />
+      {/* Reorder moves the sections as well as the budgets, so it belongs to the whole screen: at the
+          top, in the header, not inside one of the sections it moves. */}
+      <Stack.Screen options={{ title: t("budgets.screenTitle"), headerLargeTitle: true,
+        unstable_headerRightItems: () => canReorder
+          ? [{ type: "button", label: t("budgets.reorder.title"), icon: { type: "sfSymbol", name: "line.3.horizontal" }, onPress: () => router.push("/budget/reorder"), sharesBackground: false, accessibilityLabel: t("budgets.reorder.title") }]
+          : [] }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Period and scope live in the content, not the native header: once scrolled they leave with the large title instead of crowding the compact "Budgets" bar. */}

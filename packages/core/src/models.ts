@@ -77,6 +77,12 @@ export interface Category extends Synced {
    * preset. "[]": none on purpose. Read it through `categoryTypes`, never off the row. Absent before v24.
    */
   type?: string | null;
+  /**
+   * The name in other languages, as JSON `{"uk": "Коти", "en": "Cats"}` (v27): shown instead of `name`
+   * while the app is in that language. Read through `categoryName`; write through `namesToStore`.
+   * Not in `ROW_DEFAULTS`, so a backup from before v27 leaves the phone's translations alone.
+   */
+  names?: string | null;
 }
 
 /** 0 unset, 1 low, 2 medium, 3 high. */
@@ -321,6 +327,8 @@ export interface Person extends Synced {
   color: string | null;
   sort: number;
   archived: 0 | 1;
+  /** v26: friends kept together share this id; NULL (or absent, before v26) for nobody's group. */
+  group_id?: string | null;
 }
 
 /** One thing a friend's share was for: "Lamp", 40.00. */

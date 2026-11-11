@@ -15,6 +15,7 @@
     "splitA11y": "Розділено на {count, plural, one {# запис} few {# записи} many {# записів} other {# запису}}. Натисни, щоб змінити.",
     "splitThisEntry": "цей запис",
     "splitNoCategory": "без категорії",
+    "splitLaterHint": "Утримуй, щоб зберегти й розділити потім.",
     "returnedLine": "{back} повернулося · сплачено {paid}",
     "returnedA11y": "{back} {currency} повернулося; сплачено {paid}. Натисни, щоб забути повернення.",
     "photoA11y": "Фото додано",
