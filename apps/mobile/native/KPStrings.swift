@@ -216,9 +216,6 @@ enum L10n {
       /// Shortcuts action name. Key used as a literal (phone's language).
       /// "Log payment from an app notification"
       static var title: String { KPL.string("native.intents.payment.title") }
-      /// Shortcuts error: the notification names money but no amount could be read. The screen names must match the app's Settings.
-      /// "Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects."
-      static var unreadable: String { KPL.string("native.intents.payment.unreadable") }
     }
     enum Scan {
       /// Shortcuts action description. Key used as a literal (phone's language).

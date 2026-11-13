@@ -67,7 +67,6 @@
   <string name="native_intents_payment_saveFailed">Kopiyka could not save that payment. Open the app and add it by hand.</string>
   <string name="native_intents_payment_saveFailedWhy">Kopiyka could not save that payment: %1$s. Open the app and add it by hand.</string>
   <string name="native_intents_payment_title">Log payment from an app notification</string>
-  <string name="native_intents_payment_unreadable">Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.</string>
   <string name="native_intents_saveFailed">Could not save. Open Kopiyka and try again.</string>
   <string name="native_intents_saveFailedWhy">Could not save: %1$s. Open Kopiyka and try again.</string>
   <string name="native_intents_scan_description">Photograph a receipt: the amount, shop, items and category are read on the device and saved as a pending expense.</string>

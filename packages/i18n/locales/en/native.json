@@ -72,7 +72,6 @@
     "payment": {
       "title": { "message": "Log payment from an app notification", "note": "Shortcuts action name. Key used as a literal (phone's language)." },
       "description": { "message": "Log a payment from a bank or Wallet notification. Made for the Shortcuts “When I receive a notification” automation: pass its Notification variable.", "note": "Shortcuts action description. Key used as a literal (phone's language). “When I receive a notification” and Notification are what the Shortcuts app calls them in this language." },
-      "unreadable": { "message": "Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.", "note": "Shortcuts error: the notification names money but no amount could be read. The screen names must match the app's Settings." },
       "noAccounts": "No accounts in Kopiyka yet. Open it on your iPhone first.",
       "saveFailed": "Kopiyka could not save that payment. Open the app and add it by hand.",
       "saveFailedWhy": { "message": "Kopiyka could not save that payment: {reason}. Open the app and add it by hand.", "note": "reason is one of the native.writes / native.common.noDatabase messages, or a database error." },

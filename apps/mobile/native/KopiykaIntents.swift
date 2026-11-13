@@ -442,15 +442,16 @@ struct LogPaymentIntent: AppIntent {
     var parsed: KPPaymentText.Parse? = nil
     if case .payment(let p) = outcome { parsed = p }
     // A mapped Amount (the old Transaction automation) beats the text; without either there is
-    // nothing to log, and whether that is worth a word depends on what the text was.
+    // nothing to log. Either way it says nothing: a notification it could not read goes to the log
+    // (Settings → Automate with Shortcut → log), not to a push of its own on top of the bank's.
     let value = amount.map(abs).flatMap { $0 > 0 ? $0 : nil } ?? parsed?.amount
     guard let value else {
       if case .unreadable = outcome {
         KPParseLog.record(.unreadable, text: raw, note: "money named, no amount read")
-        throw KPIntentError(L10n.Intents.Payment.unreadable)
+      } else {
+        KPParseLog.record(.ignored, text: raw, note: "no amount, or money the bank is not charging")
       }
-      KPParseLog.record(.ignored, text: raw, note: "no amount, or money the bank is not charging")
-      return .result()   // not a payment: the ordinary outcome, and it says nothing
+      return .result()
     }
 
     // Just the accounts, not `buildState()`: that also scans every transaction for tags, categories

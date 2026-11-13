@@ -67,7 +67,6 @@
   <string name="native_intents_payment_saveFailed">Копійка не змогла зберегти цей платіж. Відкрий застосунок і додай його вручну.</string>
   <string name="native_intents_payment_saveFailedWhy">Копійка не змогла зберегти цей платіж: %1$s. Відкрий застосунок і додай його вручну.</string>
   <string name="native_intents_payment_title">Записати платіж зі сповіщення застосунку</string>
-  <string name="native_intents_payment_unreadable">Копійка не змогла прочитати суму в цьому сповіщенні. Що вона очікує, показано в «Налаштування → Автоматизація зі швидкою командою».</string>
   <string name="native_intents_saveFailed">Не вдалося зберегти. Відкрий Копійку і спробуй ще раз.</string>
   <string name="native_intents_saveFailedWhy">Не вдалося зберегти: %1$s. Відкрий Копійку і спробуй ще раз.</string>
   <string name="native_intents_scan_description">Сфотографуй чек: сума, магазин, позиції й категорія розпізнаються на пристрої, а витрата зберігається й чекає на перевірку.</string>
