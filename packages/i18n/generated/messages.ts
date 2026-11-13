@@ -1734,6 +1734,8 @@ export interface Messages {
   "pick.category.noFolder": undefined;
   "pick.category.recent": undefined;
   "pick.category.search": undefined;
+  /** Section: the categories this shop's earlier payments were filed under. */
+  "pick.category.thisShop": undefined;
   "pick.category.whichDebt": undefined;
   /** VoiceOver. */
   "pick.category.wholeA11y": { name: string | number };
@@ -1876,6 +1878,8 @@ export interface Messages {
   "pick.payIcon.webHint": undefined;
   /** name is what was typed. */
   "pick.tags.create": { name: string | number };
+  /** Section shown while searching: tags set up for a different category than the entry's. */
+  "pick.tags.elsewhere": undefined;
   "pick.tags.empty": undefined;
   "pick.tags.other": undefined;
   "pick.tags.search": undefined;
@@ -2793,6 +2797,8 @@ export interface Messages {
   /** A payment the bank charged in another currency: the original amount. */
   "transactions.list.entered": { amount: string | number; currency: string | number };
   "transactions.list.enteredRate": { amount: string | number; currency: string | number; rate: string | number };
+  /** VoiceOver label of the placeholder row shown while a bank notification is being read. */
+  "transactions.list.incomingA11y": undefined;
   "transactions.list.pending": undefined;
   "transactions.list.pendingA11y": undefined;
   /** Part of the payment was returned; both are formatted amounts. */

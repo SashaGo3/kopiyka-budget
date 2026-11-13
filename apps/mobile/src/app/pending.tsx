@@ -13,6 +13,7 @@ import { timeLabel } from "@/lib/dates";
 import { Trans, t } from "@/i18n";
 import { acctName } from "@/lib/names";
 import { rowText } from "@/lib/rowText";
+import { shopParams } from "@/lib/shopPick";
 
 /**
  * The queue behind the Pending row on Transactions: everything a Shortcut automation or a receipt
@@ -70,7 +71,7 @@ export default function PendingScreen() {
   const approveAll = () => approve(rows.map((tx) => tx.id));
   const pickCategory = (tx: TxRow) => {
     editing.current = tx.id;
-    router.push({ pathname: "/pick/category", params: { key: catKey, kind: tx.amount_minor > 0 ? "income" : "expense", selected: tx.category_id ?? "" } });
+    router.push({ pathname: "/pick/category", params: { key: catKey, kind: tx.amount_minor > 0 ? "income" : "expense", selected: tx.category_id ?? "", ...shopParams(tx.payee, tx.notes || tx.bank_note, tx.id) } });
   };
   const del = (tx: TxRow) => Alert.alert(tx.transfer_id ? t("transfer.deleteTitle") : t("pending.deleteTitle"), tx.transfer_id ? undefined : tx.payee ?? undefined, [
     { text: t("common.cancel"), style: "cancel" },

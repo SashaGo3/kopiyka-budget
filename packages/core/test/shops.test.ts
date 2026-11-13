@@ -18,6 +18,11 @@ describe("shops", () => {
     expect(shopType("WOG 1234")).toBe("transport.fuel");
     expect(shopType("MCDONALD'S 123")).toBe("food.restaurants");
     expect(shopType("Spotify P1234")).toBe("bills.subscriptions");
+    expect(shopType("DR MAX 123 KRAKOW")).toBe("health.pharmacy");
+    expect(shopType("Фуршет")).toBe("food.groceries");
+    expect(shopType("ПОВЕРНИСЬ ЖИВИМ")).toBe("personal.charity");
+    expect(shopType("Prowizja za przelew")).toBe("bills.fees");
+    expect(shopType("ОСББ Липки")).toBe("home.utilities");
   });
   test("the longest term wins: a meal is not a ride", () => {
     expect(shopType("UBER *EATS")).toBe("food.restaurants");

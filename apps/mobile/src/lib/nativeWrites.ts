@@ -12,6 +12,7 @@ import { localIso, todayLocal } from "./dates";
 import { waitDefaultDays } from "./settings";
 import { acctName } from "./names";
 import { deletePhoto } from "./photos";
+import { incomingEnded, incomingLanded, incomingStarted, syncIncoming } from "./incoming";
 
 /** Entries waiting in the Pending queue: the app's badge, and what a native write is told after it lands. */
 export function pendingCount(): number {
@@ -41,6 +42,8 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       const id = String(w.id);
       // The watch may deliver the same entry twice (a reply that timed out, then the queued transfer).
       if (getRow(db, "transactions", id)) return {};
+      // The placeholder the list has been showing for this notification goes as the row arrives.
+      incomingLanded(str(w.incoming));
       let paired: PairOutcome = null;
       mutate((d) => {
         const row = createTransaction(d, {
@@ -131,6 +134,11 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       }
       return reply;
     }
+    case "incoming":
+      // A bank notification is being read (start) or has been dealt with (end): the list's placeholder row.
+      if (w.state === "start") incomingStarted(String(w.token), num(w.started) ?? undefined);
+      else incomingEnded(String(w.token));
+      return {};
     case "fillIn": {
       // The second notification for one payment knows things the first did not (Wallet has the tidy
       // shop name, the bank app the city). Only empty fields are written — never an overwrite — and
@@ -161,7 +169,9 @@ function sweep(): void {
 /** Start answering native write requests. Call once, as early as possible (before any watch message can arrive). */
 export function installNativeWrites(): () => void {
   sweep();
-  const appState = AppState.addEventListener("change", (s) => { if (s === "active") sweep(); });
+  // A notification being read when the app opens, or comes back: its placeholder row (lib/incoming.ts).
+  syncIncoming(KPBridge.incomingReadings());
+  const appState = AppState.addEventListener("change", (s) => { if (s === "active") { syncIncoming(KPBridge.incomingReadings()); sweep(); } });
   const off = KPBridge.onNativeWrite((w) => {
     void apply(w).then(
       (reply) => KPBridge.finishNativeWrite(w.request, true, null, reply),

@@ -83,6 +83,7 @@
     "returned": "сплачено {paid}, повернулося {back}",
     "tagsA11y": "теги {names}",
     "pendingA11y": "очікує",
+    "incomingA11y": "Записую платіж зі сповіщення банку",
     "pending": "Очікує"
   },
   "range": {

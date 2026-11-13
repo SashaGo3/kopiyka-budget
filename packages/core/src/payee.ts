@@ -176,11 +176,17 @@ export interface PayeeOption {
  * Matched by the same names, in the same order, as `payeeHistory` — the first of them that has any
  * filed rows at all answers, so a branch of a chain is never mixed with the whole chain.
  * Empty when the name is new; a single entry means history is unambiguous.
+ *
+ * `exceptId` leaves one row out: a pending entry asking "which was it?" about itself. Its category
+ * was only filled in from history (or guessed), so counting it would answer the question with the
+ * question — and a guess from the shop list would turn up as a way the shop was filed.
  */
-export function payeeOptions(db: SqlDriver, payee: string | null | undefined, note?: string | null, limit = 6): PayeeOption[] {
+export function payeeOptions(db: SqlDriver, payee: string | null | undefined, note?: string | null, limit = 6, exceptId?: string | null): PayeeOption[] {
+  const except = exceptId ? " AND id <> ?" : "";
   for (const t of nameTries(payee, note)) {
     const rows = db.all<Row>(
-      `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND ${FILED} AND ${t.where} ORDER BY date DESC LIMIT 200`, t.binds);
+      `SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND ${FILED} AND ${t.where}${except} ORDER BY date DESC LIMIT 200`,
+      exceptId ? [...t.binds, exceptId] : t.binds);
     if (!rows.length) continue;
     const out = new Map<string, PayeeOption>();
     const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));

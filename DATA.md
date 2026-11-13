@@ -181,7 +181,7 @@ to, as a JSON list of suggestion keys (`dismissSuggestion`, `packages/core/src/d
 account and the normalised name, so the same charge next month stays dismissed. A row pointed at on
 purpose ("from a past payment") still builds its rule. `location_ignore` and `location_allow` joined on 2026-11-08: the
 exceptions to which categories are evidence of a place. A category whose every type is placeless
-(`PLACELESS_TYPES` — parking, taxi, rent, subscriptions: paid beside other places or from nowhere) is
+(`PLACELESS_TYPES` — parking, taxi, rent, subscriptions, travel, donations, income: paid beside other places or from nowhere) is
 out by default; `location_ignore` (JSON ids, a folder standing for everything in it) puts more out,
 `location_allow` lets one back in. Set from Settings → Location → Never suggest and each category's
 own "Suggest by location"; read only through `locationIgnoredIds` (`packages/core/src/repo.ts`, and
@@ -220,7 +220,11 @@ that a merge will read — the deletion would be forgotten and the row would com
 from the shop's name rather than filed before — the Pending queue shows it in the tint colour with
 "· guess"), `"shortcut-transfer"` (the other leg of a transfer the app wrote itself, because the
 bank only ever notified one side — rule 18), `"receipt"`, `"watch"`, `"siri"`, or `null` for
-hand-entered. A guess never skips the Pending queue; only history does.
+hand-entered. A guess never skips the Pending queue; only history does. A shop history knows but
+has filed more than one way (fuel one week, a hot dog the next) is a guess too: the newest way is
+filled in, the row waits in Pending, and both the entry sheet (its "what was it this time?" chips,
+shown for a pending row as well as a new one) and the category picker ("Filed here before") offer
+every way it was filed — counted without the row asking (`payeeOptions`'s `exceptId`).
 
 ## 10. Never write the database file from outside the running app
 

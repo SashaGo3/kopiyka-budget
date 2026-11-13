@@ -71,6 +71,8 @@ final class KPBridgeModule: Module {
     Function("claimDatabase") { [weak self] in
       KPWrites.claim { m in self?.sendEvent("nativeWrite", m) }
     }
+    /// Bank notifications the automation is reading right now: token → start, ms (KPIncoming).
+    Function("incomingReadings") { () -> [String: Double] in KPIncoming.current() }
     /// Outcome of a forwarded write (src/lib/nativeWrites.ts).
     Function("finishNativeWrite") { (request: String, ok: Bool, error: String?, reply: [String: Any]) in
       KPWrites.finish(request: request, ok: ok, error: error, reply: reply)

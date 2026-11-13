@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, categorySearchNames, debtChoices, folderIds, formatMinor, listRows, type Category } from "@kopiyka/core";
+import { archivedCategoryIds, categorySearchNames, debtChoices, folderIds, formatMinor, listRows, payeeOptions, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, Tap } from "@/components/ui";
@@ -38,9 +38,14 @@ type Item =
  * that pays one off, or the money coming back on one. It is not a category, so it is not answered
  * here — choosing it turns the sheet into the list of debts, and the one picked comes back as
  * `debt:<id>` (`transactions.debt_id`, packages/core/src/debts.ts).
+ *
+ * With `payee` (and `note`, the bank's words), the categories this shop was filed under before come
+ * right after the assigned one: the same shop sells fuel and a hot dog, and "which of the usual
+ * ones?" is the question a pending payment from it is asking. `except` is that payment's own id,
+ * so the category it was only pre-filled with is not counted as a past answer (core `payeeOptions`).
  */
 export default function PickCategory() {
-  const { key, kind, selected, folders: withFolders, debts: withDebts } = useLocalSearchParams<{ key: string; kind?: string; selected?: string; folders?: string; debts?: string }>();
+  const { key, kind, selected, folders: withFolders, debts: withDebts, payee, note, except } = useLocalSearchParams<{ key: string; kind?: string; selected?: string; folders?: string; debts?: string; payee?: string; note?: string; except?: string }>();
   const allowFolders = withFolders === "1";
   const [q, setQ] = useState("");
   const chosenDebt = selected?.startsWith("debt:") ? selected.slice(5) : null;
@@ -70,7 +75,11 @@ export default function PickCategory() {
     const out: Item[] = [];
     const current = list.find((c) => c.id === selected);
     if (current) { out.push({ row: "header", id: "h-assigned", title: t("pick.category.assigned") }, { row: "cat", id: `a-${current.id}`, cat: current, showFolder: true }); }
-    const recent = list.filter((c) => c.uses > 0 && c.id !== selected).sort((a, b) => b.uses - a.uses || a.label.localeCompare(b.label)).slice(0, RECENT);
+    // The shop's own past filings, most used first, before the app-wide recents (and not repeated in them).
+    const shopIds = payee || note ? [...new Set(payeeOptions(db, payee, note, 6, except).map((o) => o.category_id).filter((x): x is string => !!x))] : [];
+    const atShop = shopIds.filter((id) => id !== selected).map((id) => list.find((c) => c.id === id)).filter((c): c is Pickable => !!c && !c.isFolder);
+    if (atShop.length) { out.push({ row: "header", id: "h-shop", title: t("pick.category.thisShop") }); for (const c of atShop) out.push({ row: "cat", id: `p-${c.id}`, cat: c, showFolder: true }); }
+    const recent = list.filter((c) => c.uses > 0 && c.id !== selected && !atShop.includes(c)).sort((a, b) => b.uses - a.uses || a.label.localeCompare(b.label)).slice(0, RECENT);
     if (recent.length) { out.push({ row: "header", id: "h-recent", title: t("pick.category.recent") }); for (const c of recent) out.push({ row: "cat", id: `r-${c.id}`, cat: c, showFolder: true }); }
     // Then every category again, this time where it lives: one block per folder, in the folder
     // order of the Categories screen, with the loose ones last under a heading of their own. Where
@@ -88,7 +97,7 @@ export default function PickCategory() {
     const loose = list.filter((c) => !c.parent_id && !c.isFolder);
     if (loose.length) { out.push({ row: "header", id: "h-loose", title: t("pick.category.noFolder") }); for (const c of loose) out.push({ row: "cat", id: `l-${c.id}`, cat: c, showFolder: false }); }
     return { pickable: list, sections: out };
-  }, [kind, selected, allowFolders]);
+  }, [kind, selected, allowFolders, payee, note, except]);
 
   const ql = q.trim().toLowerCase();
   const found = useMemo(() => pickable.filter((c) => c.also.some((n) => n.includes(ql))), [pickable, ql]);

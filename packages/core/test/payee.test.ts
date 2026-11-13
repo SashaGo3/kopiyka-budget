@@ -297,6 +297,20 @@ describe("payeeOptions", () => {
     expect(payeeOptions(db, "ORLEN 9")).toEqual([{ category_id: fuel.id, tag_ids: [], count: 1 }]);
   });
 
+  test("a pending row asking which it was is not one of its own answers", () => {
+    const { db, acc, food } = seed();
+    const fuel = createCategory(db, { name: "Fuel" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -20000, payee: "ORLEN 4021", category_id: fuel.id });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-02T10:00:00+02:00", amount_minor: -1200, payee: "ORLEN 4021", category_id: food.id });
+    // The automation pre-filled the newest way and left the row pending.
+    const asking = createTransaction(db, { account_id: acc.id, date: "2026-09-03T10:00:00+02:00", amount_minor: -1500, payee: "ORLEN 4021", category_id: food.id, pending: 1 });
+    expect(payeeOptions(db, "ORLEN 4021")[0]).toEqual({ category_id: food.id, tag_ids: [], count: 2 });
+    expect(payeeOptions(db, "ORLEN 4021", null, 6, asking.id)).toEqual([
+      { category_id: food.id, tag_ids: [], count: 1 },
+      { category_id: fuel.id, tag_ids: [], count: 1 },
+    ]);
+  });
+
   test("deleted and transfer rows are not options", () => {
     const { db, acc, food } = seed();
     const t = createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Gone", category_id: food.id });

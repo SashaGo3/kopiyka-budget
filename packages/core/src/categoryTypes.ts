@@ -321,12 +321,20 @@ export function categoryForShop(db: SqlDriver, ...names: (string | null | undefi
  * the supermarket, at the end of a ride, or from the sofa. A category whose every type is one of
  * these is left out of location suggestions unless it is let back in (`locationIgnoredIds`, repo.ts).
  * A category that is also something place-bound ("Car": fuel and parking) still counts.
+ *
+ * This list is the default for everyone, a new install included: a ready-made category answers with
+ * its preset's type (rule 21), so "Parking" or "Travel" is out of suggestions from the first day
+ * without a setting being written. Travel is here because a flight or a hotel is booked from
+ * wherever you happen to be; donations and an accountant are paid online; and money coming in says
+ * nothing about the place you were standing when it arrived.
  */
 export const PLACELESS_TYPES: readonly string[] = [
   "transport.parking", "transport.taxi", "transport.publicTransport", "transport.bike", "personal.cash",
   "home.rent", "home.utilities", "home.internet",
-  "bills.subscriptions", "bills.insurance", "bills.taxes", "bills.fees",
+  "bills.subscriptions", "bills.insurance", "bills.taxes", "bills.fees", "bills.services",
+  "personal.charity", "fun.travel",
   "savings.savings", "savings.investments",
+  "income.salary", "income.freelance", "income.gifts", "income.other",
 ];
 const PLACELESS = new Set(PLACELESS_TYPES);
 export function isPlaceless(c: Typed): boolean { const ts = categoryTypes(c); return ts.length > 0 && ts.every((x) => PLACELESS.has(x)); }

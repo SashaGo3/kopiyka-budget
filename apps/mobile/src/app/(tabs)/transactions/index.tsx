@@ -437,7 +437,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
         headerSearchBarOptions: isSearch ? { ref: searchRef, placeholder: t("transactions.searchPlaceholder"), hideWhenScrolling: false, autoFocus: typing,
           onChangeText: (e) => { const text = e?.nativeEvent?.text ?? ""; setFilter((f) => (f.q === text ? f : { ...f, q: text })); },
           onCancelButtonPress: () => setFilter((f) => (f.q ? { ...f, q: "" } : f)) } : undefined }} />
-      <TransactionList rows={sorted} flat={sort === "amount"} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} onSelect={startSelect} keyboardDismissMode={isSearch ? "on-drag" : undefined} empty={emptyList} header={
+      <TransactionList rows={sorted} flat={sort === "amount"} incoming={!isSearch && !custom} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} onSelect={startSelect} keyboardDismissMode={isSearch ? "on-drag" : undefined} empty={emptyList} header={
         <>
           {/* Same place as on Budgets: under the large title, so they scroll away with it instead of crowding the compact bar.
               Kept while selecting, only inert: taking them out moved every row under the finger up by their height. */}

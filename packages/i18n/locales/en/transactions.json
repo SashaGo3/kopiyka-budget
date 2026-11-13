@@ -141,6 +141,10 @@
     },
     "tagsA11y": "tags {names}",
     "pendingA11y": "pending",
+    "incomingA11y": {
+      "message": "Logging a payment from a bank notification",
+      "note": "VoiceOver label of the placeholder row shown while a bank notification is being read."
+    },
     "pending": {
       "message": "Pending",
       "max": 10

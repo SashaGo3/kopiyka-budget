@@ -3,13 +3,14 @@ import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View, type Na
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { interpolate, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming, type SharedValue } from "react-native-reanimated";
 import { formatMinor, jsonIds, numberFormat, paidAmountMinor, type Transaction } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { useCloudRefresh } from "@/lib/backup";
 import { AmountPill, CategoryIcon, Empty, Money, TagPill } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
-import { dayLabel, humanDayTime, timeLabel } from "@/lib/dates";
+import { dayLabel, humanDayTime, timeLabel, todayLocal } from "@/lib/dates";
+import { useIncoming } from "@/lib/incoming";
 import { t } from "@/i18n";
 import { catName, acctName } from "@/lib/names";
 import { rowText } from "@/lib/rowText";
@@ -69,11 +70,21 @@ export function sortByAmount(rows: TxRow[]): TxRow[] {
  * `onSelect` is how it is entered: touching and holding a row (there is no Select button), which
  * starts selection mode with that row chosen.
  */
-export function TransactionList({ rows, header, empty, showAccount = true, resetKey, flat, onScroll, selected, onToggle, onSelect, keyboardDismissMode }: {
+export function TransactionList({ rows, header, empty, showAccount = true, resetKey, flat, onScroll, selected, onToggle, onSelect, keyboardDismissMode, incoming }: {
   rows: TxRow[]; header?: React.ReactElement; empty?: React.ReactElement; showAccount?: boolean; resetKey?: string; flat?: boolean; onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   selected?: Set<string>; onToggle?: (id: string) => void; onSelect?: (id: string) => void; keyboardDismissMode?: "none" | "on-drag" | "interactive";
+  /** Show the placeholder row while a bank notification is being read (lib/incoming.ts). Only for a list by date that a new payment would land at the top of. */
+  incoming?: boolean;
 }) {
-  const sections = useMemo(() => flat ? [{ title: "", day: "", data: rows, total: 0, currency: "" }] : groupByDay(rows), [rows, flat]);
+  const reading = useIncoming() && !!incoming && !flat && !selected;
+  const sections = useMemo(() => {
+    const out = flat ? [{ title: "", day: "", data: rows, total: 0, currency: "" }] : groupByDay(rows);
+    if (!reading) return out;
+    // One placeholder, at the top of today, where the payment it stands for will land.
+    const today = todayLocal();
+    if (out[0]?.day === today) return [{ ...out[0], data: [INCOMING, ...out[0].data] }, ...out.slice(1)];
+    return [{ title: dayLabel(today), day: today, data: [INCOMING], total: 0, currency: "" }, ...out];
+  }, [rows, flat, reading]);
   const selecting = !!selected;
   // Switching selection mode re-renders no row: the check circle and the chevron slide on the UI
   // thread from one shared value, and a tap asks `mode.on` what it means. Only the accessibility
@@ -129,7 +140,7 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
       maxToRenderPerBatch={14}
       renderSectionHeader={({ section }) => section.title ? <Text style={styles.sh}>{section.title}</Text> : <View style={{ height: S.sm }} />}
       renderSectionFooter={({ section }) => section.total !== 0 ? <Text style={styles.sum}>{t("transactions.list.sum")} <Money minor={section.total} currency={section.currency} style={[styles.sumVal, { color: section.total < 0 ? C.red : C.green }]} /></Text> : <View style={{ height: S.sm }} />}
-      renderItem={({ item: tx, index, section }) => (
+      renderItem={({ item: tx, index, section }) => tx === INCOMING ? <IncomingRow first={index === 0} last={index === section.data.length - 1} /> : (
         <TxItem tx={tx} tags={tagsFor.get(tx.id) ?? EMPTY_TAGS} flat={!!flat} showAccount={showAccount} first={index === 0} last={index === section.data.length - 1}
           mode={mode} a11ySelecting={a11ySelecting} on={selected?.has(tx.id) ?? false} onToggle={onToggle} onSelect={onSelect} />
       )}
@@ -138,6 +149,33 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
 }
 
 const EMPTY_TAGS: TagRef[] = [];
+/** The placeholder's place in a section: never a real row, told apart by identity. */
+const INCOMING = { id: "__incoming__", date: "", amount_minor: 0, transfer_id: null } as unknown as TxRow;
+
+/**
+ * A payment on its way: a row's shape with nothing in it yet, breathing gently, until the row the
+ * automation writes takes its place (lib/incoming.ts). Still with Reduce Motion.
+ */
+function IncomingRow({ first, last }: { first: boolean; last: boolean }) {
+  const still = useReducedMotion();
+  const pulse = useSharedValue(1);
+  useEffect(() => { if (!still) pulse.value = withRepeat(withTiming(0.45, { duration: 750 }), -1, true); }, [still, pulse]);
+  const breathe = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  return (
+    <View style={[styles.item, first && styles.first, last && styles.last, !first && styles.divider]}
+      accessible accessibilityLabel={t("transactions.list.incomingA11y")}>
+      <Animated.View style={[styles.incoming, breathe]}>
+        <View style={styles.ghostIcon} />
+        <View style={styles.text}>
+          <View style={[styles.ghostLine, { width: "55%" }]} />
+          <View style={[styles.ghostLine, styles.ghostSub, { width: "35%" }]} />
+        </View>
+        <View style={styles.ghostPill} />
+      </Animated.View>
+      <View style={styles.slot} />
+    </View>
+  );
+}
 const MAINTAIN_POSITION = { minIndexForVisible: 0 };
 
 /**
@@ -345,4 +383,10 @@ const styles = themed(() => StyleSheet.create({
   // The category icon and, over it while selecting, the check circle: one fixed square either way.
   iconSlot: { width: 34, height: 34, flexShrink: 0 },
   check: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  // The placeholder: the same row, its content as soft blocks of the fill colour.
+  incoming: { flex: 1, flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 40 },
+  ghostIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.fill },
+  ghostLine: { height: 14, borderRadius: 7, backgroundColor: C.fill },
+  ghostSub: { height: 11, marginTop: 4 },
+  ghostPill: { width: 64, height: 26, borderRadius: 13, backgroundColor: C.fill },
 }));

@@ -10,6 +10,7 @@ import { accountBalanceMinor, applyReturn, itemsToStore, sharesOf, categoryForSh
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
+import { shopParams } from "@/lib/shopPick";
 import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
 import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
@@ -136,7 +137,10 @@ export default function TransactionSheet() {
   // key is right there for anything new.
   const catNames = useQuery((d) => new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, catName(c)])), []);
   const tagNames = useQuery((d) => new Map(listRows(d, "tags", "deleted=0").map((x) => [x.id, x.name])), []);
-  const filed = useQuery((d) => payeeOptions(d, payee, note.trim() || bankNote), [payee, note.trim(), bankNote]);
+  // A pending entry asks too: the automation fills in whichever way came last and leaves the row in
+  // the queue because that is not a decision — so this row is the question, not one of its answers.
+  const asking = isNew || !!existing?.pending;
+  const filed = useQuery((d) => (asking ? payeeOptions(d, payee, note.trim() || bankNote, 6, existing?.id) : []), [asking, payee, note.trim(), bankNote, existing?.id]);
   // A category or tag that has since been deleted is not an option any more: the tag is dropped from
   // the pairing, and a pairing whose category is gone is dropped whole. Two pairings that differ only
   // by a tag nobody kept are then the same pairing, and are shown once.
@@ -541,7 +545,7 @@ export default function TransactionSheet() {
   const decimalAt = typingWhole ? shown.lastIndexOf(numberFormat().decimal) : -1;
   const caretMark = <Caret pulse={caret.pulse} color={C.tint as unknown as string} />;
   // A split is several entries with a category each, so Debt is only offered for a single one.
-  const openCategory = () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: debtId ? `debt:${debtId}` : categoryId ?? "", ...(parts.length ? {} : { debts: "1" }) } });
+  const openCategory = () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: kind === "income" ? "income" : "expense", selected: debtId ? `debt:${debtId}` : categoryId ?? "", ...(parts.length ? {} : { debts: "1" }), ...shopParams(payee, note.trim() || bankNote, existing?.id) } });
   const catIcon = category ? iconFor(category.name, { icon: category.icon, color: category.color }) : null;
 
   const oneAccount = accounts.length <= 1 && !!account;
@@ -660,10 +664,11 @@ export default function TransactionSheet() {
                 parts are carved off, since a split is several entries and a transfer is one movement. */}
             <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("transaction.entry.kind.expense") }, { value: "income", label: t("transaction.entry.kind.income"), color: C.green as unknown as string }, ...(accounts.length > 1 && !existing?.transfer_id && !parts.length ? [{ value: "transfer" as Kind, label: t("transaction.entry.kind.transfer") }] : [])]} />
           </View>
-          {/* Only while the entry is being written: "what was it this time?" is a question about a
-              new expense. An entry already saved has its answer, and the row cost the confirm bar
-              its safe-area margin on a sheet that had run out of room. */}
-          {isNew && options.length > 1 ? (
+          {/* Only while the entry is being written, or still waiting in Pending: "what was it this
+              time?" is a question about an expense nobody has filed yet. An entry already approved has
+              its answer, and the row cost the confirm bar its safe-area margin on a sheet that had run
+              out of room. */}
+          {asking && options.length > 1 ? (
             <ChipRow>
               {options.map((o) => {
                 const label = [o.category_id ? catNames.get(o.category_id)! : t("common.noCategory"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");

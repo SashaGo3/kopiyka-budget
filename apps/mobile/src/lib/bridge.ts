@@ -19,13 +19,14 @@ export interface ReceiptParse {
 }
 
 /** A write native code (watch, Shortcuts) asks JS to make on its behalf — see native/KPWrites.swift. */
-export interface NativeWrite { request: string; op: "addTransaction" | "delete" | "updatePlace" | "suggest" | "payee" | "payment" | "fillIn" | "approve"; [key: string]: unknown }
+export interface NativeWrite { request: string; op: "addTransaction" | "delete" | "updatePlace" | "suggest" | "payee" | "payment" | "fillIn" | "approve" | "incoming"; [key: string]: unknown }
 
 type Bridge = {
   reloadWidgets(): void; updateWatch(): Promise<string>; isWatchPaired(): boolean;
   launchLink?(): string | null;
   scanReceipt(uri: string): Promise<ReceiptParse>;
   claimDatabase(): void;
+  incomingReadings?(): Record<string, number>;
   setLanguage(code: string): void;
   setAppIcon(id: string | null): Promise<void>;
   getAppIcon(): Promise<string | null>;
@@ -151,6 +152,8 @@ export const KPBridge = {
   finishNativeWrite: (request: string, ok: boolean, error: string | null = null, reply: Record<string, unknown> = {}) => {
     if (typeof native?.finishNativeWrite === "function") native.finishNativeWrite(request, ok, error, reply);
   },
+  /** Bank notifications the automation is reading right now: token → start, ms (native KPIncoming). Empty on an older build. */
+  incomingReadings: (): Record<string, number> => { try { return native?.incomingReadings?.() ?? {}; } catch { return {}; } },
   /** Nothing is left to write after leaving the app: the background time native asked for can go. */
   backgroundWorkDone: () => { if (typeof native?.backgroundWorkDone === "function") native.backgroundWorkDone(); },
 };

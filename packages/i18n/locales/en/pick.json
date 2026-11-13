@@ -63,6 +63,10 @@
       "note": "Section: the category the entry already has."
     },
     "recent": "Recent",
+    "thisShop": {
+      "message": "Filed here before",
+      "note": "Section: the categories this shop's earlier payments were filed under."
+    },
     "noFolder": "No folder",
     "folder": {
       "message": "Folder",
@@ -249,6 +253,10 @@
     },
     "usedWith": "Used with this category",
     "other": "Other tags",
+    "elsewhere": {
+      "message": "For other categories",
+      "note": "Section shown while searching: tags set up for a different category than the entry's."
+    },
     "travel": {
       "message": "Trips & Events",
       "note": "Section of trip tags."

@@ -85,6 +85,16 @@ extension KPWrites {
     }
   }
 
+  /// Tell JS something without waiting for an answer (op "incoming": a bank notification is being
+  /// read). Nothing happens when JS is not up — there is no screen to show it on. JS replies to every
+  /// op, and `finish` ignores a request nobody is waiting for, so this costs the automation nothing.
+  static func signal(_ op: [String: Any]) {
+    lock.lock(); let fwd = claimed ? forward : nil; lock.unlock()
+    guard let fwd else { return }
+    var m = op; m["request"] = UUID().uuidString
+    fwd(m)
+  }
+
   /// A *read* forwarded to JS over the same channel (only JS may touch the file while it is claimed).
   /// Fails fast when JS is not up — the caller then has a SQLite path of its own.
   static func query(_ op: [String: Any], timeout: TimeInterval = 3) async -> Result {
@@ -93,13 +103,15 @@ extension KPWrites {
 
   // MARK: Writes
 
-  static func addTransaction(id: String? = nil, accountId: String, amountMinor: Int, categoryId: String?, tagIds: [String] = [], note: String?, payee: String? = nil,
+  static func addTransaction(id: String? = nil, incoming: String? = nil, accountId: String, amountMinor: Int, categoryId: String?, tagIds: [String] = [], note: String?, payee: String? = nil,
                              lat: Double? = nil, lon: Double? = nil, place: String? = nil, pending: Bool = false, date: String? = nil, source: String? = nil,
                              enteredMinor: Int? = nil, enteredCurrency: String? = nil, rate: Double? = nil, bank: KPBankRef? = nil,
                              bankNote: String? = nil, timeout: TimeInterval = 8) async -> Result {
     let id = id?.isEmpty == false ? id! : UUID().uuidString.lowercased()
     var op: [String: Any] = ["op": "addTransaction", "id": id, "account_id": accountId, "amount_minor": amountMinor, "tag_ids": tagIds, "pending": pending]
     if let c = categoryId, !c.isEmpty { op["category_id"] = c }
+    // The placeholder this row replaces on screen (op "incoming").
+    if let i = incoming { op["incoming"] = i }
     if let n = note, !n.isEmpty { op["note"] = n }
     if let n = bankNote, !n.isEmpty { op["bank_note"] = n }
     if let p = payee, !p.isEmpty { op["payee"] = p }
@@ -200,5 +212,51 @@ extension KPWrites {
     return await perform(op, timeout: timeout) {
       KPStore.fillIn(id: id, payee: payee, place: place, categoryId: categoryId, tagIds: tagIds, lat: lat, lon: lon, confirm: confirm) ? .ok : .fail(L10n.Writes.nothingToFill)
     }
+  }
+}
+
+/**
+ Bank notifications being read right now, kept where the app can find them when it opens mid-read
+ (src/lib/incoming.ts shows one placeholder row for them). Not the database: this is a fact about
+ this phone at this moment, not your data, so it has no business in backups or on the other device —
+ and the automation may not open the file while the app owns it (DATA.md rule 10).
+
+ Each reading is a token and the moment it started (ms). `begin` adds one, `end` takes it away
+ whatever happened; one the automation never finished (iOS killed it) is forgotten after `staleMs`.
+ */
+enum KPIncoming {
+  private static let key = "KPIncoming"
+  private static let staleMs: Double = 60_000
+  private static let lock = NSLock()
+  private static var defaults: UserDefaults? { UserDefaults(suiteName: KP.appGroup) }
+
+  private static func now() -> Double { Date().timeIntervalSince1970 * 1000 }
+
+  /// The readings still under way, stale ones dropped (and pruned from the store).
+  static func current() -> [String: Double] {
+    lock.lock(); defer { lock.unlock() }
+    return prune(defaults?.dictionary(forKey: key) as? [String: Double] ?? [:])
+  }
+
+  static func begin(_ token: String) {
+    lock.lock(); defer { lock.unlock() }
+    var all = prune(defaults?.dictionary(forKey: key) as? [String: Double] ?? [:])
+    all[token] = now()
+    defaults?.set(all, forKey: key)
+  }
+
+  static func end(_ token: String) {
+    lock.lock(); defer { lock.unlock() }
+    var all = defaults?.dictionary(forKey: key) as? [String: Double] ?? [:]
+    guard all.removeValue(forKey: token) != nil else { return }
+    defaults?.set(prune(all), forKey: key)
+  }
+
+  /// Call with the lock held.
+  private static func prune(_ all: [String: Double]) -> [String: Double] {
+    let cutoff = now() - staleMs
+    let fresh = all.filter { $0.value >= cutoff }
+    if fresh.count != all.count { defaults?.set(fresh, forKey: key) }
+    return fresh
   }
 }

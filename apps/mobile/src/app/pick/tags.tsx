@@ -12,7 +12,10 @@ import { t } from "@/i18n";
 /**
  * Multi-select tags in a half sheet. With a category chosen, tags assigned to that
  * category (or its folder) and tags already used together with it come first; tags
- * meant for other categories are hidden unless already selected. Typing a new name offers to create it:
+ * meant for other categories are hidden unless already selected — until you search: a name typed is
+ * looked for among every live tag, and the ones meant elsewhere come last, under a heading of their
+ * own, so a tag is never "missing" just because it was set up for another category (and never made
+ * twice because it could not be found). Typing a new name offers to create it:
  * the new tag is assigned to the chosen category (that is what naming it here means) and pinned to the
  * top of the list, newest first — it has no usage history to rank it, and it is the one the user was
  * just looking for. Travel tags come last, under a heading of their own: each is one journey, not a
@@ -43,7 +46,7 @@ export default function PickTags() {
     // Tags the transaction already has come first so the ticks are visible without scrolling.
     const initial = new Set(selected ? selected.split(",").filter(Boolean) : []);
     const trips = new Set(tripTagIds(db));
-    return rows.map((tg) => ({ ...tg, rank: rank(tg), together: withCat.get(tg.id) ?? 0, travel: trips.has(tg.id) && !initial.has(tg.id) })).filter((tg) => tg.rank < 2 || chosen.includes(tg.id))
+    return rows.map((tg) => ({ ...tg, rank: rank(tg), together: withCat.get(tg.id) ?? 0, travel: trips.has(tg.id) && !initial.has(tg.id) }))
       .sort((a, b) => Number(initial.has(b.id)) - Number(initial.has(a.id)) || Number(a.travel) - Number(b.travel) || a.rank - b.rank || b.together - a.together || (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0) || a.name.localeCompare(b.name));
   }, [category, selected]);
   // Sorted after the query so the rest of the order is untouched (Array#sort is stable).
@@ -52,7 +55,8 @@ export default function PickTags() {
     const at = (id: string) => { const i = created.indexOf(id); return i < 0 ? created.length : created.length - 1 - i; }; // newest first, everything else after
     return [...tags].sort((a, b) => at(a.id) - at(b.id));
   }, [tags, created]);
-  const filtered = q ? ordered.filter((tg) => tg.name.toLowerCase().includes(q.toLowerCase())) : ordered;
+  // Browsing shows what fits this category; searching looks through everything (rank 2 last).
+  const filtered = q ? ordered.filter((tg) => tg.name.toLowerCase().includes(q.toLowerCase())) : ordered.filter((tg) => tg.rank < 2 || chosen.includes(tg.id));
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   const canCreate = !!q.trim() && !tags.some((tg) => tg.name.toLowerCase() === q.trim().toLowerCase());
   const make = () => mutate((db) => createTag(db, { name: q.trim(), ...(category ? { category_ids: JSON.stringify([category]) } : null) }));
@@ -79,6 +83,7 @@ export default function PickTags() {
         <>
           {category && !tg.travel && index === 0 && tg.rank === 0 ? <Text style={styles.section}>{t("pick.tags.usedWith")}</Text> : null}
           {category && !tg.travel && tg.rank === 1 && (index === 0 || filtered[index - 1]!.rank === 0) ? <Text style={styles.section}>{t("pick.tags.other")}</Text> : null}
+          {category && !tg.travel && tg.rank === 2 && (index === 0 || filtered[index - 1]!.rank < 2) ? <Text style={styles.section}>{t("pick.tags.elsewhere")}</Text> : null}
           {tg.travel && (index === 0 || !filtered[index - 1]!.travel) ? <Text style={styles.section}>{t("pick.tags.travel")}</Text> : null}
           <Tap onPress={() => toggle(tg.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={tg.name} accessibilityState={{ selected: chosen.includes(tg.id) }}>
             <TagPill name={tg.name} color={tg.color} />
