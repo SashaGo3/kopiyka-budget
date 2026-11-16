@@ -50,6 +50,8 @@ function snapshot(): Period {
 }
 function subscribe(cb: () => void): () => void { listeners.add(cb); return () => { listeners.delete(cb); }; }
 
+/** The period open right now, read outside a render (a callback deciding which way the month moved). */
+export function getSelectedPeriod(): Period { return snapshot(); }
 export function setSelectedPeriod(p: Period): void { selected = p; for (const l of listeners) l(); }
 export function resetSelectedPeriod(): void { setSelectedPeriod(currentPeriod()); }
 

@@ -26,7 +26,8 @@ type Row = SplitPart & { key: string };
 type Friend = { key: string; person_id: string; items: ShareItem[]; fixed: number | null };
 
 export interface SplitResult {
-  main: { category_id: string | null; tag_ids: string[] };
+  /** `note`: the entry's note as left here, when it was handed in (it can be edited on this screen). */
+  main: { category_id: string | null; tag_ids: string[]; note?: string };
   /** Own parts first, then one per friend (with `person_id`): what the entry sheet writes. */
   parts: SplitPart[];
   /** A line for the entry's note saying who owes what: always written when friends are in. */
@@ -89,8 +90,8 @@ export default function SplitEditor() {
   const total = Math.abs(Number(p.total) || 0) + tip;
   const kindIsIncome = p.kind === "income";
 
-  const [main, setMain] = useState<{ category_id: string | null; tag_ids: string[] }>(() => {
-    try { return JSON.parse(p.main) as { category_id: string | null; tag_ids: string[] }; } catch { return { category_id: null, tag_ids: [] }; }
+  const [main, setMain] = useState<{ category_id: string | null; tag_ids: string[]; note?: string }>(() => {
+    try { return JSON.parse(p.main) as { category_id: string | null; tag_ids: string[]; note?: string }; } catch { return { category_id: null, tag_ids: [] }; }
   });
   const [rows, setRows] = useState<Row[]>(() => {
     try { return (JSON.parse(p.parts) as SplitPart[]).filter((x) => !x.person_id).map((x) => ({ ...x, key: newPickKey("part") })); } catch { return []; }
@@ -105,7 +106,7 @@ export default function SplitEditor() {
   const exit = useDiscardGuard(useDirty([tip, main, rows.map(({ key: _k, ...part }) => part), friends.map(({ key: _k, ...f }) => f)]));
 
   // One handler per field rather than per row: rows come and go, and a hook cannot.
-  const keys = useMemo(() => ({ cat: newPickKey("scat"), tags: newPickKey("stags"), amt: newPickKey("samt"), people: newPickKey("speople"), famt: newPickKey("sfamt"), items: newPickKey("sitems"), tip: newPickKey("stip") }), []);
+  const keys = useMemo(() => ({ cat: newPickKey("scat"), tags: newPickKey("stags"), amt: newPickKey("samt"), people: newPickKey("speople"), famt: newPickKey("sfamt"), items: newPickKey("sitems"), tip: newPickKey("stip"), note: newPickKey("snote") }), []);
   usePickResult<number>(keys.tip, useCallback((v: number) => setTip(Math.abs(v)), []));
   const editingFriend = useRef<string | null>(null);
   const patchFriend = useCallback((change: (f: Friend) => Friend) => {
@@ -124,7 +125,7 @@ export default function SplitEditor() {
   const patch = useCallback((change: (r: SplitPart) => SplitPart) => {
     const key = editing.current;
     if (key === null) {
-      setMain((m) => { const next = change({ ...m, amount_minor: 0 }); return { category_id: next.category_id, tag_ids: next.tag_ids }; });
+      setMain((m) => { const next = change({ ...m, amount_minor: 0 }); return { ...m, category_id: next.category_id, tag_ids: next.tag_ids, note: next.note ?? m.note }; });
       return;
     }
     setRows((list) => list.map((r) => (r.key === key ? { ...r, ...change(r) } : r)));
@@ -139,6 +140,12 @@ export default function SplitEditor() {
   };
   usePickResult<string | null>(keys.cat, useCallback((v) => patch((r) => ({ ...r, category_id: v })), [patch]));
   usePickResult<string[]>(keys.tags, useCallback((v) => patch((r) => ({ ...r, tag_ids: v })), [patch]));
+  // Each part may say what it was ("the lamp"); one left without a note shares the entry's.
+  usePickResult<string>(keys.note, useCallback((v: string) => patch((r) => ({ ...r, note: v })), [patch]));
+  const openNote = (key: string | null, value: string | null | undefined) => {
+    editing.current = key;
+    router.push({ pathname: "/pick/text", params: { key: keys.note, title: t("transaction.split.note"), value: value ?? "", multiline: "1" } });
+  };
   // The keypad a part opens carries the Category and Tags keys itself, so one screen answers how
   // much and what of; the rows on the card stay tappable for changing either afterwards.
   usePickResult<AmountPick>(keys.amt, useCallback((v: AmountPick) =>
@@ -279,6 +286,11 @@ export default function SplitEditor() {
                   accessibilityLabel={main.tag_ids.length ? t("transaction.split.restTagsA11y", { names: main.tag_ids.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ") }) : t("transaction.split.addRestTags")}>
                   {tagLine(main.tag_ids) ?? <Text style={styles.tagHint}>{t("transaction.split.addTags")}</Text>}
                 </Tap>
+                {main.note !== undefined && (rows.length || main.note) ? (
+                <Tap onPress={() => openNote(null, main.note)} hitSlop={4} accessibilityRole="button" accessibilityLabel={main.note ? t("transaction.split.noteA11y", { note: main.note }) : t("transaction.split.addNote")}>
+                  {main.note ? <Text style={styles.noteText} numberOfLines={3}>{main.note}</Text> : <Text style={styles.tagHint}>{t("transaction.split.addNote")}</Text>}
+                </Tap>
+                ) : null}
               </View>
               <View style={styles.right}>
                 {money(rest, false, rest <= 0)}
@@ -296,6 +308,9 @@ export default function SplitEditor() {
                   <View style={styles.middle}>
                     <Text style={[styles.catText, !icon.cat && styles.missing]}>{icon.cat ? catName(icon.cat) : t("transaction.split.chooseCategory")}</Text>
                     {tagLine(r.tag_ids)}
+                    <Tap onPress={() => openNote(r.key, r.note)} hitSlop={4} accessibilityRole="button" accessibilityLabel={r.note ? t("transaction.split.noteA11y", { note: r.note }) : t("transaction.split.addNote")}>
+                  {r.note ? <Text style={styles.noteText} numberOfLines={3}>{r.note}</Text> : <Text style={styles.tagHint}>{t("transaction.split.addNote")}</Text>}
+                </Tap>
                   </View>
                   <View style={styles.right}>{money(r.amount_minor, !r.amount_minor)}</View>
                   <Tap onPress={() => setRows((list) => list.filter((x) => x.key !== r.key))} hitSlop={10}
@@ -401,6 +416,7 @@ const styles = themed(() => StyleSheet.create({
   catText: { fontSize: 17, color: C.label },
   missing: { color: C.tertiary },
   tags: { flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" },
+  noteText: { fontSize: 14, color: C.secondary },
   tagHint: { fontSize: 14, color: C.tint },
   // The amounts are one column: right-aligned, same width of figure, whatever sits beside them.
   right: { alignItems: "flex-end", flexShrink: 0 },

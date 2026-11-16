@@ -32,5 +32,81 @@
     },
     "cameraNeeded": "Camera access is needed to photograph the receipt.",
     "takeNow": "Take photo now"
+  },
+  "read": {
+    "zoomA11y": "Photo. Pinch or double-tap to zoom.",
+    "text": {
+      "message": "Text",
+      "note": "Tab under the full-screen photo: the text read from it."
+    },
+    "items": {
+      "message": "{count, plural, one {# item} other {# items}}",
+      "note": "Tab under the full-screen photo: the receipt's lines."
+    },
+    "reading": {
+      "message": "Reading text…",
+      "note": "While the photo's text is being recognised."
+    },
+    "findingItems": {
+      "message": "Finding items…",
+      "note": "Text is read; the receipt's items are being worked out."
+    },
+    "sorting": {
+      "message": "Sorting into categories…",
+      "note": "Items are read; a category is being guessed for each."
+    },
+    "show": "Show text",
+    "hide": "Hide text",
+    "noText": "No text found in this photo.",
+    "copyAll": "Copy all",
+    "copied": "Copied",
+    "sortHint": {
+      "message": "Select items to file them under a category. Anything left unsorted stays with this entry.",
+      "note": "Above the receipt's items when they can be split."
+    },
+    "suggested": "Suggested category",
+    "selected": {
+      "message": "{count, plural, one {# selected} other {# selected}} · {amount}",
+      "note": "amount is the selected items' sum, formatted."
+    },
+    "category": {
+      "message": "Category",
+      "note": "Button: choose the category for the selected items."
+    },
+    "split": {
+      "message": "Split into {count, plural, one {# entry} other {# entries}}",
+      "note": "count is at least 2."
+    },
+    "fileAs": {
+      "message": "File as {category}",
+      "note": "Every item went into one category other than the entry's: re-file the entry."
+    },
+    "uncategorized": "No category",
+    "fill": {
+      "message": "Fill in the entry · {amount}",
+      "note": "Button over the photo's text panel; amount is the receipt total, formatted."
+    },
+    "noteTotal": {
+      "message": "Total {amount}",
+      "note": "Last line of the receipt content written into the entry's note."
+    },
+    "unsorted": {
+      "message": "Not sorted · stays with this entry",
+      "note": "Header over the receipt items given no category."
+    }
+  },
+  "replace": "Replace photo",
+  "scanFailed": "Could not scan",
+  "mode": {
+    "receipt": {
+      "message": "Receipt",
+      "note": "Camera mode: the document scanner that finds and shoots a receipt by itself. Short.",
+      "max": 12
+    },
+    "photo": {
+      "message": "Photo",
+      "note": "Camera mode: an ordinary photo. Short.",
+      "max": 12
+    }
   }
 }

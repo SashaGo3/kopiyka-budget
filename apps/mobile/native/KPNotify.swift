@@ -47,4 +47,45 @@ enum KPNotify {
 
     try? await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
   }
+
+  /// Set the app icon's badge without a notification — when the payment notice itself is turned
+  /// off, the badge still has to count what waits in the Pending queue.
+  static func badge(_ count: Int) async {
+    let center = UNUserNotificationCenter.current()
+    guard await center.notificationSettings().badgeSetting == .enabled else { return }
+    try? await center.setBadgeCount(count)
+  }
+
+  /// The evening reminder that `count` entries wait in the Pending queue, for the next few evenings
+  /// at `time` ("HH:MM", meta `pending_reminder`; nil is the default 22:00, "off" schedules none).
+  /// The same identifiers and `kind` the app uses (`schedulePendingEvenings`, src/lib/notifications.ts),
+  /// so whichever of the two wrote last is the schedule; the app rebuilds it on its next write, and
+  /// takes it away once the queue is empty. Only ever adds: with the app closed nothing here can
+  /// empty the queue.
+  static func pendingEvenings(count: Int, time: String?) async {
+    guard count > 0, time != "off" else { return }
+    let parts = (time ?? "22:00").split(separator: ":").compactMap { Int($0) }
+    guard parts.count == 2 else { return }
+    let center = UNUserNotificationCenter.current()
+    guard await center.notificationSettings().authorizationStatus == .authorized else { return }
+    let cal = Calendar.current
+    let now = Date()
+    var added = 0
+    for day in 0..<4 where added < 3 {
+      guard let base = cal.date(byAdding: .day, value: day, to: cal.startOfDay(for: now)),
+            let fire = cal.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: base), fire > now else { continue }
+      let content = UNMutableNotificationContent()
+      content.title = L10n.Notify.eveningTitle
+      content.body = L10n.Notify.eveningBody(count: count)
+      content.badge = NSNumber(value: count)
+      content.userInfo = ["url": "\(KP.scheme)://pending", "kind": "pending_evening"]
+      let f = DateFormatter()
+      f.calendar = Calendar(identifier: .gregorian); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+      let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+      let request = UNNotificationRequest(identifier: "kopiyka.pending.evening.\(f.string(from: fire))", content: content,
+                                          trigger: UNCalendarNotificationTrigger(dateMatching: comps, repeats: false))
+      try? await center.add(request)
+      added += 1
+    }
+  }
 }

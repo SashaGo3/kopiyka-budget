@@ -15,14 +15,13 @@ import { setOnboarded } from "@/lib/onboarding";
 import { markBooted } from "@/lib/boot";
 import { findRestorable, markContainerSeen, restoreBackup, type BackupEntry } from "@/lib/backup";
 import { humanDayTime } from "@/lib/dates";
-import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { LANGUAGES, deviceLanguage, getLanguage, isFollowingDevice, setLanguage, t, type LanguageCode } from "@/i18n";
 
 /** Built per render, never at import: the words are in whatever language the app is in now. */
 const points = (): { icon: SFSymbol; title: string; text: string }[] => [
   { icon: "iphone", title: t("onboarding.welcome.localTitle"), text: t("onboarding.welcome.localText") },
-  { icon: "applewatch", title: t("onboarding.welcome.quickTitle"), text: RECEIPT_SCANNER_ENABLED ? t("onboarding.welcome.quickText") : t("onboarding.welcome.quickTextNoReceipt") },
+  { icon: "applewatch", title: t("onboarding.welcome.quickTitle"), text: t("onboarding.welcome.quickText") },
   { icon: "icloud", title: t("onboarding.welcome.icloudTitle"), text: t("onboarding.welcome.icloudText") },
 ];
 

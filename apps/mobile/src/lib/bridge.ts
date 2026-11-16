@@ -25,6 +25,11 @@ type Bridge = {
   reloadWidgets(): void; updateWatch(): Promise<string>; isWatchPaired(): boolean;
   launchLink?(): string | null;
   scanReceipt(uri: string): Promise<ReceiptParse>;
+  readPhotoText?(uri: string): Promise<string[]>;
+  canScanDocument?(): boolean;
+  scanDocument?(): Promise<string | null>;
+  understandReceipt?(lines: string[]): Promise<ReceiptParse>;
+  sortReceiptItems?(names: string[], prices: number[], merchant: string): Promise<string[]>;
   claimDatabase(): void;
   incomingReadings?(): Record<string, number>;
   setLanguage(code: string): void;
@@ -131,6 +136,16 @@ export const KPBridge = {
   launchLink: (): string | null => { try { return native?.launchLink?.() ?? null; } catch { return null; } },
   /** OCR + on-device understanding of a receipt photo; nothing is saved. */
   scanReceipt: (uri: string): Promise<ReceiptParse> => native ? native.scanReceipt(uri) : Promise.reject(new Error("Receipt scanning needs the native build")),
+  /** The system document camera (native/KPDocScan.swift): finds a receipt, shoots it, flattens it. */
+  canScanDocument: (): boolean => { try { return native?.canScanDocument?.() ?? false; } catch { return false; } },
+  /** A temporary file URI of the scan, or null when cancelled. */
+  scanDocument: (): Promise<string | null> => native?.scanDocument ? native.scanDocument() : Promise.resolve(null),
+  /** The photo viewer's reader (lib/photoText.ts): text first, then what it means, then a category per item. */
+  readPhotoText: (uri: string): Promise<string[]> => native?.readPhotoText ? native.readPhotoText(uri) : Promise.reject(new Error("Text recognition needs the native build")),
+  understandReceipt: (lines: string[]): Promise<ReceiptParse | null> => native?.understandReceipt ? native.understandReceipt(lines) : Promise.resolve(null),
+  /** One category id per item, "" where nothing fitted. */
+  sortReceiptItems: (names: string[], prices: number[], merchant: string): Promise<string[]> =>
+    native?.sortReceiptItems ? native.sortReceiptItems(names, prices, merchant) : Promise.resolve(names.map(() => "")),
   /** Fires when a Shortcut, Siri or the watch wrote a transaction directly into the database. */
   onExternalChange(cb: () => void): () => void {
     if (!native) return () => {};

@@ -58,7 +58,11 @@
     "period": "in {period}",
     "search": { "message": "matching “{q}”", "note": "On Search, what was typed: \"Nothing matching “coffee”, with 1 filter on.\"" },
     "filters": "{count, plural, one {with # filter on} other {with # filters on}}",
-    "action": "Show everything"
+    "action": "Show everything",
+    "monthNow": { "message": "Nothing logged this month yet.", "note": "Empty list on the current month, with no filters or account scope." },
+    "month": { "message": "Nothing logged in {period}.", "note": "Empty list on another month, nothing else narrowing it; period is \"Oct 2026\" or \"15 Oct – 14 Nov\"." },
+    "toCurrent": { "message": "Back to this month", "note": "Button under an empty list on another month.", "max": 30 },
+    "toEarlier": { "message": "Show {period}", "note": "Button under this month's empty list: opens the latest earlier month with transactions; period is \"Oct 2026\".", "max": 30 }
   },
   "scopeTitle": {
     "message": "Spending from",

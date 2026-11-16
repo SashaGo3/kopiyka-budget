@@ -661,6 +661,13 @@ struct LogPaymentIntent: AppIntent {
       }
       await KPNotify.payment(id: rowId, link: link, title: title, body: body,
                              badge: saved.reply["pending"] as? Int ?? KPStore.pendingCount())
+    } else if let count = saved.reply["pending"] as? Int ?? KPStore.pendingCount() {
+      // Silent, but the badge still counts what waits — it is the one sign left that anything did.
+      await KPNotify.badge(count)
+    }
+    // And the evening reminder about it, in case the app does not run again before then.
+    if let count = saved.reply["pending"] as? Int ?? KPStore.pendingCount() {
+      await KPNotify.pendingEvenings(count: count, time: KPStore.meta("pending_reminder"))
     }
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)

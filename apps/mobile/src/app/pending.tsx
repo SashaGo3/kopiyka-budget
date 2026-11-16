@@ -21,7 +21,8 @@ import { shopParams } from "@/lib/shopPick";
  * nothing here is final until it is approved.
  *
  * Approving is one tap per row and the only thing the row's own buttons do besides setting the
- * category and deleting. The category is the field these rows arrive without: a notification names
+ * category and deleting — and setting the category approves it as well, since that is the answer
+ * the row was waiting for. The category is the field these rows arrive without: a notification names
  * a shop, not a category, and since 2026-09 nothing guesses one from the shop's name — a wrong
  * category hides a row, a blank one asks for exactly this screen. Anything else — the amount,
  * the account, tags, the date — is a tap on the row itself, which opens the normal entry sheet;
@@ -62,7 +63,15 @@ export default function PendingScreen() {
   usePickResult<string | null>(catKey, useCallback((id: string | null) => {
     const rowId = editing.current;
     editing.current = null;
-    if (rowId) mutate((d) => { const tx = getRow(d, "transactions", rowId); if (tx) save(d, "transactions", { ...tx, category_id: id }); });
+    // Picking the category is the decision this queue is waiting for, so it approves the row too —
+    // a second tap on Approve after it only repeated what the pick had already said. Clearing the
+    // category (picking none) leaves the row waiting.
+    if (rowId) mutate((d) => {
+      const tx = getRow(d, "transactions", rowId);
+      if (!tx) return;
+      save(d, "transactions", { ...tx, category_id: id });
+      if (id) approvePending(d, [rowId]);
+    });
   }, []));
 
   // Both legs of a transfer at once, and each approval teaches the accounts the digits their bank
@@ -110,7 +119,7 @@ export default function PendingScreen() {
       />
       {rows.length ? (
         <BottomBar>
-          <BarButton icon="checkmark.circle" label={t("pending.approveAll", { count: rows.length })} active onPress={approveAll} a11y={t("pending.approveAllA11y", { count: rows.length })} />
+          <BarButton icon="checkmark.circle" label={t("pending.approveAll", { count: rows.length })} active wide onPress={approveAll} a11y={t("pending.approveAllA11y", { count: rows.length })} />
         </BottomBar>
       ) : null}
     </>

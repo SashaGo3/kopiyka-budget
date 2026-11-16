@@ -86,6 +86,23 @@
       "discard": "Discard",
       "keep": "Keep editing"
     },
+    "unsavedPhoto": {
+      "added": "Keep the photo?",
+      "removed": "Remove the photo?",
+      "body": { "message": "The change to the photo is kept only when the entry is saved.", "note": "Closing an existing entry after adding or removing its photo without saving." }
+    },
+    "fromReceipt": {
+      "reading": { "message": "Reading the receipt…", "note": "Under the photo on the entry sheet while its text is recognised." },
+      "update": { "message": "Update", "note": "Button: fill the entry in from the receipt on its photo. Short." },
+      "changes": { "message": "Will update: {list}", "note": "list is the fields, joined with commas: \"amount, date, notes\"." },
+      "amount": "amount",
+      "date": "date",
+      "shop": "shop",
+      "category": "category",
+      "note": "notes",
+      "done": "Filled in from the receipt",
+      "undo": "Undo"
+    },
     "duplicate": {
       "title": "Duplicate this transaction?",
       "body": { "message": "{summary} opens as a new entry. Nothing is added until you confirm it.", "note": "summary is the amount with its currency and, if any, the category: \"−4.50 EUR · Coffee\"." },
@@ -131,6 +148,9 @@
   },
   "split": {
     "title": "Split the entry",
+    "note": { "message": "Note", "note": "Title of the text sheet for one part's note on the split screen." },
+    "addNote": { "message": "Add note", "note": "Under a part on the split screen; without one, the part shares the entry's note." },
+    "noteA11y": "Note: {note}",
     "intro": "One shop, several things. Give each part its own category — what is left stays on the entry itself.",
     "restCategoryA11y": "Category of the rest: {name}",
     "chooseRestCategory": "Choose a category for the rest",

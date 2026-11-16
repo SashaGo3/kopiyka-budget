@@ -66,6 +66,13 @@ immutability is what the rest relies on:
 So changing `photo` to a name nothing wrote orphans the image, and clearing it strands the file. If
 you ever need to rewrite photo names, move the files in the same pass.
 
+What a photo *says* — its text, a receipt's items and a category guessed for each — is a cache, not
+data: `apps/mobile/src/lib/photoText.ts` keeps it in the app's Caches folder under the photo's name
+(safe because the file under a name never changes), it is not backed up, and iOS may empty it, in
+which case the photo is simply read again. Sorting a receipt's items in the photo viewer writes
+nothing either; it hands the entry sheet a split, which becomes rows only when that split is kept
+(rule 11).
+
 One name can be held by **more than one row**: the parts of a split share the receipt that was
 photographed once (rule 11). So deleting a row is not a reason to delete its photo — `photoInUse`
 (`packages/core/src/repo.ts`) asks whether any live row still points at the file, and only the last
@@ -199,7 +206,11 @@ about), so a restored phone does not suggest them again. It replaced `forecast_p
 (one TestFlight build had it); a `forecast_promo` of `dismissed` still counts as the forecast waved
 away, and a backup carrying the key is otherwise ignored. `category_names_seen` joined on 2026-11-11: the
 categories already looked at on Settings → Categories → Names in <language> (JSON ids, `markCategoryNamesSeen`),
-so the way in stays hidden after a Save until a new category named in another language turns up. `backup.test.ts` pins the list so the
+so the way in stays hidden after a Save until a new category named in another language turns up. `pending_reminder` joined on
+2026-11-14: the evening reminder about the Pending queue — `HH:MM`, or `off`; absent is on at
+22:00. Scheduled only while something is pending (`schedulePendingEvenings`,
+`apps/mobile/src/lib/notifications.ts`, and the automation's `KPNotify.pendingEvenings` with the app
+closed); recurring payments are never pending and never counted. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -241,8 +252,9 @@ Create and remove test rows through the core API (`bun -e` with `openBunDb` + `c
 
 One shop sells dinner and a lamp, and filing the whole receipt under either is a lie. So the entry
 sheet's Split writes **one ordinary transaction per part** (`packages/core/src/split.ts`), all sharing
-the account, date, payee, note, place, coordinates and photo, each with its own amount, category and
-tags. The entry being edited keeps its id and takes whatever the other parts leave it (rule 1), so
+the account, date, payee, place, coordinates and photo, each with its own amount, category and
+tags. A part may carry a note of its own (`SplitPart.note` — "the lamp", or the receipt lines sorted
+into it on the photo); one without shares the entry's note. The entry being edited keeps its id and takes whatever the other parts leave it (rule 1), so
 splitting an existing row never detaches its history.
 
 Nothing links the parts afterwards — there is no `split_id`, and there is deliberately nothing to

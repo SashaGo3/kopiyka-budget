@@ -4,7 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, save, toSplitQueue, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, emptyListAction, latestDayBefore, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, save, toSplitQueue, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import type { SearchBarCommands } from "react-native-screens";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
@@ -18,7 +18,8 @@ import { ButtonText, Empty, Money, StatPair, Tap } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { ALL_TIME, EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
-import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
+import { currentPeriod, getPeriodStartDay, getSelectedPeriod, periodContaining, shiftPeriod, usePeriod, type Period } from "@/lib/period";
+import { ENTER_WINDOW_MS, listKey, slideDirection } from "@/lib/listMotion";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { getBudgetScope, getHideIncome, setBudgetScope, waitDefaultDays } from "@/lib/settings";
 import { scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
@@ -67,7 +68,24 @@ export default function TransactionsTab() {
  */
 export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const p = useLocalSearchParams<Params>();
-  const [period, setPeriod] = usePeriod();   // the same month Budgets is showing
+  const [period, setSharedPeriod] = usePeriod();   // the same month Budgets is showing
+  /**
+   * Every month switch on this screen goes through here, so the rows can slide in from the side the
+   * month lies on — a later one from the right, an earlier one from the left — for a moment after the
+   * switch (lib/listMotion.ts), and only then: rows mounted later by scrolling just appear.
+   */
+  const [enterFrom, setEnterFrom] = useState<"left" | "right" | null>(null);
+  const enterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (enterTimer.current) clearTimeout(enterTimer.current); }, []);
+  const setPeriod = useCallback((next: Period) => {
+    const dir = slideDirection(getSelectedPeriod().start, next.start);
+    if (dir) {
+      setEnterFrom(dir > 0 ? "right" : "left");
+      if (enterTimer.current) clearTimeout(enterTimer.current);
+      enterTimer.current = setTimeout(() => setEnterFrom(null), ENTER_WINDOW_MS);
+    }
+    setSharedPeriod(next);
+  }, [setSharedPeriod]);
   useEffect(() => { markBooted(); }, []); // the landing tab's first content frame: the native launch screen fades off it (lib/boot.ts)
   // The account scope is the same one Budgets shows, switched from the pill here as well.
   const scope = useQuery(() => getBudgetScope());
@@ -162,7 +180,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const keys = useMemo(() => ({ filter: newPickKey("filter"), month: newPickKey("month"), scope: newPickKey("scope"), cat: newPickKey("mcat"), tags: newPickKey("mtags"), date: newPickKey("mdate"), note: newPickKey("mnote"), bulk: newPickKey("mbulk") }), []);
   usePickResult<TxFilter>(keys.filter, useCallback((f: TxFilter) => setFilter(f), []));
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
-  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), []));
+  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), [setPeriod]));
   const { visible, onScroll } = useScrollHide();
 
   const trips = useQuery((d) => listTrips(d));
@@ -278,10 +296,23 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
     isSearch && filter.q.trim() ? t("transactions.empty.search", { q: filter.q.trim() }) : null,
     n ? t("transactions.empty.filters", { count: n }) : null,
   ].filter(Boolean);
+  // What the empty list can do about it (core emptyList.ts): clear what narrows it, go back to this
+  // month, or — this month having nothing yet — open the latest month that has something. Never a
+  // button that changes nothing, which is what "Show everything" was on an unfiltered current month.
+  const onlyMonth = !isSearch && !custom && !n && !scope;
+  const isCurrent = period.start === currentPeriod().start;
+  const earlierDay = useQuery((d) => (rows.length || !onlyMonth || !isCurrent ? null : latestDayBefore(d, period.start)), [rows.length, onlyMonth, isCurrent, period.start]);
+  const emptyAction = emptyListAction({ filters: isSearch ? n + (filter.q.trim() ? 1 : 0) : n, scoped: !isSearch && !!scope, isCurrent: isSearch || custom || isCurrent, earlierDay });
+  const earlier = emptyAction.kind === "earlier" ? periodContaining(emptyAction.day) : null;
   const emptyList = (
     <Empty title={t("transactions.empty.title")}
-      hint={narrowing.length ? t("transactions.empty.hint", { parts: narrowing.join(", ") }) : t("transactions.list.emptyHint")}
-      action={{ label: t("transactions.empty.action"), onPress: showEverything }} />
+      // The month alone is said plainly; anything else that narrows the list is named, so it can be undone.
+      hint={onlyMonth ? (isCurrent ? t("transactions.empty.monthNow") : t("transactions.empty.month", { period: period.subtitle ?? period.title }))
+        : narrowing.length ? t("transactions.empty.hint", { parts: narrowing.join(", ").replace(/\.$/, "") }) : t("transactions.list.emptyHint")}
+      action={emptyAction.kind === "reset" ? { label: t("transactions.empty.action"), onPress: showEverything }
+        : emptyAction.kind === "current" ? { label: t("transactions.empty.toCurrent"), onPress: () => setPeriod(currentPeriod()) }
+        : earlier ? { label: t("transactions.empty.toEarlier", { period: earlier.title }), onPress: () => setPeriod(earlier) }
+        : undefined} />
   );
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: t("transactions.scopeTitle"), options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
@@ -437,7 +468,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
         headerSearchBarOptions: isSearch ? { ref: searchRef, placeholder: t("transactions.searchPlaceholder"), hideWhenScrolling: false, autoFocus: typing,
           onChangeText: (e) => { const text = e?.nativeEvent?.text ?? ""; setFilter((f) => (f.q === text ? f : { ...f, q: text })); },
           onCancelButtonPress: () => setFilter((f) => (f.q ? { ...f, q: "" } : f)) } : undefined }} />
-      <TransactionList rows={sorted} flat={sort === "amount"} incoming={!isSearch && !custom} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} onSelect={startSelect} keyboardDismissMode={isSearch ? "on-drag" : undefined} empty={emptyList} header={
+      <TransactionList rows={sorted} flat={sort === "amount"} incoming={!isSearch && !custom} resetKey={listKey(sortGen, listPeriod?.start ?? null)} enterFrom={enterFrom} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} onSelect={startSelect} keyboardDismissMode={isSearch ? "on-drag" : undefined} empty={emptyList} header={
         <>
           {/* Same place as on Budgets: under the large title, so they scroll away with it instead of crowding the compact bar.
               Kept while selecting, only inert: taking them out moved every row under the finger up by their height. */}

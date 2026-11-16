@@ -23,6 +23,11 @@ export interface SplitPart {
   person_id?: string | null;
   /** What a friend's share was for. Only on a part with a person. */
   items?: import("./models").ShareItem[];
+  /**
+   * The part's own note ("the lamp"), written in place of the entry's. Absent or empty: the part
+   * shares the entry's note, as every part did before notes could be given here.
+   */
+  note?: string | null;
 }
 
 /**
@@ -59,4 +64,47 @@ export function shareEntered(enteredTotal: number, amounts: number[]): number[] 
   const shares = amounts.map((a) => Math.round((abs * a) / total));
   shares[0] = (shares[0] ?? 0) + (abs - shares.reduce((a, b) => a + b, 0));
   return shares.map((s) => s * sign);
+}
+
+/**
+ * A receipt's items sorted into categories, turned into the split they describe: the dinner and the
+ * lamp on one bill. Items nobody sorted, and those sorted into the entry's own category, stay with
+ * the entry; each other category becomes a part of its own. When everything was sorted and none of
+ * it into the entry's category, the biggest group becomes the entry's (so the entry is re-filed
+ * rather than left with nothing).
+ *
+ * Prices are what the receipt printed, in whatever currency it printed them; they are only
+ * proportions here. Each part is its share of `totalMinor` — the amount actually on the entry, so a
+ * converted or rounded payment splits the same way — measured against the receipt's total or the
+ * items' sum, whichever is larger (a discount line the reader skipped can make the items add up to
+ * more). The entry keeps the remainder, so the parts and the entry always add up exactly
+ * (`splitAmounts`). A part that would round to nothing is left with the entry.
+ */
+export function receiptSplit(
+  items: { price: number; category_id: string | null }[],
+  receiptTotal: number,
+  totalMinor: number,
+  entryCategory: string | null,
+): { category_id: string | null; parts: { category_id: string; amount_minor: number }[] } {
+  const total = Math.abs(totalMinor);
+  const sums = new Map<string | null, number>();
+  for (const it of items) if (it.price > 0) sums.set(it.category_id, (sums.get(it.category_id) ?? 0) + it.price);
+  const all = [...sums.values()].reduce((a, b) => a + b, 0);
+  const basis = Math.max(receiptTotal > 0 ? receiptTotal : 0, all);
+  if (!basis || !total) return { category_id: entryCategory, parts: [] };
+  let main = entryCategory;
+  if (!sums.has(null) && !(entryCategory && sums.has(entryCategory)) && sums.size) {
+    main = [...sums.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+  }
+  const parts: { category_id: string; amount_minor: number }[] = [];
+  for (const [cat, sum] of sums) {
+    if (cat === null || cat === main) continue;
+    const minor = Math.round((sum / basis) * total);
+    if (minor > 0) parts.push({ category_id: cat, amount_minor: minor });
+  }
+  parts.sort((a, b) => b.amount_minor - a.amount_minor);
+  // Rounding can never take the entry's own share to nothing unless it had none; drop the smallest
+  // parts until something is left, rather than offer a split `splitAmounts` would refuse.
+  while (parts.length && parts.reduce((a, p) => a + p.amount_minor, 0) >= total) parts.pop();
+  return { category_id: main, parts };
 }

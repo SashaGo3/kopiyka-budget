@@ -8,7 +8,7 @@
 import { accountName, accountNumbers, categoryMatchText, categoryName, categoryTypes, fromMinor, getHome, iconFor, jsonIds, uncarriedTagIds } from "@kopiyka/core";
 import { db } from "@/db";
 import { getLanguage, t, type LanguageCode } from "@/i18n";
-import { getCurrentAccount, getLocationEnabled, getShortcutNotify } from "./settings";
+import { getCurrentAccount, getLocationEnabled, getPendingReminder, getShortcutNotify } from "./settings";
 import type { WidgetSnapshot } from "./widget";
 
 export interface WatchCategory {
@@ -45,6 +45,8 @@ export interface WatchState {
   location_enabled: boolean;
   /** Whether the Shortcut automation may post a notification: the intent reads it from here while JS owns the database. */
   shortcut_notify: boolean;
+  /** The evening reminder's time ("22:00"), or "off" (never null: Swift reads an absent field as the default). The automation schedules it while JS owns the database. */
+  pending_reminder: string;
   home: { lat: number; lon: number } | null;
   /** "BASE>QUOTE" -> rate, newest cached row per pair, both directions as stored. */
   rates: Record<string, number>;
@@ -158,6 +160,7 @@ export function buildWatchState(snapshot: WidgetSnapshot): WatchState {
     categories, tags, together, history, snapshot,
     location_enabled: getLocationEnabled(),
     shortcut_notify: getShortcutNotify(),
+    pending_reminder: getPendingReminder() ?? "off",
     home: home ? { lat: home.lat, lon: home.lon } : null,
     rates,
   };

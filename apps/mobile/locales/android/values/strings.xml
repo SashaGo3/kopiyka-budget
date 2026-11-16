@@ -81,6 +81,11 @@
   <string name="native_intents_shortcut_scanReceipt">Scan receipt</string>
   <string name="native_intents_whichCategory">Which category?</string>
   <string name="native_notify_check">Recognised as %1$s — tap to check.</string>
+  <plurals name="native_notify_eveningBody">
+    <item quantity="one">%1$d payment is waiting for a category. Tap to go through them.</item>
+    <item quantity="other">%1$d payments are waiting for a category. Tap to go through them.</item>
+  </plurals>
+  <string name="native_notify_eveningTitle">Payments to check</string>
   <string name="native_notify_filed">Recognised: %1$s.</string>
   <string name="native_notify_guess">Guessed %1$s — tap to confirm or change.</string>
   <string name="native_notify_logged">Payment logged</string>

@@ -1,6 +1,7 @@
 import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
@@ -16,7 +17,10 @@ import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, ac
 import { copyToClipboard } from "@/lib/device";
 import { C, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
-import { dismissTo } from "@/lib/nav";
+import { DISMISS_MS, dismissTo } from "@/lib/nav";
+import { readPhoto, usePhotoReading } from "@/lib/photoText";
+import { noteWithReceipt, receiptNote } from "@/lib/receiptFill";
+import type { PhotoSplit } from "@/app/photo/view";
 import { errorText } from "@/lib/errors";
 import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
 import { getCurrentAccount, getLocationEnabled, getShowBalance, setLocationEnabled, waitDefaultDays } from "@/lib/settings";
@@ -32,7 +36,10 @@ import { catName, acctName } from "@/lib/names";
 type Kind = "expense" | "income" | "transfer";
 type Params = { id: string; account?: string; category?: string; amount?: string; kind?: Kind; note?: string; tags?: string; receipt?: string;
   // Carried by Duplicate below, so a copy opens as the same entry whether or not the sheet remounts.
-  date?: string; payee?: string; place?: string; lat?: string; lon?: string; pending?: string };
+  date?: string; payee?: string; place?: string; lat?: string; lon?: string; pending?: string;
+  // From the Log button's long press: a receipt already photographed (`shot`, a temporary file), or
+  // `capture` to open the camera straight away where there is no document camera.
+  shot?: string; capture?: string };
 
 /**
  * Entry sheet: amount hero, a left-aligned details column (date, note, place, tags), the
@@ -107,7 +114,7 @@ export default function TransactionSheet() {
   const [place, setPlace] = useState<string | null>(existing?.place ?? p.place ?? null);
   // Attached photo: `photo` is the stored file name, `shot` a freshly captured temporary file (kept on save).
   const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null);
-  const [shot, setShot] = useState<string | null>(null);
+  const [shot, setShot] = useState<string | null>(isNew && p.shot ? p.shot : null);
   // The parts carved off this entry. The entry itself is the first part and keeps what is left, so
   // the amount on the keypad stays the receipt total; these are only the *other* ones. They are
   // written as their own transactions on save and nothing links them afterwards (core/split.ts).
@@ -115,7 +122,10 @@ export default function TransactionSheet() {
   const noteRef = useRef<TextInput>(null);
   // Unwrapped from the start when the preference says so (Settings → Preferences → Show balance
   // when logging); the chevron still folds it back for this one entry without changing the setting.
-  const [done, setDone] = useState(false);       // saved or discarded: no prompt on close
+  const [done, setDoneState] = useState(false);  // saved or discarded: no prompt on close
+  // The same, readable in the tick it is set: a save that closes the sheet at once is not "unsaved".
+  const doneRef = useRef(false);
+  const setDone = useCallback((v: boolean) => { doneRef.current = v; setDoneState(v); }, []);
   const [stacked, setStacked] = useState(false); // transfer sheet on top: its save closes both
 
   const account = accounts.find((a) => a.id === accountId) ?? accounts[0];
@@ -178,17 +188,24 @@ export default function TransactionSheet() {
   const signed = value !== null ? toMinor(value, currency) * (kind === "expense" ? -1 : 1) : 0;
   const after = balance + signed - (existing && existing.account_id === account?.id ? existing.amount_minor : 0);
 
-  const keys = useMemo(() => ({ cat: newPickKey("cat"), acc: newPickKey("acc"), tags: newPickKey("tags"), date: newPickKey("date"), time: newPickKey("time"), loc: newPickKey("loc"), receipt: newPickKey("receipt"), shot: newPickKey("shot"), photo: newPickKey("photo"), ret: newPickKey("ret"), split: newPickKey("split") }), []);
+  const keys = useMemo(() => ({ cat: newPickKey("cat"), acc: newPickKey("acc"), tags: newPickKey("tags"), date: newPickKey("date"), time: newPickKey("time"), loc: newPickKey("loc"), receipt: newPickKey("receipt"), shot: newPickKey("shot"), photo: newPickKey("photo"), photoSplit: newPickKey("photoSplit"), fill: newPickKey("fill"), ret: newPickKey("ret"), split: newPickKey("split") }), []);
   usePickResult<string>(keys.shot, useCallback((uri: string) => { setShot(uri); }, []));
   usePickResult<boolean>(keys.photo, useCallback(() => { setShot(null); setPhoto(null); }, []));
   const photoSrc = shot ?? (photo ? photoUri(photo) : null);
-  const openPhoto = () => photoSrc ? router.push({ pathname: "/photo/view", params: { uri: photoSrc, key: keys.photo } }) : router.push({ pathname: "/photo/capture", params: { key: keys.shot } });
+  // Its text is read in the background the moment there is a photo (lib/photoText.ts, cached), so
+  // opening it shows the text, and a receipt's items, without a wait.
+  useEffect(() => { readPhoto(photoSrc); }, [photoSrc]);
+  // An expense's receipt can be sorted into categories there, and comes back as a split (below).
+  const openPhoto = () => photoSrc ? router.push({ pathname: "/photo/view", params: {
+    uri: photoSrc, key: keys.photo, replace: keys.shot, fill: keys.fill,
+    ...(kind === "expense" && value !== null && value > 0 && !debtId ? { split: keys.photoSplit, total: String(toMinor(value, currency)), currency, category: categoryId ?? "" } : {}),
+  } }) : router.push({ pathname: "/photo/capture", params: { key: keys.shot } });
   // A photographed receipt fills amount, category, note and place; the amount converts when the receipt is in another currency.
   const applyReceipt = (r: ReceiptParse) => {
     const apply = (amount: number) => setExpr(`−${Math.round(amount * 100) / 100}`); // a receipt is always an expense
     if (r.category_id) { setCategoryId(r.category_id); setDebtId(null); setSuggested(false); }
     if (r.merchant) setPlace((cur) => cur ?? r.merchant);
-    if (r.summary) setNote(r.summary);
+    setNote((cur) => noteWithReceipt(cur, r, currency));
     if (r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.date !== todayLocal()) setDate(dayWithNow(r.date));
     setDefaultMode("expense");
     if (r.currency && r.currency !== currency) {
@@ -196,6 +213,61 @@ export default function TransactionSheet() {
     } else apply(r.total);
   };
   usePickResult<ReceiptParse>(keys.receipt, applyReceipt);
+  // Long-pressed Log on a device without a document camera: the camera is the first thing shown.
+  useEffect(() => {
+    if (!isNew || !p.capture) return;
+    const id = setTimeout(() => router.push({ pathname: "/photo/capture", params: { key: keys.shot } }), DISMISS_MS);
+    return () => clearTimeout(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- What the photo says -------------------------------------------------------------------------
+  // The photo is read the moment it is there (lib/photoText.ts). A receipt found on it is offered as
+  // one tap — "Update from receipt" — listing what it would change: the amount (converted when the
+  // receipt is in another currency), the day, the shop and a category where there is none, and the
+  // receipt's lines under the note (never over what was written). A new entry with nothing typed yet
+  // is simply filled in. Either way Undo puts every field back as it was.
+  const reading = usePhotoReading(photoSrc);
+  const receipt = reading.parse && reading.parse.total > 0 ? reading.parse : null;
+  type Snapshot = { expr: string; date: string; place: string | null; categoryId: string | null; debtId: string | null; note: string };
+  const [filled, setFilled] = useState<Snapshot | null>(null);
+  const receiptDay = receipt?.date && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date) ? receipt.date : null;
+  const receiptChanges = useMemo(() => {
+    if (!receipt) return [];
+    const out: string[] = [];
+    const cross = !!receipt.currency && receipt.currency !== currency;
+    if (cross ? value === null : value === null || toMinor(value, currency) !== toMinor(receipt.total, currency) || kind !== "expense") out.push(t("transaction.entry.fromReceipt.amount"));
+    if (receiptDay && receiptDay !== date.slice(0, 10)) out.push(t("transaction.entry.fromReceipt.date"));
+    if (!place && receipt.merchant) out.push(t("transaction.entry.fromReceipt.shop"));
+    if (!categoryId && !debtId && receipt.category_id) out.push(t("transaction.entry.fromReceipt.category"));
+    if (noteWithReceipt(note, receipt, currency) !== note) out.push(t("transaction.entry.fromReceipt.note"));
+    return out;
+  }, [receipt, receiptDay, currency, value, kind, date, place, categoryId, debtId, note]);
+  const fillFromReceipt = (r: ReceiptParse) => {
+    setFilled({ expr, date, place, categoryId, debtId, note });
+    const apply = (amount: number) => setExpr(`−${Math.round(amount * 100) / 100}`); // a receipt is always an expense
+    if (!categoryId && !debtId && r.category_id) { setCategoryId(r.category_id); setSuggested(false); }
+    if (r.merchant) setPlace((cur) => cur ?? r.merchant);
+    setNote((cur) => noteWithReceipt(cur, r, currency));
+    if (receiptDay && receiptDay !== date.slice(0, 10)) setDate(dayWithNow(receiptDay));
+    setDefaultMode("expense");
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (r.currency && r.currency !== currency) {
+      void rateOrFallback(db, r.currency, currency).then((x) => { if (x) apply(r.total * x.rate); else { apply(r.total); Alert.alert(t("transaction.entry.receiptCurrency.title", { currency: r.currency! }), t("transaction.entry.receiptCurrency.body")); } }).catch(() => apply(r.total));
+    } else apply(r.total);
+  };
+  const undoFill = () => {
+    if (!filled) return;
+    setExpr(filled.expr); setDate(filled.date); setPlace(filled.place); setCategoryId(filled.categoryId); setDebtId(filled.debtId); setNote(filled.note);
+    setFilled(null);
+  };
+  usePickResult<boolean>(keys.fill, () => { if (receipt) fillFromReceipt(receipt); });
+  // A new entry with no amount yet takes the receipt as soon as it is read: that is why it was photographed.
+  const autoFilled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!receipt || !isNew || expr || !photoSrc || autoFilled.current === photoSrc) return;
+    autoFilled.current = photoSrc;
+    fillFromReceipt(receipt);
+  }, [receipt]); // eslint-disable-line react-hooks/exhaustive-deps
   // Opened from the Log button's long press with the receipt already read.
   useEffect(() => { if (isNew && p.receipt) { try { applyReceipt(JSON.parse(p.receipt) as ReceiptParse); } catch { /* ignore */ } } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => {
@@ -215,17 +287,32 @@ export default function TransactionSheet() {
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
   // Splitting needs a total to share out, so the amount comes first — and the editor is given the
   // entry's own category and tags as the first part, because that part is this entry.
-  const openSplit = () => {
+  const openSplit = (with_?: { category_id: string | null; parts: SplitPart[]; note?: string }) => {
     if (value === null || value <= 0) { Alert.alert(t("transaction.entry.splitNeedsTotal.title"), t("transaction.entry.splitNeedsTotal.body")); return; }
     router.push({ pathname: "/transaction/split", params: {
       key: keys.split, currency, kind, total: String(toMinor(value, currency)),
-      main: JSON.stringify({ category_id: categoryId, tag_ids: tagIds }), parts: JSON.stringify(parts),
+      main: JSON.stringify({ category_id: with_ ? with_.category_id : categoryId, tag_ids: tagIds, note: with_?.note ?? note }), parts: JSON.stringify(with_ ? with_.parts : parts),
       ...(photoSrc ? { photo: photoSrc } : {}),
       // A tip changes what the entry is for. Not on a payment the bank charged in another currency:
       // its original is shared out in proportion, and nothing says what the tip was in that currency.
       ...(existing?.entered_amount_minor ? {} : { tips: "1" }),
     } });
   };
+  // The receipt's items sorted on the photo: the entry takes the category the sort gave it, and the
+  // other categories open in the split editor as parts (friends already in the split stay), where
+  // they are checked and kept like any split. With nothing to carve off it is only a re-filing.
+  usePickResult<PhotoSplit>(keys.photoSplit, (r: PhotoSplit) => {
+    setCategoryId(r.category_id); setDebtId(null); setSuggested(false);
+    if (!r.parts.length) return;
+    // Each part's note is what it bought. The entry keeps its own note, except that the whole
+    // receipt written into it earlier becomes just the lines that stayed with it.
+    const next: SplitPart[] = [...parts.filter((x) => x.person_id), ...r.parts.map((x) => ({ amount_minor: x.amount_minor, category_id: x.category_id, tag_ids: withTripTag(db, []), note: x.note ?? null }))];
+    const whole = receipt ? receiptNote(receipt, currency) : "";
+    const mainNote = whole && note.includes(whole) ? note.replace(whole, r.note ?? "").trim() : note;
+    setParts(next);
+    setNote(mainNote);
+    setTimeout(() => openSplit({ category_id: r.category_id, parts: next, note: mainNote }), DISMISS_MS);
+  });
   usePickResult<string>(keys.date, useCallback((day: string) => setDate((d) => (day === d.slice(0, 10) ? d : day === todayLocal() ? localIso() : dayWithNow(day))), []));
   usePickResult<string>(keys.time, useCallback((hhmm: string) => setDate((d) => withTime(d, hhmm)), []));
   usePickResult<(Coords & { place: string | null }) | null>(keys.loc, useCallback((v: (Coords & { place: string | null }) | null) => { setCoords(v ? { lat: v.lat, lon: v.lon } : null); setPlace(v?.place ?? null); }, []));
@@ -401,7 +488,7 @@ export default function TransactionSheet() {
           createTransaction(d, { ...shared, ...money, pending: 0, category_id: null, tag_ids: "[]", person_id: part.person_id, share_of: mainId, items: itemsToStore(part.items) });
           return;
         }
-        createTransaction(d, { ...shared, ...money, category_id: part.category_id, tag_ids: JSON.stringify(part.tag_ids) });
+        createTransaction(d, { ...shared, ...money, category_id: part.category_id, tag_ids: JSON.stringify(part.tag_ids), ...(part.note?.trim() ? { notes: part.note.trim() } : {}) });
       });
       if (debtId) settleIfPaid(d, debtId, todayLocal());
     });
@@ -428,8 +515,10 @@ export default function TransactionSheet() {
       else router.back();
       return;
     }
-    // Who owes what goes on a line of its own under whatever the note already says.
-    const nextNote = r.noteLine ? (note.trim() ? `${note.trim()}\n${r.noteLine}` : r.noteLine) : note;
+    // Who owes what goes on a line of its own under whatever the note already says — the note as
+    // the split screen left it, where it can be edited too.
+    const base = r.main.note ?? note;
+    const nextNote = r.noteLine ? (base.trim() ? `${base.trim()}\n${r.noteLine}` : r.noteLine) : base;
     setCategoryId(r.main.category_id);
     setSuggested(false);
     setTagIds(r.main.tag_ids);
@@ -447,6 +536,17 @@ export default function TransactionSheet() {
       { text: t("transaction.entry.unsaved.discard"), style: "destructive", onPress: () => { setDone(true); navigation.dispatch(data.action); } },
       { text: t("transaction.entry.unsaved.keep"), style: "cancel" },
       ...(valid ? [{ text: t("common.add"), onPress: () => { if (persist()) navigation.dispatch(data.action); } }] : []),
+    ]);
+  });
+  // A photo added to (or taken off) an entry that already exists lives only in this sheet until Save:
+  // closing it any other way used to drop the photo without a word. So that, too, asks first.
+  const photoChanged = !isNew && (!!shot || (existing?.photo ?? null) !== photo);
+  usePreventRemove(photoChanged && !done && !stacked, ({ data }) => {
+    if (doneRef.current) { navigation.dispatch(data.action); return; }
+    Alert.alert(photo || shot ? t("transaction.entry.unsavedPhoto.added") : t("transaction.entry.unsavedPhoto.removed"), t("transaction.entry.unsavedPhoto.body"), [
+      { text: t("transaction.entry.unsaved.discard"), style: "destructive", onPress: () => { setDone(true); navigation.dispatch(data.action); } },
+      { text: t("transaction.entry.unsaved.keep"), style: "cancel" },
+      ...(valid ? [{ text: t("common.save"), onPress: () => { if (persist()) navigation.dispatch(data.action); } }] : []),
     ]);
   });
   // The same entry again, ready to edit before it is added: a second coffee, the fare back. The sheet is
@@ -604,7 +704,7 @@ export default function TransactionSheet() {
               </View>
             ) : null}
             {parts.length && splitMinors ? (
-              <Tap onPress={openSplit} style={styles.line} accessibilityRole="button"
+              <Tap onPress={() => openSplit()} style={styles.line} accessibilityRole="button"
                 accessibilityLabel={t("transaction.entry.splitA11y", { count: parts.length + 1 })}>
                 <SymbolView name="square.split.2x1" size={14} tintColor={C.secondary} />
                 <Text style={styles.lineText} numberOfLines={2}>
@@ -623,6 +723,31 @@ export default function TransactionSheet() {
               <Tap onPress={openPhoto} style={styles.line} accessibilityRole="button" accessibilityLabel={t("transaction.entry.photoA11y")}>
                 <Image source={{ uri: photoSrc }} style={styles.thumb} contentFit="cover" /><Text style={styles.lineText}>{shot ? t("transaction.entry.photoUnsaved") : t("transaction.entry.photo")}</Text>
               </Tap>
+            ) : null}
+            {photoSrc && filled ? (
+              <Animated.View key="filled" entering={FadeIn} exiting={FadeOut} layout={LinearTransition} style={styles.line}>
+                <SymbolView name="checkmark.circle.fill" size={14} tintColor={C.green as unknown as string} />
+                <Text style={[styles.lineText, { flex: 1 }]} numberOfLines={1}>{t("transaction.entry.fromReceipt.done")}</Text>
+                <Tap onPress={undoFill} hitSlop={8} accessibilityRole="button"><Text style={styles.receiptLink}>{t("transaction.entry.fromReceipt.undo")}</Text></Tap>
+              </Animated.View>
+            ) : photoSrc && receipt && receiptChanges.length ? (
+              <Animated.View key="offer" entering={FadeIn.duration(300)} exiting={FadeOut} layout={LinearTransition} style={styles.receiptCard}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.receiptTitle} numberOfLines={1}>
+                    {[receipt.merchant, `${formatMinor(toMinor(receipt.total, receipt.currency ?? currency), receipt.currency ?? currency)} ${receipt.currency ?? currency}`].filter(Boolean).join(" · ")}
+                  </Text>
+                  <Text style={styles.receiptSub} numberOfLines={2}>{t("transaction.entry.fromReceipt.changes", { list: receiptChanges.join(", ") })}</Text>
+                </View>
+                <Tap onPress={() => fillFromReceipt(receipt)} style={styles.receiptBtn} accessibilityRole="button">
+                  <SymbolView name="wand.and.sparkles" size={13} tintColor="white" />
+                  <Text style={styles.receiptBtnText}>{t("transaction.entry.fromReceipt.update")}</Text>
+                </Tap>
+              </Animated.View>
+            ) : photoSrc && (reading.status === "reading" || reading.status === "text") ? (
+              <Animated.View key="reading" entering={FadeIn} exiting={FadeOut} layout={LinearTransition} style={styles.line}>
+                <ActivityIndicator size="small" />
+                <Text style={[styles.lineText, { color: C.secondary }]}>{t("transaction.entry.fromReceipt.reading")}</Text>
+              </Animated.View>
             ) : null}
             {tags.length ? (
               <View style={[styles.line, { flexWrap: "wrap" }]}>
@@ -689,7 +814,7 @@ export default function TransactionSheet() {
             <Chip cell icon="mappin.and.ellipse" label={t("transaction.entry.chip.place")} active={!!coords || !!place} onPress={openLocation} />
             <Chip cell icon="camera" label={t("transaction.entry.chip.photo")} active={!!photoSrc} onPress={openPhoto} />
             <Chip cell icon="hourglass" label={t("transaction.entry.chip.pending")} active={pending} onPress={() => setPending((v) => !v)} />
-            <Chip cell icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} disabled={!valid} onPress={openSplit}
+            <Chip cell icon="square.split.2x1" label={t("transaction.entry.chip.split")} active={parts.length > 0} disabled={!valid} onPress={() => openSplit()}
               onLongPress={splitLater} a11yHint={t("transaction.entry.splitLaterHint")} />
             {isNew
               ? <Chip cell icon="arrow.uturn.backward" label={t("transaction.entry.chip.return")} disabled={!valid} onPress={askForReturn} />
@@ -747,6 +872,12 @@ const styles = themed(() => StyleSheet.create({
   bankText: { color: C.secondary },
   lineText: { color: C.label, fontSize: 15, flexShrink: 1 },
   placeholder: { color: C.tertiary },
+  receiptCard: { flexDirection: "row", alignItems: "center", gap: S.sm, padding: S.sm, paddingLeft: S.md, borderRadius: 12, backgroundColor: C.fill },
+  receiptTitle: { color: C.label, fontSize: 15, fontWeight: "600" },
+  receiptSub: { color: C.secondary, fontSize: 13 },
+  receiptBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: C.tint },
+  receiptBtnText: { color: "white", fontSize: 14, fontWeight: "600" },
+  receiptLink: { color: C.tint, fontSize: 15, fontWeight: "600" },
   thumb: { width: 28, height: 28, borderRadius: 6, backgroundColor: C.fill },
   accountRow: { alignItems: "flex-start", gap: 6, alignSelf: "stretch", marginTop: 2 },
   accountPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.fill, borderRadius: 22, paddingHorizontal: 12, minHeight: 40, paddingVertical: 6, maxWidth: "100%" },

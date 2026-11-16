@@ -240,6 +240,12 @@ enum L10n {
     /// Second line of the notification: the category comes from an earlier entry, but the entry still waits for approval (converted currency, a shop filed several ways).
     /// "Recognised as {category} — tap to check."
     static func check(category: String) -> String { KPL.string("native.notify.check", category) }
+    /// Body of the evening reminder; count is how many entries wait in the Pending queue.
+    /// "{count, plural, one {# payment is} other {# payments are}} waiting for a category. Tap to go through them."
+    static func eveningBody(count: Int) -> String { KPL.string("native.notify.eveningBody", count) }
+    /// Title of the evening reminder (default 22:00) posted while entries wait in the Pending queue.
+    /// "Payments to check"
+    static var eveningTitle: String { KPL.string("native.notify.eveningTitle") }
     /// Second line of the notification: the shop was filed under this category before, and the entry is saved as it is.
     /// "Recognised: {category}."
     static func filed(category: String) -> String { KPL.string("native.notify.filed", category) }

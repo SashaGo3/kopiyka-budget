@@ -1,9 +1,10 @@
-import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import Animated, { interpolate, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { FadeInLeft, FadeInRight, interpolate, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming, type SharedValue } from "react-native-reanimated";
+import { ENTER_MS, keepsPosition } from "@/lib/listMotion";
 import { formatMinor, jsonIds, numberFormat, paidAmountMinor, type Transaction } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { useCloudRefresh } from "@/lib/backup";
@@ -69,13 +70,19 @@ export function sortByAmount(rows: TxRow[]): TxRow[] {
  * With `selected` set the list is in selection mode: rows show a check circle and tapping toggles them.
  * `onSelect` is how it is entered: touching and holding a row (there is no Select button), which
  * starts selection mode with that row chosen.
+ * `enterFrom` slides the rows (and the empty message) in from that side as they mount — set by the
+ * caller for a moment after it switches months, and cleared again, so rows mounted later by
+ * scrolling simply appear.
  */
-export function TransactionList({ rows, header, empty, showAccount = true, resetKey, flat, onScroll, selected, onToggle, onSelect, keyboardDismissMode, incoming }: {
+export function TransactionList({ rows, header, empty, showAccount = true, resetKey, flat, onScroll, selected, onToggle, onSelect, keyboardDismissMode, incoming, enterFrom }: {
   rows: TxRow[]; header?: React.ReactElement; empty?: React.ReactElement; showAccount?: boolean; resetKey?: string; flat?: boolean; onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   selected?: Set<string>; onToggle?: (id: string) => void; onSelect?: (id: string) => void; keyboardDismissMode?: "none" | "on-drag" | "interactive";
   /** Show the placeholder row while a bank notification is being read (lib/incoming.ts). Only for a list by date that a new payment would land at the top of. */
   incoming?: boolean;
+  enterFrom?: "left" | "right" | null;
 }) {
+  const still = useReducedMotion();
+  const entering = enterFrom && !still ? (enterFrom === "right" ? FadeInRight : FadeInLeft).duration(ENTER_MS) : undefined;
   const reading = useIncoming() && !!incoming && !flat && !selected;
   const sections = useMemo(() => {
     const out = flat ? [{ title: "", day: "", data: rows, total: 0, currency: "" }] : groupByDay(rows);
@@ -96,7 +103,17 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
   useEffect(() => { progress.value = withTiming(selecting ? 1 : 0, { duration: 240 }); }, [selecting, progress]);
   const a11ySelecting = useDeferredValue(selecting);
   const top = useRef<View>(null);
-  const { listRef, onListScroll, holdHandlers } = useHeldScroll(selecting, resetKey, top, onScroll);
+  // Position keeping only once scrolled into the rows (lib/listMotion.ts `keepsPosition`): at the
+  // top it pushed a list that had just gone short down past its resting place.
+  // Tied to the list it was measured on: a new month is a new list (`resetKey`), resting at its top.
+  const [kept, setKept] = useState<{ list: string | undefined; on: boolean }>({ list: resetKey, on: false });
+  const keep = kept.list === resetKey && kept.on;
+  const watchKeep = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const on = keepsPosition(e.nativeEvent.contentOffset.y);
+    setKept((k) => (k.list === resetKey && k.on === on ? k : { list: resetKey, on }));
+    onScroll?.(e);
+  }, [onScroll, resetKey]);
+  const { listRef, onListScroll, holdHandlers } = useHeldScroll(selecting, resetKey, top, watchKeep);
   // Pull to refresh: re-read the database (a Shortcut automation or the watch writes into it while
   // the app is in the background, and nothing tells JS about that) and look in iCloud for what
   // another device has backed up. Budgets pulls on the same hook, so the gesture means one thing.
@@ -126,23 +143,25 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
       // merge — lands above whatever is on screen, and iOS kept the offset, so everything under the
       // finger slid down a row for every write the automation made. The first thing visible (the
       // header while the list rests at the top, otherwise a row) stays where it is instead.
-      maintainVisibleContentPosition={MAINTAIN_POSITION}
+      maintainVisibleContentPosition={keep ? MAINTAIN_POSITION : undefined}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       contentContainerStyle={{ paddingBottom: 220 }}
       // `top` marks the content's first point, so the list can tell where it rests before it has ever scrolled.
       ListHeaderComponent={<><View ref={top} collapsable={false} />{header}</>}
       // The caller knows what it filtered by, so it can say why there is nothing here.
-      ListEmptyComponent={empty ?? <Empty title={t("transactions.empty.title")} hint={t("transactions.list.emptyHint")} />}
+      ListEmptyComponent={<Animated.View entering={entering}>{empty ?? <Empty title={t("transactions.empty.title")} hint={t("transactions.list.emptyHint")} />}</Animated.View>}
       stickySectionHeadersEnabled={false}
       // Fewer rows mounted off-screen: switching selection mode re-renders every mounted row.
       windowSize={7}
       initialNumToRender={14}
       maxToRenderPerBatch={14}
-      renderSectionHeader={({ section }) => section.title ? <Text style={styles.sh}>{section.title}</Text> : <View style={{ height: S.sm }} />}
+      renderSectionHeader={({ section }) => section.title ? <Animated.Text entering={entering} style={styles.sh}>{section.title}</Animated.Text> : <View style={{ height: S.sm }} />}
       renderSectionFooter={({ section }) => section.total !== 0 ? <Text style={styles.sum}>{t("transactions.list.sum")} <Money minor={section.total} currency={section.currency} style={[styles.sumVal, { color: section.total < 0 ? C.red : C.green }]} /></Text> : <View style={{ height: S.sm }} />}
       renderItem={({ item: tx, index, section }) => tx === INCOMING ? <IncomingRow first={index === 0} last={index === section.data.length - 1} /> : (
-        <TxItem tx={tx} tags={tagsFor.get(tx.id) ?? EMPTY_TAGS} flat={!!flat} showAccount={showAccount} first={index === 0} last={index === section.data.length - 1}
-          mode={mode} a11ySelecting={a11ySelecting} on={selected?.has(tx.id) ?? false} onToggle={onToggle} onSelect={onSelect} />
+        <Animated.View entering={entering}>
+          <TxItem tx={tx} tags={tagsFor.get(tx.id) ?? EMPTY_TAGS} flat={!!flat} showAccount={showAccount} first={index === 0} last={index === section.data.length - 1}
+            mode={mode} a11ySelecting={a11ySelecting} on={selected?.has(tx.id) ?? false} onToggle={onToggle} onSelect={onSelect} />
+        </Animated.View>
       )}
     />
   );
@@ -313,7 +332,7 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
   // Part of this came back (packages/core/returns.ts): the row shows what it ended up costing, with
   // what was paid struck through next to it, so a shrunken amount is never a mystery.
   const returned = tx.refunded_minor ? t("transactions.list.returned", { paid: formatMinor(Math.abs(paidAmountMinor(tx)), tx.currency), back: formatMinor(Math.abs(tx.refunded_minor), tx.currency) }) : null;
-  const a11yBits = [sub, tags.length ? t("transactions.list.tagsA11y", { names: tags.map((x) => x.name).join(", ") }) : null, tx.pending ? t("transactions.list.pendingA11y") : null].filter(Boolean).join(", ");
+  const a11yBits = [sub, tags.length ? t("transactions.list.tagsA11y", { names: tags.map((x) => x.name).join(", ") }) : null, tx.pending ? t("transactions.list.pendingA11y") : null, tx.photo ? t("photo.attached") : null].filter(Boolean).join(", ");
   return (
     <Pressable
       onPress={() => mode.on.current ? onToggle?.(tx.id) : router.push(tx.transfer_id ? { pathname: "/transfer/[id]", params: { id: tx.transfer_id } }
@@ -332,6 +351,8 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
           {tx.transfer_id ? <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
             : tx.person_id ? <PersonAvatar person={{ id: tx.person_id, name: tx.person_name ?? "?", color: tx.person_color }} size={34} />
             : <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon ?? (tx.debt_id && !tx.category_id ? "creditcard.and.123" : null)} color={tx.cat_color ?? tx.parent_color} size={34} />}
+          {/* A photo is attached: a badge on the icon's corner, where the eye lands first. */}
+          {tx.photo ? <View style={styles.photoBadge} pointerEvents="none"><SymbolView name="camera.fill" size={9} tintColor="white" /></View> : null}
         </Animated.View>
         <Animated.View style={[styles.check, slide.check]} pointerEvents="none" importantForAccessibility="no-hide-descendants"><SymbolView name={on ? "checkmark.circle.fill" : "circle"} size={26} tintColor={on ? C.tint : C.tertiary} /></Animated.View>
       </View>
@@ -348,7 +369,6 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
       <View style={styles.right}>
         <View style={styles.metaRow}>
           {tx.recurring_id ? <SymbolView name="repeat" size={12} tintColor={C.secondary} /> : null}
-          {tx.photo ? <SymbolView name="camera" size={12} tintColor={C.secondary} /> : null}
           {tx.pending ? <View style={styles.pendingRow}><SymbolView name="clock" size={12} tintColor={C.orange} /><Text style={styles.pendingText}>{t("transactions.list.pending")}</Text></View> : null}
           <Text style={styles.time}>{flat ? humanDayTime(tx.date.slice(0, 10)) : timeLabel(tx.date)}</Text>
         </View>
@@ -382,6 +402,7 @@ const styles = themed(() => StyleSheet.create({
   slot: { flexShrink: 0, width: 12, alignItems: "center" },
   // The category icon and, over it while selecting, the check circle: one fixed square either way.
   iconSlot: { width: 34, height: 34, flexShrink: 0 },
+  photoBadge: { position: "absolute", right: -4, bottom: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: C.tint, borderWidth: 2, borderColor: C.card, alignItems: "center", justifyContent: "center" },
   check: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   // The placeholder: the same row, its content as soft blocks of the fill colour.
   incoming: { flex: 1, flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 40 },

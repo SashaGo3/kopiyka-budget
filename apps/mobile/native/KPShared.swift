@@ -145,6 +145,9 @@ struct KPWatchState: Codable {
   /// Whether the Shortcut automation may say it logged a payment (meta `shortcut_notify`).
   /// Absent means an older state file, and the preference is on unless turned off — so nil reads as on.
   var shortcut_notify: Bool? = nil
+  /// The evening reminder about the Pending queue (meta `pending_reminder`): "HH:MM" or "off".
+  /// Absent in an older state file, and then it is the default, on at 22:00.
+  var pending_reminder: String? = nil
   /// Newest cached exchange rate per "BASE>QUOTE" pair; the inverse is derived when only one side is stored.
   var rates: [String: Double]? = nil
   /// The app's language ("uk"), so the watch and its complication speak it too (`KPL.store` on arrival).
@@ -174,7 +177,7 @@ struct KPWatchState: Codable {
                             uses: c.uses, description: nil, archived: c.archived)
     }
     s.accounts = accounts.map { a in var a = a; a.numbers = nil; return a }
-    s.home = nil; s.shortcut_notify = nil; s.rates = nil
+    s.home = nil; s.shortcut_notify = nil; s.pending_reminder = nil; s.rates = nil
     return s
   }
   static func from(json: String) -> KPWatchState? { json.data(using: .utf8).flatMap { try? JSONDecoder().decode(KPWatchState.self, from: $0) } }
@@ -456,6 +459,7 @@ enum KPStore {
     case "location_enabled": return (s.location_enabled ?? false) ? "1" : "0"
     // Absent from an older state file: the preference is on unless it says otherwise, so nil reads as on.
     case "shortcut_notify": return (s.shortcut_notify ?? true) ? "1" : "0"
+    case "pending_reminder": return s.pending_reminder
     case "home_lat": return s.home.map { String($0.lat) }
     case "home_lon": return s.home.map { String($0.lon) }
     default: return nil
@@ -750,7 +754,7 @@ enum KPStore {
         accounts: accounts(db).map { .init(id: $0.id, name: $0.name, currency: $0.currency, balance: balances[$0.id] ?? 0) },
         categories: cats, tags: tags, together: together, history: history(db, limit: 50), snapshot: snap,
         location_enabled: meta(db, "location_enabled") == "1",
-        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0", language: KPL.chosen)
+        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0", pending_reminder: meta(db, "pending_reminder"), language: KPL.chosen)
     }
     if let built { return built }
     // JS owns the database. It writes the state file before every `updateWatch`, so this is current.

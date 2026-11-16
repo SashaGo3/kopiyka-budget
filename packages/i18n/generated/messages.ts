@@ -96,6 +96,13 @@ export interface Messages {
   "automation.settings.automate": undefined;
   "automation.settings.automateSubtitle": undefined;
   "automation.settings.denied": undefined;
+  "automation.settings.evening": undefined;
+  "automation.settings.eveningOff": undefined;
+  /** Subtitle of the evening reminder toggle; time is "22:00". */
+  "automation.settings.eveningOn": { time: string | number };
+  /** Footnote under the evening reminder. */
+  "automation.settings.eveningShort": undefined;
+  "automation.settings.eveningTime": undefined;
   "automation.settings.granted": undefined;
   "automation.settings.log": undefined;
   /** Unfolds under logHintShort. */
@@ -117,6 +124,7 @@ export interface Messages {
   "automation.settings.title": undefined;
   "automation.settings.whenLogs": undefined;
   "automation.settings.whenWrong": undefined;
+  "automation.settings.whilePending": undefined;
   "automation.shortcut.account": undefined;
   "automation.shortcut.accountSub": undefined;
   "automation.shortcut.expect": undefined;
@@ -1397,6 +1405,10 @@ export interface Messages {
   "notify.debt.todayTitle": { person: string | number };
   /** Title of a debt reminder the day before it is due; person is who the debt is with. */
   "notify.debt.tomorrowTitle": { person: string | number };
+  /** count is how many entries wait in the Pending queue. */
+  "notify.pending.body": { count: number };
+  /** Title of the evening reminder (default 22:00) scheduled while entries wait in the Pending queue. */
+  "notify.pending.title": undefined;
   /** Title when a manual rule's payment is due and needs confirming. */
   "notify.recurring.due": { name: string | number };
   "notify.recurring.dueOn": { amount: string | number; date: string | number };
@@ -1675,6 +1687,44 @@ export interface Messages {
   /** Pick a picture from the photo library instead of taking one. */
   "photo.fromLibrary": undefined;
   "photo.libraryError": undefined;
+  /** Camera mode: an ordinary photo. Short. */
+  "photo.mode.photo": undefined;
+  /** Camera mode: the document scanner that finds and shoots a receipt by itself. Short. */
+  "photo.mode.receipt": undefined;
+  /** Button: choose the category for the selected items. */
+  "photo.read.category": undefined;
+  "photo.read.copied": undefined;
+  "photo.read.copyAll": undefined;
+  /** Every item went into one category other than the entry's: re-file the entry. */
+  "photo.read.fileAs": { category: string | number };
+  /** Button over the photo's text panel; amount is the receipt total, formatted. */
+  "photo.read.fill": { amount: string | number };
+  /** Text is read; the receipt's items are being worked out. */
+  "photo.read.findingItems": undefined;
+  "photo.read.hide": undefined;
+  /** Tab under the full-screen photo: the receipt's lines. */
+  "photo.read.items": { count: number };
+  "photo.read.noText": undefined;
+  /** Last line of the receipt content written into the entry's note. */
+  "photo.read.noteTotal": { amount: string | number };
+  /** While the photo's text is being recognised. */
+  "photo.read.reading": undefined;
+  /** amount is the selected items' sum, formatted. */
+  "photo.read.selected": { count: number; amount: string | number };
+  "photo.read.show": undefined;
+  /** Above the receipt's items when they can be split. */
+  "photo.read.sortHint": undefined;
+  /** Items are read; a category is being guessed for each. */
+  "photo.read.sorting": undefined;
+  /** count is at least 2. */
+  "photo.read.split": { count: number };
+  "photo.read.suggested": undefined;
+  /** Tab under the full-screen photo: the text read from it. */
+  "photo.read.text": undefined;
+  "photo.read.uncategorized": undefined;
+  /** Header over the receipt items given no category. */
+  "photo.read.unsorted": undefined;
+  "photo.read.zoomA11y": undefined;
   "photo.receipt.cameraNeeded": undefined;
   /** error is a short reason, possibly from the system. */
   "photo.receipt.failed": { error: string | number };
@@ -1688,6 +1738,8 @@ export interface Messages {
   "photo.receipt.reading": undefined;
   "photo.receipt.takeNow": undefined;
   "photo.remove": undefined;
+  "photo.replace": undefined;
+  "photo.scanFailed": undefined;
   "photo.take": undefined;
   "pick.account.title": undefined;
   "pick.accounts.all": undefined;
@@ -2612,6 +2664,19 @@ export interface Messages {
   "transaction.entry.forgetReturns.action": undefined;
   "transaction.entry.forgetReturns.body": { amount: string | number; currency: string | number };
   "transaction.entry.forgetReturns.title": undefined;
+  "transaction.entry.fromReceipt.amount": undefined;
+  "transaction.entry.fromReceipt.category": undefined;
+  /** list is the fields, joined with commas: "amount, date, notes". */
+  "transaction.entry.fromReceipt.changes": { list: string | number };
+  "transaction.entry.fromReceipt.date": undefined;
+  "transaction.entry.fromReceipt.done": undefined;
+  "transaction.entry.fromReceipt.note": undefined;
+  /** Under the photo on the entry sheet while its text is recognised. */
+  "transaction.entry.fromReceipt.reading": undefined;
+  "transaction.entry.fromReceipt.shop": undefined;
+  "transaction.entry.fromReceipt.undo": undefined;
+  /** Button: fill the entry in from the receipt on its photo. Short. */
+  "transaction.entry.fromReceipt.update": undefined;
   "transaction.entry.hideBalance": undefined;
   "transaction.entry.kind.expense": undefined;
   "transaction.entry.kind.income": undefined;
@@ -2669,6 +2734,12 @@ export interface Messages {
   "transaction.entry.unsaved.incomplete": undefined;
   "transaction.entry.unsaved.keep": undefined;
   "transaction.entry.unsaved.title": undefined;
+  "transaction.entry.unsavedPhoto.added": undefined;
+  /** Closing an existing entry after adding or removing its photo without saving. */
+  "transaction.entry.unsavedPhoto.body": undefined;
+  "transaction.entry.unsavedPhoto.removed": undefined;
+  /** Under a part on the split screen; without one, the part shares the entry's note. */
+  "transaction.split.addNote": undefined;
   "transaction.split.addPart": undefined;
   "transaction.split.addRestTags": undefined;
   "transaction.split.addTags": undefined;
@@ -2686,6 +2757,9 @@ export interface Messages {
   "transaction.split.intro": undefined;
   "transaction.split.noCategory": undefined;
   "transaction.split.notYet": undefined;
+  /** Title of the text sheet for one part's note on the split screen. */
+  "transaction.split.note": undefined;
+  "transaction.split.noteA11y": { note: string | number };
   /** n is the part's number (2, 3…); category is its name or "no category". */
   "transaction.split.partA11y": { n: string | number; amount: string | number; currency: string | number; category: string | number };
   "transaction.split.removePart": { n: string | number };
@@ -2738,11 +2812,19 @@ export interface Messages {
   "transactions.empty.filters": { count: number };
   /** Why the list is empty; parts are the pieces below joined with commas: "Nothing from Cash, in August 2026, with 2 filters on." */
   "transactions.empty.hint": { parts: string | number };
+  /** Empty list on another month, nothing else narrowing it; period is "Oct 2026" or "15 Oct – 14 Nov". */
+  "transactions.empty.month": { period: string | number };
+  /** Empty list on the current month, with no filters or account scope. */
+  "transactions.empty.monthNow": undefined;
   "transactions.empty.period": { period: string | number };
   "transactions.empty.scope": { scope: string | number };
   /** On Search, what was typed: "Nothing matching “coffee”, with 1 filter on." */
   "transactions.empty.search": { q: string | number };
   "transactions.empty.title": undefined;
+  /** Button under an empty list on another month. */
+  "transactions.empty.toCurrent": undefined;
+  /** Button under this month's empty list: opens the latest earlier month with transactions; period is "Oct 2026". */
+  "transactions.empty.toEarlier": { period: string | number };
   "transactions.expenses": undefined;
   "transactions.filter.account": undefined;
   "transactions.filter.accounts": undefined;

@@ -20,6 +20,21 @@ export function getShortcutNotify(): boolean { return read("shortcut_notify") !=
 export function setShortcutNotify(on: boolean): void { write("shortcut_notify", on ? "1" : "0"); }
 
 /**
+ * The evening reminder about the Pending queue (meta `pending_reminder`): a time of day "HH:MM",
+ * or "off". Absent is on at 22:00 — the end of a day of card payments is when they are worth going
+ * through, and a reminder that fires only while something waits costs nothing on a quiet day.
+ * Scheduled by `rescheduleRecurringNotifications` and, with the app closed, by the automation
+ * (native/KPNotify.swift `pendingEvenings`), which reads it from the state file.
+ */
+export const DEFAULT_PENDING_REMINDER = "22:00";
+export function getPendingReminder(): string | null {
+  const v = read("pending_reminder");
+  if (v === "off") return null;
+  return v && /^\d{2}:\d{2}$/.test(v) ? v : DEFAULT_PENDING_REMINDER;
+}
+export function setPendingReminder(time: string | null): void { write("pending_reminder", time ?? "off"); }
+
+/**
  * Wait for the bank's own charge before a recurring rule acts on its own.
  *
  * Off by default, and off is exactly what the app did before: rules post (or ask) on the day they

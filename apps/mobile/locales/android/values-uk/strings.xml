@@ -81,6 +81,13 @@
   <string name="native_intents_shortcut_scanReceipt">Сканувати чек</string>
   <string name="native_intents_whichCategory">Яка категорія?</string>
   <string name="native_notify_check">Розпізнано як «%1$s» — натисни, щоб перевірити.</string>
+  <plurals name="native_notify_eveningBody">
+    <item quantity="one">%1$d платіж чекає на категорію. Торкнись, щоб переглянути.</item>
+    <item quantity="few">%1$d платежі чекають на категорію. Торкнись, щоб переглянути.</item>
+    <item quantity="many">%1$d платежів чекають на категорію. Торкнись, щоб переглянути.</item>
+    <item quantity="other">%1$d платежу чекають на категорію. Торкнись, щоб переглянути.</item>
+  </plurals>
+  <string name="native_notify_eveningTitle">Платежі на перевірку</string>
   <string name="native_notify_filed">Розпізнано: %1$s.</string>
   <string name="native_notify_guess">Схоже на «%1$s» — натисни, щоб підтвердити чи змінити.</string>
   <string name="native_notify_logged">Платіж записано</string>

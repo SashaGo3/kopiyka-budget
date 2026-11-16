@@ -115,7 +115,9 @@
     "unknown": { "message": "Not recognised — tap to choose a category.", "note": "Second line of the notification: nothing is known about this shop; the entry has no category." },
     "transferPaired": { "message": "Both sides matched — tap to check.", "note": "Second line of the notification: the debit and the credit notifications of one transfer were matched by account numbers." },
     "transferInferred": { "message": "The other side was added for you — tap to check.", "note": "Second line of the notification: only one side of the transfer was notified, so the app wrote the other." },
-    "transferWaiting": { "message": "Looks like a transfer — waiting for the other side.", "note": "Second line of the notification: the bank named another account; the other notification has not arrived yet." }
+    "transferWaiting": { "message": "Looks like a transfer — waiting for the other side.", "note": "Second line of the notification: the bank named another account; the other notification has not arrived yet." },
+    "eveningTitle": { "message": "Payments to check", "note": "Title of the evening reminder (default 22:00) posted while entries wait in the Pending queue.", "max": 40 },
+    "eveningBody": { "message": "{count, plural, one {# payment is} other {# payments are}} waiting for a category. Tap to go through them.", "note": "Body of the evening reminder; count is how many entries wait in the Pending queue." }
   },
   "receipt": {
     "noImage": "The photo could not be read.",

@@ -1409,6 +1409,78 @@
         }
       }
     },
+    "native.notify.eveningBody" : {
+      "comment" : "Body of the evening reminder; count is how many entries wait in the Pending queue.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld payment is waiting for a category. Tap to go through them."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld payments are waiting for a category. Tap to go through them."
+                }
+              }
+            }
+          }
+        },
+        "uk" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld платіж чекає на категорію. Торкнись, щоб переглянути."
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld платежі чекають на категорію. Торкнись, щоб переглянути."
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld платежів чекають на категорію. Торкнись, щоб переглянути."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$lld платежу чекають на категорію. Торкнись, щоб переглянути."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "native.notify.eveningTitle" : {
+      "comment" : "Title of the evening reminder (default 22:00) posted while entries wait in the Pending queue.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payments to check"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Платежі на перевірку"
+          }
+        }
+      }
+    },
     "native.notify.filed" : {
       "comment" : "Second line of the notification: the shop was filed under this category before, and the entry is saved as it is.",
       "extractionState" : "manual",
