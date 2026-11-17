@@ -113,16 +113,21 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       // The same name, filed by hand once: exact shop name, then the note, then the shop's first word,
       // so different branches of one chain ("ZABKA ZE212 K.5" / "ZABKA NANO 3087") still find each
       // other. Tags and the name's last known location come back too.
-      const hist = payeeHistory(db, str(w.payee), str(w.note));
+      // A payment comes with its amount, which tells apart two things paid to one name — the rent
+      // and the service charges, both to the landlord (core `pickByAmount`).
+      const amount = w.op === "payment" ? { amount_minor: Number(w.amount_minor), account_id: String(w.account_id) } : null;
+      const hist = payeeHistory(db, str(w.payee), str(w.note), amount);
       const reply: Record<string, unknown> = {
         category_id: hist.category_id ?? undefined, tag_ids: hist.tag_ids,
         place: hist.place ?? undefined, lat: hist.lat ?? undefined, lon: hist.lon ?? undefined,
         // Whether it was this very name or only one starting with the same word: the automation
         // trusts the first and treats the second as a guess.
         match: hist.match ?? undefined,
+        by_amount: hist.by_amount ?? undefined,
         // How many different ways this name was filed before. More than one and the automation has no
         // business picking for you: the entry stays pending so the sheet can ask which it was.
-        variants: payeeOptions(db, str(w.payee), str(w.note)).length,
+        // An amount that settles which of them this is makes it one way, as far as this payment goes.
+        variants: hist.by_amount === "sure" ? 1 : payeeOptions(db, str(w.payee), str(w.note)).length,
       };
       if (w.op === "payment") {
         // Wallet and the bank app both notify the same tap, and iOS can re-deliver a notification.

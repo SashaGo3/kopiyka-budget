@@ -150,7 +150,10 @@ export default function TransactionSheet() {
   // A pending entry asks too: the automation fills in whichever way came last and leaves the row in
   // the queue because that is not a decision — so this row is the question, not one of its answers.
   const asking = isNew || !!existing?.pending;
-  const filed = useQuery((d) => (asking ? payeeOptions(d, payee, note.trim() || bankNote, 6, existing?.id) : []), [asking, payee, note.trim(), bankNote, existing?.id]);
+  // A pending row's amount tells apart two things paid to one name (the rent and the service
+  // charges, both to the landlord), so the way it points to is offered first (core `pickByAmount`).
+  const paid = existing?.pending ? { amount_minor: existing.amount_minor, account_id: existing.account_id } : null;
+  const filed = useQuery((d) => (asking ? payeeOptions(d, payee, note.trim() || bankNote, 6, existing?.id, paid) : []), [asking, payee, note.trim(), bankNote, existing?.id, paid?.amount_minor, paid?.account_id]);
   // A category or tag that has since been deleted is not an option any more: the tag is dropped from
   // the pairing, and a pairing whose category is gone is dropped whole. Two pairings that differ only
   // by a tag nobody kept are then the same pairing, and are shown once.

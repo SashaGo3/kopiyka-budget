@@ -237,6 +237,16 @@ filled in, the row waits in Pending, and both the entry sheet (its "what was it 
 shown for a pending row as well as a new one) and the category picker ("Filed here before") offer
 every way it was filed — counted without the row asking (`payeeOptions`'s `exceptId`).
 
+The amount can settle which way it is (`pickByAmount`, `packages/core/src/payee.ts`, and its Swift
+copy `KPStore.pickByAmount`): one landlord takes the rent (4 323.99 every month) and the service
+charges (500–670). Past payments to the name in the same direction and currency are compared. The
+same amount filed one way only, or an amount inside one way's range (two payments or more behind
+it) and within 10 % of no other, is **sure**: that way is filled in, and the payment counts as filed
+one way (`variants` 1), so an exact name skips Pending as history does. Within 10 % of one way's range
+only is a **lead**: that way is filled in, and the row still waits as a guess. Anything else changes
+nothing. Nothing is stored for it. It is worked out from the rows each time, so there is nothing to
+back up or keep in step. The payee-history harness (`scripts/payee-history`) checks that the two copies agree.
+
 ## 10. Never write the database file from outside the running app
 
 While the JS runtime owns `kopiyka.db`, native code must not open it — not even read-only. expo-sqlite

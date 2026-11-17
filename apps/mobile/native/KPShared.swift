@@ -494,6 +494,17 @@ enum KPStore {
     return out
   }
 
+  /// The first column of every row `sql` returns, as text, with `binds` bound in order.
+  static func queryStrings(_ db: OpaquePointer, _ sql: String, _ binds: [String]) -> [String] {
+    var stmt: OpaquePointer?
+    guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+    defer { sqlite3_finalize(stmt) }
+    for (i, b) in binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
+    var out: [String] = []
+    while sqlite3_step(stmt) == SQLITE_ROW { out.append(str(stmt, 0)) }
+    return out
+  }
+
   /// Travel mode (core `activeTripTagId`): the tag every new expense gets while a trip runs — from its
   /// first day to its last, so one set up ahead tags nothing yet and one whose days are over tags
   /// nothing before the app comes up and ends it. `starts` and `ends` are local YYYY-MM-DD.
@@ -868,6 +879,9 @@ enum KPStore {
     /// nothing was found (core `PayeeMatch`). A first-word match is a guess: "BLIK INTERNET:
     /// FLYSTORE.PL" and "BLIK INTERNET: ALLEGRO.PL" share everything except the shop.
     var match: String?
+    /// The amount chose between the ways this name was filed (`pickByAmount`): "sure" when it settles
+    /// it, "near" when it only points one way, nil when it was not asked or said nothing.
+    var byAmount: String?
     /// History has a category for this name, by whatever route — enough to fill the field in.
     var filedBefore: Bool { categoryId != nil }
     /// …and it was this very name, so the entry is already understood and needs no trip through the
@@ -909,7 +923,39 @@ enum KPStore {
     withDatabase { payeeHistory($0, payee: payee, note: note) }
   }
 
-  private static func payeeHistory(_ db: OpaquePointer, payee: String?, note: String?) -> PayeeHistory {
+  /**
+   Which of the ways a name was filed this amount belongs to — the rent (4 323.99 every month) or the
+   service charges (500–670), both paid to the landlord. Mirrors core `pickByAmount`
+   (packages/core/src/payee.ts), rule for rule:
+
+   - the same amount, filed one way only: sure;
+   - inside one way's range, with two payments or more behind it, and no other way within 10 %: sure;
+   - within 10 % of one way's range and no other's: a lead, not a decision.
+
+   Only past payments in the same direction and currency count, and only with two ways or more.
+   */
+  static func pickByAmount(_ rows: [(key: String, amountMinor: Int, sameCurrency: Bool)], _ amountMinor: Int) -> (key: String, sure: Bool)? {
+    let target = abs(amountMinor)
+    guard target > 0 else { return nil }
+    let sign = amountMinor.signum()
+    var order: [String] = []
+    var ways: [String: [Int]] = [:]
+    for r in rows where r.sameCurrency && r.amountMinor.signum() == sign {
+      if ways[r.key] == nil { order.append(r.key) }
+      ways[r.key, default: []].append(abs(r.amountMinor))
+    }
+    guard ways.count >= 2 else { return nil }
+    let exact = order.filter { ways[$0]!.contains(target) }
+    if exact.count > 1 { return nil }
+    if let key = exact.first { return (key, true) }
+    // Integers only: within 10 % of [min, max] is 10·target ∈ [9·min, 11·max].
+    let near = order.filter { target * 10 >= ways[$0]!.min()! * 9 && target * 10 <= ways[$0]!.max()! * 11 }
+    guard near.count == 1, let key = near.first, let a = ways[key] else { return nil }
+    return (key, a.count >= 2 && target >= a.min()! && target <= a.max()!)
+  }
+
+  private static func payeeHistory(_ db: OpaquePointer, payee: String?, note: String?,
+                                   amountMinor: Int? = nil, accountId: String? = nil) -> PayeeHistory {
     var out = PayeeHistory()
     let shop = payee?.trimmingCharacters(in: .whitespacesAndNewlines)
     // The whole note, not its first line: an automation writes one line, and an exact match is the
@@ -952,15 +998,16 @@ enum KPStore {
     let skip = uncarriedTagIds(db)
     /// The filed rows (category, tags it may hand on) for the first name that has any, newest first.
     /// A row whose only tags are ones it cannot hand on was never filed as far as the shop goes.
-    var filed: (rows: [(categoryId: String?, tagIds: [String])], exact: Bool)?
+    var filed: (rows: [(categoryId: String?, tagIds: [String], amountMinor: Int, currency: String?)], exact: Bool)?
     for t in tries {
       var stmt: OpaquePointer?
-      let sql = "SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL\(mine) AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) ORDER BY date DESC LIMIT 200"
+      let sql = "SELECT category_id, tag_ids, amount_minor, (SELECT currency FROM accounts a WHERE a.id = transactions.account_id) FROM transactions WHERE deleted=0 AND transfer_id IS NULL\(mine) AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) ORDER BY date DESC LIMIT 200"
       guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
       for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
-      var rows: [(categoryId: String?, tagIds: [String])] = []
+      var rows: [(categoryId: String?, tagIds: [String], amountMinor: Int, currency: String?)] = []
       while sqlite3_step(stmt) == SQLITE_ROW {
-        let row = (categoryId: opt(stmt, 0), tagIds: jsonIds(str(stmt, 1)).filter { !skip.contains($0) })
+        let row = (categoryId: opt(stmt, 0), tagIds: jsonIds(str(stmt, 1)).filter { !skip.contains($0) },
+                   amountMinor: Int(sqlite3_column_int64(stmt, 2)), currency: opt(stmt, 3))
         if row.categoryId != nil || !row.tagIds.isEmpty { rows.append(row) }
       }
       sqlite3_finalize(stmt)
@@ -975,6 +1022,23 @@ enum KPStore {
       // How many ways this name was filed, so a caller can tell a decision from a coin toss — over
       // the same name that answered above, and with a trip's tag not making a way of its own.
       out.variants = Set(filed.rows.map { "\($0.categoryId ?? "")|\($0.tagIds.sorted().joined(separator: ","))" }).count
+      // One name filed more than one way — the rent and the service charges, both to the landlord —
+      // and a payment whose amount may say which this is. Rows under a retired category are no way
+      // to choose (core `filedWays`); an amount that settles it makes this payment one way.
+      if let amountMinor, out.variants > 1 {
+        let currency = accountId.flatMap { id in queryStrings(db, "SELECT currency FROM accounts WHERE id=?", [id]).first }
+        let gone = Set(queryStrings(db, "SELECT id FROM categories WHERE deleted=0 AND (archived=1 OR parent_id IN (SELECT id FROM categories WHERE deleted=0 AND archived=1))", []))
+        let ways = filed.rows.filter { $0.categoryId.map { !gone.contains($0) } ?? true }
+        let key = { (r: (categoryId: String?, tagIds: [String], amountMinor: Int, currency: String?)) in
+          "\(r.categoryId ?? "")|\(r.tagIds.sorted().joined(separator: ","))" }
+        let rows = ways.map { (key: key($0), amountMinor: $0.amountMinor, sameCurrency: currency != nil && $0.currency == currency) }
+        if let pick = pickByAmount(rows, amountMinor), let way = ways.first(where: { key($0) == pick.key }) {
+          out.categoryId = way.categoryId
+          out.tagIds = way.tagIds
+          out.byAmount = pick.sure ? "sure" : "near"
+          if pick.sure { out.variants = 1 }
+        }
+      }
     }
     // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
     // whether or not that is the entry the category came from.
@@ -1007,7 +1071,7 @@ enum KPStore {
   }
 
   private static func paymentContext(_ db: OpaquePointer, accountId: String, amountMinor: Int, payee: String?, note: String?, withinMinutes: Int) -> PaymentContext {
-    var out = PaymentContext(history: payeeHistory(db, payee: payee, note: note))
+    var out = PaymentContext(history: payeeHistory(db, payee: payee, note: note, amountMinor: amountMinor, accountId: accountId))
     let since = isoFormatter.string(from: Date(timeIntervalSinceNow: -Double(withinMinutes) * 60))
     var stmt: OpaquePointer?
     let sql = "SELECT id, payee, place, category_id, pending FROM transactions WHERE deleted=0 AND account_id=? AND amount_minor=? AND date>=? ORDER BY date DESC LIMIT 1"
