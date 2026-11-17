@@ -107,6 +107,12 @@
   <string name="native_receipt_noRate">%1$s (у %2$s, немає курсу)</string>
   <string name="native_receipt_noText">Текст не знайдено. Тримай телефон рівно над чеком при доброму освітленні.</string>
   <string name="native_receipt_paid">сплачено %1$s</string>
+  <string name="native_receipt_scan_cameraOff">Доступ до камери вимкнено. Увімкніть його в застосунку «Параметри».</string>
+  <string name="native_receipt_scan_close">Закрити</string>
+  <string name="native_receipt_scan_continue">Продовжити</string>
+  <string name="native_receipt_scan_hint">Наведіть на чек</string>
+  <string name="native_receipt_scan_hold">Не рухайте…</string>
+  <string name="native_receipt_scan_retake">Перезняти</string>
   <string name="native_receipt_total">разом %1$s</string>
   <string name="native_receipt_untitled">Чек</string>
   <string name="native_sample_account">Рахунок</string>

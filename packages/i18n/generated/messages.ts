@@ -1691,8 +1691,12 @@ export interface Messages {
   "photo.mode.photo": undefined;
   /** Camera mode: the document scanner that finds and shoots a receipt by itself. Short. */
   "photo.mode.receipt": undefined;
+  /** Button when the items' tags or notes change but nothing is split. */
+  "photo.read.apply": undefined;
   /** Button: choose the category for the selected items. */
   "photo.read.category": undefined;
+  /** Button over a read receipt whose values were filled into the entry: take them off again. */
+  "photo.read.clear": undefined;
   "photo.read.copied": undefined;
   "photo.read.copyAll": undefined;
   /** Every item went into one category other than the entry's: re-file the entry. */
@@ -1705,12 +1709,15 @@ export interface Messages {
   /** Tab under the full-screen photo: the receipt's lines. */
   "photo.read.items": { count: number };
   "photo.read.noText": undefined;
+  "photo.read.note": undefined;
   /** Last line of the receipt content written into the entry's note. */
   "photo.read.noteTotal": { amount: string | number };
   /** While the photo's text is being recognised. */
   "photo.read.reading": undefined;
   /** amount is the selected items' sum, formatted. */
   "photo.read.selected": { count: number; amount: string | number };
+  /** VoiceOver label of the grabber on the photo's text sheet. */
+  "photo.read.sheetA11y": undefined;
   "photo.read.show": undefined;
   /** Above the receipt's items when they can be split. */
   "photo.read.sortHint": undefined;
@@ -1719,11 +1726,14 @@ export interface Messages {
   /** count is at least 2. */
   "photo.read.split": { count: number };
   "photo.read.suggested": undefined;
+  "photo.read.tags": undefined;
   /** Tab under the full-screen photo: the text read from it. */
   "photo.read.text": undefined;
   "photo.read.uncategorized": undefined;
   /** Header over the receipt items given no category. */
   "photo.read.unsorted": undefined;
+  /** Button beside the shop's name over a read receipt: fill the entry in from it. Short. */
+  "photo.read.use": undefined;
   "photo.read.zoomA11y": undefined;
   "photo.receipt.cameraNeeded": undefined;
   /** error is a short reason, possibly from the system. */
@@ -2745,6 +2755,8 @@ export interface Messages {
   "transaction.split.addTags": undefined;
   /** Link under the total on the split screen: adds a tip on top, shared like the rest. */
   "transaction.split.addTip": undefined;
+  /** VoiceOver hint on the split screen's total. */
+  "transaction.split.changeTotal": undefined;
   "transaction.split.chooseCategory": undefined;
   "transaction.split.chooseRestCategory": undefined;
   "transaction.split.entries": { count: number };
@@ -2773,6 +2785,8 @@ export interface Messages {
   "transaction.split.title": undefined;
   /** Label beside the whole amount being split, at the top of the split screen. */
   "transaction.split.total": undefined;
+  /** Under a changed total on the split screen: the entry's amount before. */
+  "transaction.split.wasTotal": { amount: string | number; currency: string | number };
   /** Under the total once a tip is added; tap to change it. */
   "transaction.split.withTip": { amount: string | number; currency: string | number };
   /** One converted amount and the rate used. */

@@ -18,6 +18,8 @@ const SRC = join(import.meta.dir, "..", "src");
 const ROW_CONTENT = new Set([
   "title", "sub", "name", "before", "after", "hitName", "hitSub", "header", "folder", "line", "lineText",
   "place", "text", "budgetName", "legendName", "amount", "rowSub", "optText",
+  // The split screen's rows: a part's category, a friend's items, a part's own note.
+  "catText", "itemsText", "noteText",
 ]);
 
 /**

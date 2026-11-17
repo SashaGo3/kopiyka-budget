@@ -120,6 +120,14 @@
     "eveningBody": { "message": "{count, plural, one {# payment is} other {# payments are}} waiting for a category. Tap to go through them.", "note": "Body of the evening reminder; count is how many entries wait in the Pending queue." }
   },
   "receipt": {
+    "scan": {
+      "hint": { "message": "Point at the receipt", "note": "Over the receipt camera while it looks for the paper." },
+      "hold": { "message": "Hold still…", "note": "Over the receipt camera once it has found the receipt, just before it takes the picture by itself." },
+      "retake": "Retake",
+      "continue": "Continue",
+      "close": { "message": "Close", "note": "VoiceOver label of the receipt camera's close button." },
+      "cameraOff": { "message": "Camera access is off. Enable it in the Settings app.", "note": "When the receipt camera is opened without camera access." }
+    },
     "noImage": "The photo could not be read.",
     "noText": "No text found. Hold the phone flat over the receipt with good light.",
     "untitled": { "message": "Receipt", "note": "The shop's name when none could be read off the receipt; saved as the payee." },

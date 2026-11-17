@@ -107,7 +107,9 @@ export default function SplitEditor() {
 
   // One handler per field rather than per row: rows come and go, and a hook cannot.
   const keys = useMemo(() => ({ cat: newPickKey("scat"), tags: newPickKey("stags"), amt: newPickKey("samt"), people: newPickKey("speople"), famt: newPickKey("sfamt"), items: newPickKey("sitems"), tip: newPickKey("stip"), note: newPickKey("snote") }), []);
-  usePickResult<number>(keys.tip, useCallback((v: number) => setTip(Math.abs(v)), []));
+  // The total itself can be changed — a tip on top, or a receipt read a few cents out. What is
+  // stored is the difference from the entry's amount, and the parts are measured against the new one.
+  usePickResult<number>(keys.tip, useCallback((v: number) => setTip(Math.abs(v) - Math.abs(Number(p.total) || 0)), [p.total]));
   const editingFriend = useRef<string | null>(null);
   const patchFriend = useCallback((change: (f: Friend) => Friend) => {
     const key = editingFriend.current;
@@ -149,7 +151,7 @@ export default function SplitEditor() {
   // The keypad a part opens carries the Category and Tags keys itself, so one screen answers how
   // much and what of; the rows on the card stay tappable for changing either afterwards.
   usePickResult<AmountPick>(keys.amt, useCallback((v: AmountPick) =>
-    patch((r) => ({ ...r, amount_minor: Math.abs(v.minor), category_id: v.category_id, tag_ids: v.tag_ids })), [patch]));
+    patch((r) => ({ ...r, amount_minor: Math.abs(v.minor), category_id: v.category_id, tag_ids: v.tag_ids, note: v.note ?? null })), [patch]));
 
   const catNames = useQuery((d) => new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, c])), []);
   const tagRows = useQuery((d) => new Map(listRows(d, "tags", "deleted=0").map((x) => [x.id, x])), []);
@@ -173,7 +175,7 @@ export default function SplitEditor() {
     : null;
   // The entry sheet saves and leaves from here, taking this screen with it.
   const done = () => exit(() => resolvePick(p.key, { main, parts: allParts, noteLine, ...(tip ? { total } : {}) } satisfies SplitResult));
-  const openTip = () => router.push({ pathname: "/pick/split-amount", params: { key: keys.tip, title: t("transaction.split.tip"), currency, value: String(tip) } });
+  const openTip = () => router.push({ pathname: "/pick/split-amount", params: { key: keys.tip, title: t("transaction.split.total"), currency, value: String(total) } });
   const openPeople = () => router.push({ pathname: "/pick/people", params: { key: keys.people, selected: friends.map((f) => f.person_id).join(",") } });
   // Typing one friend's amount takes them out of the equal share and leaves everyone else on it: the
   // rest is divided again between you and the others (friendAmounts), so nobody else needs editing.
@@ -207,7 +209,7 @@ export default function SplitEditor() {
     router.push({ pathname: "/pick/split-amount", params: {
       key: keys.amt, title: t("transaction.split.howMuch"), currency, value: String(row.amount_minor),
       available: String(available), max: String(Math.max(available - 1, 0)),
-      kind: kindIsIncome ? "income" : "expense", category: row.category_id ?? "", tags: row.tag_ids.join(","),
+      kind: kindIsIncome ? "income" : "expense", category: row.category_id ?? "", tags: row.tag_ids.join(","), note: row.note ?? "",
     } });
   };
   // A new part opens on its amount: that is the question being asked, and a row sitting at zero is
@@ -257,15 +259,16 @@ export default function SplitEditor() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" pointerEvents={focused ? "auto" : "none"}>
         {/* What is being divided: the receipt's total, which every row below adds up to. */}
         <View>
-          <View style={styles.total} accessible accessibilityLabel={`${t("transaction.split.total")}: ${formatMinor(total, currency)} ${currency}`}>
+          <Tap onPress={p.tips ? openTip : undefined} disabled={!p.tips} style={styles.total} accessibilityRole={p.tips ? "button" : undefined}
+            accessibilityLabel={`${t("transaction.split.total")}: ${formatMinor(total, currency)} ${currency}`} accessibilityHint={p.tips ? t("transaction.split.changeTotal") : undefined}>
             <Text style={styles.headerText}>{t("transaction.split.total")}</Text>
-            <Text style={styles.totalAmount}>{formatMinor(total, currency)} <Text style={styles.cur}>{currency}</Text></Text>
-          </View>
-          {p.tips ? (
-            <Tap onPress={openTip} hitSlop={8} style={styles.tip} accessibilityRole="button">
-              <SymbolView name={tip ? "pencil" : "plus.circle"} size={13} tintColor={C.tint} />
-              <Text style={styles.tipText}>{tip ? t("transaction.split.withTip", { amount: formatMinor(tip, currency), currency }) : t("transaction.split.addTip")}</Text>
-            </Tap>
+            <View style={styles.totalRight}>
+              <Text style={styles.totalAmount}>{formatMinor(total, currency)} <Text style={styles.cur}>{currency}</Text></Text>
+              {p.tips ? <SymbolView name="pencil" size={14} tintColor={C.tint} /> : null}
+            </View>
+          </Tap>
+          {tip ? (
+            <Text style={styles.tipText}>{t("transaction.split.wasTotal", { amount: formatMinor(Math.abs(Number(p.total) || 0), currency), currency })}</Text>
           ) : null}
         </View>
 
@@ -286,7 +289,7 @@ export default function SplitEditor() {
                   accessibilityLabel={main.tag_ids.length ? t("transaction.split.restTagsA11y", { names: main.tag_ids.map((x) => tagRows.get(x)?.name ?? "").filter(Boolean).join(", ") }) : t("transaction.split.addRestTags")}>
                   {tagLine(main.tag_ids) ?? <Text style={styles.tagHint}>{t("transaction.split.addTags")}</Text>}
                 </Tap>
-                {main.note !== undefined && (rows.length || main.note) ? (
+                {main.note !== undefined ? (
                 <Tap onPress={() => openNote(null, main.note)} hitSlop={4} accessibilityRole="button" accessibilityLabel={main.note ? t("transaction.split.noteA11y", { note: main.note }) : t("transaction.split.addNote")}>
                   {main.note ? <Text style={styles.noteText} numberOfLines={3}>{main.note}</Text> : <Text style={styles.tagHint}>{t("transaction.split.addNote")}</Text>}
                 </Tap>
@@ -442,6 +445,7 @@ const styles = themed(() => StyleSheet.create({
   // Flush with the screen's edges, the same inset both sides as the section headers below it.
   total: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: S.xs },
   tip: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-end", marginRight: S.xs, minHeight: 30 },
-  tipText: { fontSize: 15, color: C.tint },
+  tipText: { fontSize: 13, color: C.secondary, textAlign: "right", marginRight: S.xs },
+  totalRight: { flexDirection: "row", alignItems: "center", gap: 6 },
   totalAmount: { fontSize: 26, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
 }));

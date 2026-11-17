@@ -56,6 +56,15 @@ enum KPReceipt {
     // The parser (KPReceiptParse.swift, also built on its own by scripts/receipt-parse) names a shop
     // it could not read "Receipt"; the name is saved as the payee, so it is put in the app's language here.
     if parse.merchant == "Receipt" { parse.merchant = L10n.Receipt.untitled }
+    parse.items = KPReceiptText.reconcile(parse.items, lines: lines)
+    // Items that add up to the total are right; the model's that do not, beside the layout reader's
+    // that do, are replaced by those.
+    if parse.method == "intelligence" {
+      let sum = { (xs: [Item]) in xs.reduce(0) { $0 + $1.price } }
+      let plain = KPReceiptText.heuristic(lines: lines).items
+      if abs(sum(parse.items) - parse.total) > 0.02, !plain.isEmpty, abs(sum(plain) - parse.total) <= 0.02 { parse.items = plain }
+    }
+    parse.address = KPReceiptText.address(in: lines)
     parse.summary = summary(parse)
     parse.text = lines.joined(separator: "\n")
     return parse
@@ -261,7 +270,7 @@ enum KPReceipt {
     [
       "merchant": p.merchant, "total": p.total, "currency": p.currency as Any, "date": p.date as Any,
       "items": p.items.map { ["name": $0.name, "price": $0.price] },
-      "category_id": p.category_id as Any, "category_name": p.category_name as Any, "summary": p.summary, "method": p.method, "text": p.text,
+      "category_id": p.category_id as Any, "category_name": p.category_name as Any, "summary": p.summary, "method": p.method, "text": p.text, "address": p.address as Any,
     ]
   }
 }

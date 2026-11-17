@@ -15,6 +15,9 @@ Task {
   var p = KPReceiptText.isFiscal(lines) ? KPReceiptText.fiscal(lines: lines) ?? KPReceiptText.heuristic(lines: lines) : KPReceiptText.heuristic(lines: lines)
   p.summary = KPReceiptText.summary(p)
   print("method=\(p.method) merchant=\(p.merchant) total=\(p.total) paid=\(String(describing: p.paid)) currency=\(p.currency ?? "-") date=\(p.date ?? "-")")
+  p.items = KPReceiptText.reconcile(p.items, lines: lines)
+  p.address = KPReceiptText.address(in: lines)
+  print("address=\(p.address ?? "-")")
   for i in p.items { print("  item: \(i.name) = \(i.price)") }
   print("summary: \(p.summary)")
   sem.signal()

@@ -6,14 +6,14 @@ import { formatMinor, getRow, iconFor, listRows, toMinor } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { SheetFrame, TagPill } from "@/components/ui";
+import { SheetFrame, TagPill, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { catName } from "@/lib/names";
 
 /** What comes back when the screen was opened with `kind`, i.e. with the Category and Tags keys on. */
-export interface AmountPick { minor: number; category_id: string | null; tag_ids: string[] }
+export interface AmountPick { minor: number; category_id: string | null; tag_ids: string[]; note?: string | null }
 
 /**
  * Amount entry with the app keypad. Resolves minor units (a number).
@@ -41,14 +41,17 @@ export interface AmountPick { minor: number; category_id: string | null; tag_ids
  * caller's, never the answer's.
  */
 export default function PickAmount() {
-  const p = useLocalSearchParams<{ key: string; title?: string; currency?: string; value?: string; max?: string; available?: string; pool?: string; ways?: string; kind?: string; category?: string; tags?: string }>();
+  const p = useLocalSearchParams<{ key: string; title?: string; currency?: string; value?: string; max?: string; available?: string; pool?: string; ways?: string; kind?: string; category?: string; tags?: string; note?: string }>();
   const cur = p.currency ?? "EUR";
   const [expr, setExpr] = useState(p.value && Number(p.value) ? String(Math.abs(Number(p.value)) / 100) : "");
   const [categoryId, setCategoryId] = useState<string | null>(p.category || null);
   const [tagIds, setTagIds] = useState<string[]>(p.tags ? p.tags.split(",").filter(Boolean) : []);
-  const exit = useDiscardGuard(useDirty([expr, categoryId, tagIds]));
+  // A split part's own note ("the lamp"): offered only where the part is asked about, with `kind`.
+  const [note, setNote] = useState(p.note ?? "");
+  const exit = useDiscardGuard(useDirty([expr, categoryId, tagIds, note]));
 
-  const keys = useMemo(() => ({ cat: newPickKey("amtcat"), tags: newPickKey("amttags") }), []);
+  const keys = useMemo(() => ({ cat: newPickKey("amtcat"), tags: newPickKey("amttags"), note: newPickKey("amtnote") }), []);
+  usePickResult<string>(keys.note, useCallback((v: string) => setNote(v), []));
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => setCategoryId(v), []));
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
   const category = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) : null), [categoryId]);
@@ -67,7 +70,7 @@ export default function PickAmount() {
   // the odd cent, so this is the share everyone after you gets.
   const each = p.pool && ways > 0 ? Math.floor(Math.max(Number(p.pool) - (minor ?? 0), 0) / ways) : null;
   const use = () => {
-    resolvePick(p.key, p.kind ? ({ minor: minor!, category_id: categoryId, tag_ids: tagIds } satisfies AmountPick) : minor!);
+    resolvePick(p.key, p.kind ? ({ minor: minor!, category_id: categoryId, tag_ids: tagIds, note: note.trim() || null } satisfies AmountPick) : minor!);
     exit(() => router.back());
   };
   const amountText = abs !== null ? formatMinor(toMinor(abs, cur), cur) : "0";
@@ -95,6 +98,12 @@ export default function PickAmount() {
               {tags.map((tag) => <TagPill key={tag.id} name={tag.name} color={tag.color} onPress={() => setTagIds((ids) => ids.filter((x) => x !== tag.id))} />)}
             </View>
           ) : null}
+          {p.kind ? (
+            <Tap onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.note, title: t("transaction.split.note"), value: note, multiline: "1" } })} hitSlop={6} style={styles.tagLine} accessibilityRole="button">
+              <SymbolView name="text.alignleft" size={14} tintColor={note ? C.secondary : C.tint} />
+              <Text style={note ? styles.noteText : styles.noteAdd} numberOfLines={2}>{note || t("transaction.split.addNote")}</Text>
+            </Tap>
+          ) : null}
         </View>
       }
       bottom={
@@ -117,5 +126,7 @@ const styles = themed(() => StyleSheet.create({
   amount: { fontSize: 54, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 },
   cur: { fontSize: 22, color: C.secondary, fontWeight: "600" },
   limit: { textAlign: "center", fontSize: 13, color: C.secondary },
+  noteText: { flexShrink: 1, fontSize: 15, color: C.secondary },
+  noteAdd: { fontSize: 15, color: C.tint, fontWeight: "600" },
   tagLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: S.xs },
 }));

@@ -151,6 +151,8 @@
     "note": { "message": "Note", "note": "Title of the text sheet for one part's note on the split screen." },
     "addNote": { "message": "Add note", "note": "Under a part on the split screen; without one, the part shares the entry's note." },
     "noteA11y": "Note: {note}",
+    "changeTotal": { "message": "Tap to change the total", "note": "VoiceOver hint on the split screen's total." },
+    "wasTotal": { "message": "Was {amount} {currency}", "note": "Under a changed total on the split screen: the entry's amount before." },
     "intro": "One shop, several things. Give each part its own category — what is left stays on the entry itself.",
     "restCategoryA11y": "Category of the rest: {name}",
     "chooseRestCategory": "Choose a category for the rest",

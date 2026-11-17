@@ -25,7 +25,7 @@ export type PhotoReading = {
 };
 
 // 2: read at full resolution (KPReceipt.normalized); earlier readings of a long receipt were too small.
-const VERSION = 2;
+const VERSION = 3;
 const IDLE: PhotoReading = { status: "reading", lines: [], parse: null, cats: [] };
 const state = new Map<string, PhotoReading>();
 const listeners = new Map<string, Set<() => void>>();

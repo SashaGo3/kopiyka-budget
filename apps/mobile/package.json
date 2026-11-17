@@ -66,6 +66,7 @@
     "prebuild:clean": "expo prebuild -p all --clean",
     "routes": "node scripts/routes.mjs",
     "typecheck": "node scripts/routes.mjs && tsc --noEmit",
+    "test:receipt": "bun test/receipt/run.ts",
     "lint": "expo lint",
     "release:bump": "node scripts/bump-build.js",
     "release:ios": "bash scripts/release-ios.sh upload",

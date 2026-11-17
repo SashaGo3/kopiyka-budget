@@ -16,6 +16,8 @@ export interface ReceiptParse {
   summary: string;
   /** "intelligence" (on-device model) or "keywords" (fallback). */
   method: string;
+  /** The shop's street and town as printed under its name, when the receipt has them. */
+  address?: string | null;
 }
 
 /** A write native code (watch, Shortcuts) asks JS to make on its behalf — see native/KPWrites.swift. */

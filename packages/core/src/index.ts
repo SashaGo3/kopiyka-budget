@@ -23,6 +23,7 @@ export * from "./debts";
 export * from "./people";
 export * from "./returns";
 export * from "./split";
+export * from "./receipt";
 export * from "./regions";
 export * from "./payee";
 export * from "./suggest";

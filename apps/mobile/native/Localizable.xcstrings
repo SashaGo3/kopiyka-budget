@@ -1767,6 +1767,112 @@
         }
       }
     },
+    "native.receipt.scan.cameraOff" : {
+      "comment" : "When the receipt camera is opened without camera access.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera access is off. Enable it in the Settings app."
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Доступ до камери вимкнено. Увімкніть його в застосунку «Параметри»."
+          }
+        }
+      }
+    },
+    "native.receipt.scan.close" : {
+      "comment" : "VoiceOver label of the receipt camera's close button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закрити"
+          }
+        }
+      }
+    },
+    "native.receipt.scan.continue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продовжити"
+          }
+        }
+      }
+    },
+    "native.receipt.scan.hint" : {
+      "comment" : "Over the receipt camera while it looks for the paper.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Point at the receipt"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Наведіть на чек"
+          }
+        }
+      }
+    },
+    "native.receipt.scan.hold" : {
+      "comment" : "Over the receipt camera once it has found the receipt, just before it takes the picture by itself.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold still…"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не рухайте…"
+          }
+        }
+      }
+    },
+    "native.receipt.scan.retake" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retake"
+          }
+        },
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезняти"
+          }
+        }
+      }
+    },
     "native.receipt.total" : {
       "comment" : "In the note a scanned receipt writes; lowercase, it follows a ·.",
       "extractionState" : "manual",

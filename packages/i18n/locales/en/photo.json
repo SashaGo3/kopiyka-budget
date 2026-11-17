@@ -93,6 +93,24 @@
     "unsorted": {
       "message": "Not sorted · stays with this entry",
       "note": "Header over the receipt items given no category."
+    },
+    "use": {
+      "message": "Use",
+      "note": "Button beside the shop's name over a read receipt: fill the entry in from it. Short."
+    },
+    "apply": {
+      "message": "Apply to the entry",
+      "note": "Button when the items' tags or notes change but nothing is split."
+    },
+    "tags": "Tags",
+    "note": "Note",
+    "clear": {
+      "message": "Remove from entry",
+      "note": "Button over a read receipt whose values were filled into the entry: take them off again."
+    },
+    "sheetA11y": {
+      "message": "Text and items. Swipe up or down to resize.",
+      "note": "VoiceOver label of the grabber on the photo's text sheet."
     }
   },
   "replace": "Replace photo",

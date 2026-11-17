@@ -294,6 +294,24 @@ enum L10n {
     /// The shop's name when none could be read off the receipt; saved as the payee.
     /// "Receipt"
     static var untitled: String { KPL.string("native.receipt.untitled") }
+    enum Scan {
+      /// When the receipt camera is opened without camera access.
+      /// "Camera access is off. Enable it in the Settings app."
+      static var cameraOff: String { KPL.string("native.receipt.scan.cameraOff") }
+      /// VoiceOver label of the receipt camera's close button.
+      /// "Close"
+      static var close: String { KPL.string("native.receipt.scan.close") }
+      /// "Continue"
+      static var `continue`: String { KPL.string("native.receipt.scan.continue") }
+      /// Over the receipt camera while it looks for the paper.
+      /// "Point at the receipt"
+      static var hint: String { KPL.string("native.receipt.scan.hint") }
+      /// Over the receipt camera once it has found the receipt, just before it takes the picture by itself.
+      /// "Hold still…"
+      static var hold: String { KPL.string("native.receipt.scan.hold") }
+      /// "Retake"
+      static var retake: String { KPL.string("native.receipt.scan.retake") }
+    }
   }
   enum Sample {
     /// "Account"

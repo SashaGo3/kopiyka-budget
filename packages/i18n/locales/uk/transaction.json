@@ -173,6 +173,8 @@
     },
     "note": "Нотатка",
     "addNote": "Додати нотатку",
-    "noteA11y": "Нотатка: {note}"
+    "noteA11y": "Нотатка: {note}",
+    "changeTotal": "Торкніться, щоб змінити загальну суму",
+    "wasTotal": "Було {amount} {currency}"
   }
 }

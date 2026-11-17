@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, itemsToStore, sharesOf, categoryForShop, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, type SplitPart, type Transaction } from "@kopiyka/core";
+import { accountBalanceMinor, applyReturn, itemsToStore, sharesOf, categoryForShop, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, receiptPlace as receiptPlaceOf, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -16,13 +16,13 @@ import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negat
 import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, S, themed } from "@/constants/theme";
-import { dayLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
+import { dayChipLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
 import { DISMISS_MS, dismissTo } from "@/lib/nav";
 import { readPhoto, usePhotoReading } from "@/lib/photoText";
 import { noteWithReceipt, receiptNote } from "@/lib/receiptFill";
 import type { PhotoSplit } from "@/app/photo/view";
 import { errorText } from "@/lib/errors";
-import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
+import { addressCoords, ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
 import { getCurrentAccount, getLocationEnabled, getShowBalance, setLocationEnabled, waitDefaultDays } from "@/lib/settings";
 import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
 import { markSheetPainted } from "@/lib/boot";
@@ -101,7 +101,7 @@ export default function TransactionSheet() {
   };
   // The shop a Shortcut or a receipt filed this under. No field of its own — it is carried so that
   // saving keeps it and Duplicate copies it.
-  const [payee] = useState<string | null>(existing?.payee ?? p.payee ?? null);
+  const [payee, setPayee] = useState<string | null>(existing?.payee ?? p.payee ?? null);
   // Opening the sheet on a pending row *is* the review, so the chip starts off and saving approves it:
   // the state here is what will be stored, not what is stored now. Turning the chip back on keeps the
   // row in the Pending queue — the only way an edited row stays pending.
@@ -191,7 +191,7 @@ export default function TransactionSheet() {
   const signed = value !== null ? toMinor(value, currency) * (kind === "expense" ? -1 : 1) : 0;
   const after = balance + signed - (existing && existing.account_id === account?.id ? existing.amount_minor : 0);
 
-  const keys = useMemo(() => ({ cat: newPickKey("cat"), acc: newPickKey("acc"), tags: newPickKey("tags"), date: newPickKey("date"), time: newPickKey("time"), loc: newPickKey("loc"), receipt: newPickKey("receipt"), shot: newPickKey("shot"), photo: newPickKey("photo"), photoSplit: newPickKey("photoSplit"), fill: newPickKey("fill"), ret: newPickKey("ret"), split: newPickKey("split") }), []);
+  const keys = useMemo(() => ({ cat: newPickKey("cat"), acc: newPickKey("acc"), tags: newPickKey("tags"), date: newPickKey("date"), time: newPickKey("time"), loc: newPickKey("loc"), receipt: newPickKey("receipt"), shot: newPickKey("shot"), photo: newPickKey("photo"), photoSplit: newPickKey("photoSplit"), fill: newPickKey("fill"), unfill: newPickKey("unfill"), ret: newPickKey("ret"), split: newPickKey("split") }), []);
   usePickResult<string>(keys.shot, useCallback((uri: string) => { setShot(uri); }, []));
   usePickResult<boolean>(keys.photo, useCallback(() => { setShot(null); setPhoto(null); }, []));
   const photoSrc = shot ?? (photo ? photoUri(photo) : null);
@@ -200,8 +200,8 @@ export default function TransactionSheet() {
   useEffect(() => { readPhoto(photoSrc); }, [photoSrc]);
   // An expense's receipt can be sorted into categories there, and comes back as a split (below).
   const openPhoto = () => photoSrc ? router.push({ pathname: "/photo/view", params: {
-    uri: photoSrc, key: keys.photo, replace: keys.shot, fill: keys.fill,
-    ...(kind === "expense" && value !== null && value > 0 && !debtId ? { split: keys.photoSplit, total: String(toMinor(value, currency)), currency, category: categoryId ?? "" } : {}),
+    uri: photoSrc, key: keys.photo, replace: keys.shot, fill: keys.fill, unfill: keys.unfill, ...(filled ? { filled: "1" } : {}),
+    ...(kind === "expense" && !debtId ? { split: keys.photoSplit, total: value !== null && value > 0 ? String(toMinor(value, currency)) : "", currency, category: categoryId ?? "" } : {}),
   } }) : router.push({ pathname: "/photo/capture", params: { key: keys.shot } });
   // A photographed receipt fills amount, category, note and place; the amount converts when the receipt is in another currency.
   const applyReceipt = (r: ReceiptParse) => {
@@ -216,6 +216,14 @@ export default function TransactionSheet() {
     } else apply(r.total);
   };
   usePickResult<ReceiptParse>(keys.receipt, applyReceipt);
+  // Long-pressed Log with the receipt already scanned: the photo opens over the sheet, so what was
+  // read — the shop, the items, its categories — is what is watched while it is read, not a keypad.
+  // The sheet behind fills itself in meanwhile; closing the photo shows it done.
+  useEffect(() => {
+    if (!isNew || !p.shot) return;
+    const id = setTimeout(() => openPhoto(), 250);
+    return () => clearTimeout(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Long-pressed Log on a device without a document camera: the camera is the first thing shown.
   useEffect(() => {
     if (!isNew || !p.capture) return;
@@ -230,8 +238,15 @@ export default function TransactionSheet() {
   // receipt's lines under the note (never over what was written). A new entry with nothing typed yet
   // is simply filled in. Either way Undo puts every field back as it was.
   const reading = usePhotoReading(photoSrc);
+  const [gpsPlace, setGpsPlace] = useState<string | null>(null);   // the place name the phone's location filled in, if it did
   const receipt = reading.parse && reading.parse.total > 0 ? reading.parse : null;
-  type Snapshot = { expr: string; date: string; place: string | null; categoryId: string | null; debtId: string | null; note: string };
+  type Snapshot = { expr: string; date: string; place: string | null; coords: Coords | null; payee: string | null; categoryId: string | null; debtId: string | null; note: string };
+  const busyReading = reading.status === "reading" || reading.status === "text";
+  // The receipt says where the shop is ("ul. Oleska 7, 45-052 Opole"; the shop itself is the payee and
+  // heads the note). That beats where the phone happens to be — a receipt is often photographed at
+  // home — so it replaces a place the phone's location filled in, but never one picked by hand.
+  const receiptPlace = receipt ? receiptPlaceOf(receipt) : null;
+  const placeFromPhone = !!place && place === gpsPlace;
   const [filled, setFilled] = useState<Snapshot | null>(null);
   const receiptDay = receipt?.date && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date) ? receipt.date : null;
   const receiptChanges = useMemo(() => {
@@ -240,16 +255,25 @@ export default function TransactionSheet() {
     const cross = !!receipt.currency && receipt.currency !== currency;
     if (cross ? value === null : value === null || toMinor(value, currency) !== toMinor(receipt.total, currency) || kind !== "expense") out.push(t("transaction.entry.fromReceipt.amount"));
     if (receiptDay && receiptDay !== date.slice(0, 10)) out.push(t("transaction.entry.fromReceipt.date"));
-    if (!place && receipt.merchant) out.push(t("transaction.entry.fromReceipt.shop"));
-    if (!categoryId && !debtId && receipt.category_id) out.push(t("transaction.entry.fromReceipt.category"));
+    if (receiptPlace && (!place || placeFromPhone) && place !== receiptPlace) out.push(t("transaction.entry.fromReceipt.shop"));
+    if ((!categoryId || suggested) && !debtId && receipt.category_id && receipt.category_id !== categoryId) out.push(t("transaction.entry.fromReceipt.category"));
     if (noteWithReceipt(note, receipt, currency) !== note) out.push(t("transaction.entry.fromReceipt.note"));
     return out;
-  }, [receipt, receiptDay, currency, value, kind, date, place, categoryId, debtId, note]);
+  }, [receipt, receiptDay, receiptPlace, placeFromPhone, suggested, currency, value, kind, date, place, categoryId, debtId, note]);
   const fillFromReceipt = (r: ReceiptParse) => {
-    setFilled({ expr, date, place, categoryId, debtId, note });
+    setFilled({ expr, date, place, coords, payee, categoryId, debtId, note });
     const apply = (amount: number) => setExpr(`−${Math.round(amount * 100) / 100}`); // a receipt is always an expense
-    if (!categoryId && !debtId && r.category_id) { setCategoryId(r.category_id); setSuggested(false); }
-    if (r.merchant) setPlace((cur) => cur ?? r.merchant);
+    // A category the location only suggested gives way to what the receipt says was bought.
+    if ((!categoryId || suggested) && !debtId && r.category_id) { setCategoryId(r.category_id); setSuggested(false); }
+    if (r.merchant && !payee) setPayee(r.merchant);
+    const where = receiptPlaceOf(r);
+    if (where && (!place || placeFromPhone)) {
+      setPlace(where);
+      setGpsPlace(null);
+      // Pinned where the printed address is, when it can be found; otherwise the phone's pin goes,
+      // since it was for somewhere else.
+      if (r.address) void addressCoords(r.address).then((c) => setCoords(c));
+    }
     setNote((cur) => noteWithReceipt(cur, r, currency));
     if (receiptDay && receiptDay !== date.slice(0, 10)) setDate(dayWithNow(receiptDay));
     setDefaultMode("expense");
@@ -260,10 +284,13 @@ export default function TransactionSheet() {
   };
   const undoFill = () => {
     if (!filled) return;
-    setExpr(filled.expr); setDate(filled.date); setPlace(filled.place); setCategoryId(filled.categoryId); setDebtId(filled.debtId); setNote(filled.note);
+    setExpr(filled.expr); setDate(filled.date); setPlace(filled.place); setCoords(filled.coords); setPayee(filled.payee); setCategoryId(filled.categoryId); setDebtId(filled.debtId); setNote(filled.note);
     setFilled(null);
   };
-  usePickResult<boolean>(keys.fill, () => { if (receipt) fillFromReceipt(receipt); });
+  usePickResult<boolean>(keys.fill, () => { if (receipt && !filled) fillFromReceipt(receipt); });
+  // Taken back from the photo, where what the receipt filled in can be cleared: the sheet keeps no
+  // Undo of its own for it, so the line under the photo stays one line.
+  usePickResult<boolean>(keys.unfill, () => undoFill());
   // A new entry with no amount yet takes the receipt as soon as it is read: that is why it was photographed.
   const autoFilled = useRef<string | null>(null);
   useEffect(() => {
@@ -290,11 +317,11 @@ export default function TransactionSheet() {
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
   // Splitting needs a total to share out, so the amount comes first — and the editor is given the
   // entry's own category and tags as the first part, because that part is this entry.
-  const openSplit = (with_?: { category_id: string | null; parts: SplitPart[]; note?: string }) => {
+  const openSplit = (with_?: { category_id: string | null; parts: SplitPart[]; note?: string; tag_ids?: string[] }) => {
     if (value === null || value <= 0) { Alert.alert(t("transaction.entry.splitNeedsTotal.title"), t("transaction.entry.splitNeedsTotal.body")); return; }
     router.push({ pathname: "/transaction/split", params: {
       key: keys.split, currency, kind, total: String(toMinor(value, currency)),
-      main: JSON.stringify({ category_id: with_ ? with_.category_id : categoryId, tag_ids: tagIds, note: with_?.note ?? note }), parts: JSON.stringify(with_ ? with_.parts : parts),
+      main: JSON.stringify({ category_id: with_ ? with_.category_id : categoryId, tag_ids: with_?.tag_ids ?? tagIds, note: with_?.note ?? note }), parts: JSON.stringify(with_ ? with_.parts : parts),
       ...(photoSrc ? { photo: photoSrc } : {}),
       // A tip changes what the entry is for. Not on a payment the bank charged in another currency:
       // its original is shared out in proportion, and nothing says what the tip was in that currency.
@@ -306,15 +333,18 @@ export default function TransactionSheet() {
   // they are checked and kept like any split. With nothing to carve off it is only a re-filing.
   usePickResult<PhotoSplit>(keys.photoSplit, (r: PhotoSplit) => {
     setCategoryId(r.category_id); setDebtId(null); setSuggested(false);
+    // Tags given to the items that stay with the entry join the entry's own.
+    const mainTags = [...new Set([...tagIds, ...(r.tag_ids ?? [])])];
+    setTagIds(mainTags);
     if (!r.parts.length) return;
     // Each part's note is what it bought. The entry keeps its own note, except that the whole
     // receipt written into it earlier becomes just the lines that stayed with it.
-    const next: SplitPart[] = [...parts.filter((x) => x.person_id), ...r.parts.map((x) => ({ amount_minor: x.amount_minor, category_id: x.category_id, tag_ids: withTripTag(db, []), note: x.note ?? null }))];
+    const next: SplitPart[] = [...parts.filter((x) => x.person_id), ...r.parts.map((x) => ({ amount_minor: x.amount_minor, category_id: x.category_id, tag_ids: [...new Set([...withTripTag(db, []), ...(x.tag_ids ?? [])])], note: x.note ?? null }))];
     const whole = receipt ? receiptNote(receipt, currency) : "";
     const mainNote = whole && note.includes(whole) ? note.replace(whole, r.note ?? "").trim() : note;
     setParts(next);
     setNote(mainNote);
-    setTimeout(() => openSplit({ category_id: r.category_id, parts: next, note: mainNote }), DISMISS_MS);
+    setTimeout(() => openSplit({ category_id: r.category_id, parts: next, note: mainNote, tag_ids: mainTags }), DISMISS_MS);
   });
   usePickResult<string>(keys.date, useCallback((day: string) => setDate((d) => (day === d.slice(0, 10) ? d : day === todayLocal() ? localIso() : dayWithNow(day))), []));
   usePickResult<string>(keys.time, useCallback((hhmm: string) => setDate((d) => withTime(d, hhmm)), []));
@@ -424,6 +454,7 @@ export default function TransactionSheet() {
       const name = near?.place ?? (await placeName(c));
       if (!alive || !name) return;
       setPlace((cur) => cur ?? name);
+      setGpsPlace((g) => g ?? name);
       const here = suggestCategoryAt(db, { lat: c.lat, lon: c.lon, place: name });
       if (here?.by === "place") { offer(here.category_id); return; }
       // Nothing filed at this shop yet, but it is one everybody knows (core shops.ts): Biedronka is
@@ -669,7 +700,8 @@ export default function TransactionSheet() {
             <Text style={[styles.amount, { color: expr ? signColor : C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{expr ? signChar : ""}{decimalAt > 0 ? <>{shown.slice(0, decimalAt)}{caretMark}{shown.slice(decimalAt)}</> : <>{shown}{caretMark}</>}</Text>
             <Text style={styles.currency}>{currency}</Text>
           </Tap>
-          {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("transaction.entry.copied")}</Text> : <CalcLine expr={expr} style={styles.result} />}
+          {/* Only while there is a sum to show: kept as an empty line, it pushed the amount off the middle. */}
+          {copied ? <Text style={[styles.result, { color: C.tint }]}>{t("transaction.entry.copied")}</Text> : /[+−×÷]/.test(expr.replace(/^−/, "")) ? <CalcLine expr={expr} style={styles.result} /> : null}
           <View style={styles.details}>
             {/* The note is the entry's title, so the line shows it whole where it fits and ends in an
                 ellipsis where it does not — four lines is as much as the sheet can spare. With no note
@@ -677,7 +709,7 @@ export default function TransactionSheet() {
                 cost of a row a small phone takes out of the keypad. */}
             {note ? (
               <Tap onPress={openNote} style={[styles.line, styles.noteLine]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.noteA11y", { note })}>
-                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={4}>{note}</Text>
+                <SymbolView name="text.alignleft" size={14} tintColor={C.secondary} /><Text style={styles.lineText} numberOfLines={2}>{note}</Text>
               </Tap>
             ) : null}
             {toSplit ? (
@@ -688,7 +720,7 @@ export default function TransactionSheet() {
             {/* What the bank said, under your note and apart from it: read here, never edited. */}
             {bankNote ? (
               <View style={[styles.line, styles.noteLine]} accessible accessibilityLabel={t("transaction.entry.bankNoteA11y", { note: bankNote })}>
-                <SymbolView name="building.columns" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, styles.bankText]} numberOfLines={4} selectable>{bankNote}</Text>
+                <SymbolView name="building.columns" size={14} tintColor={C.secondary} /><Text style={[styles.lineText, styles.bankText]} numberOfLines={2} selectable>{bankNote}</Text>
               </View>
             ) : null}
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
@@ -722,34 +754,29 @@ export default function TransactionSheet() {
                 <Text style={styles.lineText} numberOfLines={1}>{t("transaction.entry.returnedLine", { back: formatMinor(Math.abs(refunded), currency), paid: formatMinor(Math.abs(paidAmountMinor(existing!)), currency) })}</Text>
               </Tap>
             ) : null}
+            {/* The photo, and what it says, on one line: the shop it is from, whether it is still being
+                read, and the one thing to do about it — Update, or Undo once it has been filled in. */}
             {photoSrc ? (
-              <Tap onPress={openPhoto} style={styles.line} accessibilityRole="button" accessibilityLabel={t("transaction.entry.photoA11y")}>
-                <Image source={{ uri: photoSrc }} style={styles.thumb} contentFit="cover" /><Text style={styles.lineText}>{shot ? t("transaction.entry.photoUnsaved") : t("transaction.entry.photo")}</Text>
-              </Tap>
-            ) : null}
-            {photoSrc && filled ? (
-              <Animated.View key="filled" entering={FadeIn} exiting={FadeOut} layout={LinearTransition} style={styles.line}>
-                <SymbolView name="checkmark.circle.fill" size={14} tintColor={C.green as unknown as string} />
-                <Text style={[styles.lineText, { flex: 1 }]} numberOfLines={1}>{t("transaction.entry.fromReceipt.done")}</Text>
-                <Tap onPress={undoFill} hitSlop={8} accessibilityRole="button"><Text style={styles.receiptLink}>{t("transaction.entry.fromReceipt.undo")}</Text></Tap>
-              </Animated.View>
-            ) : photoSrc && receipt && receiptChanges.length ? (
-              <Animated.View key="offer" entering={FadeIn.duration(300)} exiting={FadeOut} layout={LinearTransition} style={styles.receiptCard}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.receiptTitle} numberOfLines={1}>
-                    {[receipt.merchant, `${formatMinor(toMinor(receipt.total, receipt.currency ?? currency), receipt.currency ?? currency)} ${receipt.currency ?? currency}`].filter(Boolean).join(" · ")}
-                  </Text>
-                  <Text style={styles.receiptSub} numberOfLines={2}>{t("transaction.entry.fromReceipt.changes", { list: receiptChanges.join(", ") })}</Text>
-                </View>
-                <Tap onPress={() => fillFromReceipt(receipt)} style={styles.receiptBtn} accessibilityRole="button">
-                  <SymbolView name="wand.and.sparkles" size={13} tintColor="white" />
-                  <Text style={styles.receiptBtnText}>{t("transaction.entry.fromReceipt.update")}</Text>
+              <Animated.View layout={LinearTransition} style={styles.photoLine}>
+                <Tap onPress={openPhoto} style={styles.photoMain} accessibilityRole="button" accessibilityLabel={t("transaction.entry.photoA11y")}>
+                  <Image source={{ uri: photoSrc }} style={styles.thumb} contentFit="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.lineText} numberOfLines={1}>
+                      {receipt ? [receipt.merchant, `${formatMinor(toMinor(receipt.total, receipt.currency ?? currency), receipt.currency ?? currency)} ${receipt.currency ?? currency}`].filter(Boolean).join(" · ") : t("transaction.entry.photo")}
+                    </Text>
+                    {!filled && receipt && receiptChanges.length ? (
+                      <Animated.Text entering={FadeIn} style={styles.photoSub} numberOfLines={1}>{t("transaction.entry.fromReceipt.changes", { list: receiptChanges.join(", ") })}</Animated.Text>
+                    ) : busyReading ? (
+                      <Animated.Text entering={FadeIn} exiting={FadeOut} style={styles.photoSub} numberOfLines={1}>{t("transaction.entry.fromReceipt.reading")}</Animated.Text>
+                    ) : null}
+                  </View>
                 </Tap>
-              </Animated.View>
-            ) : photoSrc && (reading.status === "reading" || reading.status === "text") ? (
-              <Animated.View key="reading" entering={FadeIn} exiting={FadeOut} layout={LinearTransition} style={styles.line}>
-                <ActivityIndicator size="small" />
-                <Text style={[styles.lineText, { color: C.secondary }]}>{t("transaction.entry.fromReceipt.reading")}</Text>
+                {!filled && receipt && receiptChanges.length ? (
+                  <Tap onPress={() => fillFromReceipt(receipt)} style={styles.receiptBtn} accessibilityRole="button">
+                    <SymbolView name="wand.and.sparkles" size={13} tintColor="white" />
+                    <Text style={styles.receiptBtnText}>{t("transaction.entry.fromReceipt.update")}</Text>
+                  </Tap>
+                ) : busyReading ? <ActivityIndicator size="small" /> : null}
               </Animated.View>
             ) : null}
             {tags.length ? (
@@ -811,7 +838,7 @@ export default function TransactionSheet() {
               rather than an attribute of it: Return on a new entry (the amount came back on an earlier
               expense, packages/core/returns.ts), Duplicate on a saved one. */}
           <ChipGrid>
-            <Chip cell icon="calendar" label={dayLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
+            <Chip cell icon="calendar" label={dayChipLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
             <Chip cell icon="clock" label={timeLabel(date)} onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: timeLabel(date) } })} />
             <Chip cell icon="text.alignleft" label={t("transaction.entry.chip.note")} active={!!note} onPress={openNote} />
             <Chip cell icon="mappin.and.ellipse" label={t("transaction.entry.chip.place")} active={!!coords || !!place} onPress={openLocation} />
@@ -875,12 +902,11 @@ const styles = themed(() => StyleSheet.create({
   bankText: { color: C.secondary },
   lineText: { color: C.label, fontSize: 15, flexShrink: 1 },
   placeholder: { color: C.tertiary },
-  receiptCard: { flexDirection: "row", alignItems: "center", gap: S.sm, padding: S.sm, paddingLeft: S.md, borderRadius: 12, backgroundColor: C.fill },
-  receiptTitle: { color: C.label, fontSize: 15, fontWeight: "600" },
-  receiptSub: { color: C.secondary, fontSize: 13 },
+  photoLine: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 34 },
+  photoMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  photoSub: { color: C.secondary, fontSize: 13 },
   receiptBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: C.tint },
   receiptBtnText: { color: "white", fontSize: 14, fontWeight: "600" },
-  receiptLink: { color: C.tint, fontSize: 15, fontWeight: "600" },
   thumb: { width: 28, height: 28, borderRadius: 6, backgroundColor: C.fill },
   accountRow: { alignItems: "flex-start", gap: 6, alignSelf: "stretch", marginTop: 2 },
   accountPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.fill, borderRadius: 22, paddingHorizontal: 12, minHeight: 40, paddingVertical: 6, maxWidth: "100%" },
