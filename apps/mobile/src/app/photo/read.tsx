@@ -200,7 +200,7 @@ export default function PhotoRead() {
       <View style={styles.head}>
         {parse ? (
           <View style={styles.shop}>
-            <View style={{ flex: 1, gap: 6 }}>
+            <View style={styles.shopText}>
               <Text style={styles.shopName}>{parse.merchant}</Text>
               <View style={styles.meta}>
                 <Tap onPress={openDay} style={styles.day} accessibilityRole="button" accessibilityLabel={t("photo.read.dayA11y", { day: dayChipLabel(shownDay) })}>
@@ -339,9 +339,12 @@ const styles = themed(() => StyleSheet.create({
   head: { backgroundColor: C.bgGrouped, paddingHorizontal: S.lg, paddingTop: S.xl, paddingBottom: S.md, gap: S.lg },
   shop: { flexDirection: "row", alignItems: "flex-start", gap: S.md },
   shopName: { color: C.label, fontSize: 20, fontWeight: "700" },
-  meta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: S.md },
-  day: { flexDirection: "row", alignItems: "center", gap: S.xs + 2, paddingHorizontal: S.md, paddingVertical: S.xs + 2, minHeight: 32, borderRadius: R.pill, backgroundColor: C.fill },
-  dayText: { ...Type.callout, fontWeight: "600", color: C.tint },
+  shopText: { flex: 1, gap: S.sm },
+  // No flexWrap: Yoga under-measures a wrapping row whose children have a minHeight, so the day pill
+  // was drawn taller than its row and ran into the tabs below. Long text wraps inside its own slot.
+  meta: { flexDirection: "row", alignItems: "center", gap: S.md },
+  day: { flexDirection: "row", alignItems: "center", gap: S.xs + 2, paddingHorizontal: S.md, paddingVertical: S.xs + 2, minHeight: 32, flexShrink: 1, borderRadius: R.pill, backgroundColor: C.fill },
+  dayText: { ...Type.callout, fontWeight: "600", color: C.tint, flexShrink: 1 },
   total: { color: C.secondary, fontSize: 15, fontVariant: ["tabular-nums"], flexShrink: 1 },
   priceCur: { color: C.secondary, fontSize: 13 },
   go: { paddingHorizontal: S.lg + 2, paddingVertical: S.sm, minHeight: 44, borderRadius: R.pill, backgroundColor: C.tint, justifyContent: "center" },
