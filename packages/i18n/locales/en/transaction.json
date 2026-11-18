@@ -22,6 +22,7 @@
     "photo": "Photo",
     "photoUnsaved": { "message": "Photo · not saved yet", "note": "A photo was just taken and is kept only when the entry is saved." },
     "accountA11y": { "message": "Account: {name}", "note": "VoiceOver label of the account pill." },
+    "kindA11y": { "message": "Type: {kind}", "note": "VoiceOver label of the pill that switches between expense, income and transfer; kind is one of transaction.entry.kind.*." },
     "accountNone": { "message": "none", "note": "Fills {name} in \"Account: {name}\" when there is no account." },
     "chooseAccount": "Choose account",
     "showBalance": "Show balance",

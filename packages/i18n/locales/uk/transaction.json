@@ -22,6 +22,7 @@
     "photo": "Фото",
     "photoUnsaved": "Фото · ще не збережено",
     "accountA11y": "Рахунок: {name}",
+    "kindA11y": "Тип: {kind}",
     "accountNone": "немає",
     "chooseAccount": "Обери рахунок",
     "showBalance": "Показати баланс",

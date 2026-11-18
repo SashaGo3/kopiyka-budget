@@ -2635,6 +2635,8 @@ export interface Messages {
   "transaction.entry.kind.expense": undefined;
   "transaction.entry.kind.income": undefined;
   "transaction.entry.kind.transfer": undefined;
+  /** VoiceOver label of the pill that switches between expense, income and transfer; kind is one of transaction.entry.kind.*. */
+  "transaction.entry.kindA11y": { kind: string | number };
   /** VoiceOver label: the entry has map coordinates but no place name. */
   "transaction.entry.locationPinned": undefined;
   "transaction.entry.makeTransfer.action": undefined;

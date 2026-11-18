@@ -3,7 +3,7 @@ import { Alert, Animated, Pressable, StyleSheet, Text, View, type StyleProp, typ
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr, numberFormat } from "@kopiyka/core";
-import { C, R, S, themed } from "@/constants/theme";
+import { C, R, S, Type, themed } from "@/constants/theme";
 import { getLanguage, t } from "@/i18n";
 import { ButtonText } from "@/components/ui";
 export { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr };
@@ -131,8 +131,8 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
               const main = (
                 <Pressable key="extra" onPress={extra.onPress} accessibilityRole="button" accessibilityLabel={extra.a11y ?? extra.label}
                   style={({ pressed }) => [styles.key, styles.extra, extra2 && { flex: 1 }, extra.active && [styles.extraActive, extra.color ? { backgroundColor: extra.color + "33", borderColor: extra.color } : null], pressed && styles.pressed]}>
-                  <SymbolView name={extra.icon} size={20} tintColor={extra.active ? extra.color ?? C.onTint : C.tint} />
-                  <ButtonText fit={2} style={[styles.extraText, extra.active && { color: extra.color ?? C.onTint }]} maxFontSizeMultiplier={1.3}>{extra.label}</ButtonText>
+                  <SymbolView name={extra.icon} size={17} tintColor={extra.active ? extra.color ?? C.onTint : C.tint} />
+                  <ButtonText fit={3} style={[styles.extraText, extra.active && { color: extra.color ?? C.onTint }]} maxFontSizeMultiplier={1.3}>{extra.label}</ButtonText>
                 </Pressable>
               );
               if (!extra2) return main;
@@ -234,9 +234,11 @@ const styles = themed(() => StyleSheet.create({
   // The same "this key is on" language as the Category and Tags keys below it.
   dotKey: { backgroundColor: C.tint, borderRadius: R.md },
   dotText: { color: C.onTint, fontWeight: "700" },
-  extra: { flex: 2.08, flexDirection: "row", borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", gap: 6, paddingHorizontal: 8 },
+  // A category's name has about 90 pt beside the tags key: three lines, a smaller icon and a tighter
+  // gap let "Ресторани та кафе" read whole instead of shrinking until it clips.
+  extra: { flex: 2.08, flexDirection: "row", borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", gap: S.xs, paddingHorizontal: S.sm },
   extraActive: { backgroundColor: C.tint, borderStyle: "solid" },
-  extraText: { fontSize: 15, color: C.tint, fontWeight: "600", flexShrink: 1 },
+  extraText: { ...Type.callout, color: C.tint, fontWeight: "600", flexShrink: 1 },
   small: { flex: 0, width: 50, borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", flexDirection: "row", gap: 2 },
   smallActive: { backgroundColor: C.tint, borderStyle: "solid" },
   smallBadge: { fontSize: 13, fontWeight: "700", color: C.tint },

@@ -184,7 +184,10 @@ enum KPReceiptText {
     let stops = ["nip", "regon", "tel", "paragon", "fiskal", "фіскальн", "чек", "kasa", "суми", "suma", "razem", "www", "@"]
     // A street printed without "ul." ("Waryńskiego 4") is known by the postal line under it.
     let bare = try! NSRegularExpression(pattern: #"^\p{L}[\p{L}.' -]{2,}\s\d{1,4}[a-zA-Z]?(/\d{1,4}[a-zA-Z]?)?$"#)
-    let head = Array(lines.prefix(14)).map { $0.trimmingCharacters(in: .whitespaces) }
+    // A row may hold several printed lines joined by a double space — a receipt photographed askew
+    // reads the company, the street and the postcode as one row — so each segment is judged on its own.
+    let head = Array(lines.prefix(14)).flatMap { $0.components(separatedBy: "  ") }
+      .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     var found: [String] = []
     for (i, line) in head.enumerated() {
       let low = fold(line)

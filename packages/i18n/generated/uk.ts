@@ -2010,6 +2010,7 @@ const catalog: Catalog = {
   "transaction.entry.kind.expense": "Витрата",
   "transaction.entry.kind.income": "Дохід",
   "transaction.entry.kind.transfer": "Переказ",
+  "transaction.entry.kindA11y": ["Тип: ",[0,"kind"]],
   "transaction.entry.locationPinned": "Розташування: позначено на мапі",
   "transaction.entry.makeTransfer.action": "Зробити переказ",
   "transaction.entry.makeTransfer.convert": "Цей запис стане однією стороною переказу й збереже нотатку, розташування та фото. Далі обери інший рахунок.",

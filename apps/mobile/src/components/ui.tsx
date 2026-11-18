@@ -40,7 +40,7 @@ export function Subtle({ children, style }: { children: ReactNode; style?: Style
  * half size at most) until it fits; past even that it is clipped (`ellipsizeMode="clip"`) rather
  * than printed with "…". test/buttons.test.ts holds every button label in the app to this.
  */
-export function ButtonText({ fit, style, ...rest }: Omit<TextProps, "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"> & { fit?: 1 | 2 }) {
+export function ButtonText({ fit, style, ...rest }: Omit<TextProps, "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"> & { fit?: 1 | 2 | 3 }) {
   return fit
     ? <Text {...rest} style={[styles.buttonFit, style]} numberOfLines={fit} adjustsFontSizeToFit minimumFontScale={0.5} ellipsizeMode="clip" />
     : <Text {...rest} style={[styles.buttonText, style]} />;

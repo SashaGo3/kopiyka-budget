@@ -1,6 +1,6 @@
 import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -13,9 +13,9 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { shopParams } from "@/lib/shopPick";
 import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
-import { ButtonText, Chip, ChipGrid, ChipRow, Segmented, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
+import { ButtonText, Chip, ChipGrid, ChipRow, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
-import { C, R, S, themed } from "@/constants/theme";
+import { C, R, S, Type, themed } from "@/constants/theme";
 import { dayChipLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
 import { DISMISS_MS, dismissTo, openOnce } from "@/lib/nav";
 import { readPhoto, usePhotoReading } from "@/lib/photoText";
@@ -721,6 +721,13 @@ export default function TransactionSheet() {
   const catIcon = category ? iconFor(category.name, { icon: category.icon, color: category.color }) : null;
 
   const oneAccount = accounts.length <= 1 && !!account;
+  // Transfer needs two accounts to be a transfer at all, so with one it is not offered; nor while
+  // parts are carved off, since a split is several entries and a transfer is one movement.
+  const kinds: Kind[] = ["expense", "income", ...(accounts.length > 1 && !existing?.transfer_id && !parts.length ? ["transfer" as const] : [])];
+  const kindLabel = (k: Kind) => t(`transaction.entry.kind.${k}`);
+  const openKind = () => ActionSheetIOS.showActionSheetWithOptions(
+    { options: [...kinds.map(kindLabel), t("common.cancel")], cancelButtonIndex: kinds.length },
+    (i) => { if (i < kinds.length && kinds[i] !== kind) changeKind(kinds[i]!); });
   const balanceToggle = (start?: boolean) => (
     <BalanceToggle start={start} balance={balance} after={valid && after !== balance ? after : null} currency={currency}
       afterColor={(after < 0 ? C.red : kind === "income" ? C.green : C.label) as unknown as string} />
@@ -764,7 +771,7 @@ export default function TransactionSheet() {
             {/* A place name without coordinates is a location too: a Shortcut automation, a filled-in
                 payment or a scanned receipt names the shop without ever pinning it on the map. */}
             {/* Only once there is a place: an "Add a place" line did what the Place key does, in a row the
-                keypad needs. With one account the balance shares this line rather than taking its own. */}
+                keypad needs. */}
             {coords || place ? (
               <View style={styles.line}>
                 <Tap onPress={openLocation} style={[styles.line, { flex: 1 }]} accessibilityRole="button" accessibilityLabel={place ?? t("transaction.entry.locationPinned")}>
@@ -773,7 +780,6 @@ export default function TransactionSheet() {
                     return suggested ? t("transaction.entry.placeSuggested", { place: where }) : where;
                   })()}</Text>
                 </Tap>
-                {oneAccount ? balanceToggle() : null}
               </View>
             ) : null}
             {parts.length && splitMinors ? (
@@ -792,14 +798,14 @@ export default function TransactionSheet() {
                 <Text style={styles.lineText}>{t("transaction.entry.returnedLine", { back: formatMinor(Math.abs(refunded), currency), paid: formatMinor(Math.abs(paidAmountMinor(existing!)), currency) })}</Text>
               </Tap>
             ) : null}
-            {/* The photo, and what it says, on one line: the shop and the total once read, a spinner
+            {/* The photo, and what it says, on one line: the total once read (the shop is the payee already), a spinner
                 until then, and Update when the receipt says something the entry does not. */}
             {photoSrc ? (
               <Animated.View layout={LinearTransition} style={styles.photoLine}>
                 <Tap onPress={openPhoto} style={styles.photoMain} accessibilityRole="button" accessibilityLabel={t("transaction.entry.photoA11y")}>
                   <Image source={{ uri: photoSrc }} style={styles.thumb} contentFit="cover" />
                   <Text style={[styles.lineText, { flex: 1 }]}>
-                    {receipt ? [receipt.merchant, `${formatMinor(toMinor(receipt.total, receipt.currency ?? currency), receipt.currency ?? currency)} ${receipt.currency ?? currency}`].filter(Boolean).join(" · ") : t("transaction.entry.photo")}
+                    {receipt ? `${formatMinor(toMinor(receipt.total, receipt.currency ?? currency), receipt.currency ?? currency)} ${receipt.currency ?? currency}` : t("transaction.entry.photo")}
                   </Text>
                 </Tap>
                 {!filled && receipt && changes.length ? (
@@ -817,20 +823,28 @@ export default function TransactionSheet() {
               </View>
             ) : null}
           </View>
-          {/* With one account there is nothing to choose between, so the pill goes and the balance rides
-              on the place line — or, with no place, on a line of its own no taller than the text. With
-              several, the balance sits under the pill: beside it, a long name and a long balance overlapped. */}
-          {!oneAccount ? (
-            <View style={styles.accountRow}>
-              <Tap onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
+          {/* The balance first, a size up, so it reads apart from the place and the note above it; then
+              one row of pills: the account (gone with one account, there is nothing to choose) and what
+              kind of entry this is, which used to take a row of its own over the keypad. */}
+          <View style={styles.accountRow}>
+            {balanceToggle(true)}
+            <View style={styles.pillRow}>
+              {!oneAccount ? (
+                <Tap onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: accountId } })} style={[styles.accountPill, { flexShrink: 1 }]} accessibilityRole="button" accessibilityLabel={t("transaction.entry.accountA11y", { name: acctName(account) ?? t("transaction.entry.accountNone") })}>
                 <View style={[styles.accountIcon, { backgroundColor: account?.color ?? (C.tint as unknown as string) }]}><SymbolView name={accountIcon(account?.type ?? "bank")} size={14} tintColor={account?.color ? "white" : C.onTint} /></View>
                 {/* One line that shrinks to fit: unclipped, a long name ran under the balance. */}
                 <ButtonText fit={1} style={styles.accountText} maxFontSizeMultiplier={1.3}>{acctName(account) ?? t("transaction.entry.chooseAccount")}</ButtonText>
                 <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
               </Tap>
-              {balanceToggle(true)}
+              ) : null}
+              <Tap onPress={openKind} disabled={kinds.length < 2} style={styles.accountPill} accessibilityRole="button" accessibilityLabel={t("transaction.entry.kindA11y", { kind: kindLabel(kind) })}>
+                <SymbolView name={kind === "income" ? "arrow.down.left" : "arrow.up.right"} size={14}
+                  tintColor={(kind === "income" ? C.green : C.red) as unknown as string} />
+                <ButtonText fit={1} style={[styles.accountText, kind === "income" && { color: C.green }]} maxFontSizeMultiplier={1.3}>{kindLabel(kind)}</ButtonText>
+                {kinds.length > 1 ? <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} /> : null}
+              </Tap>
             </View>
-          ) : !(coords || place) ? <View style={[styles.line, { justifyContent: "flex-end" }]}>{balanceToggle()}</View> : null}
+          </View>
         </View>
       }
       bottom={noteOpen ? (
@@ -845,11 +859,6 @@ export default function TransactionSheet() {
         </View>
       ) : (
         <>
-          <View style={{ paddingHorizontal: S.md }}>
-            {/* Transfer needs two accounts to be a transfer at all, so with one it is not offered; nor while
-                parts are carved off, since a split is several entries and a transfer is one movement. */}
-            <Segmented value={kind} onChange={changeKind} options={[{ value: "expense", label: t("transaction.entry.kind.expense") }, { value: "income", label: t("transaction.entry.kind.income"), color: C.green as unknown as string }, ...(accounts.length > 1 && !existing?.transfer_id && !parts.length ? [{ value: "transfer" as Kind, label: t("transaction.entry.kind.transfer") }] : [])]} />
-          </View>
           {/* Only while the entry is being written, or still waiting in Pending: "what was it this
               time?" is a question about an expense nobody has filed yet. An entry already approved has
               its answer, and the row cost the confirm bar its safe-area margin on a sheet that had run
@@ -937,11 +946,12 @@ const styles = themed(() => StyleSheet.create({
   receiptBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, minHeight: 34, borderRadius: R.pill, backgroundColor: C.tint },
   receiptBtnText: { color: C.onTint, fontSize: 15, fontWeight: "600" },
   thumb: { width: 28, height: 28, borderRadius: 6, backgroundColor: C.fill },
-  accountRow: { alignItems: "flex-start", gap: 6, alignSelf: "stretch", marginTop: 2 },
+  accountRow: { alignItems: "flex-start", gap: S.sm, alignSelf: "stretch", marginTop: S.sm },
+  pillRow: { flexDirection: "row", alignItems: "center", gap: S.sm, alignSelf: "stretch" },
   accountPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.fill, borderRadius: 22, paddingHorizontal: 12, minHeight: 40, paddingVertical: 6, maxWidth: "100%" },
   accountIcon: { width: 26, height: 26, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
   accountText: { fontSize: 15, color: C.label, flexShrink: 1 },
-  accountBal: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"], flexShrink: 1 },
+  accountBal: { ...Type.body, color: C.secondary, fontVariant: ["tabular-nums"], flexShrink: 1 },
   balance: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, minHeight: 24, minWidth: 90 },
   balanceStart: { flex: 0, alignSelf: "stretch", justifyContent: "flex-start", paddingHorizontal: S.xs },
   trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },

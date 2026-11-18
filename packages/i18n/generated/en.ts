@@ -2010,6 +2010,7 @@ const catalog: Catalog = {
   "transaction.entry.kind.expense": "Expense",
   "transaction.entry.kind.income": "Income",
   "transaction.entry.kind.transfer": "Transfer",
+  "transaction.entry.kindA11y": ["Type: ",[0,"kind"]],
   "transaction.entry.locationPinned": "Location: pinned",
   "transaction.entry.makeTransfer.action": "Make transfer",
   "transaction.entry.makeTransfer.convert": "This entry becomes one side of the transfer and keeps its note, place and photo. Choose the other account next.",
