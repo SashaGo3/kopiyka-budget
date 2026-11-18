@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { SymbolView, type SFSymbol } from "expo-symbols";
+import { type SFSymbol } from "expo-symbols";
 import { candidateFromTransaction, createRecurring, getRow, linkToRule, nextOccurrenceAfter, guessLogo, iconFor, parsePaymentIcon, jsonIds, listRows, remove, save, formatMinor, type Frequency, type RecurringRule } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
@@ -270,7 +270,7 @@ export default function RecurringEdit() {
 const styles = themed(() => StyleSheet.create({
   hero: { alignItems: "center", paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md, gap: 2 },
   amount: { fontSize: 44, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
-  cur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
-  summary: { fontSize: 14, color: C.secondary },
+  cur: { fontSize: 17, color: C.secondary, fontWeight: "600" },
+  summary: { fontSize: 15, color: C.secondary },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
 }));

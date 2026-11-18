@@ -41,8 +41,7 @@
       "photo": { "message": "Photo", "max": 12 },
       "split": { "message": "Split", "note": "Chip that splits the entry into parts with their own categories.", "max": 12 },
       "return": { "message": "Return", "note": "Chip: the amount typed is money that came back on an earlier expense.", "max": 14 },
-      "duplicate": { "message": "Duplicate", "note": "Chip on a saved entry: open a copy of it to add again.", "max": 12 },
-      "receipt": { "message": "Receipt", "note": "Chip that opens the receipt scanner.", "max": 12 }
+      "duplicate": { "message": "Duplicate", "note": "Chip on a saved entry: open a copy of it to add again.", "max": 12 }
     },
     "tapToSave": "Tap to save",
     "tapToAdd": "Tap to add",
@@ -92,16 +91,12 @@
       "body": { "message": "The change to the photo is kept only when the entry is saved.", "note": "Closing an existing entry after adding or removing its photo without saving." }
     },
     "fromReceipt": {
-      "reading": { "message": "Reading the receipt…", "note": "Under the photo on the entry sheet while its text is recognised." },
       "update": { "message": "Update", "note": "Button: fill the entry in from the receipt on its photo. Short." },
-      "changes": { "message": "Will update: {list}", "note": "list is the fields, joined with commas: \"amount, date, notes\"." },
       "amount": "amount",
       "date": "date",
       "shop": "shop",
       "category": "category",
-      "note": "notes",
-      "done": "Filled in from the receipt",
-      "undo": "Undo"
+      "note": "notes"
     },
     "duplicate": {
       "title": "Duplicate this transaction?",

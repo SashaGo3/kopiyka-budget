@@ -8,7 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, Tap, ToggleRow, runBusy } from "@/components/ui";
 import { dismissTo } from "@/lib/nav";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { catDescription, catName, catNameById } from "@/lib/names";
 import { getLocationEnabled } from "@/lib/settings";
@@ -224,7 +224,7 @@ export default function CategoryEdit() {
         {isFolder && hasChildren ? <Text style={styles.hint}>{t("category.contains", { count: hasChildren })}</Text> : null}
         {translatable ? (
           <>
-            <SectionHeader right={name.trim() !== original.trim() ? <Tap onPress={() => setName(original)} hitSlop={8} accessibilityRole="button"><Text style={styles.useOriginal}>{t("category.translations.useOriginal")}</Text></Tap> : undefined}>
+            <SectionHeader right={name.trim() !== original.trim() ? <Tap onPress={() => setName(original)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("category.translations.useOriginal")}><Text style={styles.useOriginal}>{t("category.translations.useOriginal")}</Text></Tap> : undefined}>
               {originalLang ? t("category.translations.originalIn", { language: languageName(originalLang) }) : t("category.translations.original")}
             </SectionHeader>
             <TextInput value={original} onChangeText={setOriginal} style={styles.original} placeholderTextColor={C.tertiary} returnKeyType="done"
@@ -310,15 +310,15 @@ export default function CategoryEdit() {
 
 const styles = themed(() => StyleSheet.create({
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
-  original: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingVertical: S.md, fontSize: 16, color: C.label },
+  original: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md, fontSize: 17, color: C.label },
   useOriginal: { color: C.tint, fontSize: 13, fontWeight: "600" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.md, padding: S.lg },
-  preview: { width: 50, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  preview: { width: 50, height: 50, borderRadius: R.card, alignItems: "center", justifyContent: "center" },
   // Multiline so a long name wraps whole and can be read and selected; Return still saves.
-  input: { flex: 1, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 18, color: C.label },
-  desc: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingVertical: S.sm, minHeight: 60, fontSize: 16, color: C.label },
+  input: { flex: 1, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 17, color: C.label },
+  desc: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, minHeight: 60, fontSize: 17, color: C.label },
   right: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  rowIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  swatch: { width: 24, height: 24, borderRadius: 12 },
+  rowIcon: { width: 30, height: 30, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
+  swatch: { width: 24, height: 24, borderRadius: R.pill },
 }));

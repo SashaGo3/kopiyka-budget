@@ -39,7 +39,7 @@
     "wholeA11y": "{name}, уся папка",
     "inA11y": "{name}, у папці «{folder}»",
     "new": "Нова категорія",
-    "newEllipsis": "Нова категорія…",
+    "newEllipsis": "Нова категорія",
     "newNamed": "Нова категорія «{name}»"
   },
   "color": {

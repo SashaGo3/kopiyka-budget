@@ -4,7 +4,7 @@ import { Tap } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { monthLong, monthShort } from "@/lib/dates";
 import { t } from "@/i18n";
@@ -55,12 +55,12 @@ export default function PickMonth() {
 
 const styles = themed(() => StyleSheet.create({
   yearRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.xl },
-  arrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: C.fill },
+  arrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: R.pill, backgroundColor: C.fill },
   year: { fontSize: 22, fontWeight: "700", color: C.label, minWidth: 80, textAlign: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, paddingHorizontal: S.md },
-  cell: { width: "23%", flexGrow: 1, minHeight: 52, paddingVertical: 8, borderRadius: 14, backgroundColor: C.card, alignItems: "center", justifyContent: "center" },
+  cell: { width: "23%", flexGrow: 1, minHeight: 52, paddingVertical: 8, borderRadius: R.card, backgroundColor: C.card, alignItems: "center", justifyContent: "center" },
   cellOn: { backgroundColor: C.tint },
   cellText: { fontSize: 17, fontWeight: "600", color: C.label },
-  now: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.md, minHeight: 44, borderRadius: 14, backgroundColor: C.fill },
-  nowText: { fontSize: 16, fontWeight: "600", color: C.tint },
+  now: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.md, minHeight: 44, borderRadius: R.card, backgroundColor: C.fill },
+  nowText: { fontSize: 17, fontWeight: "600", color: C.tint },
 }));

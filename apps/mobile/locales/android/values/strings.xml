@@ -105,10 +105,8 @@
   <string name="native_receipt_paid">paid %1$s</string>
   <string name="native_receipt_scan_cameraOff">Camera access is off. Enable it in the Settings app.</string>
   <string name="native_receipt_scan_close">Close</string>
-  <string name="native_receipt_scan_continue">Continue</string>
-  <string name="native_receipt_scan_hint">Point at the receipt</string>
-  <string name="native_receipt_scan_hold">Hold still…</string>
-  <string name="native_receipt_scan_retake">Retake</string>
+  <string name="native_receipt_scan_library">Choose from library</string>
+  <string name="native_receipt_scan_take">Take photo</string>
   <string name="native_receipt_total">total %1$s</string>
   <string name="native_receipt_untitled">Receipt</string>
   <string name="native_sample_account">Account</string>
@@ -166,7 +164,7 @@
   <string name="native_watch_status_nothingWaitingDetail">All watch entries delivered</string>
   <string name="native_watch_status_refresh">Refresh</string>
   <string name="native_watch_status_refreshHint">Asks the iPhone for the latest accounts, categories and history</string>
-  <string name="native_watch_status_refreshing">Refreshing…</string>
+  <string name="native_watch_status_refreshing">Refreshing</string>
   <string name="native_watch_status_title">Status</string>
   <string name="native_watch_status_unreachable">iPhone not reachable</string>
   <string name="native_watch_status_unreachableDetail">Entries wait on the watch until it is back</string>

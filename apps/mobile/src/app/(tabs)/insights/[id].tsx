@@ -370,14 +370,14 @@ function prevDay(d: string): string { const [y, m, dd] = d.split("-").map(Number
 
 const styles = themed(() => StyleSheet.create({
   pills: { flexDirection: "row", paddingHorizontal: S.lg },
-  amount: { fontSize: 16, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
+  amount: { fontSize: 17, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
   headerText: { paddingHorizontal: 12, paddingVertical: 6 },
   headerLink: { color: C.tint, fontSize: 17 },
   budgetRow: { paddingHorizontal: S.lg, paddingVertical: S.md, gap: 6 },
   budgetTop: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  rowName: { flex: 1, fontSize: 16, color: C.label },
+  rowName: { flex: 1, fontSize: 17, color: C.label },
   rowSub: { fontSize: 13, color: C.secondary },
   arrows: { flexDirection: "row", alignItems: "center", gap: S.md },
   arrow: { paddingHorizontal: 4 },

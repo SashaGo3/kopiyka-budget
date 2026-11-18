@@ -6,7 +6,7 @@ import { accountBalanceMinor, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { ButtonText, Money, PickerHeader, PickerList, Row, accountIcon, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
 
@@ -88,11 +88,11 @@ export default function PickTransferAccounts() {
 
 const styles = themed(() => StyleSheet.create({
   slots: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, marginTop: S.sm },
-  slot: { flex: 1, minWidth: 0, backgroundColor: C.card, borderRadius: 14, padding: S.md, borderWidth: 2, borderColor: "transparent", gap: 2 },
+  slot: { flex: 1, minWidth: 0, backgroundColor: C.card, borderRadius: R.card, padding: S.md, borderWidth: 2, borderColor: "transparent", gap: 2 },
   slotActive: { borderColor: C.tint },
   slotRole: { color: C.secondary, fontSize: 13 },
   slotName: { color: C.label, fontSize: 17, fontWeight: "600" },
   slotCur: { color: C.tertiary, fontSize: 12 },
-  swap: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  swap: { width: 32, height: 32, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
 }));

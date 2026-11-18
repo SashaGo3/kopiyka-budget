@@ -9,7 +9,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Collapsible } from "@/components/Collapsible";
 import { Card, Empty, Money, Row, ScreenNote, SectionHeader, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { t } from "@/i18n";
 import { acctName } from "@/lib/names";
@@ -91,7 +91,7 @@ export default function DebtsSettings() {
                 <Collapsible open={open.has(e.id)} lazy>
                   <View style={styles.members}>
                     {e.members.map((m) => <FriendRow key={m.id} p={m} style={styles.divider} />)}
-                    <Tap onPress={() => pickGroup(e)} style={[styles.editGroup, styles.divider]} accessibilityRole="button">
+                    <Tap onPress={() => pickGroup(e)} style={[styles.editGroup, styles.divider]} accessibilityRole="button" accessibilityLabel={t("people.group.edit")}>
                       <SymbolView name="person.2.badge.gearshape" size={16} tintColor={C.tint} />
                       <Text style={styles.link}>{t("people.group.edit")}</Text>
                     </Tap>
@@ -184,7 +184,7 @@ const styles = themed(() => StyleSheet.create({
   members: { backgroundColor: C.bgGrouped, paddingLeft: S.lg },
   editGroup: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 44, paddingHorizontal: S.lg },
   stack: { width: 30, height: 30 },
-  stackItem: { position: "absolute", borderRadius: 12, borderWidth: 1.5, borderColor: C.card },
+  stackItem: { position: "absolute", borderRadius: R.md, borderWidth: 1.5, borderColor: C.card },
   stackFront: { left: -2, top: -2, zIndex: 1 },
   stackBack: { right: -2, bottom: -2 },
   summary: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm, gap: S.sm },

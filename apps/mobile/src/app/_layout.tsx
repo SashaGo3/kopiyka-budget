@@ -6,11 +6,10 @@ import "@/db"; // opens + migrates synchronously before first render
 import { C, NAMED_COLORS, R, S, layoutColor, themed } from "@/constants/theme";
 import { themeColors, themeOf, type ThemeId } from "@kopiyka/core";
 import { themeMounted, useTheme } from "@/lib/theme";
-import { onAfterWrite } from "@/store";
+import { onAfterWrite , notifyChange } from "@/store";
 import { installBackupTriggers } from "@/lib/backup";
 import { writeWidgetSnapshot } from "@/lib/widget";
 import { KPBridge } from "@/lib/bridge";
-import { notifyChange } from "@/store";
 import { installNativeWrites } from "@/lib/nativeWrites";
 import { openDeepLink, registerNavigationRef } from "@/lib/deeplink";
 import { installCrashLog, recordCrash } from "@/lib/crashlog";
@@ -19,6 +18,7 @@ import { LaunchCover } from "@/components/LaunchCover";
 import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { openLaunchLink } from "@/lib/launchLink";
 import { needsOnboarding } from "@/lib/onboarding";
+import { READ_SHEET_DETENTS } from "@/lib/photoShown";
 import { isPad, screenContentStyle } from "@/constants/layout";
 import { t, useLanguage } from "@/i18n";
 
@@ -217,9 +217,9 @@ export default function RootLayout() {
           <Stack.Screen name="travel/dates" options={fit} />
           <Stack.Screen name="travel/backfill" options={modal} />
           <Stack.Screen name="travel/outside" options={modal} />
-          <Stack.Screen name="receipt/scan" options={{ presentation: "fullScreenModal", headerShown: false }} />
-          <Stack.Screen name="photo/capture" options={{ presentation: "fullScreenModal", headerShown: false }} />
           <Stack.Screen name="photo/view" options={{ presentation: "fullScreenModal", headerShown: false }} />
+          {/* Over the photo, which stays usable above it at the two lower heights; ✕ on the photo closes both. */}
+          <Stack.Screen name="photo/read" options={{ ...medium, sheetAllowedDetents: READ_SHEET_DETENTS, sheetInitialDetentIndex: 1, sheetLargestUndimmedDetentIndex: 1, gestureEnabled: false }} />
           <Stack.Screen name="recurring/[id]" options={modal} />
           <Stack.Screen name="recurring/confirm" options={fit} />
           <Stack.Screen name="recurring/due" options={{ ...pushed, title: t("layout.recurringDue"), headerBackTitle: t("common.back") }} />
@@ -281,7 +281,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 const errorStyles = themed(() => StyleSheet.create({
   screen: { flex: 1, alignItems: "center", justifyContent: "center", gap: S.md, padding: S.xl, backgroundColor: C.bgGrouped },
   title: { fontSize: 20, fontWeight: "700", color: C.label },
-  message: { fontSize: 14, color: C.secondary, textAlign: "center" },
+  message: { fontSize: 15, color: C.secondary, textAlign: "center" },
   button: { marginTop: S.md, paddingHorizontal: S.xl, paddingVertical: S.md, borderRadius: R.lg, backgroundColor: C.tint },
-  buttonText: { fontSize: 16, fontWeight: "600", color: C.onTint },
+  buttonText: { fontSize: 17, fontWeight: "600", color: C.onTint },
 }));

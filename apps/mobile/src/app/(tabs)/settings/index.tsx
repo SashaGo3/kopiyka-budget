@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Linking, ScrollView, StyleSheet, Text } from "react-native";
 import { Stack, router, useFocusEffect } from "expo-router";
 import { HOME_RADIUS_M, debtTotals, formatMinor, listDebts, listRows } from "@kopiyka/core";
-import { useQuery } from "@/store";
+import { useQuery , notifyChange } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Row, SectionHeader, ToggleRow } from "@/components/ui";
 import { getPeriodStartDay, setPeriodStartDay } from "@/lib/period";
-import { notifyChange } from "@/store";
 import { C, S, themed } from "@/constants/theme";
 import { APP_MARKETING_VERSION, APP_VERSION, privacyPolicyUrl } from "@/constants/app";
 import { releasesToRead } from "@/lib/whatsNew";
@@ -100,7 +99,7 @@ export default function SettingsScreen() {
   const ignoreNames = prefs.ignore.map((id) => catNameById(id)).filter((n): n is string => !!n);
   // Home: where no category should be suggested (everything gets bought at home).
   const [settingHome, setSettingHome] = useState(false);
-  const useHereAsHome = async () => {
+  const setHomeHere = async () => {
     setSettingHome(true);
     try {
       const c = await preciseLocation();
@@ -110,7 +109,7 @@ export default function SettingsScreen() {
   };
   const pickHome = () => {
     const buttons = [
-      { text: prefs.home ? t("settings.home.useCurrentInstead") : t("settings.home.useCurrent"), onPress: () => void useHereAsHome() },
+      { text: prefs.home ? t("settings.home.useCurrentInstead") : t("settings.home.useCurrent"), onPress: () => void setHomeHere() },
       ...(prefs.home ? [{ text: t("settings.home.forget"), style: "destructive" as const, onPress: () => setHomeLocation(null) }] : []),
       { text: t("common.cancel"), style: "cancel" as const },
     ];

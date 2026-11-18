@@ -7,7 +7,7 @@ import { accountLeftover, biggestOneOffs, monthVsUsual, spendingPlaces, topShops
 import { mutate, useQuery } from "@/store";
 import { CategoryIcon, Money, PressCard, ProgressBar, TagPill, Tap } from "@/components/ui";
 import { PaymentIcon } from "@/components/PaymentIcon";
-import { C, S, ValueRamp, themed, themeHue } from "@/constants/theme";
+import { R, C, S, ValueRamp, themed, themeHue } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { anchorDay, currentPeriod, getPeriodStartDay, usePeriod } from "@/lib/period";
 import { getBudgetScope } from "@/lib/settings";
@@ -37,7 +37,7 @@ export function InsightCard({ insight, preview, detail, cat = true }: { insight:
   const head = (
     <View style={styles.head} accessibilityRole={still ? "header" : undefined}>
       {look ? <SymbolView name={look.icon} size={15} tintColor={themeHue(look.color)} weight="semibold" /> : null}
-      <Text style={styles.title} numberOfLines={1}>{title}</Text>
+      <Text style={styles.title}>{title}</Text>
       {still ? null : <SymbolView name="chevron.right" size={13} tintColor={C.tertiary} />}
     </View>
   );
@@ -202,7 +202,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
           {rule ? <PaymentIcon icon={c.icon} category={cat ? { name: catName(cat), icon: cat.icon, color: cat.color } : null} size={32} /> : <CategoryIcon name={name} icon={cat?.icon} color={cat?.color} size={30} />}
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={styles.checkTitle}>
-              <Text style={[styles.line, { flexShrink: 1 }, c.done && { color: C.secondary }]} numberOfLines={2}>{name}</Text>
+              <Text style={[styles.line, { flexShrink: 1 }, c.done && { color: C.secondary }]}>{name}</Text>
               {tag ? <TagPill name={tag.name} color={tag.color} /> : null}
             </View>
             {times ? (
@@ -260,7 +260,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
               <View key={lv}>
                 <View style={styles.legend}>
                   <View style={[styles.swatch, { backgroundColor: ValueRamp[lv] }]} />
-                  <Text style={styles.legendName} numberOfLines={1}>{t(`insights.values.level.l${lv}`)}</Text>
+                  <Text style={styles.legendName}>{t(`insights.values.level.l${lv}`)}</Text>
                   <Money minor={now.by_level[lv]} currency={v.currency} style={styles.legendMoney} />
                   <Text style={styles.legendPct}>{pct(now.by_level[lv])}%</Text>
                 </View>
@@ -314,7 +314,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                 onPress={() => router.push({ pathname: "/transactions", params: { category: l.category_id, name, from: period.start, to: period.end, accounts: scopeIds.join(","), nonce: String(Date.now()) } })}>
                 <CategoryIcon name={name} icon={cat?.icon} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.line} numberOfLines={1}>{name}</Text>
+                  <Text style={styles.line}>{name}</Text>
                   {more(`${amt(l.now_minor, v.currency)} · ${amt(l.usual_minor, v.currency)}`)}
                 </View>
                 <Text style={[styles.lineStrong, { color: up ? C.orange : C.green }]}>{change}</Text>
@@ -338,8 +338,8 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
                 accessibilityRole="button" accessibilityLabel={t("insights.oneOffs.openA11y", { title, amount: amt(-r.amount_minor, v.currency), day: when })}>
                 <CategoryIcon name={cat ? catName(cat) : title} icon={cat?.icon} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.line} numberOfLines={1}>{title}</Text>
-                  {detail ? <Text style={styles.sub} numberOfLines={1}>{cat ? `${when} · ${catName(cat)}` : when}</Text> : null}
+                  <Text style={styles.line}>{title}</Text>
+                  {detail ? <Text style={styles.sub}>{cat ? `${when} · ${catName(cat)}` : when}</Text> : null}
                 </View>
                 <Money minor={-r.amount_minor} currency={v.currency} style={styles.lineStrong} />
               </Tap>
@@ -360,7 +360,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
               <View key={s.key} style={styles.check}>
                 <CategoryIcon name={cat ? catName(cat) : s.name} icon={cat?.icon} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.line} numberOfLines={1}>{s.name}</Text>
+                  <Text style={styles.line}>{s.name}</Text>
                   {more(t("insights.shops.count", { count: s.count }))}
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
@@ -387,7 +387,7 @@ function Body({ insight, p, preview, detail, cat }: { insight: Insight; p: Insig
               <View key={pl.key} style={styles.check}>
                 <CategoryIcon name={cat ? catName(cat) : name} icon={cat?.icon ?? "mappin"} color={cat?.color} size={30} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.line} numberOfLines={1}>{name}</Text>
+                  <Text style={styles.line}>{name}</Text>
                   {more(t("insights.shops.count", { count: pl.count }))}
                 </View>
                 <Money minor={pl.spent_minor} currency={v.currency} style={styles.lineStrong} />
@@ -437,7 +437,7 @@ function pctChange(r: number): string { return `${r > 0 ? "+" : "−"}${Math.rou
 
 
 const styles = themed(() => StyleSheet.create({
-  card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, padding: S.lg, gap: 6 },
+  card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: R.card, padding: S.lg, gap: 6 },
   head: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { flex: 1, fontSize: 15, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.3 },
   big: { fontSize: 30, fontWeight: "700", color: C.label },
@@ -448,8 +448,8 @@ const styles = themed(() => StyleSheet.create({
   stack: { flexDirection: "row", gap: 2, height: 12, marginTop: 2 },
   legend: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 22 },
   swatch: { width: 10, height: 10, borderRadius: 3 },
-  legendName: { flex: 1, fontSize: 14, color: C.label },
-  legendMoney: { fontSize: 14, color: C.label, fontVariant: ["tabular-nums"] },
+  legendName: { flex: 1, fontSize: 15, color: C.label },
+  legendMoney: { fontSize: 15, color: C.label, fontVariant: ["tabular-nums"] },
   catLink: { color: C.tint },
   legendCats: { fontSize: 13, color: C.secondary, marginLeft: 10 + S.sm, marginBottom: 2 },
   checkTitle: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },

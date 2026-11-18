@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { ButtonText, FadeIn, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { useKeptScroll } from "@/lib/keptScroll";
 
@@ -68,8 +68,8 @@ const styles = themed(() => StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { paddingHorizontal: S.xl, gap: S.md, paddingBottom: S.lg },
   head: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, minHeight: 28 },
-  back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, height: 28 },
-  backText: { color: C.tint, fontSize: 14, fontWeight: "600" },
+  back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: R.pill, paddingHorizontal: S.md, paddingVertical: S.xs, minHeight: 32 },
+  backText: { color: C.tint, fontSize: 15, fontWeight: "600" },
   dots: { flexDirection: "row", gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.fill2 },
   dotOn: { width: 22, backgroundColor: C.tint },
@@ -77,8 +77,8 @@ const styles = themed(() => StyleSheet.create({
   title: { fontSize: 34, fontWeight: "800", letterSpacing: -0.5, color: C.label },
   subtitle: { fontSize: 17, lineHeight: 24, color: C.secondary },
   footer: { paddingHorizontal: S.xl, paddingTop: S.md, gap: S.sm, backgroundColor: C.bg },
-  primary: { height: 54, borderRadius: 16, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },
+  primary: { minHeight: 54, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },
   primaryText: { color: C.onTint, fontSize: 17, fontWeight: "700" },
   secondary: { height: 44, alignItems: "center", justifyContent: "center" },
-  secondaryText: { color: C.secondary, fontSize: 16, fontWeight: "600" },
+  secondaryText: { color: C.secondary, fontSize: 17, fontWeight: "600" },
 }));

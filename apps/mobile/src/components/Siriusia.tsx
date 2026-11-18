@@ -5,7 +5,7 @@ import { Image } from "expo-image";
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useFrameCallback, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import type { GoalStatus } from "@kopiyka/core";
-import { C, S, themed } from "@/constants/theme";
+import { R, C, S, themed } from "@/constants/theme";
 
 /**
  * Siriusia, the seer of the Purrphecy card and of every savings goal — a real cat, photographed (the
@@ -146,7 +146,7 @@ export function SiriusiaSays({ mood, children, size = 88, float }: { mood: Siriu
 
 const styles = themed(() => StyleSheet.create({
   says: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg },
-  bubble: { flex: 1, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.md, paddingVertical: 10 },
+  bubble: { flex: 1, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md, paddingVertical: 10 },
   tail: { position: "absolute", left: -6, top: "50%", marginTop: -6, width: 12, height: 12, backgroundColor: C.card, transform: [{ rotate: "45deg" }], borderRadius: 2 },
   bubbleText: { fontSize: 15, lineHeight: 20, color: C.label, fontStyle: "italic" },
 }));

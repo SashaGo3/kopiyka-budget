@@ -72,7 +72,7 @@
   "deleteTransfers": "Both sides of a transfer are deleted together.",
   "noteTitle": "Note",
   "rates": {
-    "fetching": "Fetching {currencies} rate…",
+    "fetching": "Fetching {currencies} rate",
     "missing": "No rate yet for {currencies}, so it is left out. Connect to the internet once."
   },
   "due": {
@@ -220,9 +220,9 @@
     "lastMonth": "Last month",
     "thisYear": "This year",
     "from": "From {day}",
-    "fromEmpty": "From…",
+    "fromEmpty": "From",
     "to": "To {day}",
-    "toEmpty": "To…",
+    "toEmpty": "To",
     "where": "Where",
     "accounts": "Accounts",
     "anyAccount": "Any account",

@@ -124,9 +124,9 @@ function WaitingItem({ d, first, last }: { d: Row; first: boolean; last: boolean
         onPress={() => router.push({ pathname: "/recurring/confirm", params: { id: rule.id } })}>
         <CategoryIcon name={category ? catName(category) : title} icon={category?.icon} color={category?.color} size={34} />
         <View style={styles.text}>
-          <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          <Text style={styles.sub} numberOfLines={1}>{days.length > 1 ? t("recurring.due.expectedMany", { date: humanDayTime(days[0]!, rule.time_of_day), count: days.length }) : t("recurring.due.expected", { date: humanDayTime(days[0]!, rule.time_of_day) })}</Text>
-          <Text style={styles.sub} numberOfLines={1}>{deadline}</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.sub}>{days.length > 1 ? t("recurring.due.expectedMany", { date: humanDayTime(days[0]!, rule.time_of_day), count: days.length }) : t("recurring.due.expected", { date: humanDayTime(days[0]!, rule.time_of_day) })}</Text>
+          <Text style={styles.sub}>{deadline}</Text>
         </View>
         <AmountPill minor={rule.amount_minor * days.length} currency={account?.currency ?? ""} neutral />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
@@ -148,9 +148,9 @@ function DueItem({ d, first, last, onPost, onSkip }: { d: Row; first: boolean; l
         onPress={() => router.push({ pathname: "/recurring/confirm", params: { id: rule.id } })}>
         <CategoryIcon name={category ? catName(category) : title} icon={category?.icon} color={category?.color} size={34} />
         <View style={styles.text}>
-          <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          <Text style={[styles.sub, behind && { color: C.orange }]} numberOfLines={1}>{when}</Text>
-          <Text style={styles.sub} numberOfLines={1}>{repeatLabel(rule.frequency, rule.interval)}{account ? ` · ${acctName(account)}` : ""}</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.sub, behind && { color: C.orange }]}>{when}</Text>
+          <Text style={styles.sub}>{repeatLabel(rule.frequency, rule.interval)}{account ? ` · ${acctName(account)}` : ""}</Text>
         </View>
         <AmountPill minor={rule.amount_minor * days.length} currency={account?.currency ?? ""} />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
@@ -174,10 +174,10 @@ function Action({ icon, label, color, onPress, grow }: { icon: SFSymbol; label: 
 }
 
 const styles = themed(() => StyleSheet.create({
-  intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
+  intro: { color: C.secondary, fontSize: 15, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
   sh: { color: C.secondary, fontSize: 13, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: S.xl, paddingTop: S.xl },
   waiting: { opacity: 0.85 },
-  introSum: { color: C.label, fontSize: 14, fontWeight: "700" },
+  introSum: { color: C.label, fontSize: 15, fontWeight: "700" },
   card: { marginHorizontal: S.lg, backgroundColor: C.card, overflow: "hidden" },
   first: { borderTopLeftRadius: R.card, borderTopRightRadius: R.card },
   last: { borderBottomLeftRadius: R.card, borderBottomRightRadius: R.card },
@@ -188,5 +188,5 @@ const styles = themed(() => StyleSheet.create({
   sub: { fontSize: 13, color: C.secondary },
   actions: { flexDirection: "row", alignItems: "stretch", gap: 1, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: S.md },
-  actionText: { fontSize: 14, fontWeight: "600" },
+  actionText: { fontSize: 15, fontWeight: "600" },
 }));

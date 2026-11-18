@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
 import { ButtonText, ModalHeader, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { ensureLocationPermission, placeName, quickLocation, type Coords } from "@/lib/location";
 import { PLACE_SEARCH_AVAILABLE, searchPlaces, type PlaceHit } from "@/lib/device";
 import { getHomeLocation } from "@/lib/settings";
@@ -52,7 +52,7 @@ export default function PickLocation() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     let alive = true;
-    if (!coords) { setPlace(null); return; }
+    if (!coords) { setPlace(null); return; } // eslint-disable-line react-hooks/set-state-in-effect -- the name lookup below is async; these are its no-lookup answers
     if (chosen) { setPlace(chosen); return; }
     void placeName(coords).then((n) => { if (alive) setPlace(n); });
     return () => { alive = false; };
@@ -81,7 +81,7 @@ export default function PickLocation() {
     return () => clearTimeout(timer);
   }, [query, long, coords?.lat, coords?.lon]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const done = () => { resolvePick(key, coords ? { ...coords, place } : null); router.back(); };
+  const done = () => { Keyboard.dismiss(); resolvePick(key, coords ? { ...coords, place } : null); router.back(); };
   const here = async () => {
     if (!(await ensureLocationPermission())) return;
     const c = await quickLocation(6000);
@@ -99,7 +99,7 @@ export default function PickLocation() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
-      <ModalHeader title={t("pick.location.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.done"), onPress: done }} />
+      <ModalHeader title={t("pick.location.title")} left={{ label: t("common.cancel"), onPress: () => { Keyboard.dismiss(); router.back(); } }} right={{ label: t("common.done"), onPress: done }} />
       {PLACE_SEARCH_AVAILABLE ? (
         <View style={styles.search}>
           <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
@@ -126,8 +126,8 @@ export default function PickLocation() {
                   accessibilityRole="button" accessibilityLabel={item.address ? `${item.name}, ${item.address}` : item.name}>
                   <SymbolView name="mappin.circle.fill" size={20} tintColor={C.tint} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.hitName} numberOfLines={1}>{item.name || item.address}</Text>
-                    {item.address && item.name ? <Text style={styles.hitSub} numberOfLines={1}>{item.address}</Text> : null}
+                    <Text style={styles.hitName}>{item.name || item.address}</Text>
+                    {item.address && item.name ? <Text style={styles.hitSub}>{item.address}</Text> : null}
                   </View>
                 </Pressable>
               )} />
@@ -138,7 +138,7 @@ export default function PickLocation() {
         ) : null}
       </View>
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, S.md) }]}>
-        <Text style={styles.place} numberOfLines={1}>{coords ? `📍 ${place ?? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`}` : t("pick.location.tapMap")}</Text>
+        <Text style={styles.place}>{coords ? `📍 ${place ?? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`}` : t("pick.location.tapMap")}</Text>
         <View style={styles.row}>
           <Tap onPress={() => void here()} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.currentA11y")}><SymbolView name="location.fill" size={16} tintColor={C.tint} /><ButtonText style={styles.btnText}>{t("pick.location.current")}</ButtonText></Tap>
           {coords ? <Tap onPress={() => { setChosen(null); setCoords(null); }} style={styles.btn} accessibilityRole="button" accessibilityLabel={t("pick.location.removeA11y")}><SymbolView name="xmark" size={14} tintColor={C.red} /><ButtonText style={[styles.btnText, { color: C.red }]}>{t("pick.location.remove")}</ButtonText></Tap> : null}
@@ -150,17 +150,17 @@ export default function PickLocation() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.md, marginBottom: S.sm, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
-  results: { position: "absolute", left: S.md, right: S.md, top: 0, maxHeight: 260, borderRadius: 14, backgroundColor: C.card, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.md, marginBottom: S.sm, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
+  results: { position: "absolute", left: S.md, right: S.md, top: 0, maxHeight: 260, borderRadius: R.card, backgroundColor: C.card, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   hit: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10, minHeight: 48 },
-  hitName: { fontSize: 16, color: C.label },
+  hitName: { fontSize: 17, color: C.label },
   hitSub: { fontSize: 13, color: C.secondary },
-  none: { color: C.tertiary, fontSize: 14, padding: S.md, textAlign: "center" },
+  none: { color: C.tertiary, fontSize: 15, padding: S.md, textAlign: "center" },
   bottom: { paddingHorizontal: S.md, paddingTop: S.md, gap: S.sm, backgroundColor: C.bgGrouped },
-  place: { color: C.secondary, fontSize: 14, paddingHorizontal: S.xs },
+  place: { color: C.secondary, fontSize: 15, paddingHorizontal: S.xs },
   row: { flexDirection: "row", gap: S.sm },
-  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 48, paddingVertical: 6, paddingHorizontal: 14, flexShrink: 1, borderRadius: 14, backgroundColor: C.card },
+  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 48, paddingVertical: 6, paddingHorizontal: 14, flexShrink: 1, borderRadius: R.card, backgroundColor: C.card },
   primary: { flex: 1, backgroundColor: C.tint },
-  btnText: { color: C.tint, fontSize: 16, fontWeight: "600" },
+  btnText: { color: C.tint, fontSize: 17, fontWeight: "600" },
 }));

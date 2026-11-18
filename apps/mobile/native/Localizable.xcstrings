@@ -1803,72 +1803,38 @@
         }
       }
     },
-    "native.receipt.scan.continue" : {
+    "native.receipt.scan.library" : {
+      "comment" : "VoiceOver label of the receipt camera's library button.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Continue"
+            "value" : "Choose from library"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Продовжити"
+            "value" : "Обрати з медіатеки"
           }
         }
       }
     },
-    "native.receipt.scan.hint" : {
-      "comment" : "Over the receipt camera while it looks for the paper.",
+    "native.receipt.scan.take" : {
+      "comment" : "VoiceOver label of the receipt camera's shutter.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Point at the receipt"
+            "value" : "Take photo"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Наведіть на чек"
-          }
-        }
-      }
-    },
-    "native.receipt.scan.hold" : {
-      "comment" : "Over the receipt camera once it has found the receipt, just before it takes the picture by itself.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hold still…"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не рухайте…"
-          }
-        }
-      }
-    },
-    "native.receipt.scan.retake" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retake"
-          }
-        },
-        "uk" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Перезняти"
+            "value" : "Зробити фото"
           }
         }
       }
@@ -2890,13 +2856,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refreshing…"
+            "value" : "Refreshing"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Оновлення…"
+            "value" : "Оновлення"
           }
         }
       }

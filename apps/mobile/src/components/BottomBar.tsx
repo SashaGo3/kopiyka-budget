@@ -12,10 +12,8 @@ import { THEMES, type ThemeId } from "@kopiyka/core";
 import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
 import { ButtonText } from "@/components/ui";
-import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
-import { newPickKey, usePickResult } from "@/store/pick";
 import { PAD_BUTTON_WIDTH, columnOverhang, isPad } from "@/constants/layout";
-import { KPBridge, type ReceiptParse } from "@/lib/bridge";
+import { takePhoto } from "@/lib/camera";
 import { t } from "@/i18n";
 
 /**
@@ -38,7 +36,7 @@ import { t } from "@/i18n";
 export function BottomBar({ children, above, style, visible = true }: { children: ReactNode; above?: ReactNode; style?: StyleProp<ViewStyle>; visible?: boolean }) {
   const glass = useGlass();
   const { width } = useWindowDimensions();
-  const anim = useRef(new Animated.Value(1)).current;
+  const [anim] = useState(() => new Animated.Value(1));
   useEffect(() => { Animated.timing(anim, { toValue: visible ? 1 : 0, duration: reduceMotion() ? 0 : 220, useNativeDriver: true }).start(); }, [visible, anim]);
   // Hidden is 0.02 rather than 0 while glass is on: opacity 0 on a glass view or any ancestor
   // switches the material off natively and it does not come back. The bar is translated clear
@@ -107,10 +105,8 @@ export function useScrollHide(): { visible: boolean; onScroll: (e: NativeSynthet
 /**
  * Primary LOG action, half the screen wide so it is hard to miss with a thumb. Tap opens the
  * entry sheet (Expense / Income / Transfer is chosen there). A long press goes to the receipt
- * first: the document camera opens at once (native/KPDocScan.swift), takes the picture by itself,
- * and the new expense opens with it attached — read as it opens and filled in from it the moment
- * the reading lands (lib/photoText.ts; the sheet's Undo puts it back). Without a document camera
- * the sheet opens on the ordinary camera instead.
+ * first: the camera opens at once (lib/camera.ts), and the new expense opens with the photo, which
+ * shows over it with what it says (photo/view) — read, filled in, and saved from there.
  */
 /** The theme's accent as a plain string; takes the theme so the React Compiler re-computes it on a switch. */
 function glassTint(theme: ThemeId, dark: boolean): string { return THEMES[theme][dark ? "dark" : "light"].accent; }
@@ -121,23 +117,10 @@ export function LogButton({ account }: { account?: string } = {}) {
   // gains the glass edge and refraction. A plain colour does not follow a theme switch natively, so
   // this one re-renders with it.
   const tint = glassTint(useTheme(), useColorScheme() === "dark");
-  const [key] = useState(() => newPickKey("logreceipt"));
-  usePickResult<ReceiptParse>(key, useCallback((r: ReceiptParse) => {
-    setTimeout(() => router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", receipt: JSON.stringify(r), ...(account ? { account } : {}) } }), 350);
-  }, [account]));
-  const scanning = useRef(false);
   const scan = async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const entry = { id: "new", kind: "expense" as const, ...(account ? { account } : {}) };
-    if (RECEIPT_SCANNER_ENABLED) { router.push({ pathname: "/receipt/scan", params: { key } }); return; }
-    if (!KPBridge.canScanDocument()) { router.push({ pathname: "/transaction/[id]", params: { ...entry, capture: "1" } }); return; }
-    if (scanning.current) return;
-    scanning.current = true;
-    try {
-      const shot = await KPBridge.scanDocument();
-      if (shot) router.push({ pathname: "/transaction/[id]", params: { ...entry, shot } });
-    } catch { router.push({ pathname: "/transaction/[id]", params: { ...entry, capture: "1" } }); }
-    finally { scanning.current = false; }
+    const shot = await takePhoto();
+    if (shot) router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", shot, ...(account ? { account } : {}) } });
   };
   return (
     <Pressable

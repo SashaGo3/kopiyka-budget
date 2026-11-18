@@ -6,7 +6,7 @@ import { createTag, getRow, jsonIds, listRows, tripTagIds } from "@kopiyka/core"
 import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { PickerHeader, PickerList, TagPill, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /**
@@ -76,7 +76,7 @@ export default function PickTags() {
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.tags.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel={t("pick.tags.searchA11y")} />
           </View>
-          {canCreate ? <Tap onPress={create} style={styles.row} accessibilityRole="button"><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{t("pick.tags.create", { name: q.trim() })}</Text></Tap> : null}
+          {canCreate ? <Tap onPress={create} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.tags.create", { name: q.trim() })}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{t("pick.tags.create", { name: q.trim() })}</Text></Tap> : null}
         </PickerHeader>
       }
       renderItem={({ item: tg, index }) => (
@@ -100,8 +100,8 @@ export default function PickTags() {
 
 const styles = themed(() => StyleSheet.create({
   count: { fontSize: 12, color: C.tertiary },
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   section: { fontSize: 12, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4, paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 48 },
   name: { flex: 1, fontSize: 17, color: C.label },

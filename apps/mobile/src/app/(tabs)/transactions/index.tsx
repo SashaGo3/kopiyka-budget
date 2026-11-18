@@ -95,10 +95,17 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const inScope = isSearch ? NO_ACCOUNTS : scopeAccounts;
   const fromParams = useCallback((): TxFilter => ({ ...EMPTY_FILTER, categories: p.category ? [p.category] : [], tags: p.tag ? [p.tag] : [], accounts: p.accounts ? p.accounts.split(",").filter(Boolean) : p.tag ? [] : inScope, type: p.type ?? null, from: p.from ?? null, to: p.to ?? null }), [p.category, p.tag, p.accounts, p.type, p.from, p.to, inScope]);
   const [filter, setFilter] = useState<TxFilter>(fromParams);
-  useEffect(() => { setFilter((f) => ({ ...f, accounts: inScope })); }, [inScope.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sort, setSort] = useState<"date" | "amount">("date");
   const [sortGen, setSortGen] = useState(0);
-  useEffect(() => { if (p.nonce) { setFilter(fromParams()); setSort("date"); setSortGen((g) => g + 1); } }, [p.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Adjusted during render when the scope or the link changes (React's pattern for state that follows
+  // a value): an effect showed the old filter for a frame first. A link (`nonce`) wins over the scope.
+  const scopeKey = inScope.join(",");
+  const [seen, setSeen] = useState({ scope: scopeKey, nonce: p.nonce });
+  if (seen.nonce !== p.nonce || seen.scope !== scopeKey) {
+    setSeen({ scope: scopeKey, nonce: p.nonce });
+    if (seen.nonce !== p.nonce && p.nonce) { setFilter(fromParams()); setSort("date"); setSortGen((g) => g + 1); }
+    else setFilter((f) => ({ ...f, accounts: inScope }));
+  }
   const navigation = useNavigation();
   const lastTabPress = useRef(0);
   // What the tab-press handler needs to read without being re-subscribed on every keystroke — and
@@ -564,11 +571,11 @@ const styles = themed(() => StyleSheet.create({
   trip: { paddingTop: S.sm },
   pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.orangeSoft },
   due: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.redSoft },
-  dueSum: { fontSize: 16, fontWeight: "700", color: C.red },
+  dueSum: { fontSize: 17, fontWeight: "700", color: C.red },
   toSplit: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.card },
-  pendingTitle: { fontSize: 16, fontWeight: "600", color: C.label },
+  pendingTitle: { fontSize: 17, fontWeight: "600", color: C.label },
   pendingSub: { fontSize: 13, color: C.secondary },
-  pendingSum: { fontSize: 16, fontWeight: "700", color: C.orange },
+  pendingSum: { fontSize: 17, fontWeight: "700", color: C.orange },
   headerLink: { color: C.tint, fontSize: 17 },
   // Room inside the glass capsule iOS draws around a header item: flush, the words touched its edges.
   headerText: { paddingHorizontal: 12, paddingVertical: 6 },

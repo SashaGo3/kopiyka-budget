@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from "react";
-import { LayoutAnimation, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { staggerDelay } from "@/lib/motion";
 import { Stack, router } from "expo-router";
@@ -23,6 +23,7 @@ import { catName } from "@/lib/names";
 import { tripLook } from "@/lib/travel";
 import { budgetLook } from "@/lib/budgetName";
 import { t } from "@/i18n";
+import { freshNonce } from "@/lib/nav";
 
 type Line = { id: string | null; name: string; spent: number; icon: string | null; color: string | null };
 /**
@@ -50,7 +51,7 @@ export default function BudgetsScreen() {
   const scopeName = scopeLabel(scope, accounts);
   const keys = useMemo(() => ({ scope: newPickKey("scope"), month: newPickKey("month") }), []);
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
-  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), []));
+  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), [setPeriod]));
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: t("budgets.scopePicker"), options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
@@ -134,7 +135,7 @@ export default function BudgetsScreen() {
    * tag budget is what that category cost *while carrying the tag*, so opening it on the category
    * alone would show more money than the line says — every other Shopping row of the month included.
    */
-  const openCategory = (id: string | null | undefined, name: string, tag?: string | null) => router.push({ pathname: "/transactions", params: { ...(id !== undefined ? { category: id ?? "none" } : {}), name, ...(tag ? { tag } : {}), from: start, to: end, accounts: scopeIds.join(","), nonce: String(Date.now()) } });
+  const openCategory = (id: string | null | undefined, name: string, tag?: string | null) => router.push({ pathname: "/transactions", params: { ...(id !== undefined ? { category: id ?? "none" } : {}), name, ...(tag ? { tag } : {}), from: start, to: end, accounts: scopeIds.join(","), nonce: freshNonce() } });
   /** A trip's line in Spending: everything with its tag in this period, whatever the category. */
   const openTrip = (tag: string, name: string) => openCategory(undefined, name, tag);
   const toggle = (key: string) => { setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
@@ -187,7 +188,7 @@ export default function BudgetsScreen() {
                     ? <CategoryIconStack items={b.icons} size={34} />
                     : <CategoryIcon name={b.name} icon={b.icon} color={b.color} size={34} />}
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.budgetName} numberOfLines={2}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
+                    <Text style={styles.budgetName}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
                     <Text style={styles.budgetSub}>{periodLabel(start, end)} · {status}{b.counted ? "" : ` · ${t("budgets.notInPlanned")}`}</Text>
                   </View>
                   {exact || kept ? (
@@ -204,7 +205,7 @@ export default function BudgetsScreen() {
               </FadeIn>
             );
           })}
-          <Tap onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button">
+          <Tap onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button" accessibilityLabel={budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}>
             <SymbolView name="plus.circle" size={18} tintColor={C.tint} />
             <Text style={styles.addText}>{budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}</Text>
           </Tap>
@@ -304,7 +305,7 @@ export default function BudgetsScreen() {
 function fmt(minor: number) { return (minor / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
 
 const styles = themed(() => StyleSheet.create({
-  addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.lg, height: 44, borderRadius: R.card, borderWidth: 1, borderStyle: "dashed", borderColor: C.tint },
+  addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.lg, minHeight: 44, borderRadius: R.card, borderWidth: 1, borderStyle: "dashed", borderColor: C.tint },
   addText: { color: C.tint, fontSize: 15, fontWeight: "600" },
   pills: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs },
   noteRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
@@ -312,13 +313,13 @@ const styles = themed(() => StyleSheet.create({
   noteText: { color: C.label, fontSize: 15 },
   budget: { marginHorizontal: S.lg, marginBottom: S.sm, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: 6 },
   budgetHead: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  budgetName: { fontSize: 17, fontWeight: "600", color: C.label },
+  budgetName: { flexShrink: 1, fontSize: 17, fontWeight: "600", color: C.label },
   budgetSub: { fontSize: 13, color: C.secondary },
-  celebrate: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: C.greenSoft },
+  celebrate: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.sm, backgroundColor: C.greenSoft },
   celebrateText: { fontSize: 15, fontWeight: "600", color: C.green },
   childAmt: { fontSize: 15, color: C.secondary },
   spendRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, minHeight: 46 },
-  spendName: { flex: 1, fontSize: 16, color: C.label },
+  spendName: { flex: 1, fontSize: 17, color: C.label },
   totalName: { fontWeight: "600" },
   totalAmt: { fontWeight: "700" },
   ratesWarn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingTop: S.xs },

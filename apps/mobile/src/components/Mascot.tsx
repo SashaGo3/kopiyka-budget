@@ -28,11 +28,12 @@ const STILL = require("../../assets/mascot/still.png");
 export function Mascot({ moment, size = 120 }: { moment: Moment; size?: number }) {
   const reduced = useReducedMotion();
   const { loop, ms } = moments[moment];
-  const [done, setDone] = useState(false);
+  // Done playing *this* moment: a new one starts over without a reset of its own.
+  const [doneWith, setDoneWith] = useState<Moment | null>(null);
+  const done = doneWith === moment;
   useEffect(() => {
-    setDone(false);
     if (loop || reduced) return;
-    const id = setTimeout(() => setDone(true), ms);
+    const id = setTimeout(() => setDoneWith(moment), ms);
     return () => clearTimeout(id);
   }, [moment, loop, ms, reduced]);
   return (

@@ -4,7 +4,7 @@ import { SymbolView } from "expo-symbols";
 import { View } from "react-native";
 import { mutate, useQuery } from "@/store";
 import { CategoryIcon } from "@/components/ui";
-import { themeTone } from "@/constants/theme";
+import { R, themeTone } from "@/constants/theme";
 import { ReorderList, type ReorderItem } from "@/components/ReorderList";
 import { budgetTitle, nameMaps } from "@/lib/budgetName";
 import { getBudgetScope, getBudgetsSections, setBudgetsSections, type BudgetsSection } from "@/lib/settings";
@@ -60,7 +60,7 @@ export default function BudgetReorder() {
 
 const SECTION = "section:";
 const sectionIcon = (name: "chart.bar.fill" | "airplane" | "person.2.fill" | "chart.pie.fill", color: string) => (
-  <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: themeTone(color).fill, alignItems: "center", justifyContent: "center" }}>
+  <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: themeTone(color).fill, alignItems: "center", justifyContent: "center" }}>
     <SymbolView name={name} size={15} tintColor={themeTone(color).glyph} />
   </View>
 );

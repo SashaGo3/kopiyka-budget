@@ -58,7 +58,7 @@ export default function CategoryNames() {
             <View key={c.id} style={styles.card}>
               <View style={styles.head}>
                 <CategoryIcon name={c.name} icon={c.icon} color={c.color} size={26} />
-                <Text style={styles.original} numberOfLines={1}>{c.name}</Text>
+                <Text style={styles.original}>{c.name}</Text>
               </View>
               <TextInput value={v} onChangeText={(x) => set(c.id, x)} placeholder={c.name} placeholderTextColor={C.tertiary} style={styles.input}
                 returnKeyType="done" autoCorrect={false} accessibilityLabel={t("category.names.a11y", { name: c.name, language })} />
@@ -77,7 +77,7 @@ export default function CategoryNames() {
 const styles = themed(() => StyleSheet.create({
   card: { marginHorizontal: S.lg, marginTop: S.sm, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: S.sm },
   head: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  original: { flex: 1, color: C.secondary, fontSize: 14 },
+  original: { flex: 1, color: C.secondary, fontSize: 15 },
   chips: { marginHorizontal: -S.md },
   input: { color: C.label, fontSize: 17, paddingVertical: S.xs },
 }));

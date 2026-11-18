@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { formatMinor, fromMinor, shareItems, toMinor, type ShareItem } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { ModalHeader, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { R, C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 
@@ -58,7 +58,7 @@ export default function PickItems() {
               </Tap>
             </View>
           ))}
-          <Tap onPress={add} style={[styles.row, styles.divider]} accessibilityRole="button">
+          <Tap onPress={add} style={[styles.row, styles.divider]} accessibilityRole="button" accessibilityLabel={t("people.items.add")}>
             <SymbolView name="plus.circle.fill" size={20} tintColor={C.tint} />
             <Text style={styles.addText}>{t("people.items.add")}</Text>
           </Tap>
@@ -71,12 +71,12 @@ export default function PickItems() {
 
 const styles = themed(() => StyleSheet.create({
   content: { padding: S.md, gap: S.md },
-  intro: { fontSize: 14, lineHeight: 19, color: C.secondary, paddingHorizontal: S.xs },
-  card: { backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.md },
+  intro: { fontSize: 15, lineHeight: 19, color: C.secondary, paddingHorizontal: S.xs },
+  card: { backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 52 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   name: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   amount: { width: 96, fontSize: 17, color: C.label, textAlign: "right", fontVariant: ["tabular-nums"], minHeight: 44 },
-  addText: { fontSize: 16, fontWeight: "600", color: C.tint },
+  addText: { fontSize: 17, fontWeight: "600", color: C.tint },
   total: { fontSize: 13, color: C.secondary, textAlign: "center", fontVariant: ["tabular-nums"] },
 }));

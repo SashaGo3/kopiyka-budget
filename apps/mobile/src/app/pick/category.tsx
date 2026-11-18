@@ -6,7 +6,7 @@ import { archivedCategoryIds, categorySearchNames, debtChoices, folderIds, forma
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
 
@@ -135,7 +135,7 @@ export default function PickCategory() {
         <Tap onPress={() => choose(`debt:${d.id}`)} style={styles.row} accessibilityRole="button" accessibilityLabel={d.person} accessibilityState={{ selected: chosenDebt === d.id }}>
           <View style={styles.noIcon}><SymbolView name={d.direction === "i_owe" ? "arrow.up.right" : "arrow.down.left"} size={14} tintColor={C.secondary} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.name} numberOfLines={1}>{d.person}</Text>
+            <Text style={styles.name}>{d.person}</Text>
             <Text style={styles.folder}>{t(d.direction === "i_owe" ? "pick.category.debtYouOwe" : "pick.category.debtOwedToYou", { amount: `${formatMinor(d.amount_minor, d.currency)} ${d.currency}` })}</Text>
           </View>
           {chosenDebt === d.id ? <Check /> : null}
@@ -165,7 +165,7 @@ export default function PickCategory() {
               <View style={styles.noIcon}><SymbolView name="creditcard.and.123" size={14} tintColor={C.secondary} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.name}>{t("pick.category.debt")}</Text>
-                <Text style={styles.folder} numberOfLines={1}>{chosenDebt ? debts.find((d) => d.id === chosenDebt)?.person ?? "" : t("pick.category.debtSub")}</Text>
+                <Text style={styles.folder}>{chosenDebt ? debts.find((d) => d.id === chosenDebt)?.person ?? "" : t("pick.category.debtSub")}</Text>
               </View>
               {chosenDebt ? <Check /> : <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />}
             </Tap>
@@ -176,7 +176,7 @@ export default function PickCategory() {
         if (item.row === "header") return (
           <View style={styles.headerRow}>
             {item.folder ? <CategoryIcon name={catName(item.folder)} icon={item.folder.icon} color={item.folder.color} size={18} /> : null}
-            <Text style={styles.header} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.header}>{item.title}</Text>
           </View>
         );
         const c = item.cat;
@@ -184,13 +184,13 @@ export default function PickCategory() {
           <Tap onPress={() => choose(c.id)} style={[styles.row, item.indent && styles.indent]} accessibilityRole="button" accessibilityLabel={c.isFolder ? t("pick.category.wholeA11y", { name: c.label }) : c.folderLabel ? t("pick.category.inA11y", { name: c.label, folder: c.folderLabel }) : c.label} accessibilityState={{ selected: selected === c.id }}>
             <CategoryIcon name={c.label} icon={c.icon} color={c.color} size={32} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.name} numberOfLines={1}>{c.label}</Text>
+              <Text style={styles.name}>{c.label}</Text>
               {/* Only a budget may take a whole folder; elsewhere a folder can still appear as the
                   category an older row was filed under, and there it is just named for what it is. */}
               {c.isFolder ? <Text style={styles.folder}>{allowFolders ? t("pick.category.everything") : t("pick.category.folder")}</Text> : item.showFolder && c.folder ? (
                 <View style={styles.folderRow}>
                   <CategoryIcon name={c.folderLabel ?? c.folder.name} icon={c.folder.icon} color={c.folder.color} size={14} />
-                  <Text style={styles.folder} numberOfLines={1}>{c.folderLabel}</Text>
+                  <Text style={styles.folder}>{c.folderLabel}</Text>
                 </View>
               ) : null}
             </View>
@@ -207,12 +207,12 @@ export default function PickCategory() {
 function Check() { return <SymbolView name="checkmark" size={16} tintColor={C.tint} />; }
 
 const styles = themed(() => StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 52, paddingVertical: 6 },
   indent: { paddingLeft: S.xl + S.lg },
   headerRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs },
-  header: { fontSize: 13, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
+  header: { flexShrink: 1, fontSize: 13, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
   noIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   name: { fontSize: 17, color: C.label },
   folderRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },

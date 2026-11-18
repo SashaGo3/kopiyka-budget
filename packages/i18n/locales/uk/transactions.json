@@ -41,7 +41,7 @@
   "deleteTransfers": "Обидві сторони переказу видаляються разом.",
   "noteTitle": "Нотатка",
   "rates": {
-    "fetching": "Отримуємо курс {currencies}…",
+    "fetching": "Отримуємо курс {currencies}",
     "missing": "Курсу для {currencies} ще немає, тому їх не враховано. Підʼєднайся до інтернету хоча б раз."
   },
   "due": {
@@ -120,9 +120,9 @@
     "lastMonth": "Минулий місяць",
     "thisYear": "Цей рік",
     "from": "З {day}",
-    "fromEmpty": "З…",
+    "fromEmpty": "З",
     "to": "До {day}",
-    "toEmpty": "До…",
+    "toEmpty": "До",
     "where": "Де",
     "accounts": "Рахунки",
     "anyAccount": "Будь-який рахунок",

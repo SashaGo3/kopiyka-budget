@@ -65,9 +65,9 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
   const [scale] = useState(() => new Animated.Value(1));
   const [lit] = useState(() => new Animated.Value(on ? 1 : 0));
   useEffect(() => { Animated.timing(lit, { toValue: on ? 1 : 0, duration: 160, useNativeDriver: true }).start(); }, [on, lit]);
-  const to = (v: number, speed: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed, bounciness: v === 1 ? 10 : 0 }).start();
+  const to = (v: number, speed: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed, bounciness: 0 }).start();
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} onPressIn={() => to(0.93, 40)} onPressOut={() => to(1, 20)} style={fill ? { flex: 1 } : undefined}
+    <Pressable onPress={onPress} onLongPress={onLongPress} onPressIn={() => to(0.96, 40)} onPressOut={() => to(1, 20)} style={fill ? { flex: 1 } : undefined}
       accessibilityRole="button" accessibilityLabel={a11y} accessibilityState={a11yState}>
       <Animated.View style={[style, { transform: [{ scale }] }]}>
         {onStyle ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, onStyle, { opacity: lit }]} /> : null}
@@ -196,7 +196,7 @@ export function Caret({ pulse, color }: { pulse: number; color: string }) {
   const [on, setOn] = useState(false);
   useEffect(() => {
     if (!pulse) return;
-    setOn(true);
+    setOn(true); // eslint-disable-line react-hooks/set-state-in-effect -- the first blink of a timer this effect starts
     let n = 0;
     const blink = setInterval(() => { n++; setOn(n < 4 ? n % 2 === 0 : false); if (n >= 4) clearInterval(blink); }, 420);
     return () => clearInterval(blink);
@@ -236,11 +236,11 @@ const styles = themed(() => StyleSheet.create({
   dotText: { color: C.onTint, fontWeight: "700" },
   extra: { flex: 2.08, flexDirection: "row", borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", gap: 6, paddingHorizontal: 8 },
   extraActive: { backgroundColor: C.tint, borderStyle: "solid" },
-  extraText: { fontSize: 14, color: C.tint, fontWeight: "600", flexShrink: 1 },
+  extraText: { fontSize: 15, color: C.tint, fontWeight: "600", flexShrink: 1 },
   small: { flex: 0, width: 50, borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", flexDirection: "row", gap: 2 },
   smallActive: { backgroundColor: C.tint, borderStyle: "solid" },
   smallBadge: { fontSize: 13, fontWeight: "700", color: C.tint },
-  confirm: { marginHorizontal: S.md, minHeight: 56, paddingVertical: 8, borderRadius: 16, backgroundColor: C.tint, alignItems: "center", justifyContent: "center", gap: 1 },
-  confirmAmount: { alignSelf: "stretch", textAlign: "center", paddingHorizontal: S.md, color: "white", fontSize: 19, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  confirm: { marginHorizontal: S.md, minHeight: 56, paddingVertical: 8, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center", gap: 1 },
+  confirmAmount: { alignSelf: "stretch", textAlign: "center", paddingHorizontal: S.md, color: "white", fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
   confirmLabel: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "600" },
 }));

@@ -9,6 +9,7 @@
     "NSMicrophoneUsageDescription": "Копійка не записує звук. Чеки фотографуються без звуку.",
     "NSMotionUsageDescription": "Копійка не використовує дані руху та фітнесу.",
     "NSPhotoLibraryUsageDescription": "Копійка відкриває медіатеку, щоб додати до запису вже сфотографований чек.",
-    "quickActionLog": "Додати витрату"
+    "quickActionLog": "Додати витрату",
+    "quickActionScan": "Сканувати чек"
   }
 }

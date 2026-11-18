@@ -67,7 +67,7 @@ function Readout({ ref, n, describe }: { ref: Ref<{ show: (i: number) => void }>
   const [at, setAt] = useState<number | null>(null);
   useImperativeHandle(ref, () => ({ show: setAt }), []);
   const i = at !== null && at < n ? at : null;
-  return <Text style={[styles.pickLine, i === null && { color: C.secondary }]} numberOfLines={2}>{n ? describe(i ?? n - 1) : " "}</Text>;
+  return <Text style={[styles.pickLine, i === null && { color: C.secondary }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>{n ? describe(i ?? n - 1) : " "}</Text>;
 }
 
 /** Everything a chart shares: the readout's channel, the haptic, the VoiceOver steps. */
@@ -171,7 +171,7 @@ export function LineChart({ series, height = 120, describe, startLabel, endLabel
       <View style={[styles.grid, { top: y(max) }]} />
       <Text style={[styles.axisMax, { top: y(max) + 2 }]}>{compactMinor(max, currency)}</Text>
       {target ? <View style={[styles.target, { top: y(target.minor), borderColor: target.color ?? C.label }]} /> : null}
-      {target?.label ? <Text style={[styles.targetLabel, { top: y(target.minor) - 15, color: target.color ?? C.label }]} numberOfLines={1}>{target.label}</Text> : null}
+      {target?.label ? <Text style={[styles.targetLabel, { top: y(target.minor) - 15, color: target.color ?? C.label }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{target.label}</Text> : null}
       <Animated.View style={[styles.clip, { height }, reveal]} pointerEvents="none">
         <View style={{ width: w, height }}>{lines}</View>
       </Animated.View>
@@ -232,7 +232,7 @@ export function StackChart({ stacks, colors, height = 120, describe, startLabel,
             <Text style={[styles.axisMax, { top: height - peak * scale + 2 }]}>{compactMinor(peak, currency)}</Text>
             {w ? <Highlight pos={pos} n={n} w={w} /> : null}
             {target ? <View style={[styles.target, { top: height - target.minor * scale, borderColor: target.color ?? C.label }]} /> : null}
-            {target?.label ? <Text style={[styles.targetLabel, { top: height - target.minor * scale - 15, color: target.color ?? C.label }]} numberOfLines={1}>{target.label}</Text> : null}
+            {target?.label ? <Text style={[styles.targetLabel, { top: height - target.minor * scale - 15, color: target.color ?? C.label }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{target.label}</Text> : null}
             <Animated.View style={[styles.cols, { gap }, growStyle]} pointerEvents="none">
               {stacks.map((parts, i) => (
                 <View key={i} style={styles.col}>
@@ -268,9 +268,9 @@ const styles = themed(() => StyleSheet.create({
   pickLine: { fontSize: 12, color: C.label, fontVariant: ["tabular-nums"], minHeight: 16 },
   clip: { position: "absolute", left: 0, top: 0, overflow: "hidden" },
   grid: { position: "absolute", left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: C.separator },
-  axisMax: { position: "absolute", right: 0, fontSize: 10, color: C.secondary, fontVariant: ["tabular-nums"] },
+  axisMax: { position: "absolute", right: 0, fontSize: 11, color: C.secondary, fontVariant: ["tabular-nums"] },
   target: { position: "absolute", left: 0, right: 0, height: 0, borderTopWidth: 1, borderStyle: "dashed", opacity: 0.8 },
-  targetLabel: { position: "absolute", left: 0, fontSize: 10, fontWeight: "600" },
+  targetLabel: { position: "absolute", left: 0, fontSize: 11, fontWeight: "600" },
   rule: { position: "absolute", left: 0, top: 0, width: 1, backgroundColor: C.secondary },
   dot: { position: "absolute", left: 0, top: 0, width: 8, height: 8, borderRadius: 4, borderWidth: 2, backgroundColor: C.card },
   band: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: C.fill, borderRadius: 3 },
@@ -278,7 +278,7 @@ const styles = themed(() => StyleSheet.create({
   col: { flex: 1, flexDirection: "column-reverse", overflow: "hidden" },
   colTop: { borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   axis: { flexDirection: "row", justifyContent: "space-between" },
-  axisText: { fontSize: 10, color: C.secondary },
+  axisText: { fontSize: 11, color: C.secondary },
   legend: { flexDirection: "row", flexWrap: "wrap", columnGap: S.md, rowGap: 2 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   swatch: { width: 12, height: 3, borderRadius: 2 },

@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { ButtonText, Card, CategoryIcon, Footnote, ModalHeader, Row, SectionHeader, Tap } from "@/components/ui";
-import { C, themed } from "@/constants/theme";
+import { C, R, themed } from "@/constants/theme";
 import { catName, catNameById, orderedCategories } from "@/lib/names";
 import { getLanguage, t } from "@/i18n";
 
@@ -166,7 +166,7 @@ function reason(why: HistoryEvidence): string {
 }
 
 const styles = themed(() => StyleSheet.create({
-  quiet: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: C.fill },
-  quietText: { fontSize: 14, color: C.secondary, fontWeight: "600" },
+  quiet: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: R.card, backgroundColor: C.fill },
+  quietText: { fontSize: 15, color: C.secondary, fontWeight: "600" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
 }));

@@ -185,7 +185,7 @@ export default function ImportanceFlow() {
               {seed.partial ? (
                 <View style={styles.scope}>
                   <Text style={styles.scopeText}>{onlyNew ? t("category.importance.onlyNew", { count: seed.fresh.size }) : t("category.importance.allShown")}</Text>
-                  <Tap onPress={() => setOnlyNew((v) => !v)} hitSlop={8} accessibilityRole="button">
+                  <Tap onPress={() => setOnlyNew((v) => !v)} hitSlop={8} accessibilityRole="button" accessibilityLabel={onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}>
                     <Text style={styles.scopeLink}>{onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}</Text>
                   </Tap>
                 </View>
@@ -210,15 +210,15 @@ const styles = themed(() => StyleSheet.create({
   head: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm },
   step: { fontSize: 13, color: C.tertiary, fontWeight: "600" },
   question: { fontSize: 22, fontWeight: "700", color: C.label, paddingTop: 2 },
-  hint: { fontSize: 14, color: C.secondary, paddingTop: 6, lineHeight: 19 },
+  hint: { fontSize: 15, color: C.secondary, paddingTop: 6, lineHeight: 19 },
   scope: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: S.md, marginTop: S.md, paddingVertical: S.sm, paddingHorizontal: S.md, borderRadius: R.card, backgroundColor: C.card },
-  scopeText: { flex: 1, fontSize: 14, color: C.label, lineHeight: 19 },
+  scopeText: { flex: 1, fontSize: 15, color: C.label, lineHeight: 19 },
   scopeLink: { fontSize: 15, color: C.tint, fontWeight: "600" },
   group: { marginHorizontal: S.lg, marginBottom: S.sm, borderRadius: R.card, paddingVertical: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.md, minHeight: 46 },
   folderRow: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.separator, paddingBottom: 6, marginBottom: 2 },
   child: { paddingLeft: S.md + 14 },
-  name: { flex: 1, fontSize: 16, color: C.label },
+  name: { flex: 1, fontSize: 17, color: C.label },
   all: { fontSize: 13, color: C.secondary, fontWeight: "400" },
   looseHead: { fontSize: 13, color: C.tertiary, fontWeight: "600", paddingHorizontal: S.md, paddingTop: 4, paddingBottom: 2 },
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingHorizontal: S.xl, paddingVertical: S.xxl },

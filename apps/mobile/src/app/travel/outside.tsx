@@ -48,5 +48,5 @@ export default function TripOutside() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  hint: { color: C.secondary, fontSize: 14, paddingHorizontal: S.lg, paddingBottom: S.md },
+  hint: { color: C.secondary, fontSize: 15, paddingHorizontal: S.lg, paddingBottom: S.md },
 }));

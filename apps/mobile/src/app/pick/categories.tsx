@@ -6,7 +6,7 @@ import { archivedCategoryIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { CategoryIcon, PickCheck, PickerHeader, PickerList, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
 
@@ -106,7 +106,7 @@ const styles = themed(() => StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 48 },
   folder: { marginTop: S.sm },
   child: { paddingLeft: S.xl + 12 },
-  noIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  noIcon: { width: 28, height: 28, borderRadius: R.sm, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   name: { flex: 1, fontSize: 17, color: C.label },
   all: { fontSize: 13, color: C.secondary, fontWeight: "400" },
 }));

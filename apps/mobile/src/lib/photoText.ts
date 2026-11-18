@@ -25,7 +25,8 @@ export type PhotoReading = {
 };
 
 // 2: read at full resolution (KPReceipt.normalized); earlier readings of a long receipt were too small.
-const VERSION = 3;
+// 4: the till layout reads NIEFISKALNY receipts, names on a row of their own, and "Sp.op.A" as tax.
+const VERSION = 4;
 const IDLE: PhotoReading = { status: "reading", lines: [], parse: null, cats: [] };
 const state = new Map<string, PhotoReading>();
 const listeners = new Map<string, Set<() => void>>();

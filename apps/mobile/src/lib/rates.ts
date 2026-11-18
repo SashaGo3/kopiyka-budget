@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { latestCachedRate, rateOrFallback } from "@kopiyka/core";
+import { latestCachedRate, rateOrFallback , getMeta, setMeta, listRows } from "@kopiyka/core";
 import { db } from "@/db";
-import { getMeta, setMeta, listRows } from "@kopiyka/core";
 
 /** Base currency for totals: stored locally, defaults to the most common account currency. */
 export function getBaseCurrency(): string {
@@ -22,7 +21,7 @@ export function useRates(currencies: string[], base: string): { rateFor: (from: 
     let alive = true;
     const missing = (key ? key.split(",") : []).filter((c) => !latestCachedRate(db, c, base));
     if (!missing.length) return;
-    setLoading(true);
+    setLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- marks the fetch this effect starts
     (async () => {
       for (const c of missing) { try { await rateOrFallback(db, c, base); } catch { /* offline */ } }
       if (alive) { setLoading(false); bump((n) => n + 1); }

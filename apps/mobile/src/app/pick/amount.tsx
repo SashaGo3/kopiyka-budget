@@ -99,7 +99,7 @@ export default function PickAmount() {
             </View>
           ) : null}
           {p.kind ? (
-            <Tap onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.note, title: t("transaction.split.note"), value: note, multiline: "1" } })} hitSlop={6} style={styles.tagLine} accessibilityRole="button">
+            <Tap onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.note, title: t("transaction.split.note"), value: note, multiline: "1" } })} hitSlop={6} style={styles.tagLine} accessibilityRole="button" accessibilityLabel={note || t("transaction.split.addNote")}>
               <SymbolView name="text.alignleft" size={14} tintColor={note ? C.secondary : C.tint} />
               <Text style={note ? styles.noteText : styles.noteAdd} numberOfLines={2}>{note || t("transaction.split.addNote")}</Text>
             </Tap>

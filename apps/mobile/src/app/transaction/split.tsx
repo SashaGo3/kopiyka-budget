@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
@@ -11,9 +12,10 @@ import { ConfirmBar } from "@/components/Keypad";
 import type { AmountPick } from "@/app/pick/amount";
 import { ButtonText, ModalHeader, TagPill, Tap } from "@/components/ui";
 import { PersonAvatar } from "@/components/PersonAvatar";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
+import { reduceMotion } from "@/lib/motion";
 import { catName } from "@/lib/names";
 
 /** A part as the editor holds it: the payload plus a key React and the pickers can address it by. */
@@ -83,6 +85,13 @@ export default function SplitEditor() {
   const focused = useIsFocused();
   const { height } = useWindowDimensions();
   const [receipt, setReceipt] = useState(!!p.photo);
+  // Hiding the receipt folds it away rather than snapping it out, so the rows below glide up.
+  const receiptH = Math.round(height * 0.38);
+  const receiptShown = useSharedValue(p.photo ? 1 : 0);
+  useEffect(() => {
+    receiptShown.value = withTiming(receipt ? 1 : 0, { duration: reduceMotion() ? 0 : 300, easing: Easing.out(Easing.cubic) });
+  }, [receipt, receiptShown]);
+  const receiptStyle = useAnimatedStyle(() => ({ height: receiptShown.value * receiptH, opacity: receiptShown.value }));
   const currency = p.currency ?? "EUR";
   // A tip goes on top of what was typed on the entry and is shared like everything else: the equal
   // shares grow with it, a typed share stays what was typed, and the entry's amount becomes the sum.
@@ -243,15 +252,17 @@ export default function SplitEditor() {
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={t("transaction.split.title")} left={{ label: t("common.cancel"), onPress: () => router.back() }}
         right={{ label: t("people.toSplit.later"), onPress: () => exit(() => resolvePick(p.key, { main, parts: [], later: true } satisfies SplitResult)) }} />
-      {p.photo && receipt ? (
-        <ScrollView style={[styles.receipt, { height: Math.round(height * 0.38) }]} contentContainerStyle={{ flexGrow: 1 }}
-          maximumZoomScale={5} minimumZoomScale={1} bouncesZoom centerContent showsVerticalScrollIndicator={false}
-          accessible accessibilityLabel={t("people.split.receiptA11y")}>
-          <Image source={{ uri: p.photo }} style={{ width: "100%", height: Math.round(height * 0.38) }} contentFit="contain" accessibilityIgnoresInvertColors />
-        </ScrollView>
+      {p.photo ? (
+        <Animated.View style={[{ overflow: "hidden" }, receiptStyle]} pointerEvents={receipt ? "auto" : "none"}>
+          <ScrollView style={[styles.receipt, { height: receiptH }]} contentContainerStyle={{ flexGrow: 1 }}
+            maximumZoomScale={5} minimumZoomScale={1} bouncesZoom centerContent showsVerticalScrollIndicator={false}
+            accessible={receipt} accessibilityElementsHidden={!receipt} accessibilityLabel={t("people.split.receiptA11y")}>
+            <Image source={{ uri: p.photo }} style={{ width: "100%", height: receiptH }} contentFit="contain" accessibilityIgnoresInvertColors />
+          </ScrollView>
+        </Animated.View>
       ) : null}
       {p.photo ? (
-        <Tap onPress={() => setReceipt((v) => !v)} style={styles.receiptToggle} accessibilityRole="button">
+        <Tap onPress={() => setReceipt((v) => !v)} style={styles.receiptToggle} accessibilityRole="button" accessibilityLabel={receipt ? t("people.split.hideReceipt") : t("people.split.showReceipt")}>
           <SymbolView name={receipt ? "chevron.up" : "doc.text.image"} size={13} tintColor={C.tint} />
           <Text style={styles.receiptToggleText}>{receipt ? t("people.split.hideReceipt") : t("people.split.showReceipt")}</Text>
         </Tap>
@@ -339,15 +350,15 @@ export default function SplitEditor() {
             so the friends button goes, and once a friend is in, Add a part goes; it is its own
             button so the two are not read as one list. */}
         {!friends.length && !rows.length ? (
-          <Pressable onPress={openPeople} style={({ pressed }) => [styles.friendsButton, pressed && { opacity: 0.6 }]} accessibilityRole="button">
+          <Pressable onPress={openPeople} style={({ pressed }) => [styles.friendsButton, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("people.split.withFriends")}>
             <SymbolView name="person.2.fill" size={18} tintColor={C.tint} />
             <Text style={styles.addText}>{t("people.split.withFriends")}</Text>
           </Pressable>
         ) : null}
         {!friends.length && !rows.length && eventPeople.length ? (
-          <Tap onPress={() => setPeople(eventPeople)} style={styles.suggest} accessibilityRole="button">
+          <Tap onPress={() => setPeople(eventPeople)} style={styles.suggest} accessibilityRole="button" accessibilityLabel={t("people.split.withEvent", { names: eventPeople.map(personName).join(", ") })}>
             <SymbolView name="person.2.fill" size={15} tintColor={C.tint} />
-            <Text style={styles.suggestText} numberOfLines={2}>{t("people.split.withEvent", { names: eventPeople.map(personName).join(", ") })}</Text>
+            <Text style={styles.suggestText}>{t("people.split.withEvent", { names: eventPeople.map(personName).join(", ") })}</Text>
           </Tap>
         ) : null}
 
@@ -357,7 +368,7 @@ export default function SplitEditor() {
           <View>
             <View style={styles.header}>
               <Text style={styles.headerText} accessibilityRole="header">{t("people.split.owes")}</Text>
-              <Tap onPress={openPeople} hitSlop={10} accessibilityRole="button"><Text style={styles.headerLink}>{t("people.split.edit")}</Text></Tap>
+              <Tap onPress={openPeople} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("people.split.edit")}><Text style={styles.headerLink}>{t("people.split.edit")}</Text></Tap>
             </View>
             <View style={styles.card}>
               {friends.map((f, i) => {
@@ -372,7 +383,7 @@ export default function SplitEditor() {
                     onAccessibilityAction={(e) => (e.nativeEvent.actionName === "remove" ? remove() : openItems(f))}>
                     {person ? <PersonAvatar person={person} /> : <View style={styles.catIcon} />}
                     <View style={styles.middle}>
-                      <Text style={styles.catText} numberOfLines={1}>{name}</Text>
+                      <Text style={styles.catText}>{name}</Text>
                       {f.items.length ? <Text style={styles.itemsText} numberOfLines={2}>{f.items.map((it) => it.name).join(", ")}</Text> : null}
                     </View>
                     <View style={styles.right}>
@@ -389,7 +400,7 @@ export default function SplitEditor() {
                         read as a menu or a drag handle. */}
                     <Tap onPress={() => openItems(f)} hitSlop={6} accessibilityRole="button" accessibilityLabel={t("people.split.addItems")}
                       style={[styles.remove, styles.items, f.items.length ? styles.itemsOn : null]}>
-                      <SymbolView name={f.items.length ? "basket.fill" : "basket"} size={19} tintColor={f.items.length ? "white" : C.tint} />
+                      <SymbolView name={f.items.length ? "basket.fill" : "basket"} size={19} tintColor={f.items.length ? C.onTint : C.tint} />
                     </Tap>
                   </Pressable>
                 );
@@ -411,37 +422,37 @@ export default function SplitEditor() {
 const styles = themed(() => StyleSheet.create({
   content: { padding: S.md, gap: S.md },
   intro: { fontSize: 15, lineHeight: 20, color: C.secondary, paddingHorizontal: S.xs },
-  card: { backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.md },
+  card: { backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 64, paddingVertical: S.sm },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
-  catIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  catIcon: { width: 32, height: 32, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
   middle: { flex: 1, gap: 4 },
   catText: { fontSize: 17, color: C.label },
   missing: { color: C.tertiary },
   tags: { flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" },
-  noteText: { fontSize: 14, color: C.secondary },
-  tagHint: { fontSize: 14, color: C.tint },
+  noteText: { fontSize: 15, color: C.secondary },
+  tagHint: { fontSize: 15, color: C.tint },
   // The amounts are one column: right-aligned, same width of figure, whatever sits beside them.
   right: { alignItems: "flex-end", flexShrink: 0 },
-  amount: { fontSize: 18, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"], textAlign: "right" },
-  cur: { fontSize: 14, fontWeight: "500", color: C.secondary },
+  amount: { fontSize: 17, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"], textAlign: "right" },
+  cur: { fontSize: 15, fontWeight: "500", color: C.secondary },
   caption: { fontSize: 13, color: C.secondary },
   remove: { width: 36, alignItems: "center", justifyContent: "center" },
-  items: { height: 36, borderRadius: 18, backgroundColor: C.fill },
+  items: { height: 36, borderRadius: R.pill, backgroundColor: C.fill },
   itemsOn: { backgroundColor: C.tint },
   add: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 50, paddingLeft: 5 },
   addText: { fontSize: 17, fontWeight: "600", color: C.tint },
   receipt: { flexGrow: 0, backgroundColor: C.card },
   receiptToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 36 },
-  receiptToggleText: { fontSize: 14, fontWeight: "600", color: C.tint },
-  itemsText: { fontSize: 14, color: C.secondary },
+  receiptToggleText: { fontSize: 15, fontWeight: "600", color: C.tint },
+  itemsText: { fontSize: 15, color: C.secondary },
   equal: { flexDirection: "row", alignItems: "center", gap: 3 },
-  suggest: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, minHeight: 44, paddingHorizontal: S.md, borderRadius: 22, backgroundColor: C.card, alignSelf: "center" },
-  suggestText: { fontSize: 16, fontWeight: "600", color: C.tint, flexShrink: 1 },
+  suggest: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, minHeight: 44, paddingHorizontal: S.md, borderRadius: R.pill, backgroundColor: C.card, alignSelf: "center" },
+  suggestText: { fontSize: 17, fontWeight: "600", color: C.tint, flexShrink: 1 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: S.xs, paddingBottom: 6 },
-  headerText: { fontSize: 14, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
-  friendsButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, minHeight: 50, borderRadius: 16, backgroundColor: C.card },
-  headerLink: { fontSize: 16, color: C.tint },
+  headerText: { fontSize: 15, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
+  friendsButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, minHeight: 50, borderRadius: R.md, backgroundColor: C.card },
+  headerLink: { fontSize: 17, color: C.tint },
   // Flush with the screen's edges, the same inset both sides as the section headers below it.
   total: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: S.xs },
   tip: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-end", marginRight: S.xs, minHeight: 30 },

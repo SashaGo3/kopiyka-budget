@@ -41,7 +41,7 @@ export default function AccountScreen() {
 
 const styles = themed(() => StyleSheet.create({
   head: { paddingTop: S.lg, paddingBottom: S.sm, gap: 4 },
-  label: { color: C.secondary, fontSize: 14, paddingHorizontal: S.xl },
+  label: { color: C.secondary, fontSize: 15, paddingHorizontal: S.xl },
   value: { fontSize: 32, fontWeight: "700", paddingHorizontal: S.xl },
   pending: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, marginBottom: S.sm },
 }));

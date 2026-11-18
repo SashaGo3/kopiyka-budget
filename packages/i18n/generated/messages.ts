@@ -1679,78 +1679,30 @@ export interface Messages {
   "period.scope.hint": undefined;
   /** VoiceOver label of the account scope pill; scope is an account or group name, or "All accounts". */
   "period.scope.label": { scope: string | number };
-  "photo.allowCamera": undefined;
   /** VoiceOver label of the full-screen photo. */
   "photo.attached": undefined;
-  "photo.cameraNeeded": undefined;
-  "photo.cameraOff": undefined;
-  /** Pick a picture from the photo library instead of taking one. */
-  "photo.fromLibrary": undefined;
   "photo.libraryError": undefined;
-  /** Camera mode: an ordinary photo. Short. */
-  "photo.mode.photo": undefined;
-  /** Camera mode: the document scanner that finds and shoots a receipt by itself. Short. */
-  "photo.mode.receipt": undefined;
-  /** Button when the items' tags or notes change but nothing is split. */
-  "photo.read.apply": undefined;
-  /** Button: choose the category for the selected items. */
-  "photo.read.category": undefined;
-  /** Button over a read receipt whose values were filled into the entry: take them off again. */
-  "photo.read.clear": undefined;
+  /** Button over a read receipt: save it as the entry, split by the items' categories. Short. */
+  "photo.read.continue": undefined;
   "photo.read.copied": undefined;
   "photo.read.copyAll": undefined;
-  /** Every item went into one category other than the entry's: re-file the entry. */
-  "photo.read.fileAs": { category: string | number };
-  /** Button over the photo's text panel; amount is the receipt total, formatted. */
-  "photo.read.fill": { amount: string | number };
-  /** Text is read; the receipt's items are being worked out. */
-  "photo.read.findingItems": undefined;
-  "photo.read.hide": undefined;
+  /** VoiceOver label of the day chip over a read receipt. */
+  "photo.read.dayA11y": { day: string | number };
   /** Tab under the full-screen photo: the receipt's lines. */
   "photo.read.items": { count: number };
+  /** Beside the account chip when the receipt cannot be converted into the account's currency yet. */
+  "photo.read.noRate": { currency: string | number };
   "photo.read.noText": undefined;
-  "photo.read.note": undefined;
   /** Last line of the receipt content written into the entry's note. */
   "photo.read.noteTotal": { amount: string | number };
-  /** While the photo's text is being recognised. */
-  "photo.read.reading": undefined;
-  /** amount is the selected items' sum, formatted. */
-  "photo.read.selected": { count: number; amount: string | number };
-  /** VoiceOver label of the grabber on the photo's text sheet. */
-  "photo.read.sheetA11y": undefined;
-  "photo.read.show": undefined;
-  /** Above the receipt's items when they can be split. */
-  "photo.read.sortHint": undefined;
-  /** Items are read; a category is being guessed for each. */
-  "photo.read.sorting": undefined;
-  /** count is at least 2. */
-  "photo.read.split": { count: number };
-  "photo.read.suggested": undefined;
-  "photo.read.tags": undefined;
+  /** Receipt sheet, a receipt in another currency: the account chip. */
+  "photo.read.payA11y": { account: string | number };
   /** Tab under the full-screen photo: the text read from it. */
   "photo.read.text": undefined;
   "photo.read.uncategorized": undefined;
-  /** Header over the receipt items given no category. */
-  "photo.read.unsorted": undefined;
-  /** Button beside the shop's name over a read receipt: fill the entry in from it. Short. */
-  "photo.read.use": undefined;
   "photo.read.zoomA11y": undefined;
-  "photo.receipt.cameraNeeded": undefined;
-  /** error is a short reason, possibly from the system. */
-  "photo.receipt.failed": { error: string | number };
-  /** Status over the camera while it waits to read a receipt. */
-  "photo.receipt.hold": undefined;
-  /** Added after the status, after " · ", once several tries have failed. Lowercase. */
-  "photo.receipt.lightTip": undefined;
-  "photo.receipt.looking": undefined;
-  "photo.receipt.noPhoto": undefined;
-  "photo.receipt.noTotal": undefined;
-  "photo.receipt.reading": undefined;
-  "photo.receipt.takeNow": undefined;
   "photo.remove": undefined;
   "photo.replace": undefined;
-  "photo.scanFailed": undefined;
-  "photo.take": undefined;
   "pick.account.title": undefined;
   "pick.accounts.all": undefined;
   "pick.accounts.anyA11y": undefined;
@@ -2646,8 +2598,6 @@ export interface Messages {
   "transaction.entry.chip.pending": undefined;
   "transaction.entry.chip.photo": undefined;
   "transaction.entry.chip.place": undefined;
-  /** Chip that opens the receipt scanner. */
-  "transaction.entry.chip.receipt": undefined;
   /** Chip: the amount typed is money that came back on an earlier expense. */
   "transaction.entry.chip.return": undefined;
   /** Chip that splits the entry into parts with their own categories. */
@@ -2676,15 +2626,9 @@ export interface Messages {
   "transaction.entry.forgetReturns.title": undefined;
   "transaction.entry.fromReceipt.amount": undefined;
   "transaction.entry.fromReceipt.category": undefined;
-  /** list is the fields, joined with commas: "amount, date, notes". */
-  "transaction.entry.fromReceipt.changes": { list: string | number };
   "transaction.entry.fromReceipt.date": undefined;
-  "transaction.entry.fromReceipt.done": undefined;
   "transaction.entry.fromReceipt.note": undefined;
-  /** Under the photo on the entry sheet while its text is recognised. */
-  "transaction.entry.fromReceipt.reading": undefined;
   "transaction.entry.fromReceipt.shop": undefined;
-  "transaction.entry.fromReceipt.undo": undefined;
   /** Button: fill the entry in from the receipt on its photo. Short. */
   "transaction.entry.fromReceipt.update": undefined;
   "transaction.entry.hideBalance": undefined;

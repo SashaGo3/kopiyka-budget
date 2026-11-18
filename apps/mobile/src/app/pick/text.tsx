@@ -3,7 +3,7 @@ import { StyleSheet, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { resolvePick } from "@/store/pick";
 import { ModalHeader } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 
@@ -25,5 +25,5 @@ export default function PickText() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  input: { margin: S.lg, backgroundColor: C.card, borderRadius: 14, padding: S.md, fontSize: 18, color: C.label, minHeight: 50, textAlignVertical: "top" },
+  input: { margin: S.lg, backgroundColor: C.card, borderRadius: R.card, padding: S.md, fontSize: 17, color: C.label, minHeight: 50, textAlignVertical: "top" },
 }));

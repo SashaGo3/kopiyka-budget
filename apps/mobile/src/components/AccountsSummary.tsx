@@ -31,7 +31,7 @@ export function NetWorth({ totals }: { totals: { currency: string; minor: number
 
 const styles = themed(() => StyleSheet.create({
   wrap: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm, gap: 4 },
-  label: { color: C.secondary, fontSize: 14 },
+  label: { color: C.secondary, fontSize: 15 },
   big: { fontSize: 34, fontWeight: "700" },
   warn: { color: C.orange, fontSize: 12 },
   lines: { flexDirection: "row", flexWrap: "wrap", gap: S.md, marginTop: 2, marginBottom: S.sm },

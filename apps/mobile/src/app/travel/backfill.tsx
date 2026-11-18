@@ -9,10 +9,10 @@ import { TransactionList, useTransactions } from "@/components/TransactionList";
 import { ModalHeader, Tap } from "@/components/ui";
 import { ConfirmBar } from "@/components/Keypad";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { EMPTY_FILTER, activeCount, buildWhere, type TxFilter } from "@/lib/filters";
 import { useSearchIds } from "@/lib/search";
-import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 
 /**
@@ -76,12 +76,12 @@ export default function TravelBackfill() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  hint: { color: C.secondary, fontSize: 14, paddingHorizontal: S.lg, paddingBottom: S.md },
+  hint: { color: C.secondary, fontSize: 15, paddingHorizontal: S.lg, paddingBottom: S.md },
   footer: { paddingTop: S.sm },
   searchRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingBottom: S.sm },
-  search: { flex: 1, flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
-  filter: { flexDirection: "row", alignItems: "center", gap: 4, height: 40, minWidth: 40, paddingHorizontal: 10, borderRadius: 12, backgroundColor: C.fill, justifyContent: "center" },
+  search: { flex: 1, flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, minHeight: 40, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
+  filter: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 40, minWidth: 40, paddingHorizontal: 10, borderRadius: R.md, backgroundColor: C.fill, justifyContent: "center" },
   filterOn: { backgroundColor: C.tint },
-  filterCount: { color: C.onTint, fontSize: 14, fontWeight: "700" },
+  filterCount: { color: C.onTint, fontSize: 15, fontWeight: "700" },
 }));

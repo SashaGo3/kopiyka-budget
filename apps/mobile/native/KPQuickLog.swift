@@ -14,8 +14,17 @@ import UIKit
 /// boot skeleton for deep links, which is fast enough.
 @MainActor
 enum KPQuickLog {
-  /// Home-screen quick action (`UIApplicationShortcutItems` in app.json) and the launch-option key we match.
+  /// Home-screen quick actions (`UIApplicationShortcutItems` in app.json) and the link each opens:
+  /// Log expense, and Scan receipt — the same sheet, opening the receipt camera first (`scan=1`).
   static let quickActionType = "dev.kopiyka.log"
+  static let scanActionType = "dev.kopiyka.scan"
+  static func link(for item: UIApplicationShortcutItem?) -> URL? {
+    switch item?.type {
+    case quickActionType: return KP.url("log")
+    case scanActionType: return KP.url("log?scan=1")
+    default: return nil
+    }
+  }
 
   /// A cold launch by the quick action delivered the URL through the launch options, so the
   /// `performActionFor` call iOS makes right after must not deliver it a second time.
@@ -28,11 +37,11 @@ enum KPQuickLog {
   /// synthesize `kopiyka://log` there.
   static func launchOptions(for options: [UIApplication.LaunchOptionsKey: Any]?) -> [UIApplication.LaunchOptionsKey: Any]? {
     consumedColdShortcut = false
-    guard (options?[.shortcutItem] as? UIApplicationShortcutItem)?.type == quickActionType,
+    guard let link = link(for: options?[.shortcutItem] as? UIApplicationShortcutItem),
           options?[.url] == nil else { return options }
     consumedColdShortcut = true
     var out = options ?? [:]
-    out[.url] = KP.url("log")
+    out[.url] = link
     return out
   }
 
@@ -73,8 +82,8 @@ enum KPQuickLog {
   /// Home-screen quick action. Returns the URL React Native should be handed, or nil when the item
   /// is not ours (or a cold launch already delivered it through the launch options).
   static func handleShortcut(_ item: UIApplicationShortcutItem) -> URL? {
-    guard item.type == quickActionType else { return nil }
+    guard let url = link(for: item) else { return nil }
     if consumedColdShortcut { consumedColdShortcut = false; return nil }
-    return KP.url("log")
+    return url
   }
 }

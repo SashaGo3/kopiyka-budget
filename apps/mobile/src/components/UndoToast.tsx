@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { onUndoOffer, settleUndo, takeUndo, type UndoOffer } from "@/lib/undo";
 import { Tap } from "@/components/ui";
 import { Glass } from "@/components/glass";
-import { C, Elevation, S, themed } from "@/constants/theme";
+import { C, Elevation, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /** How long the way back stays open. Long enough to read, short enough not to linger. */
@@ -63,8 +63,8 @@ function Toast({ offer }: { offer: UndoOffer & { id: number } }) {
           accessibilityLiveRegion="polite" accessible={false}
           accessibilityActions={[{ name: "escape", label: t("common.close") }]} onAccessibilityAction={() => settleUndo(id)}>
           <Glass style={styles.toast} solid={styles.solid}>
-            <Text style={styles.label} numberOfLines={2}>{offer.label}</Text>
-            <Tap onPress={() => { void Haptics.selectionAsync(); takeUndo(id); }} hitSlop={10} style={styles.button} accessibilityRole="button">
+            <Text style={styles.label}>{offer.label}</Text>
+            <Tap onPress={() => { void Haptics.selectionAsync(); takeUndo(id); }} hitSlop={10} style={styles.button} accessibilityRole="button" accessibilityLabel={t("misc.undo")}>
               <Text style={styles.buttonText}>{t("misc.undo")}</Text>
             </Tap>
           </Glass>
@@ -77,8 +77,8 @@ function Toast({ offer }: { offer: UndoOffer & { id: number } }) {
 const styles = themed(() => StyleSheet.create({
   wrap: { justifyContent: "flex-end", alignItems: "center", paddingHorizontal: S.lg },
   root: { maxWidth: 520, width: "100%" },
-  shadow: { borderRadius: 26 },
-  toast: { flexDirection: "row", alignItems: "center", gap: S.md, paddingLeft: S.lg, paddingRight: S.sm, minHeight: 52, borderRadius: 26 },
+  shadow: { borderRadius: R.xl },
+  toast: { flexDirection: "row", alignItems: "center", gap: S.md, paddingLeft: S.lg, paddingRight: S.sm, minHeight: 52, borderRadius: R.pill },
   // Below iOS 26 or with Reduce Transparency: the bottom bar's solid buttons.
   solid: { backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, ...Elevation },
   label: { flex: 1, fontSize: 15, color: C.label },

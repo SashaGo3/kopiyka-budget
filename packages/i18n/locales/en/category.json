@@ -71,7 +71,7 @@
     "rowSubtitle": "{count, plural, one {Its # transaction keeps its history, gains the tag and moves where you choose} other {Its # transactions keep their history, gain the tag and move where you choose}}",
     "where": { "message": "{count, plural, one {Where does the # transaction go?} other {Where do the # transactions go?}}", "note": "Title of the sheet asking where a converted category's transactions move." },
     "parentSubtitle": "The folder it is in — which becomes an ordinary category once this is its last one",
-    "pick": "Another category…",
+    "pick": "Another category",
     "pickSubtitle": "Choose where these transactions belong",
     "none": "Leave them uncategorised",
     "noneSubtitle": "They keep the tag and nothing else",
@@ -106,7 +106,7 @@
     "body": "Transactions keep their data but become uncategorized."
   },
   "matters": {"header": {"message": "What matters", "note": "Section in the category editor: how much this category matters."}, "fromFolder": "Follows the {folder} folder — change it in What matters", "between": "Neither ticked: in between.", "tapAgain": "Tap the ticked one again for in between.", "unmarked": "Not marked yet — tick one, or leave it for What matters to ask later."},
-  "reorder": {"title": "Reorder", "hint": {"message": "Drag by the handle, or hold a category to move it to another folder. A folder takes its categories with it.", "note": "Hint on top of the categories reorder screen."}, "income": "Income", "stayedTitle": "Kept in their folders", "stayedBody": {"message": "{names} can’t go into a folder of the other kind (expense / income). They kept their place in the order.", "note": "names is a comma-separated list of category names."}, "moveTitle": "Move {name} to…", "emptyTitle": "No categories", "emptyHint": "Add some first."},
+  "reorder": {"title": "Reorder", "hint": {"message": "Drag by the handle, or hold a category to move it to another folder. A folder takes its categories with it.", "note": "Hint on top of the categories reorder screen."}, "income": "Income", "stayedTitle": "Kept in their folders", "stayedBody": {"message": "{names} can’t go into a folder of the other kind (expense / income). They kept their place in the order.", "note": "names is a comma-separated list of category names."}, "moveTitle": "Move {name} to", "emptyTitle": "No categories", "emptyHint": "Add some first."},
   "importance": {
     "title": "Set what matters",
     "step": { "message": "Step {step} of {total}", "note": "Progress over the question." },

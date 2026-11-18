@@ -9,7 +9,7 @@ import { formatMinor, jsonIds, numberFormat, paidAmountMinor, type Transaction }
 import { useQuery } from "@/store";
 import { useCloudRefresh } from "@/lib/backup";
 import { AmountPill, CategoryIcon, Empty, Money, TagPill } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { dayLabel, humanDayTime, timeLabel, todayLocal } from "@/lib/dates";
 import { useIncoming } from "@/lib/incoming";
 import { t } from "@/i18n";
@@ -100,7 +100,7 @@ export function TransactionList({ rows, header, empty, showAccount = true, reset
   const on = useRef(selecting);
   const mode = useMemo<SelectMode>(() => ({ progress, on }), [progress]);
   useLayoutEffect(() => { on.current = selecting; }, [selecting]);
-  useEffect(() => { progress.value = withTiming(selecting ? 1 : 0, { duration: 240 }); }, [selecting, progress]);
+  useEffect(() => { progress.set(withTiming(selecting ? 1 : 0, { duration: 240 })); }, [selecting, progress]);
   const a11ySelecting = useDeferredValue(selecting);
   const top = useRef<View>(null);
   // Position keeping only once scrolled into the rows (lib/listMotion.ts `keepsPosition`): at the
@@ -286,7 +286,7 @@ function useHeldScroll(key: boolean, list: string | undefined, top: RefObject<Vi
     const frame = requestAnimationFrame(restore);
     const late = setTimeout(restore, 120);
     return () => { cancelAnimationFrame(frame); clearTimeout(late); };
-  }, [key, restore]);
+  }, [key, restore]); // eslint-disable-line react-hooks/exhaustive-deps -- `resting` is read once per list change, not watched
   const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const now = e.nativeEvent.contentOffset.y;
     const h = hold.current;
@@ -357,7 +357,7 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
         <Animated.View style={[styles.check, slide.check]} pointerEvents="none" importantForAccessibility="no-hide-descendants"><SymbolView name={on ? "checkmark.circle.fill" : "circle"} size={26} tintColor={on ? C.tint : C.tertiary} /></Animated.View>
       </View>
       <View style={styles.text}>
-        <Text style={styles.title} numberOfLines={2}>{title}</Text>
+        <Text style={styles.title}>{title}</Text>
         {noteSub ? <Text style={styles.sub} numberOfLines={2}>{noteSub}</Text> : null}
         {bankSub ? <Text style={styles.sub} numberOfLines={2}>{bankSub}</Text> : null}
         <Text style={styles.sub}>{sub}</Text>
@@ -381,8 +381,8 @@ function TxItemView({ tx, tags, flat, showAccount, first, last, mode, a11ySelect
 
 const styles = themed(() => StyleSheet.create({
   sh: { fontSize: 20, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.sm },
-  sum: { color: C.secondary, fontSize: 14, paddingHorizontal: S.xl, paddingTop: 6, paddingBottom: S.sm },
-  sumVal: { fontSize: 14, fontWeight: "600" },
+  sum: { color: C.secondary, fontSize: 15, paddingHorizontal: S.xl, paddingTop: 6, paddingBottom: S.sm },
+  sumVal: { fontSize: 15, fontWeight: "600" },
   item: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, paddingHorizontal: S.md, paddingVertical: 10, backgroundColor: C.card, position: "relative", overflow: "hidden" },
   first: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
   last: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
@@ -402,12 +402,12 @@ const styles = themed(() => StyleSheet.create({
   slot: { flexShrink: 0, width: 12, alignItems: "center" },
   // The category icon and, over it while selecting, the check circle: one fixed square either way.
   iconSlot: { width: 34, height: 34, flexShrink: 0 },
-  photoBadge: { position: "absolute", right: -4, bottom: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: C.tint, borderWidth: 2, borderColor: C.card, alignItems: "center", justifyContent: "center" },
+  photoBadge: { position: "absolute", right: -4, bottom: -4, width: 18, height: 18, borderRadius: R.pill, backgroundColor: C.tint, borderWidth: 2, borderColor: C.card, alignItems: "center", justifyContent: "center" },
   check: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   // The placeholder: the same row, its content as soft blocks of the fill colour.
   incoming: { flex: 1, flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 40 },
   ghostIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: C.fill },
   ghostLine: { height: 14, borderRadius: 7, backgroundColor: C.fill },
   ghostSub: { height: 11, marginTop: 4 },
-  ghostPill: { width: 64, height: 26, borderRadius: 13, backgroundColor: C.fill },
+  ghostPill: { width: 64, height: 26, borderRadius: R.pill, backgroundColor: C.fill },
 }));

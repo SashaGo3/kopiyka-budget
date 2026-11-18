@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Tap } from "@/components/ui";
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, monthBounds, shiftMonth } from "@/lib/dates";
 import { getLocale, t } from "@/i18n";
 
@@ -98,15 +98,15 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
 }
 
 const styles = themed(() => StyleSheet.create({
-  wrap: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.sm, paddingVertical: S.md, gap: 2 },
+  wrap: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.sm, paddingVertical: S.md, gap: 2 },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: S.sm, paddingBottom: S.sm },
-  nav: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: C.fill },
+  nav: { width: 36, height: 36, borderRadius: R.pill, alignItems: "center", justifyContent: "center", backgroundColor: C.fill },
   month: { fontSize: 17, fontWeight: "600", color: C.label },
   week: { flexDirection: "row" },
   weekday: { flex: 1, textAlign: "center", fontSize: 12, fontWeight: "600", color: C.tertiary, paddingBottom: 4 },
   cell: { flex: 1, height: 44, alignItems: "center", justifyContent: "center" },
   band: { position: "absolute", top: 4, bottom: 4, backgroundColor: C.tint, opacity: 0.18 },
-  dot: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  dot: { width: 36, height: 36, borderRadius: R.pill, alignItems: "center", justifyContent: "center" },
   dotOn: { backgroundColor: C.tint },
   dayText: { fontSize: 17, color: C.label, fontVariant: ["tabular-nums"] },
   dayInside: { color: C.tint, fontWeight: "600" },

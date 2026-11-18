@@ -23,3 +23,25 @@ export function dismissTo(href: Href): void {
   router.back();
   setTimeout(() => router.push(href), DISMISS_MS);
 }
+
+const opened = new Map<string, number>();
+
+/**
+ * For a screen that opens another on its own (from an effect, not a tap): `open` runs once per `id`
+ * however many times it is asked within `windowMs`. A screen can mount twice — dev mode does it on
+ * purpose, a remount does it by accident — and each mount asking meant two screens stacked, the
+ * second invisible under the first, and every picker opened after that went under both. The
+ * duplicates come within a second of each other; the window is measured from the first open, so the
+ * same screen opened again later opens normally. True when `open` ran.
+ */
+export function openOnce(id: string, open: () => void, windowMs = 1500): boolean {
+  const now = Date.now();
+  const last = opened.get(id);
+  if (last !== undefined && now - last < windowMs) return false;
+  opened.set(id, now);
+  open();
+  return true;
+}
+
+/** A fresh `nonce` param: tells a screen already open that it was opened again (transactions/index.tsx). */
+export function freshNonce(): string { return String(Date.now()); }

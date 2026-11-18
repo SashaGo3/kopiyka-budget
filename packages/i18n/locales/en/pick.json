@@ -82,7 +82,7 @@
       "note": "VoiceOver; folder is the folder's name."
     },
     "new": "New category",
-    "newEllipsis": "New category…",
+    "newEllipsis": "New category",
     "newNamed": {
       "message": "New category “{name}”",
       "note": "Creates a category named what was typed."

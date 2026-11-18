@@ -8,7 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { ButtonText, Chip, SheetFrame, Subtle, ChipRow, DeleteRow, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
@@ -298,9 +298,9 @@ function rateLine(from: string, to: string, value: number, source: "cached" | "m
 const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.sm, gap: 6 },
   headRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
-  back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, minHeight: 28 },
-  backText: { color: C.tint, fontSize: 14, fontWeight: "600" },
-  leg: { backgroundColor: C.card, borderRadius: 14, padding: S.md, borderWidth: 2, borderColor: "transparent" },
+  back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: R.pill, paddingHorizontal: 10, minHeight: 28 },
+  backText: { color: C.tint, fontSize: 15, fontWeight: "600" },
+  leg: { backgroundColor: C.card, borderRadius: R.card, padding: S.md, borderWidth: 2, borderColor: "transparent" },
   legActive: { borderColor: C.tint },
   legHead: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", paddingVertical: 2, paddingRight: 4 },
   legLabel: { color: C.secondary, fontSize: 13, flexShrink: 1 },
@@ -310,7 +310,7 @@ const styles = themed(() => StyleSheet.create({
   legDerived: { opacity: 0.55 },
   legCur: { fontSize: 15, color: C.secondary },
   arrowRow: { alignItems: "center", justifyContent: "center", height: 22 },
-  swap: { position: "absolute", right: 0, flexDirection: "row", alignItems: "center", backgroundColor: C.fill, borderRadius: 12, paddingHorizontal: 10, height: 24 },
+  swap: { position: "absolute", right: 0, flexDirection: "row", alignItems: "center", backgroundColor: C.fill, borderRadius: R.pill, paddingHorizontal: 10, minHeight: 24 },
   meta: { color: C.tertiary, fontSize: 13, marginTop: 4, minHeight: 18 },
   waiting: { opacity: 0.35 },
 }));

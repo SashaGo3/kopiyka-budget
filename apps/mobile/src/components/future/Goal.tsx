@@ -70,7 +70,7 @@ export function GoalCardBody({ p, cat = true }: { p: InsightParams; cat?: boolea
     <View style={styles.row}>
       {cat ? <Siriusia mood={goalMood(g.status)} size={60} /> : null}
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        <Text style={styles.sub} numberOfLines={1}>{name}{g.deadline ? ` · ${t("future.goal.by", { deadline: humanDayTime(g.deadline, null, todayLocal(), true) })}` : ""}</Text>
+        <Text style={styles.sub}>{name}{g.deadline ? ` · ${t("future.goal.by", { deadline: humanDayTime(g.deadline, null, todayLocal(), true) })}` : ""}</Text>
         <Text style={styles.line} numberOfLines={1} adjustsFontSizeToFit>
           <Text style={styles.strong}>{money(g.balance_minor, g.currency)}</Text>{` ${t("future.goal.of", { target: money(g.target_minor, g.currency) })}`}
         </Text>
@@ -155,7 +155,7 @@ const styles = themed(() => StyleSheet.create({
   sub: { fontSize: 13, color: C.secondary },
   line: { fontSize: 15, color: C.secondary },
   strong: { fontSize: 17, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },
-  amount: { fontSize: 16, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
+  amount: { fontSize: 17, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   bar: { height: 10, borderRadius: 5, backgroundColor: C.fill, overflow: "hidden", marginVertical: 2 },
   barFill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 5 },

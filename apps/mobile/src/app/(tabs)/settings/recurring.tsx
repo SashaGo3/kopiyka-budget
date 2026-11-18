@@ -11,7 +11,7 @@ import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { PaymentIcon } from "@/components/PaymentIcon";
 import { PaymentsCalendar } from "@/components/PaymentsCalendar";
 import { SymbolView } from "expo-symbols";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { catName, catNameById, acctName } from "@/lib/names";
@@ -160,7 +160,7 @@ export default function RecurringList() {
         {paused.length ? <SectionHeader>{t("settingsLists.recurring.paused")}</SectionHeader> : null}
         {paused.length ? <Card>{paused.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
         {suggestions.length ? (
-          <SectionHeader right={<Tap onPress={() => void adopt(suggestions)} hitSlop={8}><Text style={styles.addAll}>{t("settingsLists.recurring.addAll")}</Text></Tap>}>{t("settingsLists.recurring.suggested")}</SectionHeader>
+          <SectionHeader right={<Tap onPress={() => void adopt(suggestions)} hitSlop={8} accessibilityLabel={t("settingsLists.recurring.addAll")}><Text style={styles.addAll}>{t("settingsLists.recurring.addAll")}</Text></Tap>}>{t("settingsLists.recurring.suggested")}</SectionHeader>
         ) : null}
         {suggestions.length ? (
           <Card>
@@ -224,7 +224,7 @@ function catRef(c: CatRef | undefined) { return c ? { name: catName(c), icon: c.
 const styles = themed(() => StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "center", gap: S.sm },
   views: { flexDirection: "row", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.md },
-  dismiss: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  dismiss: { width: 30, height: 30, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   foot: { marginTop: S.xl },
   addAll: { color: C.tint, fontSize: 15, fontWeight: "600" },

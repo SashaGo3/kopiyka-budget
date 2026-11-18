@@ -301,16 +301,12 @@ enum L10n {
       /// VoiceOver label of the receipt camera's close button.
       /// "Close"
       static var close: String { KPL.string("native.receipt.scan.close") }
-      /// "Continue"
-      static var `continue`: String { KPL.string("native.receipt.scan.continue") }
-      /// Over the receipt camera while it looks for the paper.
-      /// "Point at the receipt"
-      static var hint: String { KPL.string("native.receipt.scan.hint") }
-      /// Over the receipt camera once it has found the receipt, just before it takes the picture by itself.
-      /// "Hold still…"
-      static var hold: String { KPL.string("native.receipt.scan.hold") }
-      /// "Retake"
-      static var retake: String { KPL.string("native.receipt.scan.retake") }
+      /// VoiceOver label of the receipt camera's library button.
+      /// "Choose from library"
+      static var library: String { KPL.string("native.receipt.scan.library") }
+      /// VoiceOver label of the receipt camera's shutter.
+      /// "Take photo"
+      static var take: String { KPL.string("native.receipt.scan.take") }
     }
   }
   enum Sample {
@@ -477,7 +473,7 @@ enum L10n {
       /// VoiceOver hint.
       /// "Asks the iPhone for the latest accounts, categories and history"
       static var refreshHint: String { KPL.string("native.watch.status.refreshHint") }
-      /// "Refreshing…"
+      /// "Refreshing"
       static var refreshing: String { KPL.string("native.watch.status.refreshing") }
       /// "Status"
       static var title: String { KPL.string("native.watch.status.title") }

@@ -8,7 +8,7 @@ import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
 import { reduceMotion } from "@/lib/motion";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { pickAndImport } from "@/lib/importers";
 import { errorText } from "@/lib/errors";
 import { setOnboarded } from "@/lib/onboarding";
@@ -148,12 +148,12 @@ export default function Welcome() {
 
 const styles = themed(() => StyleSheet.create({
   hero: { alignItems: "center", paddingVertical: S.xl },
-  icon: { width: 112, height: 112, borderRadius: 26 },
+  icon: { width: 112, height: 112, borderRadius: R.xl },
   points: { gap: S.md },
-  point: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: 16, padding: S.md },
-  badge: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
-  pointTitle: { fontSize: 16, fontWeight: "700", color: C.label },
-  pointText: { fontSize: 14, color: C.secondary, marginTop: 2 },
+  point: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: R.card, padding: S.md },
+  badge: { width: 44, height: 44, borderRadius: R.md, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  pointTitle: { fontSize: 17, fontWeight: "700", color: C.label },
+  pointText: { fontSize: 15, color: C.secondary, marginTop: 2 },
   language: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, alignSelf: "center", minHeight: 44, marginTop: S.md, paddingHorizontal: S.md },
   languageText: { fontSize: 15, fontWeight: "600", color: C.secondary },
 }));

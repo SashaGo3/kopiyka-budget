@@ -6,7 +6,7 @@ import { CATEGORY_PRESET, missingPresets, presetDescription, presetKey, presetNa
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { PickCheck, PickerHeader, PickerSections, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { getLanguage, t } from "@/i18n";
 
 /**
@@ -41,7 +41,7 @@ export default function AddPresets() {
             <View style={styles.icon}><SymbolView name={item.icon as SFSymbol} size={15} tintColor={C.secondary} /></View>
             <View style={styles.text}>
               <Text style={styles.name}>{name}</Text>
-              <Text style={styles.hint} numberOfLines={1}>{presetDescription(item.key, lang)}</Text>
+              <Text style={styles.hint}>{presetDescription(item.key, lang)}</Text>
             </View>
             <PickCheck state={on} />
           </Tap>
@@ -53,7 +53,7 @@ export default function AddPresets() {
 const styles = themed(() => StyleSheet.create({
   section: { fontSize: 13, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 52 },
-  icon: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  icon: { width: 28, height: 28, borderRadius: R.sm, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   text: { flex: 1, paddingVertical: 6 },
   name: { fontSize: 17, color: C.label },
   hint: { fontSize: 13, color: C.secondary, marginTop: 1 },

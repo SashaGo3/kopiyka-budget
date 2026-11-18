@@ -7,7 +7,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Card, Empty, Money, SectionHeader, Tap } from "@/components/ui";
 import { PersonAvatar } from "@/components/PersonAvatar";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, localIso } from "@/lib/dates";
 import { t } from "@/i18n";
 
@@ -86,7 +86,8 @@ export default function PersonPage() {
           <PersonAvatar person={person} size={64} />
           {data.balances.length ? data.balances.map((b) => (
             <Tap key={b.currency} onPress={() => setCurrency(b.currency)} disabled={data.balances.length < 2} style={[styles.balance, data.balances.length > 1 && focus?.currency === b.currency && styles.balanceOn]}
-              accessibilityRole={data.balances.length > 1 ? "button" : undefined}>
+              accessibilityRole={data.balances.length > 1 ? "button" : undefined} accessibilityState={{ selected: focus?.currency === b.currency }}
+              accessibilityLabel={`${b.owed_minor > 0 ? t("people.page.owesYou") : t("people.page.youOwe")}, ${formatMinor(Math.abs(b.owed_minor), b.currency)} ${b.currency}`}>
               <Text style={styles.balanceLabel}>{b.owed_minor > 0 ? t("people.page.owesYou") : t("people.page.youOwe")}</Text>
               <Money minor={Math.abs(b.owed_minor)} currency={b.currency} style={[styles.balanceMoney, b.owed_minor < 0 && { color: C.red }]} />
             </Tap>
@@ -107,7 +108,7 @@ export default function PersonPage() {
             {data.history.map((l, i) => (
               <View key={l.row.id} style={[styles.line, i > 0 && styles.divider]}>
                 <View style={styles.lineText}>
-                  <Text style={styles.lineTitle} numberOfLines={2}>{whatFor(l)}</Text>
+                  <Text style={styles.lineTitle}>{whatFor(l)}</Text>
                   <Text style={styles.lineSub} numberOfLines={3}>
                     {[humanDayTime(l.row.date.slice(0, 10)), l.items.length ? l.items.map((it) => it.name).join(", ") : null].filter(Boolean).join(" · ")}
                   </Text>
@@ -122,8 +123,8 @@ export default function PersonPage() {
         ) : null}
 
         <Card style={{ marginTop: S.lg }}>
-          <Tap onPress={rename} style={styles.plain} accessibilityRole="button"><Text style={styles.plainText}>{t("people.page.rename")}</Text></Tap>
-          <Tap onPress={del} style={[styles.plain, styles.divider]} accessibilityRole="button"><Text style={[styles.plainText, { color: C.red }]}>{t("people.page.remove")}</Text></Tap>
+          <Tap onPress={rename} style={styles.plain} accessibilityRole="button" accessibilityLabel={t("people.page.rename")}><Text style={styles.plainText}>{t("people.page.rename")}</Text></Tap>
+          <Tap onPress={del} style={[styles.plain, styles.divider]} accessibilityRole="button" accessibilityLabel={t("people.page.remove")}><Text style={[styles.plainText, { color: C.red }]}>{t("people.page.remove")}</Text></Tap>
         </Card>
       </ScrollView>
     </>
@@ -148,20 +149,20 @@ function Action({ icon, label, onPress }: { icon: SFSymbol; label: string; onPre
 const styles = themed(() => StyleSheet.create({
   content: { paddingBottom: S.xl * 2 },
   hero: { alignItems: "center", gap: S.sm, paddingVertical: S.lg },
-  balance: { alignItems: "center", paddingHorizontal: S.lg, paddingVertical: S.xs, borderRadius: 14 },
+  balance: { alignItems: "center", paddingHorizontal: S.lg, paddingVertical: S.xs, borderRadius: R.card },
   balanceOn: { backgroundColor: C.fill },
   balanceLabel: { fontSize: 13, color: C.secondary },
   balanceMoney: { fontSize: 34, fontWeight: "700" },
   actions: { flexDirection: "row", gap: S.sm, paddingHorizontal: S.lg, marginBottom: S.md },
-  action: { flex: 1, alignItems: "center", gap: 4, paddingVertical: S.md, borderRadius: 14, backgroundColor: C.card, minHeight: 64 },
+  action: { flex: 1, alignItems: "center", gap: 4, paddingVertical: S.md, borderRadius: R.card, backgroundColor: C.card, minHeight: 64 },
   actionText: { fontSize: 13, fontWeight: "600", color: C.tint },
   line: { flexDirection: "row", alignItems: "center", gap: S.md, paddingVertical: S.md },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   lineText: { flex: 1, gap: 2 },
-  lineTitle: { fontSize: 16, color: C.label },
+  lineTitle: { fontSize: 17, color: C.label },
   lineSub: { fontSize: 13, lineHeight: 18, color: C.secondary },
   lineRight: { alignItems: "flex-end", gap: 2 },
-  lineMoney: { fontSize: 16, fontWeight: "600" },
+  lineMoney: { fontSize: 17, fontWeight: "600" },
   after: { fontSize: 12, color: C.tertiary, fontVariant: ["tabular-nums"] },
   plain: { minHeight: 48, justifyContent: "center" },
   plainText: { fontSize: 17, color: C.tint },

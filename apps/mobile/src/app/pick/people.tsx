@@ -7,7 +7,7 @@ import { mutate, useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
 import { PickerHeader, PickerList, Tap } from "@/components/ui";
 import { PersonAvatar } from "@/components/PersonAvatar";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /**
@@ -75,12 +75,12 @@ export default function PickPeople() {
               accessibilityLabel={t("people.pick.searchA11y")} />
           </View>
           {canCreate ? (
-            <Tap onPress={create} style={styles.row} accessibilityRole="button">
+            <Tap onPress={create} style={styles.row} accessibilityRole="button" accessibilityLabel={t("people.pick.add", { name })}>
               <SymbolView name="plus.circle" size={22} tintColor={C.tint} />
               <Text style={[styles.name, { color: C.tint }]}>{t("people.pick.add", { name })}</Text>
             </Tap>
           ) : null}
-          <Tap onPress={() => void fromContacts()} style={styles.row} accessibilityRole="button">
+          <Tap onPress={() => void fromContacts()} style={styles.row} accessibilityRole="button" accessibilityLabel={t("people.pick.contacts")}>
             <SymbolView name="person.crop.circle.badge.plus" size={22} tintColor={C.tint} />
             <Text style={[styles.name, { color: C.tint }]}>{t("people.pick.contacts")}</Text>
           </Tap>
@@ -91,7 +91,7 @@ export default function PickPeople() {
         return (
           <Tap onPress={() => toggle(p.id)} style={styles.row} accessibilityRole="button" accessibilityLabel={p.name} accessibilityState={{ selected: on }}>
             <PersonAvatar person={p} />
-            <Text style={styles.name} numberOfLines={1}>{p.name}</Text>
+            <Text style={styles.name}>{p.name}</Text>
             <SymbolView name={on ? "checkmark.circle.fill" : "circle"} size={22} tintColor={on ? C.tint : C.tertiary} />
           </Tap>
         );
@@ -102,8 +102,8 @@ export default function PickPeople() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, height: 44, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 44 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 52 },
   name: { flex: 1, fontSize: 17, color: C.label },
   empty: { fontSize: 15, color: C.secondary, textAlign: "center", padding: S.xl },

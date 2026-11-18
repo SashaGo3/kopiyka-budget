@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Animated, LayoutAnimation, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { animateNextLayout } from "@/lib/motion";
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -254,8 +254,8 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress, ke
                 onLongPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onLongPress?.(id, orderRef.current, (next) => { animateNextLayout(); setOrderBoth(next); }); }}>
                 {row.icon}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.name, row.section && styles.sectionName]} numberOfLines={1}>{row.title}</Text>
-                  {row.subtitle ? <Text style={styles.sub} numberOfLines={1}>{row.subtitle}</Text> : null}
+                  <Text style={[styles.name, row.section && styles.sectionName]}>{row.title}</Text>
+                  {row.subtitle ? <Text style={styles.sub}>{row.subtitle}</Text> : null}
                 </View>
                 <GestureDetector gesture={grip}>
                   <View style={styles.grip} accessibilityRole="adjustable" accessibilityLabel={t("ui.reorderA11y", { title: row.title })}>
@@ -302,7 +302,7 @@ const styles = themed(() => StyleSheet.create({
   deleteText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
   // Lifted off the list while it is in the hand, and drawn last so it passes over its neighbours.
   dragging: { zIndex: 10, elevation: 6, shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
-  name: { fontSize: 16, color: C.label },
+  name: { fontSize: 17, color: C.label },
   sectionName: { fontWeight: "700" },
   // A header reads as one by its weight and its tint, not by extra space (see PITCH); the rows under
   // one are stepped in.

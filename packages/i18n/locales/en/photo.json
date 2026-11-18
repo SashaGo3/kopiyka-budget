@@ -1,40 +1,14 @@
 {
   "libraryError": "Cannot open the library",
-  "cameraNeeded": "Camera access is needed to take a photo.",
-  "cameraOff": "Camera access is off. Enable it in the Settings app.",
-  "allowCamera": "Allow camera",
-  "fromLibrary": {
-    "message": "Choose from library",
-    "note": "Pick a picture from the photo library instead of taking one."
-  },
-  "take": "Take photo",
   "attached": {
     "message": "Attached photo",
     "note": "VoiceOver label of the full-screen photo."
   },
   "remove": "Remove photo",
-  "receipt": {
-    "hold": {
-      "message": "Lay the receipt flat and hold still",
-      "note": "Status over the camera while it waits to read a receipt."
-    },
-    "reading": "Reading…",
-    "looking": "Looking for the receipt…",
-    "failed": {
-      "message": "Could not read it: {error}",
-      "note": "error is a short reason, possibly from the system."
-    },
-    "noPhoto": "No photo",
-    "noTotal": "No total found",
-    "lightTip": {
-      "message": "more light or closer helps",
-      "note": "Added after the status, after \" · \", once several tries have failed. Lowercase."
-    },
-    "cameraNeeded": "Camera access is needed to photograph the receipt.",
-    "takeNow": "Take photo now"
-  },
   "read": {
     "zoomA11y": "Photo. Pinch or double-tap to zoom.",
+    "payA11y": { "message": "Paid from {account}. Change account", "note": "Receipt sheet, a receipt in another currency: the account chip." },
+    "noRate": { "message": "No {currency} rate yet", "note": "Beside the account chip when the receipt cannot be converted into the account's currency yet." },
     "text": {
       "message": "Text",
       "note": "Tab under the full-screen photo: the text read from it."
@@ -43,88 +17,22 @@
       "message": "{count, plural, one {# item} other {# items}}",
       "note": "Tab under the full-screen photo: the receipt's lines."
     },
-    "reading": {
-      "message": "Reading text…",
-      "note": "While the photo's text is being recognised."
-    },
-    "findingItems": {
-      "message": "Finding items…",
-      "note": "Text is read; the receipt's items are being worked out."
-    },
-    "sorting": {
-      "message": "Sorting into categories…",
-      "note": "Items are read; a category is being guessed for each."
-    },
-    "show": "Show text",
-    "hide": "Hide text",
     "noText": "No text found in this photo.",
     "copyAll": "Copy all",
     "copied": "Copied",
-    "sortHint": {
-      "message": "Select items to file them under a category. Anything left unsorted stays with this entry.",
-      "note": "Above the receipt's items when they can be split."
-    },
-    "suggested": "Suggested category",
-    "selected": {
-      "message": "{count, plural, one {# selected} other {# selected}} · {amount}",
-      "note": "amount is the selected items' sum, formatted."
-    },
-    "category": {
-      "message": "Category",
-      "note": "Button: choose the category for the selected items."
-    },
-    "split": {
-      "message": "Split into {count, plural, one {# entry} other {# entries}}",
-      "note": "count is at least 2."
-    },
-    "fileAs": {
-      "message": "File as {category}",
-      "note": "Every item went into one category other than the entry's: re-file the entry."
-    },
     "uncategorized": "No category",
-    "fill": {
-      "message": "Fill in the entry · {amount}",
-      "note": "Button over the photo's text panel; amount is the receipt total, formatted."
-    },
     "noteTotal": {
       "message": "Total {amount}",
       "note": "Last line of the receipt content written into the entry's note."
     },
-    "unsorted": {
-      "message": "Not sorted · stays with this entry",
-      "note": "Header over the receipt items given no category."
+    "continue": {
+      "message": "Continue",
+      "note": "Button over a read receipt: save it as the entry, split by the items' categories. Short."
     },
-    "use": {
-      "message": "Use",
-      "note": "Button beside the shop's name over a read receipt: fill the entry in from it. Short."
-    },
-    "apply": {
-      "message": "Apply to the entry",
-      "note": "Button when the items' tags or notes change but nothing is split."
-    },
-    "tags": "Tags",
-    "note": "Note",
-    "clear": {
-      "message": "Remove from entry",
-      "note": "Button over a read receipt whose values were filled into the entry: take them off again."
-    },
-    "sheetA11y": {
-      "message": "Text and items. Swipe up or down to resize.",
-      "note": "VoiceOver label of the grabber on the photo's text sheet."
+    "dayA11y": {
+      "message": "Day of the receipt: {day}. Change",
+      "note": "VoiceOver label of the day chip over a read receipt."
     }
   },
-  "replace": "Replace photo",
-  "scanFailed": "Could not scan",
-  "mode": {
-    "receipt": {
-      "message": "Receipt",
-      "note": "Camera mode: the document scanner that finds and shoots a receipt by itself. Short.",
-      "max": 12
-    },
-    "photo": {
-      "message": "Photo",
-      "note": "Camera mode: an ordinary photo. Short.",
-      "max": 12
-    }
-  }
+  "replace": "Replace photo"
 }

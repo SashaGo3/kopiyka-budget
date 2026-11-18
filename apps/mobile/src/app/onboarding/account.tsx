@@ -8,7 +8,7 @@ import { db } from "@/db";
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { Keypad, CalcLine, evalPartial } from "@/components/Keypad";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { currencyName, isKnownCurrency, suggestedCurrency } from "@/lib/currencies";
 import { countryCode, locationStatus, quickLocation } from "@/lib/location";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -106,9 +106,9 @@ const styles = themed(() => StyleSheet.create({
   form: { gap: S.sm, marginHorizontal: -S.xl },
   currencyRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   currencyText: { fontSize: 15, fontWeight: "600", color: C.tint },
-  input: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, height: 50, fontSize: 18, color: C.label },
-  balance: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: 14, padding: S.md, gap: 2 },
+  input: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md, minHeight: 50, fontSize: 17, color: C.label },
+  balance: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: 2 },
   balanceLabel: { fontSize: 13, color: C.secondary },
   balanceValue: { fontSize: 36, fontWeight: "700", color: C.label },
-  balanceCur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
+  balanceCur: { fontSize: 17, color: C.secondary, fontWeight: "600" },
 }));

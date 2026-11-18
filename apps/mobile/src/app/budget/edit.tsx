@@ -9,7 +9,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { Chip, ChipGrid, SheetFrame, Tap } from "@/components/ui";
 import { SideScroll } from "@/components/SideScroll";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { monthBounds, todayLocal } from "@/lib/dates";
 import { getBaseCurrency } from "@/lib/rates";
 import { getPeriodStartDay } from "@/lib/period";
@@ -87,7 +87,7 @@ export default function BudgetEdit() {
       top={
         <View style={styles.top}>
           {existing ? <Tap onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("budgets.edit.delete")}><SymbolView name="trash" size={16} tintColor={C.red} /></Tap> : null}
-          <Text style={styles.covers} numberOfLines={2}>{name.trim() || covers}</Text>
+          <Text style={styles.covers}>{name.trim() || covers}</Text>
           <Text style={styles.meta}>{[
             name.trim() ? covers : null,
             t("budgets.edit.monthlyLimit", { currency }),
@@ -153,5 +153,5 @@ const styles = themed(() => StyleSheet.create({
   // Spans the sheet's width so a chip scrolls off the side instead of stopping short of it.
   suggest: { alignSelf: "stretch" },
   suggestRow: { paddingHorizontal: S.xl, gap: S.sm },
-  trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
+  trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
 }));

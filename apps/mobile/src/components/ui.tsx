@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Easing, FlatList, LayoutAnimation, Pressable, SectionList, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
+import { ActivityIndicator, Animated, Easing, FlatList, Pressable, SectionList, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { reduceMotion } from "@/lib/motion";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, R, S, themeTone, themed } from "@/constants/theme";
+import { C, R, S, Type, themeTone, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
 import { t } from "@/i18n";
 
@@ -178,7 +178,7 @@ export function Row({ title, titleNode, subtitle, subtitleColor, left, right, on
             <View style={styles.badge}><Text style={styles.badgeText} maxFontSizeMultiplier={1.3}>{badge}</Text></View>
           </View>
         ) : <Text style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
-        {subtitle ? <Text numberOfLines={3} style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
+        {subtitle ? <Text style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
       </View>
       {right}
       {onPress && !right ? <SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /> : null}
@@ -209,7 +209,7 @@ export function Money({ minor, currency, style, colored, sign, approx }: { minor
   const frac = String(abs % 100).padStart(d, "0");
   const color = colored ? (neg ? C.label : C.green) : C.label;
   return (
-    <Text style={[styles.money, { color }, style]} maxFontSizeMultiplier={1.6}>
+    <Text style={[styles.money, { color }, style]} maxFontSizeMultiplier={2}>
       {approx ? "≈" : ""}{neg ? "−" : sign ? "+" : ""}{int}{decimal}{frac} <Text style={{ opacity: 0.55, fontSize: 13 }}>{currency}</Text>
     </Text>
   );
@@ -254,11 +254,11 @@ export function PressCard({ children, style, onPress, onLongPress, accessibility
   children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; onLongPress?: () => void; accessibilityLabel?: string; accessibilityHint?: string; disabled?: boolean;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const to = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: v === 1 ? 6 : 0 }).start();
+  const to = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
   return (
     <Pressable onPress={onPress} disabled={disabled} delayLongPress={400}
       onLongPress={onLongPress ? () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); to(1); onLongPress(); } : undefined}
-      onPressIn={() => to(0.97)} onPressOut={() => to(1)}
+      onPressIn={() => to(0.96)} onPressOut={() => to(1)}
       accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityHint={accessibilityHint}>
       {({ pressed }) => (
         <Animated.View style={[style, styles.pressCard, { transform: [{ scale }] }]}>
@@ -372,10 +372,10 @@ export function ToggleRow({ title, subtitle, value, onChange, icon, iconColor, s
 /** Red text row for destructive actions, placed under the confirm bar. */
 export function DeleteRow({ label, onPress, icon = "trash" }: { label: string; onPress: () => void; icon?: SFSymbol }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.deleteRow, pressed && { opacity: 0.5 }]}>
+    <Tap onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.deleteRow}>
       <SymbolView name={icon} size={15} tintColor={C.red} />
       <ButtonText style={styles.deleteText}>{label}</ButtonText>
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -448,11 +448,11 @@ export function StatPair({ stats }: { stats: { label: string; minor: number; cur
   return (
     <View style={styles.stats}>
       {stats.map((s) => (
-        <Pressable key={s.label} onPress={s.onPress} disabled={!s.onPress} style={({ pressed }) => [styles.stat, pressed && { opacity: 0.6 }]}
+        <Tap key={s.label} onPress={s.onPress} disabled={!s.onPress} style={styles.stat}
           accessibilityRole={s.onPress ? "button" : undefined} accessibilityLabel={s.onPress ? t("ui.approxA11y", { label: s.label }) : undefined}>
           <Text style={styles.statLabel} maxFontSizeMultiplier={1.4}>{s.label}</Text>
           <Money minor={s.minor} currency={s.currency} approx={s.approx} style={[styles.statValue, s.color ? { color: s.color } : null]} />
-        </Pressable>
+        </Tap>
       ))}
     </View>
   );
@@ -487,10 +487,9 @@ function InfoNote({ children, more, style }: { children: ReactNode; more?: React
       <View style={styles.noteRow}>
         <Text style={styles.noteText}>{children}</Text>
         {more ? (
-          <Pressable onPress={toggle} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("common.moreInfo")} accessibilityState={{ expanded: open }}
-            style={({ pressed }) => [styles.noteInfo, pressed && { opacity: 0.5 }]}>
+          <Tap onPress={toggle} hitSlop={14} accessibilityRole="button" accessibilityLabel={t("common.moreInfo")} accessibilityState={{ expanded: open }} style={styles.noteInfo}>
             <SymbolView name={open ? "info.circle.fill" : "info.circle"} size={16} tintColor={C.secondary} />
-          </Pressable>
+          </Tap>
         ) : null}
       </View>
       {more ? <Collapsible open={open} lazy><Text style={[styles.noteText, styles.noteMore]}>{more}</Text></Collapsible> : null}
@@ -537,12 +536,12 @@ export function runBusy(show: () => void, work: () => void, done: () => void): v
 export function Empty({ title, hint, action }: { title: string; hint?: string; action?: { label: string; onPress: () => void } }) {
   return (
     <View style={{ padding: S.xxl, alignItems: "center", gap: S.sm }}>
-      <Text style={{ color: C.secondary, fontSize: 17, fontWeight: "600" }}>{title}</Text>
+      <Text style={{ ...Type.headline, color: C.secondary, textAlign: "center" }}>{title}</Text>
       {hint ? <Text style={{ color: C.tertiary, textAlign: "center" }}>{hint}</Text> : null}
       {action ? (
-        <Pressable onPress={action.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={action.label} style={({ pressed }) => pressed && { opacity: 0.6 }}>
-          <Text style={{ color: C.tint, fontSize: 15, fontWeight: "600", paddingTop: S.xs }}>{action.label}</Text>
-        </Pressable>
+        <Tap onPress={action.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={action.label} style={{ paddingTop: S.xs }}>
+          <ButtonText style={{ ...Type.callout, fontWeight: "600", color: C.tint }}>{action.label}</ButtonText>
+        </Tap>
       ) : null}
     </View>
   );
@@ -554,7 +553,7 @@ const styles = themed(() => StyleSheet.create({
   pickerHead: { backgroundColor: C.bgGrouped, paddingBottom: S.sm },
   pickerBar: { paddingTop: S.md },
   pickerLink: { color: C.tint, fontSize: 15 },
-  pickerDone: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
+  pickerDone: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: R.pill, justifyContent: "center" },
   pickerDoneText: { color: C.onTint, fontSize: 15, fontWeight: "700" },
   // Clipped so the veil follows whatever corners the card has.
   pressCard: { overflow: "hidden" },
@@ -569,15 +568,15 @@ const styles = themed(() => StyleSheet.create({
   noteInfo: { paddingTop: 1 },
   noteMore: { marginTop: S.xs },
   title: { fontSize: 22, fontWeight: "700", color: C.label },
-  subtle: { fontSize: 14, color: C.secondary },
+  subtle: { fontSize: 15, color: C.secondary },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, paddingHorizontal: S.md },
-  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.sm },
   pillNeg: { backgroundColor: C.redSoft },
   pillWarn: { backgroundColor: C.orangeSoft },
   pillPos: { backgroundColor: C.greenSoft },
   pillNeutral: { backgroundColor: C.fill },
   pillText: { fontSize: 15, fontWeight: "600" },
-  chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 12, minHeight: 38, paddingVertical: 6, borderRadius: 19, backgroundColor: C.fill, flexGrow: 1, flexBasis: "auto", minWidth: 0, maxWidth: "100%" },
+  chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 12, minHeight: 38, paddingVertical: 6, borderRadius: R.pill, backgroundColor: C.fill, flexGrow: 1, flexBasis: "auto", minWidth: 0, maxWidth: "100%" },
   chipCompact: { flexGrow: 0, flexBasis: "auto", minWidth: 0 },
   chipActive: { backgroundColor: C.tint },
   chipText: { color: C.label, fontSize: 15, fontWeight: "500" },
@@ -601,8 +600,8 @@ const styles = themed(() => StyleSheet.create({
   badge: { flexShrink: 0, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: C.tint },
   badgeText: { fontSize: 11, fontWeight: "700", color: C.onTint, textTransform: "uppercase", letterSpacing: 0.4 },
   rowSub: { fontSize: 13, color: C.secondary, marginTop: 1 },
-  iconBox: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  card: { backgroundColor: C.card, borderRadius: R.md, overflow: "hidden", marginHorizontal: S.lg },
+  iconBox: { width: 30, height: 30, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
+  card: { backgroundColor: C.card, borderRadius: R.card, overflow: "hidden", marginHorizontal: S.lg },
   stats: { flexDirection: "row", gap: S.md, paddingHorizontal: S.lg, paddingTop: S.sm, paddingBottom: S.sm },
   stat: { flex: 1, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md, paddingVertical: 10, gap: 3 },
   statLabel: { color: C.secondary, fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
@@ -610,8 +609,8 @@ const styles = themed(() => StyleSheet.create({
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.sm },
   sectionText: { fontSize: 13, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
   money: { fontSize: 17, fontVariant: ["tabular-nums"], fontWeight: "500" },
-  deleteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 40 },
-  tag: { paddingHorizontal: 8, minHeight: 24, paddingVertical: 2, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", maxWidth: 200 },
+  deleteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44 },
+  tag: { paddingHorizontal: 8, minHeight: 24, paddingVertical: 2, borderRadius: R.pill, borderWidth: 1, alignItems: "center", justifyContent: "center", maxWidth: 200 },
   tagText: { fontSize: 13, fontWeight: "600" },
   headerBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg },
   modalHeader: { minHeight: 52 },
@@ -621,5 +620,5 @@ const styles = themed(() => StyleSheet.create({
   modalLink: { color: C.tint, fontSize: 17 },
   deleteText: { color: C.red, fontSize: 15, fontWeight: "500" },
   big: { marginHorizontal: S.md, minHeight: 50, paddingVertical: 10, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },
-  bigText: { color: C.onTint, fontSize: 18, fontWeight: "600" },
+  bigText: { color: C.onTint, fontSize: 17, fontWeight: "600" },
 }));

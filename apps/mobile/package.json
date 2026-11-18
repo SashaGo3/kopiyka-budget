@@ -68,6 +68,7 @@
     "typecheck": "node scripts/routes.mjs && tsc --noEmit",
     "test:receipt": "bun test/receipt/run.ts",
     "lint": "expo lint",
+    "check": "bun run typecheck && expo lint --max-warnings 1 && bun test && bun run test:receipt",
     "release:bump": "node scripts/bump-build.js",
     "release:ios": "bash scripts/release-ios.sh upload",
     "release:ios:ipa": "bash scripts/release-ios.sh ipa",

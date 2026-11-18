@@ -9,7 +9,7 @@ import { useQuery } from "@/store";
 import { acctName } from "@/lib/names";
 import { t } from "@/i18n";
 import { AmountPill, CategoryIcon, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
 
 /**
@@ -67,14 +67,14 @@ export default function PickTransaction() {
               : `${name}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}, ${humanDayTime(tx.date.slice(0, 10))}`}>
             <CategoryIcon name={shown.name ?? shown.parent ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={30} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.name} numberOfLines={1}>{name}</Text>
-              <Text style={styles.sub} numberOfLines={1}>{humanDayTime(tx.date.slice(0, 10))} · {acctName({ name: tx.account_name })}{shown.name ? ` · ${shown.name}` : ""}</Text>
+              <Text style={styles.name}>{name}</Text>
+              <Text style={styles.sub}>{humanDayTime(tx.date.slice(0, 10))} · {acctName({ name: tx.account_name })}{shown.name ? ` · ${shown.name}` : ""}</Text>
             </View>
             {after !== null ? (
               <View style={styles.change}>
-                <Text style={styles.before} numberOfLines={1}>{formatMinor(tx.amount_minor, tx.currency)}</Text>
+                <Text style={styles.before}>{formatMinor(tx.amount_minor, tx.currency)}</Text>
                 <SymbolView name="arrow.right" size={11} tintColor={C.tertiary} />
-                <Text style={styles.after} numberOfLines={1}>{formatMinor(after, tx.currency)}</Text>
+                <Text style={styles.after}>{formatMinor(after, tx.currency)}</Text>
               </View>
             ) : <AmountPill minor={tx.amount_minor} currency={tx.currency} />}
           </Tap>
@@ -86,11 +86,11 @@ export default function PickTransaction() {
 
 const styles = themed(() => StyleSheet.create({
   title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingTop: S.md },
-  desc: { fontSize: 14, color: C.secondary, textAlign: "center", paddingHorizontal: S.xl, paddingTop: S.xs, lineHeight: 19 },
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  desc: { fontSize: 15, color: C.secondary, textAlign: "center", paddingHorizontal: S.xl, paddingTop: S.xs, lineHeight: 19 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 56, paddingVertical: 6 },
-  name: { fontSize: 16, color: C.label },
+  name: { fontSize: 17, color: C.label },
   sub: { fontSize: 12, color: C.secondary },
   change: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
   before: { fontSize: 13, color: C.tertiary, fontVariant: ["tabular-nums"], textDecorationLine: "line-through" },

@@ -8,7 +8,7 @@ import { newPickKey, usePickResult } from "@/store/pick";
 import { groupByDay, rowCategory, useTransactions, type TxRow } from "@/components/TransactionList";
 import { BarButton, BottomBar } from "@/components/BottomBar";
 import { AmountPill, ButtonText, CategoryIcon, Empty, Money, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { timeLabel } from "@/lib/dates";
 import { Trans, t } from "@/i18n";
 import { acctName } from "@/lib/names";
@@ -162,8 +162,8 @@ function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete
         onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: tx.id } })}>
         <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={34} />
         <View style={styles.text}>
-          <Text style={styles.title} numberOfLines={2}>{title}</Text>
-          <Text style={styles.sub} numberOfLines={1}>{where}{where ? " · " : ""}{timeLabel(tx.date)}</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.sub}>{where}{where ? " · " : ""}{timeLabel(tx.date)}</Text>
         </View>
         <AmountPill minor={tx.amount_minor} currency={tx.currency} />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
@@ -198,8 +198,8 @@ function PendingTransfer({ tx, partner, first, last, onApprove, onDelete }: {
       <Tap style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.transfer.editA11y", { route })} onPress={edit}>
         <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
         <View style={styles.text}>
-          <Text style={styles.title} numberOfLines={1}>{t("pending.transfer.title")}</Text>
-          <Text style={styles.sub} numberOfLines={2}>{route} · {timeLabel(tx.date)}</Text>
+          <Text style={styles.title}>{t("pending.transfer.title")}</Text>
+          <Text style={styles.sub}>{route} · {timeLabel(tx.date)}</Text>
         </View>
         <View style={styles.amounts}>
           <AmountPill minor={out.amount_minor} currency={out.currency} neutral />
@@ -229,8 +229,8 @@ function Action({ icon, label, a11y, color, onPress, grow }: { icon: SFSymbol; l
 }
 
 const styles = themed(() => StyleSheet.create({
-  intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
-  introSum: { color: C.label, fontSize: 14, fontWeight: "700" },
+  intro: { color: C.secondary, fontSize: 15, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
+  introSum: { color: C.label, fontSize: 15, fontWeight: "700" },
   sh: { fontSize: 20, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.sm },
   card: { marginHorizontal: S.lg, backgroundColor: C.card, overflow: "hidden" },
   first: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
@@ -242,7 +242,7 @@ const styles = themed(() => StyleSheet.create({
   sub: { fontSize: 13, color: C.secondary },
   actions: { flexDirection: "row", alignItems: "stretch", gap: 1, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: S.md },
-  actionText: { fontSize: 14, fontWeight: "600", flexShrink: 1 },
-  transferIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  actionText: { fontSize: 15, fontWeight: "600", flexShrink: 1 },
+  transferIcon: { width: 34, height: 34, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   amounts: { alignItems: "flex-end", gap: 4 },
 }));

@@ -7,7 +7,7 @@ import { useQuery } from "@/store";
 import { catName } from "@/lib/names";
 import { resolvePick } from "@/store/pick";
 import { PickCheck, PickerHeader, PickerSections, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { getLanguage, t } from "@/i18n";
 
 /**
@@ -57,7 +57,7 @@ export default function PickTypes() {
             <View style={styles.icon}><SymbolView name={categoryTypeIcon(item) as SFSymbol} size={15} tintColor={C.secondary} /></View>
             <View style={styles.text}>
               <Text style={styles.name}>{categoryTypeName(item, lang)}</Text>
-              {carriers.get(item)?.length ? <Text style={styles.also} numberOfLines={1}>{t("category.type.also", { names: carriers.get(item)!.join(", ") })}</Text> : null}
+              {carriers.get(item)?.length ? <Text style={styles.also}>{t("category.type.also", { names: carriers.get(item)!.join(", ") })}</Text> : null}
             </View>
             <PickCheck state={on} />
           </Tap>
@@ -69,7 +69,7 @@ export default function PickTypes() {
 const styles = themed(() => StyleSheet.create({
   section: { fontSize: 13, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 46 },
-  icon: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  icon: { width: 28, height: 28, borderRadius: R.sm, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   text: { flex: 1, paddingVertical: 6 },
   name: { fontSize: 17, color: C.label },
   also: { fontSize: 13, color: C.secondary, marginTop: 1 },

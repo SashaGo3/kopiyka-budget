@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LayoutAnimation, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
@@ -13,6 +13,7 @@ import { useRates } from "@/lib/rates";
 import { catName } from "@/lib/names";
 import { tripLook, tripName } from "@/lib/travel";
 import { t } from "@/i18n";
+import { freshNonce } from "@/lib/nav";
 
 /**
  * A trip (travel mode budget). Ignores the account scope: a trip is paid from anywhere. Tapping the
@@ -42,7 +43,7 @@ export function TripCard({ budget, compact, onPress, onShow }: { budget: Budget;
   const kind = tripKind(budget);
   const look = tripLook(kind);
   const ratio = s.limit_minor > 0 ? Math.min(1, s.spent_minor / s.limit_minor) : 0;
-  const show = (category?: string | null) => onShow ? onShow(category) : router.push({ pathname: "/transactions", params: { tag: budget.tag_id ?? "", name: tripTitle, ...(category !== undefined ? { category: category ?? "none" } : {}), from: "0000", nonce: String(Date.now()) } });
+  const show = (category?: string | null) => onShow ? onShow(category) : router.push({ pathname: "/transactions", params: { tag: budget.tag_id ?? "", name: tripTitle, ...(category !== undefined ? { category: category ?? "none" } : {}), from: "0000", nonce: freshNonce() } });
   const cats = new Map(s.by_category.map((c) => [c.category_id, c.category_id ? getRow(db, "categories", c.category_id) : null]));
   // Set up ahead: nothing is counting yet, so the card says when it begins rather than "Day 1".
   const when = s.active && budget.starts > today ? t("travel.card.startsOn", { date: humanDayTime(budget.starts) })

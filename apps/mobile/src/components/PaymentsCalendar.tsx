@@ -8,7 +8,7 @@ import { useQuery } from "@/store";
 import { AmountPill, Row, SectionHeader, Tap } from "@/components/ui";
 import { PaymentIcon } from "@/components/PaymentIcon";
 import { monthWeeks, weekdays } from "@/components/RangeCalendar";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, monthBounds, shiftMonth, todayLocal } from "@/lib/dates";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { acctName, catName } from "@/lib/names";
@@ -124,14 +124,14 @@ function markColor(p: CalendarPayment) {
 }
 
 const styles = themed(() => StyleSheet.create({
-  wrap: { marginHorizontal: S.lg, marginTop: S.sm, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.sm, paddingVertical: S.md, gap: 2 },
+  wrap: { marginHorizontal: S.lg, marginTop: S.sm, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.sm, paddingVertical: S.md, gap: 2 },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: S.sm, paddingBottom: S.sm },
-  nav: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: C.fill },
+  nav: { width: 36, height: 36, borderRadius: R.pill, alignItems: "center", justifyContent: "center", backgroundColor: C.fill },
   month: { fontSize: 17, fontWeight: "600", color: C.label },
   week: { flexDirection: "row" },
   weekday: { flex: 1, textAlign: "center", fontSize: 12, fontWeight: "600", color: C.tertiary, paddingBottom: 4 },
   cell: { flex: 1, height: 62, alignItems: "center", paddingTop: 3 },
-  dot: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  dot: { width: 34, height: 34, borderRadius: R.pill, alignItems: "center", justifyContent: "center" },
   dotOn: { backgroundColor: C.tint },
   dotToday: { borderWidth: 1.5, borderColor: C.tint },
   dayText: { fontSize: 17, color: C.label, fontVariant: ["tabular-nums"] },
@@ -142,9 +142,9 @@ const styles = themed(() => StyleSheet.create({
   mark: { borderWidth: 1.5, borderRadius: 6, padding: 0.5, backgroundColor: C.card },
   markNext: { marginLeft: -5 },
   markPaid: { opacity: 0.55 },
-  more: { fontSize: 10, fontWeight: "700", color: C.secondary, marginLeft: 2, fontVariant: ["tabular-nums"] },
+  more: { fontSize: 11, fontWeight: "700", color: C.secondary, marginLeft: 2, fontVariant: ["tabular-nums"] },
   sum: { fontSize: 13, color: C.secondary, textAlign: "center", paddingTop: S.sm, paddingHorizontal: S.sm },
-  list: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, overflow: "hidden" },
+  list: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: R.card, overflow: "hidden" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   none: { fontSize: 15, color: C.secondary, padding: S.lg },
 }));

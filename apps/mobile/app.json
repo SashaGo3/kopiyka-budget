@@ -38,6 +38,11 @@
             "UIApplicationShortcutItemType": "dev.kopiyka.log",
             "UIApplicationShortcutItemTitle": "quickActionLog",
             "UIApplicationShortcutItemIconSymbolName": "plus.circle"
+          },
+          {
+            "UIApplicationShortcutItemType": "dev.kopiyka.scan",
+            "UIApplicationShortcutItemTitle": "quickActionScan",
+            "UIApplicationShortcutItemIconSymbolName": "doc.viewfinder"
           }
         ]
       },
@@ -55,7 +60,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "118"
+      "buildNumber": "120"
     },
     "android": {
       "package": "dev.kopiyka.app",

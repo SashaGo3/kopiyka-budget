@@ -251,5 +251,5 @@ const styles = themed(() => StyleSheet.create({
   kindHead: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.md },
   kindIcon: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   kindTitle: { color: C.label, fontSize: 20, fontWeight: "700" },
-  kindHint: { color: C.secondary, fontSize: 14, marginTop: 2 },
+  kindHint: { color: C.secondary, fontSize: 15, marginTop: 2 },
 }));

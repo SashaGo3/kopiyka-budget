@@ -22,7 +22,7 @@
   },
   "netWorth": {
     "title": "Net worth",
-    "fetching": { "message": "Fetching {currencies} rate…", "note": "currencies is a list of codes, \"USD, PLN\"." },
+    "fetching": { "message": "Fetching {currencies} rate", "note": "currencies is a list of codes, \"USD, PLN\"." },
     "noRate": { "message": "No rate yet for {currencies}. Connect to the internet once.", "note": "currencies is a list of codes, \"USD, PLN\"." }
   }
 }

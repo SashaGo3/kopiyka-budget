@@ -7,7 +7,7 @@ import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { db } from "@/db";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, Subtle, Title, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
 import { errorText } from "@/lib/errors";
 import { nextDay } from "@/lib/filters";
@@ -90,7 +90,7 @@ export default function TravelStart() {
   }, [past]);
   useEffect(() => {
     if (chosenRef.current || !localCur) return;
-    setCurrency(localCur); // eslint-disable-line react-hooks/set-state-in-effect
+    setCurrency(localCur);  
   }, [localCur]);
   // A currency picked by hand is checked against the rate source first: with no rate between it and
   // the accounts, every payment would sit in "not counted" and the budget would never move.
@@ -134,7 +134,7 @@ export default function TravelStart() {
     } catch (e) {
       Alert.alert(over ? t("travel.start.addFailed") : t("travel.start.startFailed", { kind }), errorText(e));
     }
-  }, [finalName, currency, value, limitless, exit, past, kind, people]));
+  }, [finalName, currency, value, limitless, exit, kind, people]));
   return (
     <SheetFrame
       top={
@@ -162,7 +162,7 @@ export default function TravelStart() {
             accessibilityLabel={`${t("people.event.people")}: ${names || t("people.event.nobody")}`}>
             <SymbolView name="person.2.fill" size={15} tintColor={C.tint} />
             <Text style={styles.peopleLabel}>{t("people.event.people")}</Text>
-            <Text style={styles.peopleNames} numberOfLines={1}>{names || t("people.event.nobody")}</Text>
+            <Text style={styles.peopleNames}>{names || t("people.event.nobody")}</Text>
             <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
           </Tap>
         </View>
@@ -191,6 +191,6 @@ const styles = themed(() => StyleSheet.create({
   input: { flex: 1, fontSize: 22, fontWeight: "600", color: C.label, paddingVertical: S.sm },
   amountRow: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: S.xs },
   amount: { fontSize: 44, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"], flexShrink: 1 },
-  cur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
-  curPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  cur: { fontSize: 17, color: C.secondary, fontWeight: "600" },
+  curPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.fill, borderRadius: R.card, paddingHorizontal: 10, paddingVertical: 4 },
 }));

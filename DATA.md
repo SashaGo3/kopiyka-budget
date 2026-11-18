@@ -159,6 +159,15 @@ known the amount is **0** and the note says so — deliberately, because a zero 
 and the entry sheet refuses to save at zero, whereas writing the foreign number as if it were the
 account's currency silently inflates the month.
 
+A receipt photographed in another currency is the same case. Filled into an account in another
+currency, it is converted at the rate of the day and saved with the receipt's own total as
+`entered_amount_minor` / `entered_currency` and the rate used. Without a rate the amount is left
+empty, for you to type, never the receipt's number. The receipt sheet asks which account paid
+(`payAccountFor`, `packages/core/src/payAccount.ts`): the account of the newest expense in that
+currency, held in it or converted from it, else an account held in it, else the one the sheet was
+opened on. Nothing is stored for that. It is read off the expenses each time, so paying once from
+another account is what teaches it.
+
 ## 7. Preferences live in `meta`, and only some of them travel
 
 Adding a preference means adding its key to `BACKUP_META_KEYS` (`packages/core/src/backup.ts`) or it

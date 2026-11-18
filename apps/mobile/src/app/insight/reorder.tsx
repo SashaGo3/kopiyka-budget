@@ -5,7 +5,7 @@ import { getRow, listRows, parseInsightParams, remove, save, type Insight } from
 import { mutate, useQuery } from "@/store";
 import { ReorderList } from "@/components/ReorderList";
 import { INSIGHT_LOOK, kindHint, kindTitle } from "@/lib/insights";
-import { themeTone } from "@/constants/theme";
+import { R, themeTone } from "@/constants/theme";
 import { t } from "@/i18n";
 
 /** Drag the insight cards into the order you want them on the Insights tab, and swipe away the ones you no longer want. */
@@ -31,5 +31,5 @@ export default function InsightReorder() {
 }
 
 const styles = StyleSheet.create({
-  icon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  icon: { width: 30, height: 30, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
 });

@@ -6,7 +6,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { ICON_CATALOG, guessLogo, searchIcons, searchLogos, type Logo } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { LogoTile } from "@/components/PaymentIcon";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { domainOf, domainsIn, siteIcon } from "@/lib/siteIcon";
 import { iconFromPhotos } from "@/lib/iconImage";
 import { t } from "@/i18n";
@@ -62,7 +62,7 @@ export default function PickPaymentIcon() {
   useEffect(() => {
     const typedSite = domainOf(ql);
     const domains = typedSite ? [typedSite] : ql ? [] : domainsIn(payee, match).slice(0, 2);
-    if (!domains.length) { setWeb({ items: [], busy: false }); return; }
+    if (!domains.length) { setWeb({ items: [], busy: false }); return; } // eslint-disable-line react-hooks/set-state-in-effect -- starts or clears an async fetch
     let alive = true;
     setWeb((w) => ({ ...w, busy: true }));
     const timer = setTimeout(async () => {
@@ -107,7 +107,7 @@ export default function PickPaymentIcon() {
   const option = (label: string, value: string, left: React.ReactNode) => (
     <Tap onPress={() => choose(value)} style={styles.optRow} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: (selected ?? "") === value }}>
       {left}
-      <Text style={styles.optText} numberOfLines={1}>{label}</Text>
+      <Text style={styles.optText}>{label}</Text>
       {(selected ?? "") === value ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
     </Tap>
   );
@@ -171,10 +171,10 @@ export default function PickPaymentIcon() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.lg, marginBottom: S.md, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.lg, marginBottom: S.md, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   optRow: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 40, marginBottom: S.xs },
-  optIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  optIcon: { width: 28, height: 28, borderRadius: R.sm, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   optText: { flex: 1, fontSize: 17, color: C.label },
   hint: { fontSize: 13, color: C.secondary },
   headRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.sm, marginBottom: S.xs },

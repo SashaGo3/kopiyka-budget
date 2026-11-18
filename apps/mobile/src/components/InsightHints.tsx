@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { createInsight, getMeta, getRow, setMeta, suggestInsights, type Insight, type InsightHint, type SqlDriver } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { Card, Chip, Row, SectionHeader, Tap } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
 import { getPeriodStartDay } from "@/lib/period";
 import { INSIGHT_LOOK, kindTitle } from "@/lib/insights";
@@ -90,7 +90,7 @@ export function InsightHints({ insights }: { insights: Insight[] }) {
 
 const styles = themed(() => StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  dismiss: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  dismiss: { width: 26, height: 26, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
 }));

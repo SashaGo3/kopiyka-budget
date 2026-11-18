@@ -103,15 +103,15 @@ function when(at: string): string {
 }
 
 const styles = themed(() => StyleSheet.create({
-  intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
+  intro: { color: C.secondary, fontSize: 15, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
   entry: { marginHorizontal: S.lg, backgroundColor: C.card, paddingHorizontal: S.md, paddingVertical: 10, gap: 4 },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   head: { flexDirection: "row", alignItems: "center", gap: S.sm },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: R.sm },
   badgeText: { fontSize: 12, fontWeight: "700" },
   when: { flex: 1, color: C.secondary, fontSize: 13 },
-  amount: { color: C.label, fontSize: 14, fontWeight: "600", fontVariant: ["tabular-nums"] },
-  text: { color: C.label, fontSize: 14, lineHeight: 19 },
+  amount: { color: C.label, fontSize: 15, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  text: { color: C.label, fontSize: 15, lineHeight: 19 },
   detail: { gap: 3, paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   why: { color: C.secondary, fontSize: 13, fontStyle: "italic" },
   field: { color: C.label, fontSize: 13 },

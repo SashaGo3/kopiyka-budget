@@ -2,7 +2,7 @@
  * Tiny reactive layer over the synchronous DB: every write bumps a version;
  * useQuery re-runs its selector when the version changes. Fast, no cache layer.
  */
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { db } from "@/db";
 import type { SqlDriver } from "@kopiyka/core";
 
@@ -61,8 +61,7 @@ export function useQuery<T>(select: (db: SqlDriver) => T, deps: unknown[] = []):
   const v = useDbVersion();
   // Deps are folded into one string so a changing array length never trips React's hook checks.
   const key = JSON.stringify(deps);
-  const [state, setState] = useState(() => select(db));
-  const run = useCallback(select, [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setState(run(db)); }, [v, run]);
-  return state;
+  // Computed in the render that asks, so a changed dep (a category just picked) never shows the
+  // previous answer for a frame, as running it in an effect after the render did.
+  return useMemo(() => select(db), [v, key]); // eslint-disable-line react-hooks/exhaustive-deps
 }

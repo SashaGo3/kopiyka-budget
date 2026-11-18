@@ -5,7 +5,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { HOME_RADIUS_M } from "@kopiyka/core";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { ButtonText, FadeIn } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { ensureLocationPermission, placeName, preciseLocation } from "@/lib/location";
 import { getHomeLocation, setHomeLocation, setLocationEnabled } from "@/lib/settings";
 import { t } from "@/i18n";
@@ -103,10 +103,10 @@ export default function OnboardingLocation() {
 
 const styles = themed(() => StyleSheet.create({
   list: { gap: S.md, paddingTop: S.md },
-  point: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: 16, padding: S.md },
-  badge: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
-  pointTitle: { fontSize: 16, fontWeight: "700", color: C.label },
-  pointText: { fontSize: 14, color: C.secondary, marginTop: 2, lineHeight: 19 },
+  point: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: R.card, padding: S.md },
+  badge: { width: 44, height: 44, borderRadius: R.md, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  pointTitle: { fontSize: 17, fontWeight: "700", color: C.label },
+  pointText: { fontSize: 15, color: C.secondary, marginTop: 2, lineHeight: 19 },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44 },
   actionText: { fontSize: 15, fontWeight: "600", color: C.tint },
 }));
