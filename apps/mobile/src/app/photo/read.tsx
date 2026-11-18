@@ -337,7 +337,8 @@ function ReceiptText({ lines }: { lines: string[] }) {
 const styles = themed(() => StyleSheet.create({
   sheet: { flex: 1, backgroundColor: C.bgGrouped },
   head: { backgroundColor: C.bgGrouped, paddingHorizontal: S.lg, paddingTop: S.xl, paddingBottom: S.md, gap: S.lg },
-  shop: { flexDirection: "row", alignItems: "flex-start", gap: S.md },
+  // Explicit room below the day pill: the head's `gap` alone left "4 позиції" touching "Сьогодні".
+  shop: { flexDirection: "row", alignItems: "flex-start", gap: S.md, paddingBottom: S.md },
   shopName: { color: C.label, fontSize: 20, fontWeight: "700" },
   shopText: { flex: 1, gap: S.sm },
   // No flexWrap: Yoga under-measures a wrapping row whose children have a minHeight, so the day pill
@@ -349,7 +350,7 @@ const styles = themed(() => StyleSheet.create({
   priceCur: { color: C.secondary, fontSize: 13 },
   go: { paddingHorizontal: S.lg + 2, paddingVertical: S.sm, minHeight: 44, borderRadius: R.pill, backgroundColor: C.tint, justifyContent: "center" },
   goText: { ...Type.headline, color: C.onTint },
-  tabs: { flexDirection: "row", alignItems: "center", gap: S.xs },
+  tabs: { flexDirection: "row", alignItems: "center", gap: S.xs, paddingTop: S.sm },
   seg: { paddingHorizontal: S.md + 2, paddingVertical: S.xs + 2, minHeight: 36, borderRadius: R.pill, justifyContent: "center" },
   segOn: { backgroundColor: C.fill },
   segText: { color: C.label, fontSize: 15, fontWeight: "600" },
