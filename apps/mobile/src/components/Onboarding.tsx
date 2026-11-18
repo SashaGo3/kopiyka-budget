@@ -52,11 +52,11 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, S.lg) }]}>
         <Pressable onPress={primary.onPress} disabled={primary.disabled} accessibilityRole="button" accessibilityLabel={primary.label}
           style={({ pressed }) => [styles.primary, (pressed || primary.disabled) && { opacity: 0.5 }]}>
-          <Text style={styles.primaryText} maxFontSizeMultiplier={1.3}>{primary.label}</Text>
+          <ButtonText style={styles.primaryText} maxFontSizeMultiplier={1.3}>{primary.label}</ButtonText>
         </Pressable>
         {secondary ? (
           <Tap onPress={secondary.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={secondary.label} style={styles.secondary}>
-            <Text style={styles.secondaryText} maxFontSizeMultiplier={1.3}>{secondary.label}</Text>
+            <ButtonText style={styles.secondaryText} maxFontSizeMultiplier={1.3}>{secondary.label}</ButtonText>
           </Tap>
         ) : null}
       </View>

@@ -1400,7 +1400,7 @@ const catalog: Catalog = {
   "pick.location.search": "Пошук місця",
   "pick.location.tapMap": "Натисни на мапу, щоб поставити мітку",
   "pick.location.title": "Розташування",
-  "pick.location.use": "Обрати це розташування",
+  "pick.location.use": "Обрати місце",
   "pick.month.nextYear": "Наступний рік",
   "pick.month.previousYear": "Попередній рік",
   "pick.month.thisMonth": "Цей місяць",

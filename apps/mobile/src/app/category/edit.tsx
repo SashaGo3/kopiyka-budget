@@ -6,7 +6,7 @@ import { COLORS, autoIcon, categoryNames, nameLooksIn, namesToStore, wantsTransl
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
-import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, Tap, ToggleRow, runBusy } from "@/components/ui";
+import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, Tap, ToggleRow, runBusy, ButtonText } from "@/components/ui";
 import { dismissTo } from "@/lib/nav";
 import { C, R, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
@@ -224,7 +224,7 @@ export default function CategoryEdit() {
         {isFolder && hasChildren ? <Text style={styles.hint}>{t("category.contains", { count: hasChildren })}</Text> : null}
         {translatable ? (
           <>
-            <SectionHeader right={name.trim() !== original.trim() ? <Tap onPress={() => setName(original)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("category.translations.useOriginal")}><Text style={styles.useOriginal}>{t("category.translations.useOriginal")}</Text></Tap> : undefined}>
+            <SectionHeader right={name.trim() !== original.trim() ? <Tap onPress={() => setName(original)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("category.translations.useOriginal")}><ButtonText style={styles.useOriginal}>{t("category.translations.useOriginal")}</ButtonText></Tap> : undefined}>
               {originalLang ? t("category.translations.originalIn", { language: languageName(originalLang) }) : t("category.translations.original")}
             </SectionHeader>
             <TextInput value={original} onChangeText={setOriginal} style={styles.original} placeholderTextColor={C.tertiary} returnKeyType="done"

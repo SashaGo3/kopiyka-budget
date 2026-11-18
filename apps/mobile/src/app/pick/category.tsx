@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { archivedCategoryIds, categorySearchNames, debtChoices, folderIds, formatMinor, listRows, payeeOptions, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { CategoryIcon, Tap } from "@/components/ui";
+import { CategoryIcon, Tap, ButtonText } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
@@ -126,7 +126,7 @@ export default function PickCategory() {
       ListHeaderComponent={
         <View>
           <Tap onPress={() => setDebtStep(false)} style={styles.back} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("pick.category.debtBack")}>
-            <SymbolView name="chevron.left" size={14} tintColor={C.tint} /><Text style={styles.backText}>{t("pick.category.debtBack")}</Text>
+            <SymbolView name="chevron.left" size={14} tintColor={C.tint} /><ButtonText style={styles.backText}>{t("pick.category.debtBack")}</ButtonText>
           </Tap>
           <Text style={styles.debtTitle}>{t("pick.category.whichDebt")}</Text>
         </View>

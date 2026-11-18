@@ -8,7 +8,7 @@ import {
 } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
-import { BigButton, Card, Empty, ModalHeader, CategoryIcon, Tap } from "@/components/ui";
+import { BigButton, Card, Empty, ModalHeader, CategoryIcon, Tap, ButtonText } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
@@ -135,7 +135,7 @@ export default function ImportanceFlow() {
               <Tap onPress={() => toggleFolder(rows)} style={[styles.row, styles.folderRow]} accessibilityRole="button"
                 accessibilityLabel={t("category.importance.folderA11y", { name: catName(folder) })} accessibilityState={{ selected: full }}>
                 <CategoryIcon name={catName(folder)} icon={folder.icon} color={folder.color} size={28} />
-                <Text style={[styles.name, { fontWeight: "600" }]}>{catName(folder)} <Text style={styles.all}>{t("category.importance.all", { count: rows.length })}</Text></Text>
+                <ButtonText style={[styles.name, { fontWeight: "600" }]}>{catName(folder)} <Text style={styles.all}>{t("category.importance.all", { count: rows.length })}</Text></ButtonText>
                 <Check state={full ? "full" : half ? "half" : "off"} />
               </Tap>
             ) : <Text style={styles.looseHead}>{t("category.importance.noFolder")}</Text>}
@@ -186,7 +186,7 @@ export default function ImportanceFlow() {
                 <View style={styles.scope}>
                   <Text style={styles.scopeText}>{onlyNew ? t("category.importance.onlyNew", { count: seed.fresh.size }) : t("category.importance.allShown")}</Text>
                   <Tap onPress={() => setOnlyNew((v) => !v)} hitSlop={8} accessibilityRole="button" accessibilityLabel={onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}>
-                    <Text style={styles.scopeLink}>{onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}</Text>
+                    <ButtonText style={styles.scopeLink}>{onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}</ButtonText>
                   </Tap>
                 </View>
               ) : null}

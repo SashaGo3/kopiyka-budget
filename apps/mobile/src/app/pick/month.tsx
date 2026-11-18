@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Tap } from "@/components/ui";
+import { Tap, ButtonText } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
@@ -47,7 +47,7 @@ export default function PickMonth() {
       <Pressable onPress={() => { resolvePick(key, `${nowMonth}-01`); router.back(); }} accessibilityRole="button" accessibilityLabel={t("pick.month.thisMonth")}
         style={({ pressed }) => [styles.now, pressed && { opacity: 0.6 }]}>
         <SymbolView name="calendar" size={16} tintColor={C.tint} />
-        <Text style={styles.nowText}>{t("pick.month.thisMonth")}</Text>
+        <ButtonText style={styles.nowText}>{t("pick.month.thisMonth")}</ButtonText>
       </Pressable>
     </View>
   );

@@ -264,7 +264,7 @@ export default function SplitEditor() {
       {p.photo ? (
         <Tap onPress={() => setReceipt((v) => !v)} style={styles.receiptToggle} accessibilityRole="button" accessibilityLabel={receipt ? t("people.split.hideReceipt") : t("people.split.showReceipt")}>
           <SymbolView name={receipt ? "chevron.up" : "doc.text.image"} size={13} tintColor={C.tint} />
-          <Text style={styles.receiptToggleText}>{receipt ? t("people.split.hideReceipt") : t("people.split.showReceipt")}</Text>
+          <ButtonText style={styles.receiptToggleText}>{receipt ? t("people.split.hideReceipt") : t("people.split.showReceipt")}</ButtonText>
         </Tap>
       ) : null}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" pointerEvents={focused ? "auto" : "none"}>
@@ -339,7 +339,7 @@ export default function SplitEditor() {
             {friends.length ? null : (
               <Pressable onPress={add} style={({ pressed }) => [styles.add, styles.divider, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("transaction.split.addPart")}>
                 <SymbolView name="plus.circle.fill" size={20} tintColor={C.tint} />
-                <Text style={styles.addText}>{t("transaction.split.addPart")}</Text>
+                <ButtonText style={styles.addText}>{t("transaction.split.addPart")}</ButtonText>
               </Pressable>
             )}
           </View>
@@ -352,13 +352,13 @@ export default function SplitEditor() {
         {!friends.length && !rows.length ? (
           <Pressable onPress={openPeople} style={({ pressed }) => [styles.friendsButton, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t("people.split.withFriends")}>
             <SymbolView name="person.2.fill" size={18} tintColor={C.tint} />
-            <Text style={styles.addText}>{t("people.split.withFriends")}</Text>
+            <ButtonText style={styles.addText}>{t("people.split.withFriends")}</ButtonText>
           </Pressable>
         ) : null}
         {!friends.length && !rows.length && eventPeople.length ? (
           <Tap onPress={() => setPeople(eventPeople)} style={styles.suggest} accessibilityRole="button" accessibilityLabel={t("people.split.withEvent", { names: eventPeople.map(personName).join(", ") })}>
             <SymbolView name="person.2.fill" size={15} tintColor={C.tint} />
-            <Text style={styles.suggestText}>{t("people.split.withEvent", { names: eventPeople.map(personName).join(", ") })}</Text>
+            <ButtonText style={styles.suggestText}>{t("people.split.withEvent", { names: eventPeople.map(personName).join(", ") })}</ButtonText>
           </Tap>
         ) : null}
 
@@ -368,7 +368,7 @@ export default function SplitEditor() {
           <View>
             <View style={styles.header}>
               <Text style={styles.headerText} accessibilityRole="header">{t("people.split.owes")}</Text>
-              <Tap onPress={openPeople} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("people.split.edit")}><Text style={styles.headerLink}>{t("people.split.edit")}</Text></Tap>
+              <Tap onPress={openPeople} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("people.split.edit")}><ButtonText style={styles.headerLink}>{t("people.split.edit")}</ButtonText></Tap>
             </View>
             <View style={styles.card}>
               {friends.map((f, i) => {

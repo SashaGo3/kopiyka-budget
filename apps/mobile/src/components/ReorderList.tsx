@@ -6,7 +6,7 @@ import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import { Empty, ModalHeader } from "@/components/ui";
+import { Empty, ModalHeader, ButtonText } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
@@ -276,7 +276,7 @@ export function ReorderList({ title, items, hint, empty, onDone, onLongPress, ke
                     renderRightActions={() => (
                       <Pressable onPress={() => del(id)} style={({ pressed }) => [styles.delete, pressed && { opacity: 0.8 }]} accessibilityRole="button" accessibilityLabel={t("ui.reorderDeleteA11y", { title: row.title })}>
                         <SymbolView name="trash" size={18} tintColor="#FFFFFF" />
-                        <Text style={styles.deleteText}>{t("common.delete")}</Text>
+                        <ButtonText style={styles.deleteText}>{t("common.delete")}</ButtonText>
                       </Pressable>
                     )}>
                     {content}

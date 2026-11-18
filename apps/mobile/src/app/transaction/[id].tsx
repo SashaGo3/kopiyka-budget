@@ -811,7 +811,7 @@ export default function TransactionSheet() {
                 {!filled && receipt && changes.length ? (
                   <Tap onPress={() => void fillFromReceipt(receipt)} style={styles.receiptBtn} accessibilityRole="button" accessibilityLabel={t("transaction.entry.fromReceipt.update")}>
                     <SymbolView name="wand.and.sparkles" size={13} tintColor={C.onTint} />
-                    <Text style={styles.receiptBtnText}>{t("transaction.entry.fromReceipt.update")}</Text>
+                    <ButtonText style={styles.receiptBtnText}>{t("transaction.entry.fromReceipt.update")}</ButtonText>
                   </Tap>
                 ) : busyReading ? <ActivityIndicator size="small" /> : null}
               </Animated.View>
@@ -930,12 +930,12 @@ function BalanceToggle({ start, balance, after, afterColor, currency }: { start?
 }
 
 const styles = themed(() => StyleSheet.create({
-  top: { paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs, gap: 4 },
+  top: { paddingHorizontal: S.md, paddingTop: S.lg, paddingBottom: S.xs, gap: 4 },
   amountRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 8, maxWidth: "100%" },
   amount: { fontSize: 54, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 },
   currency: { fontSize: 22, color: C.secondary, fontWeight: "600" },
   result: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"], minHeight: 20, textAlign: "center" },
-  details: { alignSelf: "stretch", gap: 4, paddingHorizontal: S.xs },
+  details: { alignSelf: "stretch", gap: 4 },
   line: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 24 },
   noteLine: { alignItems: "flex-start", paddingVertical: 4 },
   bankText: { color: C.secondary },
@@ -953,7 +953,7 @@ const styles = themed(() => StyleSheet.create({
   accountText: { fontSize: 15, color: C.label, flexShrink: 1 },
   accountBal: { ...Type.body, color: C.secondary, fontVariant: ["tabular-nums"], flexShrink: 1 },
   balance: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, minHeight: 24, minWidth: 90 },
-  balanceStart: { flex: 0, alignSelf: "stretch", justifyContent: "flex-start", paddingHorizontal: S.xs },
+  balanceStart: { flex: 0, alignSelf: "stretch", justifyContent: "flex-start" },
   trash: { position: "absolute", top: 8, right: S.md, width: 34, height: 34, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
   noteBox: { flexDirection: "row", alignItems: "flex-end", gap: S.md, marginHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md, paddingVertical: 8, minHeight: 50 },
   noteInput: { flex: 1, fontSize: 17, color: C.label, minHeight: 34, maxHeight: 176, paddingTop: 7, paddingBottom: 7 },

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, R, S, Type, themeTone, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
 import { t } from "@/i18n";
+import { SHRINK_STEPS, breaksMidWord } from "@/lib/wordBreak";
 
 /** Sheet skeleton: informational top, inputs pinned to the bottom. */
 export function SheetFrame({ top, bottom, onLayout }: { top: ReactNode; bottom: ReactNode; onLayout?: (e: LayoutChangeEvent) => void }) {
@@ -40,10 +41,22 @@ export function Subtle({ children, style }: { children: ReactNode; style?: Style
  * half size at most) until it fits; past even that it is clipped (`ellipsizeMode="clip"`) rather
  * than printed with "…". test/buttons.test.ts holds every button label in the app to this.
  */
-export function ButtonText({ fit, style, ...rest }: Omit<TextProps, "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"> & { fit?: 1 | 2 | 3 }) {
+export function ButtonText({ fit, style, onTextLayout, ...rest }: Omit<TextProps, "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"> & { fit?: 1 | 2 | 3 }) {
+  // Wrapping is only ever between words: a word too wide for the slot shrinks the label a step at a
+  // time (lib/wordBreak.ts) instead of being split wherever the line ran out. Starts over when the
+  // words change.
+  const words = typeof rest.children === "string" ? rest.children : undefined;
+  const [shrink, setShrink] = useState({ words, step: 0 });
+  const step = shrink.words === words ? shrink.step : 0;
+  const base: TextStyle | null = step ? StyleSheet.flatten([fit ? styles.buttonFit : styles.buttonText, style]) : null;
+  const shrunk = base ? { fontSize: (base.fontSize ?? 17) * SHRINK_STEPS[step]!, ...(base.lineHeight ? { lineHeight: base.lineHeight * SHRINK_STEPS[step]! } : null) } : null;
+  const layout: TextProps["onTextLayout"] = (e) => {
+    if (step < SHRINK_STEPS.length - 1 && breaksMidWord(e.nativeEvent.lines.map((l) => l.text))) setShrink({ words, step: step + 1 });
+    onTextLayout?.(e);
+  };
   return fit
-    ? <Text {...rest} style={[styles.buttonFit, style]} numberOfLines={fit} adjustsFontSizeToFit minimumFontScale={0.5} ellipsizeMode="clip" />
-    : <Text {...rest} style={[styles.buttonText, style]} />;
+    ? <Text {...rest} onTextLayout={layout} style={[styles.buttonFit, style, shrunk]} numberOfLines={fit} adjustsFontSizeToFit minimumFontScale={0.5} ellipsizeMode="clip" />
+    : <Text {...rest} onTextLayout={layout} style={[styles.buttonText, style, shrunk]} />;
 }
 
 const AnimatedPressable = Reanimated.createAnimatedComponent(Pressable);

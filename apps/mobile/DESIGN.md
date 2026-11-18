@@ -63,6 +63,10 @@ The user's standing rule, and `test/buttons.test.ts` holds buttons to it.
   choose shorter words. A slot whose size is fixed (a key, a grid cell, a segment) uses
   `ButtonText fit`, which shrinks and then clips but never prints "…". A chart's label in a fixed
   slot shrinks the same way (`adjustsFontSizeToFit`).
+- **A word is never split.** A word wider than its button is cut wherever the line runs out
+  ("розташуванн / я"). `ButtonText` catches that (`lib/wordBreak.ts`) and shrinks the label until it
+  breaks only between words, so a button's words always go through `ButtonText`. It is still a
+  fallback: a label that needs it wants a shorter word.
 - **The one exception is a preview of free text**: a note or the bank's words under a list row or
   on the entry sheet (`TransactionList`, `transaction/[id]`, the split rows), which can be a whole
   receipt. Those keep their 2–3 lines, because the full text is one tap away. Names, titles and

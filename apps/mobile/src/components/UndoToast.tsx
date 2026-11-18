@@ -6,7 +6,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-g
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { onUndoOffer, settleUndo, takeUndo, type UndoOffer } from "@/lib/undo";
-import { Tap } from "@/components/ui";
+import { Tap, ButtonText } from "@/components/ui";
 import { Glass } from "@/components/glass";
 import { C, Elevation, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
@@ -65,7 +65,7 @@ function Toast({ offer }: { offer: UndoOffer & { id: number } }) {
           <Glass style={styles.toast} solid={styles.solid}>
             <Text style={styles.label}>{offer.label}</Text>
             <Tap onPress={() => { void Haptics.selectionAsync(); takeUndo(id); }} hitSlop={10} style={styles.button} accessibilityRole="button" accessibilityLabel={t("misc.undo")}>
-              <Text style={styles.buttonText}>{t("misc.undo")}</Text>
+              <ButtonText style={styles.buttonText}>{t("misc.undo")}</ButtonText>
             </Tap>
           </Glass>
         </Animated.View>

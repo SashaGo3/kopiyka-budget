@@ -1400,7 +1400,7 @@ const catalog: Catalog = {
   "pick.location.search": "Search for a place",
   "pick.location.tapMap": "Tap the map to place the pin",
   "pick.location.title": "Location",
-  "pick.location.use": "Use this location",
+  "pick.location.use": "Use this place",
   "pick.month.nextYear": "Next year",
   "pick.month.previousYear": "Previous year",
   "pick.month.thisMonth": "This month",

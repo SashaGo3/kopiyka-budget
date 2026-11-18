@@ -204,7 +204,7 @@ export default function TransferSheet() {
         <View style={styles.top}>
           <View style={styles.headRow}>
             <Subtle style={{ flex: 1 }}>{wasPending ? t("transfer.reviewTitle") : t("transfer.title")}</Subtle>
-            {stacked ? <Tap onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("transfer.backA11y")} style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><Text style={styles.backText} maxFontSizeMultiplier={1.3}>{t("common.back")}</Text></Tap> : null}
+            {stacked ? <Tap onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("transfer.backA11y")} style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><ButtonText style={styles.backText} maxFontSizeMultiplier={1.3}>{t("common.back")}</ButtonText></Tap> : null}
           </View>
           <Leg role={t("transfer.from")} account={acctName(from)} amount={fromShown ?? (fromValue !== null ? String(fromValue) : waiting("from") ? "…" : "0")} currency={from?.currency ?? ""} derived={ready && !typed.from && fromShown !== null}
             active={ready && side === "from"} onPress={() => (from ? setSide("from") : pickFrom())} onPickAccount={pickFrom} negative

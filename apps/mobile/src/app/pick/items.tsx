@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { formatMinor, fromMinor, shareItems, toMinor, type ShareItem } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
-import { ModalHeader, Tap } from "@/components/ui";
+import { ModalHeader, Tap, ButtonText } from "@/components/ui";
 import { R, C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
@@ -60,7 +60,7 @@ export default function PickItems() {
           ))}
           <Tap onPress={add} style={[styles.row, styles.divider]} accessibilityRole="button" accessibilityLabel={t("people.items.add")}>
             <SymbolView name="plus.circle.fill" size={20} tintColor={C.tint} />
-            <Text style={styles.addText}>{t("people.items.add")}</Text>
+            <ButtonText style={styles.addText}>{t("people.items.add")}</ButtonText>
           </Tap>
         </View>
         {total ? <Text style={styles.total}>{t("people.items.total", { amount: `${formatMinor(total, currency)} ${currency}` })}</Text> : null}

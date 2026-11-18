@@ -5,7 +5,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 import { createTransaction, formatMinor, getRow, letItGo, listRows, personBalances, personHistory, remove, save, type PersonLine } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Card, Empty, Money, SectionHeader, Tap } from "@/components/ui";
+import { Card, Empty, Money, SectionHeader, Tap, ButtonText } from "@/components/ui";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, localIso } from "@/lib/dates";
@@ -123,8 +123,8 @@ export default function PersonPage() {
         ) : null}
 
         <Card style={{ marginTop: S.lg }}>
-          <Tap onPress={rename} style={styles.plain} accessibilityRole="button" accessibilityLabel={t("people.page.rename")}><Text style={styles.plainText}>{t("people.page.rename")}</Text></Tap>
-          <Tap onPress={del} style={[styles.plain, styles.divider]} accessibilityRole="button" accessibilityLabel={t("people.page.remove")}><Text style={[styles.plainText, { color: C.red }]}>{t("people.page.remove")}</Text></Tap>
+          <Tap onPress={rename} style={styles.plain} accessibilityRole="button" accessibilityLabel={t("people.page.rename")}><ButtonText style={styles.plainText}>{t("people.page.rename")}</ButtonText></Tap>
+          <Tap onPress={del} style={[styles.plain, styles.divider]} accessibilityRole="button" accessibilityLabel={t("people.page.remove")}><ButtonText style={[styles.plainText, { color: C.red }]}>{t("people.page.remove")}</ButtonText></Tap>
         </Card>
       </ScrollView>
     </>
@@ -141,7 +141,7 @@ function Action({ icon, label, onPress }: { icon: SFSymbol; label: string; onPre
   return (
     <Tap onPress={onPress} style={styles.action} accessibilityRole="button" accessibilityLabel={label}>
       <SymbolView name={icon} size={22} tintColor={C.tint} />
-      <Text style={styles.actionText} numberOfLines={1} adjustsFontSizeToFit>{label}</Text>
+      <ButtonText style={styles.actionText} fit={1}>{label}</ButtonText>
     </Tap>
   );
 }

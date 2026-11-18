@@ -8,7 +8,7 @@ import { budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrenc
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { OwedCard } from "@/components/OwedCard";
-import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, PressCard, ProgressBar, SectionHeader, StatPair, Tap } from "@/components/ui";
+import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, PressCard, ProgressBar, SectionHeader, StatPair, Tap, ButtonText } from "@/components/ui";
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
@@ -207,7 +207,7 @@ export default function BudgetsScreen() {
           })}
           <Tap onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button" accessibilityLabel={budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}>
             <SymbolView name="plus.circle" size={18} tintColor={C.tint} />
-            <Text style={styles.addText}>{budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}</Text>
+            <ButtonText style={styles.addText}>{budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}</ButtonText>
           </Tap>
       </>
     ),
@@ -270,7 +270,7 @@ export default function BudgetsScreen() {
     travel: (
       <>
           {pastTrips.length ? (
-            <SectionHeader right={pastTrips.length > 3 ? <Tap onPress={() => setPastOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><Text style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</Text></Tap> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
+            <SectionHeader right={pastTrips.length > 3 ? <Tap onPress={() => setPastOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><ButtonText style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</ButtonText></Tap> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
           ) : null}
           {pastTrips.length > 3
             ? <Collapsible open={pastOpen} lazy>{pastTrips.map((x) => <TripCard key={x.id} budget={x} compact />)}</Collapsible>

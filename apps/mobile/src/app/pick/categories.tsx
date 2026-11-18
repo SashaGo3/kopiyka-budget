@@ -5,7 +5,7 @@ import { SymbolView } from "expo-symbols";
 import { archivedCategoryIds, listRows, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { CategoryIcon, PickCheck, PickerHeader, PickerList, Tap } from "@/components/ui";
+import { CategoryIcon, PickCheck, PickerHeader, PickerList, Tap, ButtonText } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
@@ -85,7 +85,7 @@ export default function PickCategories() {
           return (
             <Tap onPress={() => (item.kids.length ? toggleFolder(item.kids) : toggle(item.c.id))} style={[styles.row, styles.folder]} accessibilityRole="button" accessibilityLabel={t("pick.categories.folderA11y", { name: catName(item.c) })} accessibilityState={{ selected: full }}>
               <CategoryIcon name={catName(item.c)} icon={item.c.icon} color={item.c.color} size={28} />
-              <Text style={[styles.name, { fontWeight: "600" }]}>{catName(item.c)} <Text style={styles.all}>{t("pick.categories.wholeFolder")}</Text></Text>
+              <ButtonText style={[styles.name, { fontWeight: "600" }]}>{catName(item.c)} <Text style={styles.all}>{t("pick.categories.wholeFolder")}</Text></ButtonText>
               <PickCheck state={full || (half && "half")} />
             </Tap>
           );

@@ -6,7 +6,7 @@ import { Stack, router, useFocusEffect } from "expo-router";
 import { listRows, dueOccurrences, detectRecurring, adoptCandidate, dismissSuggestion, shownPaymentIcon, ruleWaitDays, sumInBase, waitingOccurrences, yearlyAmountMinor, type RecurringCandidate, type RecurringRule } from "@kopiyka/core";
 import { mutate, useQuery } from "@/store";
 import { ensureNotificationPermission, notificationStatus } from "@/lib/notifications";
-import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow, Tap } from "@/components/ui";
+import { AmountPill, Card, Chip, Empty, Footnote, Row, ScreenNote, SectionHeader, StatPair, ToggleRow, Tap, ButtonText } from "@/components/ui";
 import { BarButton, BottomBar, useScrollHide } from "@/components/BottomBar";
 import { PaymentIcon } from "@/components/PaymentIcon";
 import { PaymentsCalendar } from "@/components/PaymentsCalendar";
@@ -160,7 +160,7 @@ export default function RecurringList() {
         {paused.length ? <SectionHeader>{t("settingsLists.recurring.paused")}</SectionHeader> : null}
         {paused.length ? <Card>{paused.map((r, i) => <RuleRow key={r.id} r={r} first={i === 0} />)}</Card> : null}
         {suggestions.length ? (
-          <SectionHeader right={<Tap onPress={() => void adopt(suggestions)} hitSlop={8} accessibilityLabel={t("settingsLists.recurring.addAll")}><Text style={styles.addAll}>{t("settingsLists.recurring.addAll")}</Text></Tap>}>{t("settingsLists.recurring.suggested")}</SectionHeader>
+          <SectionHeader right={<Tap onPress={() => void adopt(suggestions)} hitSlop={8} accessibilityLabel={t("settingsLists.recurring.addAll")}><ButtonText style={styles.addAll}>{t("settingsLists.recurring.addAll")}</ButtonText></Tap>}>{t("settingsLists.recurring.suggested")}</SectionHeader>
         ) : null}
         {suggestions.length ? (
           <Card>

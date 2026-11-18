@@ -8,7 +8,7 @@ import { PersonAvatar } from "@/components/PersonAvatar";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Collapsible } from "@/components/Collapsible";
-import { Card, Empty, Money, Row, ScreenNote, SectionHeader, Tap } from "@/components/ui";
+import { Card, Empty, Money, Row, ScreenNote, SectionHeader, Tap, ButtonText } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, todayLocal } from "@/lib/dates";
 import { t } from "@/i18n";
@@ -75,7 +75,7 @@ export default function DebtsSettings() {
         <ScreenNote more={t("settingsLists.debts.introMore")}>{t("settingsLists.debts.introShort")}</ScreenNote>
         {data.friends.length ? (
           <SectionHeader right={data.friends.length > 1
-            ? <Tap onPress={() => pickGroup()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("people.group.makeA11y")}><Text style={styles.link}>{t("people.group.make")}</Text></Tap>
+            ? <Tap onPress={() => pickGroup()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("people.group.makeA11y")}><ButtonText style={styles.link}>{t("people.group.make")}</ButtonText></Tap>
             : undefined}>{t("people.list.title")}</SectionHeader>
         ) : null}
         {entries.length ? (
@@ -93,7 +93,7 @@ export default function DebtsSettings() {
                     {e.members.map((m) => <FriendRow key={m.id} p={m} style={styles.divider} />)}
                     <Tap onPress={() => pickGroup(e)} style={[styles.editGroup, styles.divider]} accessibilityRole="button" accessibilityLabel={t("people.group.edit")}>
                       <SymbolView name="person.2.badge.gearshape" size={16} tintColor={C.tint} />
-                      <Text style={styles.link}>{t("people.group.edit")}</Text>
+                      <ButtonText style={styles.link}>{t("people.group.edit")}</ButtonText>
                     </Tap>
                   </View>
                 </Collapsible>

@@ -1,5 +1,5 @@
 import { FlatList, StyleSheet, Text, View } from "react-native";
-import { Tap } from "@/components/ui";
+import { Tap, ButtonText } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { COLORS } from "@kopiyka/core";
@@ -38,7 +38,7 @@ export default function PickColor() {
       ListHeaderComponent={
         <Tap onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
           <View style={styles.autoIcon}><SymbolView name="wand.and.stars" size={16} tintColor={C.tertiary} /></View>
-          <Text style={styles.autoText}>{t("pick.automatic")}</Text>
+          <ButtonText style={styles.autoText}>{t("pick.automatic")}</ButtonText>
           {!selected ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
         </Tap>
       }

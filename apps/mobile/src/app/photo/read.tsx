@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { archivedCategoryIds, cachedRateFor, folderIds, formatMinor, fromMinor, listRows, payAccountFor, rateOrFallback, receiptPlan, toMinor } from "@kopiyka/core";
 import { db } from "@/db";
-import { Tap, accountIcon } from "@/components/ui";
+import { Tap, accountIcon, ButtonText } from "@/components/ui";
 import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { usePhotoReading } from "@/lib/photoText";
@@ -222,7 +222,7 @@ export default function PhotoRead() {
             </View>
             {canContinue ? (
               <Tap onPress={go} style={styles.go} accessibilityRole="button" accessibilityLabel={t("photo.read.continue")}>
-                <Text style={styles.goText}>{t("photo.read.continue")}</Text>
+                <ButtonText style={styles.goText}>{t("photo.read.continue")}</ButtonText>
               </Tap>
             ) : null}
           </View>
@@ -232,10 +232,10 @@ export default function PhotoRead() {
             {items.length ? (
               <>
                 <Tap onPress={() => setTab("items")} style={[styles.seg, tab === "items" && styles.segOn]} accessibilityRole="tab" accessibilityState={{ selected: tab === "items" }} accessibilityLabel={t("photo.read.items", { count: items.length })}>
-                  <Text style={styles.segText}>{t("photo.read.items", { count: items.length })}</Text>
+                  <ButtonText style={styles.segText}>{t("photo.read.items", { count: items.length })}</ButtonText>
                 </Tap>
                 <Tap onPress={() => setTab("text")} style={[styles.seg, tab === "text" && styles.segOn]} accessibilityRole="tab" accessibilityState={{ selected: tab === "text" }} accessibilityLabel={t("photo.read.text")}>
-                  <Text style={styles.segText}>{t("photo.read.text")}</Text>
+                  <ButtonText style={styles.segText}>{t("photo.read.text")}</ButtonText>
                 </Tap>
               </>
             ) : null}
@@ -254,7 +254,7 @@ export default function PhotoRead() {
           <ReceiptText lines={reading.lines} />
           <Tap onPress={copyAll} style={styles.copy} accessibilityRole="button" accessibilityLabel={copied ? t("photo.read.copied") : t("photo.read.copyAll")}>
             <SymbolView name={copied ? "checkmark" : "doc.on.doc"} size={14} tintColor={C.tint} />
-            <Text style={styles.copyText}>{copied ? t("photo.read.copied") : t("photo.read.copyAll")}</Text>
+            <ButtonText style={styles.copyText}>{copied ? t("photo.read.copied") : t("photo.read.copyAll")}</ButtonText>
           </Tap>
         </View>
       ) : (
