@@ -13,7 +13,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { shopParams } from "@/lib/shopPick";
 import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
-import { ButtonText, Chip, ChipGrid, ChipRow, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
+import { ButtonText, Chip, ChipGrid, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, R, S, Type, themed } from "@/constants/theme";
 import { dayChipLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
@@ -143,10 +143,10 @@ export default function TransactionSheet() {
 
   // ---- "What was it this time?" ------------------------------------------------------------------
   // A petrol station sells fuel, a hot dog and a bottle of something, and history can only ever
-  // repeat whichever of them came last. So when this name has been filed more than one way before,
-  // every one of those ways is offered as a chip: one tap sets that category *and* its tags together,
-  // because the pair is the past decision. One way, or none, is nothing to ask about — the Category
-  // key is right there for anything new.
+  // repeat whichever of them came last. The category picker lists every way this name was filed
+  // before at its top ("Filed here before"); picking one of them here brings that way's tags along,
+  // because the category and its tags together are the past decision. (They were chips on this sheet
+  // until build 126; a tester found a row of them too many buttons.)
   const catNames = useQuery((d) => new Map(listRows(d, "categories", "deleted=0").map((c) => [c.id, catName(c)])), []);
   const tagNames = useQuery((d) => new Map(listRows(d, "tags", "deleted=0").map((x) => [x.id, x.name])), []);
   // A pending entry asks too: the automation fills in whichever way came last and leaves the row in
@@ -173,9 +173,9 @@ export default function TransactionSheet() {
   // The trip's tag travel mode put on this entry is not part of any option (`uncarriedTagIds`): picking
   // one keeps it, and it does not stop the option reading as the one that is chosen.
   const tripTags = useQuery((d) => uncarriedTagIds(d), []);
-  const ownTags = tagIds.filter((x) => !tripTags.has(x));
-  const sameAsNow = (o: { category_id: string | null; tag_ids: string[] }) =>
-    o.category_id === categoryId && o.tag_ids.length === ownTags.length && o.tag_ids.every((x) => ownTags.includes(x));
+  // Read by the category picker's result, which is registered once.
+  const optionsRef = useRef(options);
+  useEffect(() => { optionsRef.current = asking ? options : []; }, [asking, options]);
 
   // The expression is the signed amount; `kind` follows its sign, falling back to the stored default
   // while it is empty. `evalPartial` rather than `evalExpr`, because with no "=" key the field has to
@@ -297,7 +297,10 @@ export default function TransactionSheet() {
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => {
     if (v?.startsWith("debt:")) { setDebtId(v.slice(5)); setCategoryId(null); } else { setCategoryId(v); setDebtId(null); }
     setSuggested(false);
-  }, []));
+    // One of the shop's past ways: its tags come with it, and the trip's tag stays.
+    const way = v ? optionsRef.current.find((o) => o.category_id === v) : undefined;
+    if (way) setTagIds((ids) => [...way.tag_ids, ...ids.filter((x) => tripTags.has(x) && !way.tag_ids.includes(x))]);
+  }, [tripTags]));
   usePickResult<string>(keys.acc, (v: string) => {
     const next = accounts.find((a) => a.id === v), prev = account;
     setAccountId(v);
@@ -859,19 +862,6 @@ export default function TransactionSheet() {
         </View>
       ) : (
         <>
-          {/* Only while the entry is being written, or still waiting in Pending: "what was it this
-              time?" is a question about an expense nobody has filed yet. An entry already approved has
-              its answer, and the row cost the confirm bar its safe-area margin on a sheet that had run
-              out of room. */}
-          {asking && options.length > 1 ? (
-            <ChipRow>
-              {options.map((o) => {
-                const label = [o.category_id ? catNames.get(o.category_id)! : t("common.noCategory"), ...o.tag_ids.map((x) => `#${tagNames.get(x)!}`)].join(" ");
-                return <Chip key={o.key} icon="clock.arrow.circlepath" label={label} active={sameAsNow(o)}
-                  onPress={() => { setCategoryId(o.category_id); setDebtId(null); setTagIds((ids) => [...o.tag_ids, ...ids.filter((x) => tripTags.has(x) && !o.tag_ids.includes(x))]); setSuggested(false); }} />;
-              })}
-            </ChipRow>
-          ) : null}
           {/* Two rows, always, and every chip in its own fixed place (ChipGrid): the third row a long
               language or a big text size used to wrap onto pushed the keypad down, and a chip that moved
               with every label could not be found by feel. The last cell is the one action on the amount

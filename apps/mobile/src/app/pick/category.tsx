@@ -157,7 +157,7 @@ export default function PickCategory() {
         <View>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.category.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.category.search")} />
+            <TextInput autoFocus value={q} onChangeText={setQ} placeholder={t("pick.category.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.category.search")} />
           </View>
           {!ql ? <Tap onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("common.noCategory")}><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>{t("common.noCategory")}</Text>{!selected ? <Check /> : null}</Tap> : null}
           {!ql && debts.length ? (

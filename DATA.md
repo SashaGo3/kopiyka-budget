@@ -242,9 +242,9 @@ from the shop's name rather than filed before — the Pending queue shows it in 
 bank only ever notified one side — rule 18), `"receipt"`, `"watch"`, `"siri"`, or `null` for
 hand-entered. A guess never skips the Pending queue; only history does. A shop history knows but
 has filed more than one way (fuel one week, a hot dog the next) is a guess too: the newest way is
-filled in, the row waits in Pending, and both the entry sheet (its "what was it this time?" chips,
-shown for a pending row as well as a new one) and the category picker ("Filed here before") offer
-every way it was filed — counted without the row asking (`payeeOptions`'s `exceptId`).
+filled in, the row waits in Pending, and the category picker ("Filed here before", at its top)
+offers every way it was filed — counted without the row asking (`payeeOptions`'s `exceptId`). Picked
+there from the entry sheet, a new or pending row takes that way's tags along with it.
 
 The amount can settle which way it is (`pickByAmount`, `packages/core/src/payee.ts`, and its Swift
 copy `KPStore.pickByAmount`): one landlord takes the rent (4 323.99 every month) and the service

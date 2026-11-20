@@ -74,7 +74,7 @@ export default function PickTags() {
         <PickerHeader title={t("pick.tags.title")} done={{ onPress: done, count: chosen.length + (canCreate ? 1 : 0) }}>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.tags.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel={t("pick.tags.searchA11y")} />
+            <TextInput autoFocus value={q} onChangeText={setQ} placeholder={t("pick.tags.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} onSubmitEditing={canCreate ? create : done} returnKeyType={canCreate ? "default" : "done"} accessibilityLabel={t("pick.tags.searchA11y")} />
           </View>
           {canCreate ? <Tap onPress={create} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.tags.create", { name: q.trim() })}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{t("pick.tags.create", { name: q.trim() })}</Text></Tap> : null}
         </PickerHeader>
