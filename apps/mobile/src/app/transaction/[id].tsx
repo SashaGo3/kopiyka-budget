@@ -1,7 +1,6 @@
 import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
-import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -17,6 +16,7 @@ import { KEY_HEIGHT, Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPa
 import { ButtonText, Chip, ChipGrid, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, R, S, Type, themed } from "@/constants/theme";
+import { useWindowInsets } from "@/constants/layout";
 import { dayChipLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
 import { DISMISS_MS, dismissTo, openOnce } from "@/lib/nav";
 import { readPhoto, usePhotoReading } from "@/lib/photoText";
@@ -737,12 +737,11 @@ export default function TransactionSheet() {
   // the screen: the folded iPhone Duo's outer one is 678 pt. So the sheet measures itself and, when
   // it runs past the room a sheet gets, gives up the difference (`squeeze`): first the chip grid puts
   // its icons beside the labels (28 pt), then the keypad's 4.72 rows shrink, down to 32 pt a key.
-  // The room is the window less its own top inset (inside a sheet the inset reads 0), the gap iOS
+  // The room is the window less the window's top inset (inside a sheet its own reads 0), the gap iOS
   // leaves above a sheet, and a cushion for the display's rounded foot. With room again (unfolded)
   // it gives the height back.
   const { height: windowHeight } = useWindowDimensions();
-  const { top: sheetTop } = useSafeAreaInsets();
-  const windowTop = Math.max(sheetTop, initialWindowMetrics?.insets.top ?? 0);
+  const windowTop = useWindowInsets().top;
   const [squeeze, setSqueeze] = useState(0);
   const flatChips = squeeze > 0;
   const keyHeight = Math.max(KEY_MIN, KEY_HEIGHT - Math.ceil(Math.max(0, squeeze - FLAT_SAVES) / 4.72));

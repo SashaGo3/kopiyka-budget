@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { createContext, useContext, useMemo } from "react";
 import { Platform, type ViewStyle } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { EdgeInsets } from "react-native-safe-area-context";
 
 /**
  * iPad. The app is one column of cards and lists designed for a thumb, and a thumb does not get
@@ -29,9 +29,25 @@ export const screenContentStyle: ViewStyle = { width: "100%", maxWidth: CONTENT_
  * but the folded iPhone Duo keeps the status bar, the header's buttons and the tab bar in a column
  * down one side, and content laid out to the window's edge ran underneath it.
  */
+/**
+ * The window's safe area, read once by the root layout and handed down. Inside a tab the provider is
+ * a nested one that starts at 0 and measures, so a tab read through `useSafeAreaInsets()` mounted
+ * unpadded and jumped into place: a flicker on every tab switch. The root's is the window's, does not
+ * reset when a tab mounts, and still follows the device folding.
+ */
+export const WindowInsets = createContext<EdgeInsets>({ top: 0, right: 0, bottom: 0, left: 0 });
+export function useWindowInsets(): EdgeInsets {
+  return useContext(WindowInsets);
+}
+
 export function useScreenContentStyle(): ViewStyle {
-  const { left, right } = useSafeAreaInsets();
-  return useMemo(() => (left || right ? { ...screenContentStyle, paddingLeft: sidePad(left), paddingRight: sidePad(right) } : screenContentStyle), [left, right]);
+  const { left, right } = useWindowInsets();
+  return useMemo(() => contentStyleFor({ left, right }), [left, right]);
+}
+
+/** The same, from insets in hand: for the root layout, which provides `WindowInsets` and so cannot read it. */
+export function contentStyleFor({ left, right }: { left: number; right: number }): ViewStyle {
+  return left || right ? { ...screenContentStyle, paddingLeft: sidePad(left), paddingRight: sidePad(right) } : screenContentStyle;
 }
 
 /**

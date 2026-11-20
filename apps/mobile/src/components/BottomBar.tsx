@@ -5,7 +5,6 @@ import { router } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import MaskedView from "@react-native-masked-view/masked-view";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { C, Elevation, R, S, themed } from "@/constants/theme";
@@ -13,7 +12,7 @@ import { THEMES, type ThemeId } from "@kopiyka/core";
 import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
 import { ButtonText } from "@/components/ui";
-import { PAD_BUTTON_WIDTH, columnOverhang, isPad, sidePad } from "@/constants/layout";
+import { PAD_BUTTON_WIDTH, columnOverhang, isPad, sidePad, useWindowInsets } from "@/constants/layout";
 import { takePhoto } from "@/lib/camera";
 import { t } from "@/i18n";
 
@@ -49,7 +48,7 @@ export function BottomBar({ children, above, style, visible = true }: { children
   // The folded iPhone Duo keeps its tab bar in a column down the side (the side safe area is how it
   // shows), so there is nothing at the foot to stand above: the bar drops to just over the home
   // indicator, and the fade, measured from it, shrinks with it.
-  const insets = useSafeAreaInsets();
+  const insets = useWindowInsets();
   const sideTabs = !isPad && (insets.left > 0 || insets.right > 0);
   const lowered = sideTabs ? { bottom: insets.bottom + S.md } : null;
   const bottom = (StyleSheet.flatten([styles.wrap, lowered, style]).bottom as number | undefined) ?? 0;

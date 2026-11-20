@@ -20,7 +20,8 @@ import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { openLaunchLink } from "@/lib/launchLink";
 import { needsOnboarding } from "@/lib/onboarding";
 import { READ_SHEET_DETENTS } from "@/lib/photoShown";
-import { isPad, useScreenContentStyle } from "@/constants/layout";
+import { WindowInsets, contentStyleFor, isPad } from "@/constants/layout";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t, useLanguage } from "@/i18n";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
@@ -81,14 +82,16 @@ function navigationTheme(dark: boolean, theme: ThemeId) {
  * Every screen of the root stack is kept clear of the side safe area: the folded iPhone Duo's strip
  * of camera, clock and bars (DESIGN.md §8). `ClearOfSides` pads only by what a screen actually
  * overlaps, so a pushed screen (already inset by `pushed`), a sheet floating clear of the strip and
- * every screen on any other iPhone or iPad get nothing. Left alone: the tabs (their own stacks inset
+ * every screen on any other iPhone or iPad get nothing. Only presented screens are wrapped: a pushed
+ * one is inset by `pushed` without a measurement, so it never jumps. Left alone: the tabs (their own stacks inset
  * themselves, and the tab bar is the system's), the photo viewer and the log overlay (drawn edge to
  * edge on purpose, their buttons placed by hand), and the sheets built on `SheetFrame`, which pad only
  * their top so the keypad keeps the sheet's whole width.
  */
 const OWN_SIDES = new Set(["(tabs)", "log", "photo/view", "transaction/[id]", "transfer/[id]", "debt/edit", "account/edit", "travel/dates", "travel/start", "pick/amount", "budget/edit"]);
-function clearOfSides({ route, options, children }: { route: { name: string }; options: { sheetAllowedDetents?: unknown }; children: ReactElement }): ReactElement {
-  if (OWN_SIDES.has(route.name)) return children;
+function clearOfSides({ route, options, children }: { route: { name: string }; options: { presentation?: string; sheetAllowedDetents?: unknown }; children: ReactElement }): ReactElement {
+  // A pushed screen is inset by `pushed` already, from the window's insets, with nothing to measure.
+  if (!options.presentation || options.presentation === "card" || OWN_SIDES.has(route.name)) return children;
   // A sheet sized to its content has no height to fill; anything else is a whole screen.
   return <ClearOfSides style={options.sheetAllowedDetents === "fitToContents" ? undefined : { flex: 1 }}>{children}</ClearOfSides>;
 }
@@ -102,7 +105,8 @@ export default function RootLayout() {
   // A pushed full screen keeps the iPad column (constants/layout.ts) and the side safe area. Sheets
   // and modals do not: on a tablet iOS already sizes those itself, and a column inside a centred card
   // is a card with margins. `(tabs)` is left out too — the tab bar belongs to the window.
-  const pushed = { contentStyle: useScreenContentStyle() };
+  const windowInsets = useSafeAreaInsets();
+  const pushed = { contentStyle: contentStyleFor(windowInsets) };
   // A new language mounts the whole tree again (see src/i18n): every screen, every memoised label.
   // The navigator starts over with it, so go back to where languages are changed — Settings, or the
   // restore that brought a different one in, which also lives there — or, before the welcome flow is
@@ -194,6 +198,7 @@ export default function RootLayout() {
   }, []);
   const { fit, medium, picker, modal } = sheetOptions(theme);
   return (
+    <WindowInsets.Provider value={windowInsets}>
     <ThemeProvider value={navigationTheme(scheme === "dark", theme)}>
       {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={shown} style={{ flex: 1 }}>
         <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }} screenLayout={clearOfSides}>
@@ -270,6 +275,7 @@ export default function RootLayout() {
       </View>}
       <LaunchCover />
     </ThemeProvider>
+    </WindowInsets.Provider>
   );
 }
 

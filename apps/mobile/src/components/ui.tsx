@@ -6,6 +6,7 @@ import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useWindowInsets } from "@/constants/layout";
 import { C, R, S, Type, themeTone, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
 import { t } from "@/i18n";
@@ -33,7 +34,7 @@ export function SheetFrame({ top, bottom, onLayout }: { top: ReactNode; bottom: 
  */
 export function ClearOfSides({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
   const { width: windowWidth } = useWindowDimensions();
-  const { left, right } = useSafeAreaInsets();
+  const { left, right } = useWindowInsets();
   const ref = useRef<View>(null);
   const [frame, setFrame] = useState<{ x: number; width: number } | null>(null);
   const measure = useCallback(() => {
