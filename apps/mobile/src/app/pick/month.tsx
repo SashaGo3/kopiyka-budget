@@ -25,7 +25,7 @@ export default function PickMonth() {
   const cur = new Date();
   const nowMonth = (now || `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-01`).slice(0, 7);
   return (
-    <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.md, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
+    <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.xl, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
       <View style={styles.yearRow}>
         <Tap onPress={() => setYear((y) => y - 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.previousYear")} style={styles.arrow}><SymbolView name="chevron.left" size={18} tintColor={C.tint} /></Tap>
         <Text style={styles.year}>{year}</Text>

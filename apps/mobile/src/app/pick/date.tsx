@@ -24,7 +24,7 @@ export default function PickDate() {
   const years = [...new Set([...Array.from({ length: 5 }, (_, i) => thisYear - 4 + i), shownYear])].sort((a, b) => a - b);
   const toYear = (y: number) => { const d = new Date(y, Number(day.slice(5, 7)) - 1, 1); d.setDate(Math.min(Number(day.slice(8, 10)), new Date(y, d.getMonth() + 1, 0).getDate())); setDay(todayLocal(d)); };
   return (
-    <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.md, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
+    <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.xl, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
       <View style={styles.chips}>
         <Chip label={t("common.today")} active={day === todayLocal()} onPress={() => pick(todayLocal())} />
         <Chip label={t("common.yesterday")} active={day === yesterday()} onPress={() => pick(yesterday())} />
