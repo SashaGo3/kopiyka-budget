@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { Platform, type ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
  * iPad. The app is one column of cards and lists designed for a thumb, and a thumb does not get
@@ -15,14 +17,26 @@ export const isPad = Platform.OS === "ios" && Platform.isPad;
 /** As wide as the column is ever allowed to get. Roughly two phones side by side. */
 export const CONTENT_MAX_WIDTH = 780;
 
-/** Stack `contentStyle` for every screen; inert on a phone, where the window is narrower than the cap. */
-export const screenContentStyle: ViewStyle | undefined = isPad
-  ? { width: "100%", maxWidth: CONTENT_MAX_WIDTH, alignSelf: "center" }
-  : undefined;
+/**
+ * Stack `contentStyle` for every screen, on every device: what decides it is the window, not the
+ * device. A phone's window is always narrower than the cap, so it is inert there; an unfolded
+ * iPhone Duo is an iPhone with a tablet's width, and gets the centred column like an iPad does.
+ */
+export const screenContentStyle: ViewStyle = { width: "100%", maxWidth: CONTENT_MAX_WIDTH, alignSelf: "center" };
+
+/**
+ * `screenContentStyle` inside the window's side safe area. Every iPhone and iPad in portrait has none,
+ * but the folded iPhone Duo keeps the status bar, the header's buttons and the tab bar in a column
+ * down one side, and content laid out to the window's edge ran underneath it.
+ */
+export function useScreenContentStyle(): ViewStyle {
+  const { left, right } = useSafeAreaInsets();
+  return useMemo(() => (left || right ? { ...screenContentStyle, paddingLeft: left, paddingRight: right } : screenContentStyle), [left, right]);
+}
 
 /** Caps anything sized off the window rather than its container (the Log button, mostly). */
 export function contentWidth(windowWidth: number): number {
-  return isPad ? Math.min(windowWidth, CONTENT_MAX_WIDTH) : windowWidth;
+  return Math.min(windowWidth, CONTENT_MAX_WIDTH);
 }
 
 /**
@@ -31,7 +45,7 @@ export function contentWidth(windowWidth: number): number {
  * iPad in Split View — there the window is narrower than the cap and the column is the whole of it.
  */
 export function columnOverhang(windowWidth: number): number {
-  return isPad ? Math.max(0, (windowWidth - CONTENT_MAX_WIDTH) / 2) : 0;
+  return Math.max(0, (windowWidth - CONTENT_MAX_WIDTH) / 2);
 }
 
 /** Width of a floating action button in the iPad column: one measure, so the stack has a straight edge. */

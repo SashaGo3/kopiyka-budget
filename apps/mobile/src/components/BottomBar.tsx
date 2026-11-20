@@ -5,9 +5,10 @@ import { router } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import MaskedView from "@react-native-masked-view/masked-view";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import { C, Elevation, R, themed } from "@/constants/theme";
+import { C, Elevation, R, S, themed } from "@/constants/theme";
 import { THEMES, type ThemeId } from "@kopiyka/core";
 import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
@@ -45,12 +46,18 @@ export function BottomBar({ children, above, style, visible = true }: { children
   // How far up the fade reaches: the bar's own height (it wraps onto a second line in selection
   // mode) on a phone; on an iPad the column is tall, so only as high as Log at its foot.
   const [barHeight, setBarHeight] = useState<number>(TAB_BUTTON);
-  const bottom = (StyleSheet.flatten([styles.wrap, style]).bottom as number | undefined) ?? 0;
+  // The folded iPhone Duo keeps its tab bar in a column down the side (the side safe area is how it
+  // shows), so there is nothing at the foot to stand above: the bar drops to just over the home
+  // indicator, and the fade, measured from it, shrinks with it.
+  const insets = useSafeAreaInsets();
+  const sideTabs = !isPad && (insets.left > 0 || insets.right > 0);
+  const lowered = sideTabs ? { bottom: insets.bottom + S.md } : null;
+  const bottom = (StyleSheet.flatten([styles.wrap, lowered, style]).bottom as number | undefined) ?? 0;
   return (
     <>
     <BottomFade height={bottom + (isPad ? 56 : barHeight) + FADE_ABOVE} visible={visible} anim={anim} />
     <Animated.View onLayout={(e) => setBarHeight(Math.round(e.nativeEvent.layout.height))} pointerEvents={visible ? "box-none" : "none"} style={[styles.wrap, isPad ? styles.alignRight : styles.alignLeft,
-      isPad ? { right: EDGE - columnOverhang(width) } : null, style,
+      isPad ? { right: EDGE - columnOverhang(width) } : null, lowered, style,
       // Far enough to clear a column of five buttons, so scrolling down slides it away rather than
       // leaving the top of it hanging on screen.
       { opacity, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [isPad ? 420 : 160, 0] }) }] }]}>

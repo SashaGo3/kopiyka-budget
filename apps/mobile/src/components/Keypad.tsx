@@ -37,7 +37,12 @@ export interface KeypadProps {
   /** Take whatever height the parent leaves, keys shrinking to `fillKey`'s minimum, instead of a
    *  fixed one: for a screen that has to show the whole keypad without scrolling (onboarding). */
   fill?: boolean;
+  /** Height of a key row (default `KEY_HEIGHT`); the operator row keeps its proportion. Lower on a
+   *  screen too short for the whole sheet, such as the folded iPhone Duo's outer one. */
+  keyHeight?: number;
 }
+
+export const KEY_HEIGHT = 50;
 
 const GRID: string[][] = [["7", "8", "9", "⌫"], ["4", "5", "6", "C"], ["1", "2", "3", "±"], ["0", ".", "extra"]];
 const OPS = ["÷", "×", "−", "+"];
@@ -77,7 +82,9 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
   );
 }
 
-export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign, onEdit, fill }: KeypadProps) {
+export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign, onEdit, fill, keyHeight }: KeypadProps) {
+  const short = keyHeight && keyHeight < KEY_HEIGHT ? { minHeight: keyHeight } : null;
+  const shortOp = short ? { minHeight: Math.round(keyHeight! * 0.72) } : null;
   // The decimal point applies to the number being typed — the part after the last operator — so
   // that tail is what says whether it has been pressed.
   const tail = value.split(/[+−×÷]/).pop() ?? "";
@@ -121,26 +128,26 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
   return (
     <View style={[styles.wrap, fill && { flex: 1 }]}>
       <View style={styles.ops}>
-        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("keypad.divide") : o === "×" ? t("keypad.multiply") : o === "−" ? t("keypad.subtract") : t("keypad.add")} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
+        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("keypad.divide") : o === "×" ? t("keypad.multiply") : o === "−" ? t("keypad.subtract") : t("keypad.add")} style={({ pressed }) => [styles.op, shortOp, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
       </View>
       {GRID.map((row, i) => (
         <View key={i} style={[styles.row, fill && { flex: 1 }]}>
           {row.map((k) => {
             if (k === "extra") {
-              if (!extra) return <View key="extra" style={[styles.key, fill && styles.fillKey, { flex: 2.08, backgroundColor: "transparent" }]} />;
+              if (!extra) return <View key="extra" style={[styles.key, short, fill && styles.fillKey, { flex: 2.08, backgroundColor: "transparent" }]} />;
               const main = (
                 <Pressable key="extra" onPress={extra.onPress} accessibilityRole="button" accessibilityLabel={extra.a11y ?? extra.label}
-                  style={({ pressed }) => [styles.key, styles.extra, extra2 && { flex: 1 }, extra.active && [styles.extraActive, extra.color ? { backgroundColor: extra.color + "33", borderColor: extra.color } : null], pressed && styles.pressed]}>
+                  style={({ pressed }) => [styles.key, short, styles.extra, extra2 && { flex: 1 }, extra.active && [styles.extraActive, extra.color ? { backgroundColor: extra.color + "33", borderColor: extra.color } : null], pressed && styles.pressed]}>
                   <SymbolView name={extra.icon} size={17} tintColor={extra.active ? extra.color ?? C.onTint : C.tint} />
                   <ButtonText fit={3} style={[styles.extraText, extra.active && { color: extra.color ?? C.onTint }]} maxFontSizeMultiplier={1.3}>{extra.label}</ButtonText>
                 </Pressable>
               );
               if (!extra2) return main;
               return (
-                <View key="extra" style={[styles.key, { flex: 2.08, backgroundColor: "transparent", flexDirection: "row", gap: S.sm }]}>
+                <View key="extra" style={[styles.key, short, { flex: 2.08, backgroundColor: "transparent", flexDirection: "row", gap: S.sm }]}>
                   {main}
                   <Pressable onPress={extra2.onPress} accessibilityRole="button" accessibilityLabel={extra2.a11y}
-                    style={({ pressed }) => [styles.key, styles.small, extra2.active && styles.smallActive, pressed && styles.pressed]}>
+                    style={({ pressed }) => [styles.key, short, styles.small, extra2.active && styles.smallActive, pressed && styles.pressed]}>
                     <SymbolView name={extra2.icon} size={20} tintColor={extra2.active ? C.onTint : C.tint} />
                     {extra2.badge ? <Text style={[styles.smallBadge, extra2.active && { color: C.onTint }]}>{extra2.badge}</Text> : null}
                   </Pressable>
@@ -150,7 +157,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             const wide = k === "0";
             const fn = k === "⌫" || k === "C" || k === "±";
             if (k === "±" && !allowSign) return (
-              <View key={k} style={[styles.keySlot, styles.key, fill && styles.fillKey, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel={t("keypad.changeSign")} accessibilityState={{ disabled: true }}>
+              <View key={k} style={[styles.keySlot, styles.key, short, fill && styles.fillKey, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel={t("keypad.changeSign")} accessibilityState={{ disabled: true }}>
                 <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
               </View>
             );
@@ -158,7 +165,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             return (
               <View key={k} style={wide ? styles.wide : styles.keySlot}>
                 <AnimatedKey fill={fill} on={dot && dotOn} onPress={() => press(k)} onLongPress={k === "⌫" ? () => { setOnWhole(false); onChange(""); } : undefined}
-                  style={[styles.key, fill && styles.fillKey]} onStyle={dot ? styles.dotKey : undefined}
+                  style={[styles.key, short, fill && styles.fillKey]} onStyle={dot ? styles.dotKey : undefined}
                   a11y={k === "⌫" ? t("keypad.delete") : k === "C" ? t("keypad.clear") : k === "±" ? t("keypad.changeSign") : dot ? (dotOn ? t("keypad.decimalTyping") : tail.includes(".") ? t("keypad.decimalWhole") : t("keypad.decimal")) : k}
                   a11yState={dot ? { selected: dotOn } : undefined}>
                   {k === "⌫" ? <SymbolView name="delete.left" size={22} tintColor={C.label} />

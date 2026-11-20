@@ -19,7 +19,7 @@ import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { openLaunchLink } from "@/lib/launchLink";
 import { needsOnboarding } from "@/lib/onboarding";
 import { READ_SHEET_DETENTS } from "@/lib/photoShown";
-import { isPad, screenContentStyle } from "@/constants/layout";
+import { isPad, useScreenContentStyle } from "@/constants/layout";
 import { t, useLanguage } from "@/i18n";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
@@ -64,12 +64,6 @@ function sheetOptions(theme: ThemeId) {
   };
 }
 /**
- * A pushed full screen keeps the iPad column (constants/layout.ts). Sheets and modals do not: on a
- * tablet iOS already sizes those itself, and a column inside a centred card is a card with margins.
- * `(tabs)` is left out too — the tab bar belongs to the window, not to the content.
- */
-const pushed = { contentStyle: screenContentStyle };
-/**
  * Navigation colours that match the theme's backgrounds, so native headers never differ from the
  * content. Built at render from the theme passed in, so a switch re-renders them in place.
  */
@@ -88,6 +82,10 @@ export default function RootLayout() {
   // `+native-intent` navigates warm deep links itself, and needs the navigation state to do it.
   const navRef = useNavigationContainerRef();
   registerNavigationRef(navRef);
+  // A pushed full screen keeps the iPad column (constants/layout.ts) and the side safe area. Sheets
+  // and modals do not: on a tablet iOS already sizes those itself, and a column inside a centred card
+  // is a card with margins. `(tabs)` is left out too — the tab bar belongs to the window.
+  const pushed = { contentStyle: useScreenContentStyle() };
   // A new language mounts the whole tree again (see src/i18n): every screen, every memoised label.
   // The navigator starts over with it, so go back to where languages are changed — Settings, or the
   // restore that brought a different one in, which also lives there — or, before the welcome flow is

@@ -1,6 +1,7 @@
 import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -12,7 +13,7 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { shopParams } from "@/lib/shopPick";
-import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
+import { KEY_HEIGHT, Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
 import { ButtonText, Chip, ChipGrid, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, R, S, Type, themed } from "@/constants/theme";
@@ -732,12 +733,25 @@ export default function TransactionSheet() {
   const openKind = () => ActionSheetIOS.showActionSheetWithOptions(
     { options: [...kinds.map(kindLabel), t("common.cancel")], cancelButtonIndex: kinds.length },
     (i) => { if (i < kinds.length && kinds[i] !== kind) changeKind(kinds[i]!); });
+  // The sheet is as tall as what it holds, and the Save bar at its foot has to be on screen whatever
+  // the screen: the folded iPhone Duo's outer one is 678 pt. So it measures itself, and when it runs
+  // past the window the keypad's rows give up the difference (4.72 rows: four of keys and the
+  // operators at 0.72), down to 34 pt a key; with room again (unfolded) they grow back.
+  const { height: windowHeight } = useWindowDimensions();
+  const { top: topInset } = useSafeAreaInsets();
+  const [keyHeight, setKeyHeight] = useState(KEY_HEIGHT);
+  const fitSheet = (e: LayoutChangeEvent) => {
+    if (noteOpen) return;
+    const over = e.nativeEvent.layout.height - (windowHeight - topInset - S.sm);
+    const next = Math.min(KEY_HEIGHT, Math.max(34, keyHeight - Math.ceil(over / 4.72)));
+    if (over > 0 ? next < keyHeight : next > keyHeight + 1) setKeyHeight(next);
+  };
   const balanceToggle = (start?: boolean) => (
     <BalanceToggle start={start} balance={balance} after={valid && after !== balance ? after : null} currency={currency}
       afterColor={(after < 0 ? C.red : kind === "income" ? C.green : C.label) as unknown as string} />
   );
   return (
-    <SheetFrame
+    <SheetFrame onLayout={fitSheet}
       top={
         <View style={styles.top}>
           {/* Return and Duplicate used to sit in this corner as a lone round arrow, where a back or an undo
@@ -881,7 +895,7 @@ export default function TransactionSheet() {
               ? <Chip cell icon="arrow.uturn.backward" label={t("transaction.entry.chip.return")} disabled={!valid} onPress={askForReturn} />
               : <Chip cell icon="plus.square.on.square" label={t("transaction.entry.chip.duplicate")} onPress={duplicate} />}
           </ChipGrid>
-          <Keypad value={expr} onChange={onKeypadChange} onEdit={onEdit} onToggleSign={negate}
+          <Keypad value={expr} onChange={onKeypadChange} onEdit={onEdit} onToggleSign={negate} keyHeight={keyHeight}
             extra={debt
               ? { label: t("transaction.entry.debtKey", { person: debt.person }), a11y: t("transaction.entry.debtKeyA11y", { person: debt.person }), icon: "creditcard.and.123", active: true, onPress: openCategory }
               : { label: category ? catName(category) : t("keypad.category"), a11y: category ? t("keypad.categoryA11y", { name: catName(category) }) : t("keypad.categoryNone"), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: openCategory }}
