@@ -7,8 +7,9 @@ import type { Option } from "@/app/pick/option";
 import { scopeAccountIds as coreScopeAccountIds } from "@kopiyka/core";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
+import { accountIcon } from "@/components/ui";
 
-export interface ScopedAccount { id: string; name: string; group_name: string; currency: string; archived?: number }
+export interface ScopedAccount { id: string; name: string; group_name: string; currency: string; archived?: number; type?: string; color?: string | null }
 
 /** The accounts a scope covers ([] = all): core's `scopeAccountIds`, tested there. */
 export const scopeAccountIds = coreScopeAccountIds;
@@ -37,13 +38,15 @@ export function scopeOptions(accounts: ScopedAccount[]): Option[] {
   const allGroups = [...new Set(accounts.map((a) => a.group_name))];
   const single = allGroups.length === 1;
   const groups = single ? [] : allGroups.filter(Boolean);
-  const account = (a: ScopedAccount, indent: boolean): Option => ({ value: a.id, label: acctName(a), subtitle: a.currency, indent });
+  // Each account wears its own icon and colour, as on the account picker; "All" and a group get a
+  // tile too, so the names line up down the list.
+  const account = (a: ScopedAccount, indent: boolean): Option => ({ value: a.id, label: acctName(a), subtitle: a.currency, indent, icon: accountIcon(a.type ?? ""), color: a.color ?? null });
   return [
-    { value: "all", label: t("period.scope.all"), subtitle: single && allGroups[0] ? `${groupName(allGroups[0])} · ${n(accounts.length)}` : n(accounts.length) },
+    { value: "all", icon: "square.stack.3d.up", color: null, label: t("period.scope.all"), subtitle: single && allGroups[0] ? `${groupName(allGroups[0])} · ${n(accounts.length)}` : n(accounts.length) },
     ...(single ? accounts.map((a) => account(a, true)) : []),
     ...groups.flatMap((g) => {
       const members = accounts.filter((a) => a.group_name === g);
-      return [{ value: `group:${g}`, label: groupName(g), subtitle: t("period.scope.group", { count: members.length }) }, ...members.map((a) => account(a, true))];
+      return [{ value: `group:${g}`, icon: "folder", color: null, label: groupName(g), subtitle: t("period.scope.group", { count: members.length }) }, ...members.map((a) => account(a, true))];
     }),
     ...(single ? [] : accounts.filter((a) => !a.group_name).map((a) => account(a, false))),
   ];
