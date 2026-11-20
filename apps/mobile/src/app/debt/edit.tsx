@@ -13,6 +13,7 @@ import { getBaseCurrency } from "@/lib/rates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { acctName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 const directions = (): { value: DebtDirection; label: string }[] => [
   { value: "owed_to_me", label: t("debt.direction.owedToMe") },
@@ -108,8 +109,10 @@ export default function DebtEdit() {
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "debts", existing.id)); leave(); } },
   ]);
 
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <Title>{heroTitle}</Title>
@@ -135,7 +138,7 @@ export default function DebtEdit() {
             {dueDate ? <Chip icon={notify ? "bell.fill" : "bell.slash"} label={notify ? t("debt.reminderOn") : t("debt.reminderOff")} active={notify} onPress={() => setNotify((v) => !v)} /> : null}
             {dueDate && notify ? <Chip icon="clock" label={notifyTime} active onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: notifyTime } })} /> : null}
           </ChipRow>
-          <Keypad value={expr} onChange={setExpr} onToggleSign={() => setDirection((d) => (d === "owed_to_me" ? "i_owe" : "owed_to_me"))} />
+          <Keypad keyHeight={sheetFit.keyHeight} value={expr} onChange={setExpr} onToggleSign={() => setDirection((d) => (d === "owed_to_me" ? "i_owe" : "owed_to_me"))} />
           <ConfirmBar amount={shown} label={valid ? (existing ? t("debt.confirm.save") : t("debt.confirm.add")) : person.trim() ? t("debt.confirm.amount") : t("debt.confirm.who")} onPress={commit} disabled={!valid} color={direction === "owed_to_me" ? (C.green as unknown as string) : undefined} />
           {existing && !existing.settled_date ? <DeleteRow icon="checkmark.circle" label={t("debt.paid.row")} onPress={markPaid} /> : null}
           {existing?.settled_date ? (

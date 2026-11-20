@@ -11,6 +11,7 @@ import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { catName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 /** What comes back when the screen was opened with `kind`, i.e. with the Category and Tags keys on. */
 export interface AmountPick { minor: number; category_id: string | null; tag_ids: string[]; note?: string | null }
@@ -75,8 +76,10 @@ export default function PickAmount() {
   };
   const amountText = abs !== null ? formatMinor(toMinor(abs, cur), cur) : "0";
 
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <Text style={styles.title}>{p.title ?? t("keypad.amount.title")}</Text>
@@ -108,7 +111,7 @@ export default function PickAmount() {
       }
       bottom={
         <>
-          <Keypad value={expr} onChange={setExpr} allowSign={false}
+          <Keypad keyHeight={sheetFit.keyHeight} value={expr} onChange={setExpr} allowSign={false}
             extra={p.kind ? { label: category ? catName(category) : t("keypad.category"), a11y: category ? t("keypad.categoryA11y", { name: catName(category) }) : t("keypad.categoryNone"), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: p.kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) } : undefined}
             extra2={p.kind ? { a11y: tags.length ? t("keypad.tagsA11y", { names: tags.map((tag) => tag.name).join(", ") }) : t("keypad.tags"), icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) } : undefined} />
           <ConfirmBar amount={`${amountText} ${cur}`} label={tooMuch ? t("keypad.amount.tooMuchShort") : t("keypad.amount.use")}

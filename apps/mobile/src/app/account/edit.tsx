@@ -1,18 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { ActionSheetIOS, Alert, StyleSheet, Text, View } from "react-native";
+import { SymbolView } from "expo-symbols";
 import { router, useLocalSearchParams } from "expo-router";
 import { DEFAULT_ACCOUNT_GROUP, accountBalanceMinor, accountNumbers, createAccount, formatMinor, getRow, remove, save, toMinor, fromMinor, type Account, type AccountType } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate } from "@/store";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { Chip, SheetFrame, Subtle, Title, ChipRow, DeleteRow } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { Chip, SheetFrame, Subtle, Tap, Title, ChipRow, DeleteRow, accountIcon } from "@/components/ui";
+import { C, R, S, themed } from "@/constants/theme";
 import { currencyName } from "@/lib/currencies";
 import { getCurrentAccount, setCurrentAccount } from "@/lib/settings";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 const TYPES: AccountType[] = ["bank", "cash", "card", "savings", "investment", "other"];
 const typeLabel = (v: AccountType) => t(`account.type.${v}`);
@@ -41,7 +43,8 @@ export default function AccountEdit() {
   // notification lands on it and a transfer between two of your accounts is recognised as one
   // (DATA.md rule 18). Usually learned by approving such a payment; typed here for the first time.
   const [numbers, setNumbers] = useState<string[]>(existing ? accountNumbers(existing) : []);
-  const keys = useMemo(() => ({ name: newPickKey("aname"), group: newPickKey("agroup"), currency: newPickKey("acur"), numbers: newPickKey("anum") }), []);
+  const keys = useMemo(() => ({ name: newPickKey("aname"), group: newPickKey("agroup"), currency: newPickKey("acur"), numbers: newPickKey("anum"), type: newPickKey("atype") }), []);
+  usePickResult<string>(keys.type, useCallback((v: string) => { if ((TYPES as string[]).includes(v)) setType(v as AccountType); }, []));
   usePickResult<string>(keys.numbers, useCallback((v: string) => setNumbers(parseNumbers(v)), []));
   usePickResult<string>(keys.currency, useCallback((v: string) => setCurrency(v), []));
   usePickResult<string>(keys.name, useCallback((v: string) => setName(v), []));
@@ -99,41 +102,58 @@ export default function AccountEdit() {
   const shown = `${partial !== null ? formatMinor(toMinor(partial, currency), currency) : amount.startsWith("−") ? "−0" : "0"} ${currency}`;
   const changed = existing ? toMinor(value, currency) !== balanceNow : false;
 
+  // Save stays on screen however short the screen (lib/sheetFit.ts): first the hints go and Archive
+  // and Delete move to the top corner, then the keypad's rows shrink.
+  const sheetFit = useSheetFit(ACCOUNT_SPARE);
+  const moreActions = () => {
+    if (!existing) return;
+    const acts = [
+      { label: existing.archived ? t("account.unarchive") : t("account.archive.row"), run: () => (existing.archived ? setArchived(false) : archive()) },
+      ...(txCount === 0 ? [{ label: t("account.delete.row"), run: del }] : []),
+    ];
+    ActionSheetIOS.showActionSheetWithOptions({ options: [...acts.map((a) => a.label), t("common.cancel")], cancelButtonIndex: acts.length, destructiveButtonIndex: txCount === 0 ? acts.length - 1 : undefined },
+      (i) => { if (i < acts.length) acts[i]!.run(); });
+  };
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
+          {/* Tight (a short screen): Archive and Delete leave the foot of the sheet for this corner, as
+              the entry sheet keeps Delete, so Save is never pushed off screen. */}
+          {existing && sheetFit.tight ? <Tap onPress={moreActions} hitSlop={10} style={styles.corner} accessibilityRole="button" accessibilityLabel={t("account.moreA11y")}><SymbolView name="archivebox" size={16} tintColor={C.red} /></Tap> : null}
           <Title>{name || (existing ? t("account.editTitle") : t("account.newTitle"))}</Title>
           <Text style={styles.balanceLabel}>{existing ? t("account.balanceNow") : t("account.openingBalance")}</Text>
           <Text style={[styles.balance, untouched && { color: C.tint }]} numberOfLines={1} adjustsFontSizeToFit accessibilityLabel={existing ? t("account.balanceA11y", { amount: shown }) : t("account.openingA11y", { amount: shown })}>{shown}</Text>
           <CalcLine expr={amount} style={{ textAlign: "left" }} />
-          <Subtle>
+          {sheetFit.tight && existing && !changed ? null : <Subtle>
             {existing
               ? changed ? t("account.openingBecomes", { amount: `${formatMinor(existing.opening_balance_minor + (toMinor(value, currency) - balanceNow), currency)} ${currency}` }) : untouched ? t("account.typeToReplace") : t("account.openingIs", { amount: `${formatMinor(existing.opening_balance_minor, currency)} ${currency}` })
               : `${group ? `${groupName(group)} · ` : ""}${typeLabel(type)}`}
-          </Subtle>
+          </Subtle>}
         </View>
       }
       bottom={
         <>
           <ChipRow>
             <Chip icon="coloncurrencysign.circle" label={`${currency} · ${currencyName(currency)}`} active onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: currency } })} />
-            {TYPES.map((v) => <Chip key={v} label={typeLabel(v)} active={v === type} onPress={() => setType(v)} />)}
+            {/* One chip for the type, opening a picker, rather than six side by side: one answer, one place. */}
+            <Chip icon={accountIcon(type)} label={typeLabel(type)} active onPress={() => router.push({ pathname: "/pick/option", params: { key: keys.type, title: t("account.typeTitle"), selected: type,
+              options: JSON.stringify(TYPES.map((v) => ({ value: v, label: typeLabel(v), icon: accountIcon(v), color: null }))) } })} />
             <Chip label={inNet ? t("account.inNetWorth") : t("account.excluded")} icon={inNet ? "checkmark.circle" : "circle"} onPress={() => setInNet((v) => !v)} />
             <Chip label={t("account.current")} icon={current ? "star.fill" : "star"} active={current} onPress={() => setCurrent((v) => !v)} />
           </ChipRow>
-          {current ? <Subtle style={{ paddingHorizontal: S.xl }}>{t("account.currentHint")}</Subtle> : null}
+          {current && !sheetFit.tight ? <Subtle style={{ paddingHorizontal: S.xl }}>{t("account.currentHint")}</Subtle> : null}
           <ChipRow>
             <Chip icon="textformat" label={name || t("account.name")} active={!!name} onPress={pickName} />
             <Chip icon="folder" label={groupName(group)} active onPress={() => router.push({ pathname: "/pick/group", params: { key: keys.group, selected: group } })} />
             <Chip icon="number" label={numbers.length ? numbers.map((n) => `••${n}`).join(" ") : t("account.numbers.chip")} active={numbers.length > 0}
               onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.numbers, title: t("account.numbers.title"), value: numbers.join(", ") } })} />
           </ChipRow>
-          <Keypad value={amount} onChange={onKeypad} onToggleSign={toggleSign} />
+          <Keypad keyHeight={sheetFit.keyHeight} value={amount} onChange={onKeypad} onToggleSign={toggleSign} />
           {/* Nameless is not a dead end: the bar opens the name field instead of sitting there greyed out. */}
           <ConfirmBar amount={shown} label={valid ? (existing ? (changed ? t("account.confirm.setBalance") : t("account.confirm.save")) : t("account.confirm.add")) : t("account.confirm.name")} onPress={valid ? commit : pickName} />
-          {existing ? (existing.archived ? <DeleteRow icon="tray.and.arrow.up" label={t("account.unarchive")} onPress={() => setArchived(false)} /> : <DeleteRow icon="archivebox" label={t("account.archive.row")} onPress={archive} />) : null}
-          {existing && txCount === 0 ? <DeleteRow label={t("account.delete.row")} onPress={del} /> : null}
+          {existing && !sheetFit.tight ? (existing.archived ? <DeleteRow icon="tray.and.arrow.up" label={t("account.unarchive")} onPress={() => setArchived(false)} /> : <DeleteRow icon="archivebox" label={t("account.archive.row")} onPress={archive} />) : null}
+          {existing && txCount === 0 && !sheetFit.tight ? <DeleteRow label={t("account.delete.row")} onPress={del} /> : null}
         </>
       }
     />
@@ -150,7 +170,11 @@ function parseNumbers(text: string): string[] {
   return out;
 }
 
+/** What the account sheet can give up before its keys shrink: the two hints and the Archive/Delete rows. */
+const ACCOUNT_SPARE = 140;
+
 const styles = themed(() => StyleSheet.create({
+  corner: { position: "absolute", top: S.md, right: S.md, width: 34, height: 34, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center", zIndex: 1 },
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.md, gap: 4 },
   balanceLabel: { fontSize: 13, color: C.secondary, marginTop: S.sm },
   balance: { fontSize: 34, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"] },

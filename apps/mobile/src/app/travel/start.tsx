@@ -17,6 +17,7 @@ import { DISMISS_MS } from "@/lib/nav";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { cityName, countryCode, quickLocation } from "@/lib/location";
 import { t } from "@/i18n";
+import { useSheetFit } from "@/lib/sheetFit";
 
 /**
  * Start a trip or an event, first half — the two differ only in words and defaults (core
@@ -135,8 +136,10 @@ export default function TravelStart() {
       Alert.alert(over ? t("travel.start.addFailed") : t("travel.start.startFailed", { kind }), errorText(e));
     }
   }, [finalName, currency, value, limitless, exit, kind, people]));
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <Title>{past ? t("travel.start.pastTitle", { kind }) : t("travel.start.title", { kind })}</Title>
@@ -172,7 +175,7 @@ export default function TravelStart() {
           {/* The keyboard and the keypad never share the sheet: one goes while the other is up. */}
           {naming ? null : (
             <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)} style={{ gap: S.md }}>
-              <Keypad value={expr} onChange={setExpr} allowSign={false} />
+              <Keypad keyHeight={sheetFit.keyHeight} value={expr} onChange={setExpr} allowSign={false} />
               <ConfirmBar amount={limitless ? t("travel.start.noLimitHint") : `${shown} ${currency}`} label={!finalName ? t("travel.start.nameFirst") : valid ? t("travel.start.toDates") : t("travel.start.enterBudget")} onPress={next} disabled={!valid} />
             </Animated.View>
           )}

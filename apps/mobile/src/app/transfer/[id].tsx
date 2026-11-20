@@ -14,6 +14,7 @@ import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { dismissSettledPaymentNotices } from "@/lib/notifications";
 import { catName, acctName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 
 type TransferPair = { from: string; to: string };
@@ -198,8 +199,10 @@ export default function TransferSheet() {
   })();
   const keyLabel = side === "from" ? t("transfer.editReceiving") : t("transfer.editSending");
 
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <View style={styles.headRow}>
@@ -236,7 +239,7 @@ export default function TransferSheet() {
           </ChipRow>
           {/* Waits for both accounts: the amount is the last thing a transfer is told. */}
           <View pointerEvents={ready ? "auto" : "none"} style={ready ? null : styles.waiting} accessibilityElementsHidden={!ready} importantForAccessibility={ready ? "auto" : "no-hide-descendants"}>
-            <Keypad value={typed[side] ? expr : ""} onChange={onType} allowSign={false}
+            <Keypad keyHeight={sheetFit.keyHeight} value={typed[side] ? expr : ""} onChange={onType} allowSign={false}
               extra={{ label: keyLabel, icon: "arrow.up.arrow.down", active: side === "to", onPress: () => setSide(other) }} />
           </View>
           <ConfirmBar amount={fromShown && from ? `${fromShown} ${from.currency}${toShown && to && (cross || toShown !== fromShown) ? ` → ${toShown} ${to.currency}` : ""}` : "0"}

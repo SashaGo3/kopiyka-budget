@@ -23,6 +23,8 @@ export interface Messages {
   "account.excluded": undefined;
   /** Chip: the account counts towards net worth. */
   "account.inNetWorth": undefined;
+  /** VoiceOver label of the corner button that holds Archive and Delete when the account sheet is short of room. */
+  "account.moreA11y": undefined;
   /** Chip that opens the name field while the account has none. */
   "account.name": undefined;
   /** Title of the text field that names an account. */
@@ -55,6 +57,8 @@ export interface Messages {
   "account.type.investment": undefined;
   "account.type.other": undefined;
   "account.type.savings": undefined;
+  /** Title of the picker the account sheet's type chip opens. */
+  "account.typeTitle": undefined;
   /** Hint under a prefilled balance: a digit replaces it, backspace edits it. */
   "account.typeToReplace": undefined;
   "account.unarchive": undefined;

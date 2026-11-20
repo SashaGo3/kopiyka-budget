@@ -1,6 +1,6 @@
 import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
+import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -12,11 +12,11 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { shopParams } from "@/lib/shopPick";
-import { KEY_HEIGHT, Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
+import { Keypad, CalcLine, Caret, ConfirmBar, applyKeySigned, evalPartial, negateExpr } from "@/components/Keypad";
 import { ButtonText, Chip, ChipGrid, SheetFrame, TagPill, accountIcon, Tap } from "@/components/ui";
 import { copyToClipboard } from "@/lib/device";
 import { C, R, S, Type, themed } from "@/constants/theme";
-import { useWindowInsets } from "@/constants/layout";
+import { useSheetFit } from "@/lib/sheetFit";
 import { dayChipLabel, dayWithNow, localIso, timeLabel, todayLocal, withTime } from "@/lib/dates";
 import { DISMISS_MS, dismissTo, openOnce } from "@/lib/nav";
 import { readPhoto, usePhotoReading } from "@/lib/photoText";
@@ -733,25 +733,9 @@ export default function TransactionSheet() {
   const openKind = () => ActionSheetIOS.showActionSheetWithOptions(
     { options: [...kinds.map(kindLabel), t("common.cancel")], cancelButtonIndex: kinds.length },
     (i) => { if (i < kinds.length && kinds[i] !== kind) changeKind(kinds[i]!); });
-  // The sheet is as tall as what it holds, and the Save bar at its foot has to be on screen whatever
-  // the screen: the folded iPhone Duo's outer one is 678 pt. So the sheet measures itself and, when
-  // it runs past the room a sheet gets, gives up the difference (`squeeze`): first the chip grid puts
-  // its icons beside the labels (28 pt), then the keypad's 4.72 rows shrink, down to 32 pt a key.
-  // The room is the window less the window's top inset (inside a sheet its own reads 0), the gap iOS
-  // leaves above a sheet, and a cushion for the display's rounded foot. With room again (unfolded)
-  // it gives the height back.
-  const { height: windowHeight } = useWindowDimensions();
-  const windowTop = useWindowInsets().top;
-  const [squeeze, setSqueeze] = useState(0);
-  const flatChips = squeeze > 0;
-  const keyHeight = Math.max(KEY_MIN, KEY_HEIGHT - Math.ceil(Math.max(0, squeeze - FLAT_SAVES) / 4.72));
-  const fitSheet = (e: LayoutChangeEvent) => {
-    if (noteOpen) return;
-    const over = e.nativeEvent.layout.height - (windowHeight - windowTop - SHEET_GAP - SHEET_CUSHION);
-    const next = Math.min(MAX_SQUEEZE, Math.max(0, squeeze + over));
-    // Shrinking at once; growing back only for a real gain, or the two would take turns.
-    if (over > 0 ? next > squeeze : next < squeeze - 8) setSqueeze(next);
-  };
+  // Save stays on screen however short the screen (lib/sheetFit.ts): the chip grid lies flat first
+  // (icons beside the labels, 28 pt), then the keypad's rows shrink.
+  const { onLayout: fitSheet, tight: flatChips, keyHeight } = useSheetFit(FLAT_SAVES, noteOpen);
   const balanceToggle = (start?: boolean) => (
     <BalanceToggle start={start} balance={balance} after={valid && after !== balance ? after : null} currency={currency}
       afterColor={(after < 0 ? C.red : kind === "income" ? C.green : C.label) as unknown as string} />
@@ -992,9 +976,5 @@ function returnReason(reason: ReturnReason): string {
   }
 }
 
-/** What the entry sheet may give up to keep Save on screen (see `fitSheet`). */
-const KEY_MIN = 32;
+/** The height the chip grid gives back when it lies flat (two rows, 50 → 36). */
 const FLAT_SAVES = 28;
-const MAX_SQUEEZE = FLAT_SAVES + Math.ceil((KEY_HEIGHT - KEY_MIN) * 4.72);
-const SHEET_GAP = 12;
-const SHEET_CUSHION = 16;

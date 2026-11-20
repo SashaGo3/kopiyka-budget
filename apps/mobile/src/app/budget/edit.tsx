@@ -16,6 +16,7 @@ import { getPeriodStartDay } from "@/lib/period";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { catName, acctName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 export default function BudgetEdit() {
   const { id, account } = useLocalSearchParams<{ id: string; account?: string }>();
@@ -82,8 +83,10 @@ export default function BudgetEdit() {
   // Laid out like the entry sheet: what it covers and the amount large at the top; then, in the thumb
   // zone, what it could be — the averages, a line that scrolls sideways right above the buttons — the
   // settings as a row of fixed cells, the keypad and the bar that saves.
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           {existing ? <Tap onPress={del} hitSlop={10} style={styles.trash} accessibilityRole="button" accessibilityLabel={t("budgets.edit.delete")}><SymbolView name="trash" size={16} tintColor={C.red} /></Tap> : null}
@@ -132,7 +135,7 @@ export default function BudgetEdit() {
                 numbers at the top, where it would otherwise read as money set aside. */}
             <Chip cell icon={counted ? "sum" : "eye.slash"} label={counted ? t("budgets.edit.inPlanned") : t("budgets.edit.notInPlanned")} active={counted} onPress={() => setCounted((v) => !v)} />
           </ChipGrid>
-          <Keypad value={expr} onChange={setExpr} allowSign={false} />
+          <Keypad keyHeight={sheetFit.keyHeight} value={expr} onChange={setExpr} allowSign={false} />
           <ConfirmBar amount={`${shown} ${currency}`} label={existing ? t("budgets.edit.tapToSave") : t("budgets.edit.tapToAdd")} onPress={commit} disabled={!valid} />
         </>
       }
