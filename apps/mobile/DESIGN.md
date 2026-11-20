@@ -131,6 +131,12 @@ The user's standing rule, and `test/buttons.test.ts` holds buttons to it.
 - **Text containers grow.** `minHeight`, never `height`, on anything holding text, so a large
   Dynamic Type size or a Ukrainian label makes the control taller instead of overlapping it.
 - **iPad keeps a phone's measure** (`screenContentStyle`, `CONTENT_MAX_WIDTH`).
+- **Sides are a safe area too.** The folded iPhone Duo keeps its camera, clock and tab bar in a strip
+  down one side (about 84 pt). A pushed screen gets clear of it through its stack's
+  `useScreenContentStyle()`, and a full-screen modal through the root layout's `modal` option. Inside a
+  sheet or anything presented, the inset reads 0, so wrap what sits under the strip in `ClearOfSides`,
+  which pads only by the actual overlap (`SheetFrame` does this for its top). Never do symmetric math on
+  insets (`width - insets.left * 2`), and branch on the window's width, never on the device.
 
 ## 9. Dynamic Type
 
