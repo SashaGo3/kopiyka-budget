@@ -16,13 +16,14 @@ const STEPS = [1, 2, 3, 4, 5] as const;
  * actions pinned at the bottom. Every step after the first has Back to the one before it (and the
  * edge swipe does the same, onboarding/_layout.tsx); the first has nothing behind it.
  */
-export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true, startAtEnd = false }: {
+export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true, compact = false }: {
   step: 1 | 2 | 3 | 4 | 5; title: string; subtitle: string; children?: ReactNode;
   primary: { label: string; onPress: () => void; disabled?: boolean };
   secondary?: { label: string; onPress: () => void };
   scroll?: boolean;
-  /** Open scrolled to the bottom: what the step is for is down there (the keypad on a short screen). */
-  startAtEnd?: boolean;
+  /** A short screen (the folded iPhone Duo): smaller title and buttons, tighter gaps, so a step that
+   *  must not scroll (the keypad) still fits whole. */
+  compact?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -45,22 +46,22 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
           {STEPS.map((i) => <View key={i} style={[styles.dot, i === step && styles.dotOn, i < step && styles.dotDone]} />)}
         </View>
       </View>
-      <FadeIn><Text style={styles.title} maxFontSizeMultiplier={1.3}>{title}</Text></FadeIn>
-      <FadeIn delay={80}><Text style={styles.subtitle}>{subtitle}</Text></FadeIn>
+      <FadeIn><Text style={[styles.title, compact && styles.titleCompact]} maxFontSizeMultiplier={1.3}>{title}</Text></FadeIn>
+      <FadeIn delay={80}><Text style={[styles.subtitle, compact && styles.subtitleCompact]}>{subtitle}</Text></FadeIn>
       </ClearOfSides>
       <FadeIn delay={160} style={{ flex: 1 }}>{children}</FadeIn>
     </>
   );
   return (
     <View style={[styles.screen, { paddingTop: insets.top + S.lg }]}>
-      {scroll ? <ScrollView {...kept} onContentSizeChange={startAtEnd ? () => kept.ref.current?.scrollToEnd({ animated: false }) : kept.onContentSizeChange} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{body}</ScrollView> : <View style={[styles.content, { flex: 1 }]}>{body}</View>}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, S.lg) }]}>
+      {scroll ? <ScrollView {...kept} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{body}</ScrollView> : <View style={[styles.content, compact && styles.contentCompact, { flex: 1 }]}>{body}</View>}
+      <View style={[styles.footer, compact && styles.footerCompact, { paddingBottom: Math.max(insets.bottom, compact ? S.sm : S.lg) }]}>
         <Pressable onPress={primary.onPress} disabled={primary.disabled} accessibilityRole="button" accessibilityLabel={primary.label}
-          style={({ pressed }) => [styles.primary, (pressed || primary.disabled) && { opacity: 0.5 }]}>
+          style={({ pressed }) => [styles.primary, compact && styles.primaryCompact, (pressed || primary.disabled) && { opacity: 0.5 }]}>
           <ButtonText style={styles.primaryText} maxFontSizeMultiplier={1.3}>{primary.label}</ButtonText>
         </Pressable>
         {secondary ? (
-          <Tap onPress={secondary.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={secondary.label} style={styles.secondary}>
+          <Tap onPress={secondary.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={secondary.label} style={[styles.secondary, compact && styles.secondaryCompact]}>
             <ButtonText style={styles.secondaryText} maxFontSizeMultiplier={1.3}>{secondary.label}</ButtonText>
           </Tap>
         ) : null}
@@ -82,6 +83,13 @@ const styles = themed(() => StyleSheet.create({
   title: { fontSize: 34, fontWeight: "800", letterSpacing: -0.5, color: C.label },
   subtitle: { fontSize: 17, lineHeight: 24, color: C.secondary },
   footer: { paddingHorizontal: S.xl, paddingTop: S.md, gap: S.sm, backgroundColor: C.bg },
+  // Compact (a short screen): every point that is not a key goes, and the keys keep theirs.
+  contentCompact: { gap: S.sm, paddingBottom: S.sm },
+  titleCompact: { fontSize: 28 },
+  subtitleCompact: { fontSize: 15, lineHeight: 20 },
+  footerCompact: { paddingTop: S.sm, gap: 0 },
+  primaryCompact: { minHeight: 46 },
+  secondaryCompact: { height: 40 },
   primary: { minHeight: 54, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },
   primaryText: { color: C.onTint, fontSize: 17, fontWeight: "700" },
   secondary: { height: 44, alignItems: "center", justifyContent: "center" },
