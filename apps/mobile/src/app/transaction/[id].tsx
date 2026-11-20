@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation/core/usePreventRemove";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { accountBalanceMinor, applyReturn, itemsToStore, sharesOf, categoryForShop, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, receiptChanges, receiptFill, receiptSave, type EntryNow, type SplitPart, type Transaction } from "@kopiyka/core";
+import { rowIsIncome, accountBalanceMinor, applyReturn, itemsToStore, sharesOf, categoryForShop, checkReturn, kopiykaError, claimRecurring, clearReturns, createTransaction, settleIfPaid, getRow, learnFromRow, listRows, paidAmountMinor, payeeOptions, photoInUse, rateOrFallback, remove, save, shareEntered, splitAmounts, suggestCategoryAt, toMinor, uncarriedTagIds, fromMinor, formatMinor, numberFormat, iconFor, jsonIds, trimNumber, withTripTag, receiptChanges, receiptFill, receiptSave, type EntryNow, type SplitPart, type Transaction } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -66,9 +66,10 @@ export default function TransactionSheet() {
   const [accountId, setAccountId] = useState(existing?.account_id || p.account || getCurrentAccount() || accounts[0]?.id || "");
   // The expression IS the signed money (expenses negative); `defaultMode` only matters while
   // it's empty or doesn't evaluate — otherwise `kind` below is derived from its sign.
-  const [defaultMode, setDefaultMode] = useState<"expense" | "income">(existing ? (existing.amount_minor >= 0 ? "income" : "expense") : p.kind === "income" ? "income" : "expense");
+  const [defaultMode, setDefaultMode] = useState<"expense" | "income">(existing ? (rowIsIncome(existing) ? "income" : "expense") : p.kind === "income" ? "income" : "expense");
   const [expr, setExpr] = useState(() => {
-    if (existing) return trimNumber(fromMinor(existing.amount_minor, getRow(db, "accounts", existing.account_id)?.currency ?? "EUR"));
+    // A zero still waiting for its amount (DATA.md rule 6) starts empty, so what is typed takes the row's direction.
+    if (existing) return existing.amount_minor === 0 ? "" : trimNumber(fromMinor(existing.amount_minor, getRow(db, "accounts", existing.account_id)?.currency ?? "EUR"));
     if (!p.amount) return "";
     return defaultMode === "expense" ? `−${p.amount}` : p.amount; // prefilled amount is a magnitude
   });

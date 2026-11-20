@@ -159,6 +159,15 @@ known the amount is **0** and the note says so — deliberately, because a zero 
 and the entry sheet refuses to save at zero, whereas writing the foreign number as if it were the
 account's currency silently inflates the month.
 
+That zero only waits for a rate. When the app is open, it converts every pending row still at 0 with
+a foreign original (`convertWaitingCharges`, `packages/core/src/rates.ts`, run by the sweep in
+`apps/mobile/src/lib/nativeWrites.ts`). It uses the rate of the payment's own day, keeps the
+original's sign, and removes the automation's "no exchange rate" words from `bank_note`. Those words
+were the app's, not the bank's (rule 20), and the original amount stays. A zero takes its direction
+from the original too (`rowIsIncome`, core `money.ts`), so a card payment never reads as income
+while it waits. Frankfurter (the ECB) has never published some currencies, the hryvnia among them,
+so a pair it does not know is asked of the Polish central bank's table A (`NBP`), through złoty.
+
 A receipt photographed in another currency is the same case. Filled into an account in another
 currency, it is converted at the rate of the day and saved with the receipt's own total as
 `entered_amount_minor` / `entered_currency` and the rate used. Without a rate the amount is left

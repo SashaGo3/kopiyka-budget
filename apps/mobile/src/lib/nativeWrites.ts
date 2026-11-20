@@ -4,7 +4,7 @@
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
 import { AppState } from "react-native";
-import { approvePending, claimRecurring, createTransaction, endFinishedTrips, fillPending, getRow, listRows, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, photoInUse, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef, type PairOutcome } from "@kopiyka/core";
+import { approvePending, claimRecurring, convertWaitingCharges, createTransaction, endFinishedTrips, fillPending, getRow, listRows, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, photoInUse, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef, type PairOutcome } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, notifyChange } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
@@ -169,6 +169,21 @@ function sweep(): void {
   try {
     if (db.transaction(() => pairTransferLegs(db) + endFinishedTrips(db, todayLocal())) > 0) notifyChange();
   } catch { /* a sweep is a nicety; the rows are still there, unpaired, for the next one */ }
+  convertSoon();
+}
+
+/**
+ * A foreign charge the automation logged at 0 for want of a rate gets one now (core
+ * `convertWaitingCharges`, DATA.md rule 6). It needs the network, so it runs on its own and only
+ * once at a time; offline it changes nothing and the next sweep tries again.
+ */
+let converting = false;
+function convertSoon(): void {
+  if (converting) return;
+  converting = true;
+  convertWaitingCharges(db, todayLocal())
+    .then((n) => { if (n > 0) notifyChange(); }, () => {})
+    .finally(() => { converting = false; });
 }
 
 /** Start answering native write requests. Call once, as early as possible (before any watch message can arrive). */
@@ -179,7 +194,7 @@ export function installNativeWrites(): () => void {
   const appState = AppState.addEventListener("change", (s) => { if (s === "active") { syncIncoming(KPBridge.incomingReadings()); sweep(); } });
   const off = KPBridge.onNativeWrite((w) => {
     void apply(w).then(
-      (reply) => KPBridge.finishNativeWrite(w.request, true, null, reply),
+      (reply) => { KPBridge.finishNativeWrite(w.request, true, null, reply); if (w.op === "addTransaction") convertSoon(); },
       (e: unknown) => KPBridge.finishNativeWrite(w.request, false, e instanceof Error ? e.message : String(e)),
     );
   });
