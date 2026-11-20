@@ -759,11 +759,12 @@ export interface Messages {
   "dates.short.oct": undefined;
   "dates.short.sep": undefined;
   "debt.account": undefined;
+  "debt.accountMenu.change": undefined;
+  "debt.accountMenu.remove": undefined;
   /** VoiceOver label; amount with its currency code. */
   "debt.amountA11y": { amount: string | number };
   /** Sheet title while no person is named yet. */
   "debt.borrowed": undefined;
-  "debt.clearDate": undefined;
   "debt.confirm.add": undefined;
   "debt.confirm.amount": undefined;
   "debt.confirm.save": undefined;
@@ -775,9 +776,14 @@ export interface Messages {
   "debt.direction.iOwe": undefined;
   /** Segmented control. */
   "debt.direction.owedToMe": undefined;
+  "debt.dueMenu.change": undefined;
+  "debt.dueMenu.remindOff": undefined;
+  "debt.dueMenu.remindOn": undefined;
+  "debt.dueMenu.remove": undefined;
+  /** Opens the time picker for the reminder. */
+  "debt.dueMenu.time": undefined;
   /** Sheet title while no person is named yet. */
   "debt.lent": undefined;
-  "debt.noAccount": undefined;
   "debt.noDueDate": undefined;
   "debt.notes": undefined;
   "debt.paid.body": undefined;
@@ -789,8 +795,6 @@ export interface Messages {
   "debt.paidBack": { date: string | number };
   /** By the payments pointed at this debt; amounts are "500.00 PLN". */
   "debt.paidSoFar": { paid: string | number; left: string | number };
-  "debt.reminderOff": undefined;
-  "debt.reminderOn": undefined;
   "debt.reopen.body": undefined;
   "debt.reopen.confirm": undefined;
   "debt.reopen.title": undefined;
@@ -3183,13 +3187,28 @@ export interface Messages {
   "whatsNew.notes.v1_1_1.recurringNext": undefined;
   "whatsNew.notes.v1_1_1.tagPages": undefined;
   "whatsNew.notes.v1_1_1.tripEnds": undefined;
+  "whatsNew.notes.v1_1_2.amount": undefined;
+  "whatsNew.notes.v1_1_2.calendar": undefined;
+  "whatsNew.notes.v1_1_2.drag": undefined;
+  "whatsNew.notes.v1_1_2.duo": undefined;
   "whatsNew.notes.v1_1_2.folder": undefined;
+  "whatsNew.notes.v1_1_2.forecast": undefined;
+  "whatsNew.notes.v1_1_2.friends": undefined;
+  "whatsNew.notes.v1_1_2.graphite": undefined;
+  "whatsNew.notes.v1_1_2.hints": undefined;
   "whatsNew.notes.v1_1_2.insights": undefined;
+  "whatsNew.notes.v1_1_2.language": undefined;
   "whatsNew.notes.v1_1_2.map": undefined;
   "whatsNew.notes.v1_1_2.neverSuggest": undefined;
+  "whatsNew.notes.v1_1_2.order": undefined;
+  "whatsNew.notes.v1_1_2.pickers": undefined;
+  "whatsNew.notes.v1_1_2.rates": undefined;
+  "whatsNew.notes.v1_1_2.receipts": undefined;
+  "whatsNew.notes.v1_1_2.sheets": undefined;
   "whatsNew.notes.v1_1_2.shops": undefined;
   "whatsNew.notes.v1_1_2.taps": undefined;
   "whatsNew.notes.v1_1_2.types": undefined;
+  "whatsNew.notes.v1_1_2.undo": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;
   "whatsNew.title": undefined;

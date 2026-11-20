@@ -2,23 +2,23 @@
   "$comment": "The invented dataset the App Store screenshots are taken over (apps/mobile/scripts/screenshots/demo-data.ts). Every name, shop, note and person a screenshot shows comes from here; the numbers, dates and coordinates live in the script, per language. A key is a slot, not a word: `shop.groceries1` is whichever supermarket the persona of that language shops at most, so a translation picks a local shop rather than translating the English one. Plain text only.",
   "account": {
     "main": "Main",
-    "cash": "Cash",
-    "savings": "Savings",
+    "cash": "Sock drawer",
+    "savings": "Do not touch",
     "card": { "message": "Revolut", "note": "The card in US dollars." },
     "joint": "Joint",
     "group": { "message": "Family", "note": "The account group the joint account sits in." }
   },
   "tag": {
     "lunch": "Lunch",
-    "work": "Work",
-    "weekend": "Weekend",
+    "work": "Expense it?",
+    "weekend": "Weekend chaos",
     "gift": "Gift",
-    "kids": "Kids",
-    "coffee": "Coffee"
+    "kids": "Small humans",
+    "coffee": "Life support"
   },
   "category": {
-    "classes": { "name": "Portuguese classes", "description": "Portuguese language classes" },
-    "padel": { "name": "Padel", "description": "padel court booking" }
+    "classes": { "name": "Portuguese, slowly", "description": "Portuguese language classes" },
+    "padel": { "name": "Padel (cardio-ish)", "description": "padel court booking" }
   },
   "home": { "message": "Rua da Prata, Lisboa", "note": "The persona's home address, shown as the home location." },
   "shop": {
@@ -58,86 +58,86 @@
   "trip": {
     "past": {
       "name": { "message": "Madrid", "note": "A finished trip, two months ago. Doubles as its tag's name.", "max": 30 },
-      "hotel": "Hotel Madrid",
-      "dinner": "Dinner, Madrid",
-      "museum": "Museo del Prado",
-      "metro": "Metro Madrid"
+      "hotel": "Hotel with a view of a wall",
+      "dinner": "Dinner at 23:00, like a local",
+      "museum": "Prado: 3 hours, 2 benches",
+      "metro": "Metro, wrong line twice"
     },
     "current": {
-      "name": { "message": "Porto weekend", "note": "The trip running today, shown on the travel screenshot. Doubles as its tag's name.", "max": 30 },
-      "train": "Train CP",
-      "hotel": "Hotel",
-      "dinner": "Dinner, Porto",
-      "tasting": "Port wine tasting",
-      "lunch": "Francesinha",
-      "extra": { "message": "Vinho verde", "note": "An extra trip expense only the Ukrainian set shows; English leaves it out." }
+      "name": { "message": "Porto: one more glass", "note": "The trip running today, shown on the travel screenshot. Doubles as its tag's name.", "max": 30 },
+      "train": "Train to Porto, snacks extra",
+      "hotel": "Hotel, 214 stairs up",
+      "dinner": "Dinner, Porto (I said small)",
+      "tasting": "Port tasting, purely educational",
+      "lunch": "Francesinha, no regrets yet",
+      "extra": { "message": "Vinho verde (medicinal)", "note": "An extra trip expense, the last one logged on the trip." }
     }
   },
-  "transfer": { "message": "Savings", "note": "The note on the monthly transfer to savings." },
+  "transfer": { "message": "Hiding money from myself", "note": "The note on the monthly transfer to savings." },
   "rule": {
     "rent": "Rent",
     "icloud": "iCloud",
     "spotify": "Spotify",
     "netflix": "Netflix",
-    "gym": "Gym",
+    "gym": "Gym (went twice)",
     "phone": "Vodafone",
     "energy": "EDP energy",
-    "salary": "Salary",
+    "salary": "Salary, finally",
     "carInsurance": "Car insurance"
   },
   "debt": {
-    "d1": { "person": "Oleksandr", "note": "Concert tickets" },
-    "d2": { "person": "Daryna", "note": "Bike" },
-    "d3": { "person": "Olga", "note": "Dinner in NYC" },
-    "d4": { "person": "Maksym", "note": "Padel court" },
-    "d5": { "person": "Oleski", "note": "Lunch" },
-    "d6": { "person": "Azuki", "note": "Festival ticket" },
+    "d1": { "person": "Oleksandr", "note": "Concert tickets, “paying back Friday”" },
+    "d2": { "person": "Daryna", "note": "Borrowed bike, mostly in one piece" },
+    "d3": { "person": "Olga", "note": "Dinner in NYC. The lobster was not shared" },
+    "d4": { "person": "Maksym", "note": "Padel court, and I still lost" },
+    "d5": { "person": "Oleski", "note": "Lunch. Forgot my wallet. Again" },
+    "d6": { "person": "Azuki", "note": "Festival ticket, three reminders ago" },
     "d7": { "person": "Pusik" },
-    "d8": { "person": "Siri", "note": "Cinema" }
+    "d8": { "person": "Siri", "note": "Cinema, mostly popcorn" }
   },
-  "goal": { "message": "Emergency fund", "note": "The savings goal card on Insights." },
+  "goal": { "message": "Cat emergency fund", "note": "The savings goal card on Insights." },
   "extra": {
-    "$comment": "Entries only the Ukrainian set shows (the user asked for these exact words there). English leaves them out, so these English values never reach a screenshot.",
-    "trousers": "Trousers for 40 hryvnias",
-    "chocolate": "Chocolate bar",
-    "gambler": "Young gambler starter kit",
-    "teeth": "Treating milk teeth after the chocolate"
+    "$comment": "Four entries logged in the last minutes of today, so they head the transaction list: a snack, trousers, a bad idea and the dentist the snack led to. The Ukrainian words were asked for exactly as written; other languages tell the same story in their own words.",
+    "trousers": "Stretchy trousers, for the chocolate",
+    "chocolate": "Emergency chocolate",
+    "gambler": "Lottery ticket (retirement plan)",
+    "teeth": "Dentist, re: the chocolate"
   },
   "meme": {
     "$comment": "Notes on some everyday entries, so the transaction list reads like a person wrote it. Grouped by the kind of shop the entry is from (the shop's name moves to the payee); each language writes its own jokes rather than translating these.",
-    "coffee1": "Coffee #3. Productivity pending",
-    "coffee2": "Oat latte, personality included",
-    "coffee3": "Espresso, because sleep is a myth",
-    "coffee4": "Didn’t need it. Needed it",
-    "lunch1": "Sad desk salad, but expensive",
-    "lunch2": "Meeting that should have been a lunch",
-    "lunch3": "Treat yourself (third time this week)",
-    "lunch4": "Brought lunch from home. Ate it at 10:30",
-    "dinner1": "“Just one starter”, they said",
-    "dinner2": "Split the bill, emotionally",
-    "dinner3": "Dessert was a group decision",
-    "dinner4": "Cooking at home tomorrow, for sure",
-    "groceries1": "Went in for milk",
-    "groceries2": "Came for bread, left with a plant",
-    "groceries3": "Healthy week starts Monday",
-    "groceries4": "Snacks for the cat (and me)",
-    "taxi1": "Walking is overrated",
-    "taxi2": "Surge pricing, surge regret",
-    "taxi3": "It was raining (a little)",
-    "taxi4": "Home, and step on it",
-    "transport1": "Ran for it. Made it",
-    "transport2": "Wrong direction, scenic route",
-    "shopping1": "Add to cart is a lifestyle",
-    "shopping2": "It was on sale, so I saved money",
-    "shopping3": "A cable I already own, now twice",
-    "shopping4": "Assembly not included (patience neither)",
-    "pharmacy1": "Vitamins, to feel responsible",
-    "pharmacy2": "Plasters after the wardrobe assembly",
-    "cinema1": "Popcorn with a side of film",
-    "cinema2": "The sequel nobody asked for"
+    "coffee1": "coffee #3. productivity pending",
+    "coffee2": "oat latte, personality included",
+    "coffee3": "espresso, because sleep is a myth",
+    "coffee4": "didn’t need it. needed it",
+    "lunch1": "sad desk salad, but expensive",
+    "lunch2": "meeting that should have been a lunch",
+    "lunch3": "treat yourself (third time this week)",
+    "lunch4": "brought lunch from home. ate it at 10:30",
+    "dinner1": "“just one starter”, they said",
+    "dinner2": "split the bill, emotionally",
+    "dinner3": "dessert was a group decision",
+    "dinner4": "cooking at home tomorrow, for sure",
+    "groceries1": "went in for milk",
+    "groceries2": "came for bread, left with a plant",
+    "groceries3": "healthy week starts monday",
+    "groceries4": "snacks for the cat (and me)",
+    "taxi1": "walking is overrated",
+    "taxi2": "surge pricing, surge regret",
+    "taxi3": "it was raining (a little)",
+    "taxi4": "home, and step on it",
+    "transport1": "ran for it. made it",
+    "transport2": "wrong direction, scenic route",
+    "shopping1": "add to cart is a lifestyle",
+    "shopping2": "it was on sale so i saved money",
+    "shopping3": "a cable i already own, now twice",
+    "shopping4": "assembly not included (patience neither)",
+    "pharmacy1": "vitamins, to feel responsible",
+    "pharmacy2": "plasters after the wardrobe assembly",
+    "cinema1": "popcorn with a side of film",
+    "cinema2": "the sequel nobody asked for"
   },
   "capture": {
     "logAmount": { "message": "14.50", "note": "The amount typed on the entry-sheet and Apple Watch screenshots: digits and a dot only, in the language's own currency." },
-    "logNote": { "message": "Lunch at Time Out Market", "note": "The note on the entry-sheet screenshot." }
+    "logNote": { "message": "Lunch I swore I’d bring from home", "note": "The note on the entry-sheet screenshot." }
   }
 }

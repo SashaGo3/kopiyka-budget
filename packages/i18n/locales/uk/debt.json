@@ -1,4 +1,15 @@
 {
+  "dueMenu": {
+    "change": "Змінити дату",
+    "remindOn": "Нагадати",
+    "remindOff": "Не нагадувати",
+    "time": "Час нагадування",
+    "remove": "Прибрати дату"
+  },
+  "accountMenu": {
+    "change": "Змінити рахунок",
+    "remove": "Без рахунку"
+  },
   "paidSoFar": "Сплачено {paid} · лишилося {left}",
   "direction": {
     "owedToMe": "Мені винні",
@@ -16,12 +27,8 @@
   "amountA11y": "Сума {amount}",
   "who": "Хто?",
   "noDueDate": "Без терміну",
-  "clearDate": "Прибрати дату",
   "account": "Рахунок (необовʼязково)",
-  "noAccount": "Без рахунку",
   "notes": "Нотатки",
-  "reminderOn": "Нагадування увімк.",
-  "reminderOff": "Нагадування вимк.",
   "confirm": {
     "save": "Натисни, щоб зберегти",
     "add": "Натисни, щоб додати",
