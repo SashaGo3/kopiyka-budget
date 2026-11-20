@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Host, DatePicker } from "@expo/ui/swift-ui";
-import { datePickerStyle, environment, frame } from "@expo/ui/swift-ui/modifiers";
+import { datePickerStyle, environment, frame, padding } from "@expo/ui/swift-ui/modifiers";
 import { resolvePick } from "@/store/pick";
 import { BigButton, Chip, Segmented } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
@@ -32,9 +32,10 @@ export default function PickDate() {
       <View style={styles.years}>
         <Segmented value={String(shownYear)} options={years.map((y) => ({ value: String(y), label: String(y) }))} onChange={(v) => toYear(Number(v))} />
       </View>
-      {/* Height from SwiftUI, width from the sheet: the calendar fills the card instead of hugging the left edge. */}
+      {/* Height from SwiftUI, width from the sheet: the calendar fills the card instead of hugging the left edge.
+          Its inset is SwiftUI's `padding`: a Host's own RN padding does not reach the SwiftUI content. */}
       <Host matchContents={{ vertical: true }} style={styles.host}>
-        <DatePicker selection={new Date(day + "T12:00:00")} displayedComponents={["date"]} modifiers={[datePickerStyle("graphical"), environment("locale", getLocale()), frame({ maxWidth: 10000, alignment: "center" })]}
+        <DatePicker selection={new Date(day + "T12:00:00")} displayedComponents={["date"]} modifiers={[datePickerStyle("graphical"), environment("locale", getLocale()), frame({ maxWidth: 10000, alignment: "center" }), padding({ leading: S.md, trailing: S.md })]}
           onDateChange={(d) => { const v = todayLocal(d); setDay(v); if (v !== day) pick(v); }} />
       </Host>
       <BigButton label={t("pick.date.use")} onPress={() => pick(day)} />
@@ -43,7 +44,7 @@ export default function PickDate() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  host: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.sm },
+  host: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card },
   chips: { flexDirection: "row", gap: S.sm, paddingHorizontal: S.md },
   years: { paddingHorizontal: S.md },
 }));
