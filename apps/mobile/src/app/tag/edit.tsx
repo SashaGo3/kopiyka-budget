@@ -55,7 +55,7 @@ export default function TagEdit() {
   };
   const convert = () => {
     const folders = [...cats.values()].filter((c) => !c.parent_id);
-    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("tag.convert.whichFolder"), options: JSON.stringify([...folders.map((f) => ({ value: f.id, label: catName(f), subtitle: t("tag.convert.inFolder") })), { value: "top", label: t("tag.convert.top"), subtitle: t("tag.convert.topSubtitle") }]) } });
+    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("tag.convert.whichFolder"), options: JSON.stringify([...folders.map((f) => ({ value: f.id, label: catName(f), icon: f.icon, color: f.color, subtitle: t("tag.convert.inFolder") })), { value: "top", label: t("tag.convert.top"), icon: "tray", color: null, subtitle: t("tag.convert.topSubtitle") }]) } });
   };
   const valid = name.trim().length > 0;
   const scopeLabel = scope.length ? scope.map((id) => { const c = cats.get(id); return c ? catName(c) : "?"; }).join(", ") : t("tag.anyCategory");

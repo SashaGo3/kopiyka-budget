@@ -59,8 +59,8 @@ export default function BudgetEdit() {
     if (!tags.length) { Alert.alert(t("budgets.edit.noTagsTitle"), t("budgets.edit.noTagsBody")); return; }
     // "No tag" first, so a tag budget can go back to categories without a separate button for it.
     router.push({ pathname: "/pick/option", params: { key: tagKey, title: t("budgets.edit.tagPickerTitle"), selected: tagId ?? "", options: JSON.stringify([
-      ...(tagId ? [{ value: "", label: t("budgets.edit.noTag"), subtitle: t("budgets.edit.noTagSubtitle") }] : []),
-      ...tags.map((x) => ({ value: x.id, label: x.name, subtitle: t("budgets.edit.tagPickerSubtitle") })),
+      ...(tagId ? [{ value: "", label: t("budgets.edit.noTag"), icon: "folder", color: null, subtitle: t("budgets.edit.noTagSubtitle") }] : []),
+      ...tags.map((x) => ({ value: x.id, label: x.name, icon: "number", color: x.color, subtitle: t("budgets.edit.tagPickerSubtitle") })),
     ]) } });
   };
   // `evalPartial`, as on the Log sheet: "900−" already means 900, and the field shows what is saved.

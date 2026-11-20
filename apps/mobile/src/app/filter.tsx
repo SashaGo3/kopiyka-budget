@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { listRows, listTrips } from "@kopiyka/core";
+import { listRows, listTrips, tripKind } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { BigButton, Card, Chip, ChipRow, ModalHeader, Row, SectionHeader, Segmented } from "@/components/ui";
@@ -107,10 +107,10 @@ export default function FilterScreen() {
           {trips.length ? (
             <Row icon="airplane" iconColor="#0A84FF" title={t("transactions.filter.travel")} subtitle={trip ? names.tags.get(trip.tag_id ?? "") ?? t("transactions.filter.travel") : t("transactions.filter.anyTravel")} style={styles.divider}
               onPress={() => router.push({ pathname: "/pick/option", params: { key: keys.trip, title: t("transactions.filter.travel"), selected: trip?.tag_id ?? "any", options: JSON.stringify([
-                { value: "any", label: t("transactions.filter.anyTravel") },
+                { value: "any", label: t("transactions.filter.anyTravel"), icon: "airplane", color: null },
                 ...trips.map((x) => {
                   const span = { from: humanDayTime(x.starts, null, undefined, true), to: humanDayTime(x.ended ?? x.ends ?? x.starts, null, undefined, true) };
-                  return { value: x.tag_id, label: names.tags.get(x.tag_id ?? "") ?? t("transactions.filter.travel"), subtitle: x.ended ? t("transactions.filter.tripRange", span) : t("transactions.filter.tripRangeNow", span) };
+                  return { value: x.tag_id, icon: tripKind(x) === "event" ? "party.popper" : "airplane", color: null, label: names.tags.get(x.tag_id ?? "") ?? t("transactions.filter.travel"), subtitle: x.ended ? t("transactions.filter.tripRange", span) : t("transactions.filter.tripRangeNow", span) };
                 }),
               ]) } })} />
           ) : null}
