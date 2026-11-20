@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Tap } from "@/components/ui";
 import { SymbolView } from "expo-symbols";
 import { router } from "expo-router";
@@ -77,8 +77,11 @@ export default function OnboardingAccount() {
     } catch (e) { Alert.alert(t("onboarding.restore.failed"), errorText(e)); }
     finally { setBusy(false); }
   };
+  // Too short for the whole step to stand still (the folded iPhone Duo, 678 pt): it scrolls instead,
+  // opened at the bottom, with keys of their usual size rather than squeezed into what is left.
+  const short = useWindowDimensions().height < 760;
   return (
-    <OnboardingFrame step={4} scroll={false} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
+    <OnboardingFrame step={4} scroll={short} startAtEnd={short} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
       primary={{ label: expr ? t("onboarding.account.continueWith", { amount: shown, currency }) : t("onboarding.account.continueZero"), onPress: next, disabled: !valid }}
       secondary={{ label: busy ? t("onboarding.restore.busy") : t("onboarding.account.restore"), onPress: () => void restore() }}>
       <View style={styles.form}>
@@ -97,7 +100,7 @@ export default function OnboardingAccount() {
       {/* What is on the first account is money you have; a card in debt can be added later, where ± is.
           The keypad fills what is left rather than scrolling: a last row hidden under Continue is a 0
           nobody can find. */}
-      <Keypad value={expr} onChange={setExpr} allowSign={false} fill />
+      <Keypad value={expr} onChange={setExpr} allowSign={false} fill={!short} />
     </OnboardingFrame>
   );
 }

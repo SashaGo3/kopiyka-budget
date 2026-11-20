@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { ButtonText, FadeIn, Tap } from "@/components/ui";
+import { ButtonText, ClearOfSides, FadeIn, Tap } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { useKeptScroll } from "@/lib/keptScroll";
@@ -16,11 +16,13 @@ const STEPS = [1, 2, 3, 4, 5] as const;
  * actions pinned at the bottom. Every step after the first has Back to the one before it (and the
  * edge swipe does the same, onboarding/_layout.tsx); the first has nothing behind it.
  */
-export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true }: {
+export function OnboardingFrame({ step, title, subtitle, children, primary, secondary, scroll = true, startAtEnd = false }: {
   step: 1 | 2 | 3 | 4 | 5; title: string; subtitle: string; children?: ReactNode;
   primary: { label: string; onPress: () => void; disabled?: boolean };
   secondary?: { label: string; onPress: () => void };
   scroll?: boolean;
+  /** Open scrolled to the bottom: what the step is for is down there (the keypad on a short screen). */
+  startAtEnd?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -30,6 +32,8 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
   const kept = useKeptScroll(`onboarding.${step}`);
   const body = (
     <>
+      {/* The title block only: the folded iPhone Duo's camera and clock are beside it, nothing below. */}
+      <ClearOfSides style={{ gap: S.md }}>
       <View style={styles.head}>
         {canBack ? (
           <Tap onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.back")} style={styles.back}>
@@ -43,12 +47,13 @@ export function OnboardingFrame({ step, title, subtitle, children, primary, seco
       </View>
       <FadeIn><Text style={styles.title} maxFontSizeMultiplier={1.3}>{title}</Text></FadeIn>
       <FadeIn delay={80}><Text style={styles.subtitle}>{subtitle}</Text></FadeIn>
+      </ClearOfSides>
       <FadeIn delay={160} style={{ flex: 1 }}>{children}</FadeIn>
     </>
   );
   return (
     <View style={[styles.screen, { paddingTop: insets.top + S.lg }]}>
-      {scroll ? <ScrollView {...kept} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{body}</ScrollView> : <View style={[styles.content, { flex: 1 }]}>{body}</View>}
+      {scroll ? <ScrollView {...kept} onContentSizeChange={startAtEnd ? () => kept.ref.current?.scrollToEnd({ animated: false }) : kept.onContentSizeChange} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{body}</ScrollView> : <View style={[styles.content, { flex: 1 }]}>{body}</View>}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, S.lg) }]}>
         <Pressable onPress={primary.onPress} disabled={primary.disabled} accessibilityRole="button" accessibilityLabel={primary.label}
           style={({ pressed }) => [styles.primary, (pressed || primary.disabled) && { opacity: 0.5 }]}>

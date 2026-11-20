@@ -124,16 +124,16 @@ export default function PhotoView() {
       </ScrollView>
       {reading.status === "reading" ? <View pointerEvents="none" style={{ position: "absolute", top: insets.top + 52, left: 0, right: 0, height: imgH - insets.top - 52 }}><ScanLine key={uri} height={imgH - insets.top - 52} /></View> : null}
 
-      <Tap onPress={closePhotoViewer} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, right: S.lg }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
+      <Tap onPress={closePhotoViewer} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, right: S.lg + insets.right }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
         <SymbolView name="xmark" size={18} tintColor="white" weight="semibold" />
       </Tap>
       {p.key ? (
-        <Tap onPress={() => { resolvePick(p.key!, true); closePhotoViewer(); }} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, left: S.lg }]} accessibilityRole="button" accessibilityLabel={t("photo.remove")}>
+        <Tap onPress={() => { resolvePick(p.key!, true); closePhotoViewer(); }} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, left: S.lg + insets.left }]} accessibilityRole="button" accessibilityLabel={t("photo.remove")}>
           <SymbolView name="trash" size={17} tintColor="#ff6961" />
         </Tap>
       ) : null}
       {p.replace ? (
-        <Tap onPress={replacePhoto} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, left: S.lg + (p.key ? 52 : 0) }]} accessibilityRole="button" accessibilityLabel={t("photo.replace")}>
+        <Tap onPress={replacePhoto} hitSlop={12} style={[styles.btn, { top: insets.top + S.sm, left: S.lg + insets.left + (p.key ? 52 : 0) }]} accessibilityRole="button" accessibilityLabel={t("photo.replace")}>
           <SymbolView name="camera.rotate" size={17} tintColor="white" />
         </Tap>
       ) : null}

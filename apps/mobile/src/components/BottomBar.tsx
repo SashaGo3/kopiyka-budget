@@ -13,7 +13,7 @@ import { THEMES, type ThemeId } from "@kopiyka/core";
 import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
 import { ButtonText } from "@/components/ui";
-import { PAD_BUTTON_WIDTH, columnOverhang, isPad } from "@/constants/layout";
+import { PAD_BUTTON_WIDTH, columnOverhang, isPad, sidePad } from "@/constants/layout";
 import { takePhoto } from "@/lib/camera";
 import { t } from "@/i18n";
 
@@ -55,7 +55,8 @@ export function BottomBar({ children, above, style, visible = true }: { children
   const bottom = (StyleSheet.flatten([styles.wrap, lowered, style]).bottom as number | undefined) ?? 0;
   return (
     <>
-    <BottomFade height={bottom + (isPad ? 56 : barHeight) + FADE_ABOVE} visible={visible} anim={anim} />
+    <BottomFade height={bottom + (isPad ? 56 : barHeight) + FADE_ABOVE} visible={visible} anim={anim}
+      sides={sideTabs ? { left: -sidePad(insets.left), right: -sidePad(insets.right) } : undefined} />
     <Animated.View onLayout={(e) => setBarHeight(Math.round(e.nativeEvent.layout.height))} pointerEvents={visible ? "box-none" : "none"} style={[styles.wrap, isPad ? styles.alignRight : styles.alignLeft,
       isPad ? { right: EDGE - columnOverhang(width) } : null, lowered, style,
       // Far enough to clear a column of five buttons, so scrolling down slides it away rather than
@@ -78,10 +79,11 @@ const FADE_ABOVE = 16;
  * It also catches taps. A row half-visible between the buttons, or just above the tab bar, opened on
  * a tap meant for the bar. It hides with the bar, and the rows underneath can be tapped again.
  */
-function BottomFade({ height, visible, anim }: { height: number; visible: boolean; anim: Animated.Value }) {
+function BottomFade({ height, visible, anim, sides }: { height: number; visible: boolean; anim: Animated.Value; sides?: ViewStyle }) {
   return (
     <Animated.View pointerEvents={visible ? "auto" : "none"} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
-      style={[styles.fade, { height, opacity: anim }]}>
+      style={[styles.fade, sides, { height, opacity: anim }]}>
+      {/* `sides`: out under the side column too (the folded iPhone Duo), or the blur ends in a hard edge at the content's. */}
       <MaskedView style={StyleSheet.absoluteFill} maskElement={<LinearGradient colors={["transparent", "black"]} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />}>
         <BlurView tint="systemUltraThinMaterial" intensity={60} style={StyleSheet.absoluteFill} />
       </MaskedView>

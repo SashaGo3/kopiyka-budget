@@ -19,7 +19,8 @@ import { maybeShowWhatsNew } from "@/lib/whatsNew";
 import { openLaunchLink } from "@/lib/launchLink";
 import { needsOnboarding } from "@/lib/onboarding";
 import { READ_SHEET_DETENTS } from "@/lib/photoShown";
-import { isPad, useScreenContentStyle } from "@/constants/layout";
+import { isPad, sidePad, useScreenContentStyle } from "@/constants/layout";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t, useLanguage } from "@/i18n";
 
 // Boot trace: the first line of our own code the JS bundle runs (see lib/boot.ts's `bootTrace`).
@@ -47,7 +48,7 @@ export const unstable_settings = { anchor: "(tabs)" };
  */
 // Takes the theme and draws it in plain colours of exactly that theme (`layoutColor`): no layout
 // re-mounts on a theme switch, and the React Compiler memoises a call on its arguments.
-function sheetOptions(theme: ThemeId) {
+function sheetOptions(theme: ThemeId, sides: ViewStyle | null) {
   const sheetContent: ViewStyle = { backgroundColor: layoutColor(theme, "bgGrouped"), ...(isPad ? { justifyContent: "flex-end" as const } : null) };
   // No `sheetCornerRadius`: iOS 26 floats a sheet a few points in from the screen and rounds its
   // corners to follow the screen's own. A fixed 24 is far tighter than an iPhone's corners, so the
@@ -60,7 +61,7 @@ function sheetOptions(theme: ThemeId) {
     /** Pickers: a half-height sheet whose only child is the list (search lives in the list header). */
     picker: { ...sheet, sheetAllowedDetents: [0.6, 0.95], sheetInitialDetentIndex: 0 },
     /** Card modals draw their own plain header (ModalHeader), so no native glass buttons appear on iOS 26. */
-    modal: { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: layoutColor(theme, "bgGrouped") } },
+    modal: { presentation: "modal" as const, headerShown: false, contentStyle: { backgroundColor: layoutColor(theme, "bgGrouped"), ...sides } },
   };
 }
 /**
@@ -86,6 +87,9 @@ export default function RootLayout() {
   // and modals do not: on a tablet iOS already sizes those itself, and a column inside a centred card
   // is a card with margins. `(tabs)` is left out too — the tab bar belongs to the window.
   const pushed = { contentStyle: useScreenContentStyle() };
+  // A full-screen modal sits under the folded iPhone Duo's side column like a pushed screen does.
+  const { left: insetLeft, right: insetRight } = useSafeAreaInsets();
+  const sideInsets: ViewStyle | null = insetLeft || insetRight ? { paddingLeft: sidePad(insetLeft), paddingRight: sidePad(insetRight) } : null;
   // A new language mounts the whole tree again (see src/i18n): every screen, every memoised label.
   // The navigator starts over with it, so go back to where languages are changed — Settings, or the
   // restore that brought a different one in, which also lives there — or, before the welcome flow is
@@ -175,7 +179,7 @@ export default function RootLayout() {
     const safety = setTimeout(markBooted, 1500);
     return () => { clearTimeout(safety); offBoot(); off(); sub.remove(); offWatch(); appState.remove(); };
   }, []);
-  const { fit, medium, picker, modal } = sheetOptions(theme);
+  const { fit, medium, picker, modal } = sheetOptions(theme, sideInsets);
   return (
     <ThemeProvider value={navigationTheme(scheme === "dark", theme)}>
       {parked ? <View style={{ flex: 1, backgroundColor: C.bg }} /> : <View key={shown} style={{ flex: 1 }}>

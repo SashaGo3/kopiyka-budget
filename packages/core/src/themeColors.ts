@@ -231,8 +231,12 @@ function side(theme: Theme, s: ThemeSide, dark: boolean): Record<ColorRole, stri
     inBand(fg, grounds, dark ? b.loDark ?? b.lo : b.lo, dark ? b.hiDark ?? b.hi : b.hi, dark);
   // The accent is text (links, ticks, header buttons) and a fill under `onAccent`: moved into the
   // coloured band only as far as the button text on it allows (GitHub's dark side is white on green).
+  // The band is a floor here, never a ceiling: an accent stronger than coloured text needs (graphite's
+  // near-black) stays as it is, because pulled back to the band's grey a filled button read as a
+  // disabled one.
   const accentText = band(s.accent, TEXT_LC.coloured);
-  const tint = contrast(s.onAccent, accentText) >= ON_ACCENT_MIN ? accentText : s.accent;
+  const weakened = contrast(s.accent, grounds[0]!) > contrast(accentText, grounds[0]!);
+  const tint = weakened ? s.accent : contrast(s.onAccent, accentText) >= ON_ACCENT_MIN ? accentText : s.accent;
   const fill = native ? "@tertiarySystemFill" : withAlpha(s.text, dark ? 0.16 : 0.09);
   return {
     label: band(s.text, TEXT_LC.label),

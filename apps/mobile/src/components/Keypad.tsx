@@ -133,7 +133,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
         {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("keypad.divide") : o === "×" ? t("keypad.multiply") : o === "−" ? t("keypad.subtract") : t("keypad.add")} style={({ pressed }) => [styles.op, shortOp, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
       </View>
       {GRID.map((row, i) => (
-        <View key={i} style={[styles.row, fill && { flex: 1 }]}>
+        <View key={i} style={[styles.row, fill && styles.fillRow]}>
           {row.map((k) => {
             if (k === "extra") {
               if (!extra) return <View key="extra" style={[styles.key, short, fill && styles.fillKey, { flex: 2.08, backgroundColor: "transparent" }]} />;
@@ -235,6 +235,8 @@ const styles = themed(() => StyleSheet.create({
   key: { minHeight: 50, borderRadius: R.md, alignItems: "center", justifyContent: "center", backgroundColor: C.fill, overflow: "hidden" },
   wide: { flex: 1 },
   fillKey: { flex: 1, minHeight: 36 },
+  // A row never shrinks below its keys, or on a short screen they are drawn over each other.
+  fillRow: { flex: 1, minHeight: 36 },
   pressed: { opacity: 0.55 },
   caret: { fontWeight: "200" },
   keyText: { fontSize: 27, fontWeight: "500", color: C.label, fontVariant: ["tabular-nums"] },

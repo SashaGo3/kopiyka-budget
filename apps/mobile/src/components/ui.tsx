@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Easing, FlatList, Pressable, SectionList, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, Animated, Easing, FlatList, Pressable, SectionList, StyleSheet, Switch, Text, View, useWindowDimensions, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { reduceMotion } from "@/lib/motion";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
@@ -16,10 +16,37 @@ export function SheetFrame({ top, bottom, onLayout }: { top: ReactNode; bottom: 
   const insets = useSafeAreaInsets();
   return (
     <View style={{ backgroundColor: C.bgGrouped }} onLayout={onLayout}>
-      <View>{top}</View>
+      {/* Only the top: on the folded iPhone Duo the camera and the clock cover the sheet's top corner,
+          and nothing below it, so the keypad keeps the sheet's whole width. */}
+      <ClearOfSides>{top}</ClearOfSides>
       <View style={{ paddingBottom: Math.max(insets.bottom, S.md), paddingTop: S.md, gap: S.md }}>{bottom}</View>
     </View>
   );
+}
+
+/**
+ * Pads its content clear of the window's side insets, but only by as much as it actually overlaps
+ * them. A presented screen (a modal, a sheet) reports no side inset of its own, while the folded
+ * iPhone Duo keeps its camera and clock in a strip down one side of the window; and a sheet floating
+ * in the middle of the unfolded screen is nowhere near the strip, so the full inset would only
+ * waste width there. Measured in the window, again on every layout (folding is a layout).
+ */
+export function ClearOfSides({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const { left, right } = useSafeAreaInsets();
+  const ref = useRef<View>(null);
+  const [frame, setFrame] = useState<{ x: number; width: number } | null>(null);
+  const measure = useCallback(() => {
+    ref.current?.measureInWindow((x, _y, width) => {
+      if (width) setFrame((was) => (was?.x === x && was.width === width ? was : { x, width }));
+    });
+  }, []);
+  const x = frame?.x ?? 0;
+  const width = frame?.width ?? windowWidth;
+  // Before the first measurement a view is taken to fill the window, which is what most of them do.
+  const padLeft = left ? Math.max(0, left - x) : 0;
+  const padRight = right ? Math.max(0, x + width - (windowWidth - right)) : 0;
+  return <View ref={ref} onLayout={measure} style={[style, padLeft || padRight ? { paddingLeft: padLeft, paddingRight: padRight } : null]}>{children}</View>;
 }
 
 export function Title({ children, style, numberOfLines }: { children: ReactNode; style?: StyleProp<TextStyle>; numberOfLines?: number }) {
@@ -96,7 +123,7 @@ export function Chip({ label, icon, active, onPress, onLongPress, a11yHint, tint
       style={[styles.chip, compact && styles.chipCompact, cell && styles.chipCell, flat && styles.chipCellFlat, active && styles.chipActive, disabled && { opacity: 0.4 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
       {cell
-        ? <ButtonText fit={1} style={[styles.chipText, styles.chipCellText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
+        ? <ButtonText fit={1} style={[styles.chipText, styles.chipCellText, flat && styles.chipCellFlatText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
         : <ButtonText style={[styles.chipText, active && styles.chipTextActive]}>{label}</ButtonText>}
     </Tap>
   );
@@ -602,7 +629,8 @@ const styles = themed(() => StyleSheet.create({
   chipTextActive: { color: C.onTint },
   chipCell: { flexDirection: "column", flexGrow: 1, flexShrink: 1, alignSelf: "stretch", minHeight: 50, paddingHorizontal: 4, paddingVertical: 6, gap: 3, borderRadius: R.md },
   /** Short of height (the folded iPhone Duo): icon beside the label, one 36 pt line. */
-  chipCellFlat: { flexDirection: "row", minHeight: 36, paddingVertical: 4, gap: 5 },
+  chipCellFlat: { flexDirection: "row", alignItems: "center", justifyContent: "center", minHeight: 36, paddingVertical: 4, gap: 5 },
+  chipCellFlatText: { alignSelf: "center", flexShrink: 1 },
   chipCellText: { alignSelf: "stretch", textAlign: "center", fontSize: 13 },
   // A label that wraps stays inside its button rather than pushing past it.
   buttonText: { flexShrink: 1, textAlign: "center" },

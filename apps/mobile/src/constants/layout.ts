@@ -31,7 +31,16 @@ export const screenContentStyle: ViewStyle = { width: "100%", maxWidth: CONTENT_
  */
 export function useScreenContentStyle(): ViewStyle {
   const { left, right } = useSafeAreaInsets();
-  return useMemo(() => (left || right ? { ...screenContentStyle, paddingLeft: left, paddingRight: right } : screenContentStyle), [left, right]);
+  return useMemo(() => (left || right ? { ...screenContentStyle, paddingLeft: sidePad(left), paddingRight: sidePad(right) } : screenContentStyle), [left, right]);
+}
+
+/**
+ * How far a screen's content steps in from a side inset. Cards and rows already keep `S.lg` from the
+ * content's edge, so the inset less that puts a card's edge at the strip's (the system keeps its own
+ * margin inside the strip) instead of `S.lg` short of it.
+ */
+export function sidePad(inset: number): number {
+  return Math.max(0, inset - 16);
 }
 
 /** Caps anything sized off the window rather than its container (the Log button, mostly). */
