@@ -15,7 +15,7 @@ test("a hryvnia charge logged at 0 becomes an expense in złoty at the day's NBP
   const db = openBunDb(":memory:");
   migrate(db);
   const acc = createAccount(db, { name: "Main", currency: "PLN" });
-  const tx = createTransaction(db, { account_id: acc.id, amount_minor: 0, date: "2026-11-20T13:11:20", pending: 1,
+  const tx = createTransaction(db, { account_id: acc.id, amount_minor: 0, date: "2026-11-20T13:11:20", pending: 0,
     entered_amount_minor: -227261, entered_currency: "UAH", bank_note: "GERC*passport_APGP, KYIV · 2 272,61 UAH — немає курсу, вкажи суму" } as never);
   expect(await convertWaitingCharges(db, "2026-11-21", fakeFetch)).toBe(1);
   const row = getRow(db, "transactions", tx.id)!;

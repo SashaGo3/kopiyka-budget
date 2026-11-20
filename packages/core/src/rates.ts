@@ -91,15 +91,16 @@ export async function rateOrFallback(db: SqlDriver, base: string, quote: string,
 /**
  * A foreign charge the notification automation logged at **0** because no rate was cached (DATA.md
  * rule 6) is converted here once a rate can be had: at the rate of the payment's own day, into the
- * account's currency, with the sign of the bank's original. Only rows still pending — a zero cannot
- * be saved from the sheet, so anything else was settled by hand. The automation's own "no exchange
+ * account's currency, with the sign of the bank's original. Pending or not (history may have filed
+ * it): the sheet cannot save a zero, so a zero with a foreign original is always the automation's
+ * and never a choice. The automation's own "no exchange
  * rate" words are taken off the bank's text (they were never the bank's); the original amount stays.
  * Returns how many rows it wrote.
  */
 export async function convertWaitingCharges(db: SqlDriver, today: string, fetchFn: typeof fetch = fetch): Promise<number> {
   const rows = db.all<{ id: string; day: string; acc: string }>(
     `SELECT t.id, substr(t.date, 1, 10) AS day, a.currency AS acc FROM transactions t JOIN accounts a ON a.id = t.account_id
-     WHERE t.deleted=0 AND t.pending=1 AND t.amount_minor=0 AND t.transfer_id IS NULL AND t.exchange_rate IS NULL
+     WHERE t.deleted=0 AND t.amount_minor=0 AND t.transfer_id IS NULL AND t.exchange_rate IS NULL
        AND t.entered_amount_minor IS NOT NULL AND t.entered_amount_minor<>0 AND t.entered_currency IS NOT NULL AND t.entered_currency<>a.currency`);
   let wrote = 0;
   for (const r of rows) {
@@ -109,7 +110,7 @@ export async function convertWaitingCharges(db: SqlDriver, today: string, fetchF
     try { rate = await fetchRate(db, tx.entered_currency, r.acc, r.day < today ? r.day : "latest", fetchFn); } catch { continue; }
     // Read again: the person may have typed an amount while the rate was on its way.
     const now = getRow(db, "transactions", r.id);
-    if (!now || now.deleted || now.amount_minor !== 0 || !now.pending) continue;
+    if (!now || now.deleted || now.amount_minor !== 0) continue;
     const amount = toMinor(fromMinor(now.entered_amount_minor!, now.entered_currency!) * rate, r.acc);
     if (amount === 0) continue;
     save(db, "transactions", { ...now, amount_minor: amount, exchange_rate: rate, bank_note: withoutNoRate(now.bank_note, now.entered_currency!) } as Transaction);

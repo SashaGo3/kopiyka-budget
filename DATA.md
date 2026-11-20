@@ -159,8 +159,8 @@ known the amount is **0** and the note says so — deliberately, because a zero 
 and the entry sheet refuses to save at zero, whereas writing the foreign number as if it were the
 account's currency silently inflates the month.
 
-That zero only waits for a rate. When the app is open, it converts every pending row still at 0 with
-a foreign original (`convertWaitingCharges`, `packages/core/src/rates.ts`, run by the sweep in
+That zero only waits for a rate. When the app is open, it converts every row still at 0 with a foreign
+original, pending or not (the sheet cannot save a zero, so it was never a choice) (`convertWaitingCharges`, `packages/core/src/rates.ts`, run by the sweep in
 `apps/mobile/src/lib/nativeWrites.ts`). It uses the rate of the payment's own day, keeps the
 original's sign, and removes the automation's "no exchange rate" words from `bank_note`. Those words
 were the app's, not the bank's (rule 20), and the original amount stays. A zero takes its direction
