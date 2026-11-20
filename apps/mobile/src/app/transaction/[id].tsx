@@ -1,7 +1,7 @@
 import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, StyleSheet, Text, TextInput, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -734,17 +734,24 @@ export default function TransactionSheet() {
     { options: [...kinds.map(kindLabel), t("common.cancel")], cancelButtonIndex: kinds.length },
     (i) => { if (i < kinds.length && kinds[i] !== kind) changeKind(kinds[i]!); });
   // The sheet is as tall as what it holds, and the Save bar at its foot has to be on screen whatever
-  // the screen: the folded iPhone Duo's outer one is 678 pt. So it measures itself, and when it runs
-  // past the window the keypad's rows give up the difference (4.72 rows: four of keys and the
-  // operators at 0.72), down to 34 pt a key; with room again (unfolded) they grow back.
+  // the screen: the folded iPhone Duo's outer one is 678 pt. So the sheet measures itself and, when
+  // it runs past the room a sheet gets, gives up the difference (`squeeze`): first the chip grid puts
+  // its icons beside the labels (28 pt), then the keypad's 4.72 rows shrink, down to 32 pt a key.
+  // The room is the window less its own top inset (inside a sheet the inset reads 0), the gap iOS
+  // leaves above a sheet, and a cushion for the display's rounded foot. With room again (unfolded)
+  // it gives the height back.
   const { height: windowHeight } = useWindowDimensions();
-  const { top: topInset } = useSafeAreaInsets();
-  const [keyHeight, setKeyHeight] = useState(KEY_HEIGHT);
+  const { top: sheetTop } = useSafeAreaInsets();
+  const windowTop = Math.max(sheetTop, initialWindowMetrics?.insets.top ?? 0);
+  const [squeeze, setSqueeze] = useState(0);
+  const flatChips = squeeze > 0;
+  const keyHeight = Math.max(KEY_MIN, KEY_HEIGHT - Math.ceil(Math.max(0, squeeze - FLAT_SAVES) / 4.72));
   const fitSheet = (e: LayoutChangeEvent) => {
     if (noteOpen) return;
-    const over = e.nativeEvent.layout.height - (windowHeight - topInset - S.sm);
-    const next = Math.min(KEY_HEIGHT, Math.max(34, keyHeight - Math.ceil(over / 4.72)));
-    if (over > 0 ? next < keyHeight : next > keyHeight + 1) setKeyHeight(next);
+    const over = e.nativeEvent.layout.height - (windowHeight - windowTop - SHEET_GAP - SHEET_CUSHION);
+    const next = Math.min(MAX_SQUEEZE, Math.max(0, squeeze + over));
+    // Shrinking at once; growing back only for a real gain, or the two would take turns.
+    if (over > 0 ? next > squeeze : next < squeeze - 8) setSqueeze(next);
   };
   const balanceToggle = (start?: boolean) => (
     <BalanceToggle start={start} balance={balance} after={valid && after !== balance ? after : null} currency={currency}
@@ -882,7 +889,7 @@ export default function TransactionSheet() {
               with every label could not be found by feel. The last cell is the one action on the amount
               rather than an attribute of it: Return on a new entry (the amount came back on an earlier
               expense, packages/core/returns.ts), Duplicate on a saved one. */}
-          <ChipGrid>
+          <ChipGrid flat={flatChips}>
             <Chip cell icon="calendar" label={dayChipLabel(date)} active={date.slice(0, 10) !== todayLocal()} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: date.slice(0, 10) } })} />
             <Chip cell icon="clock" label={timeLabel(date)} onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: timeLabel(date) } })} />
             <Chip cell icon="text.alignleft" label={t("transaction.entry.chip.note")} active={!!note} onPress={openNote} />
@@ -985,3 +992,10 @@ function returnReason(reason: ReturnReason): string {
     default: return t("transaction.entry.returnReason.gone");
   }
 }
+
+/** What the entry sheet may give up to keep Save on screen (see `fitSheet`). */
+const KEY_MIN = 32;
+const FLAT_SAVES = 28;
+const MAX_SQUEEZE = FLAT_SAVES + Math.ceil((KEY_HEIGHT - KEY_MIN) * 4.72);
+const SHEET_GAP = 12;
+const SHEET_CUSHION = 16;

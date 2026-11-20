@@ -84,6 +84,8 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
 
 export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign, onEdit, fill, keyHeight }: KeypadProps) {
   const short = keyHeight && keyHeight < KEY_HEIGHT ? { minHeight: keyHeight } : null;
+  // The digits shrink with a short key, so a 32 pt key still has room around its number.
+  const shortText = short ? { fontSize: Math.min(27, Math.round(keyHeight! * 0.62)) } : null;
   const shortOp = short ? { minHeight: Math.round(keyHeight! * 0.72) } : null;
   // The decimal point applies to the number being typed — the part after the last operator — so
   // that tail is what says whether it has been pressed.
@@ -170,7 +172,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
                   a11yState={dot ? { selected: dotOn } : undefined}>
                   {k === "⌫" ? <SymbolView name="delete.left" size={22} tintColor={C.label} />
                     : k === "±" ? <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
-                    : <Text style={[styles.keyText, k === "C" && styles.clear, fn && styles.fnText, dot && dotOn && styles.dotText]} maxFontSizeMultiplier={1.3}>{dot ? decimalChar : k}</Text>}
+                    : <Text style={[styles.keyText, shortText, k === "C" && styles.clear, fn && styles.fnText, dot && dotOn && styles.dotText]} maxFontSizeMultiplier={1.3}>{dot ? decimalChar : k}</Text>}
                 </AnimatedKey>
               </View>
             );

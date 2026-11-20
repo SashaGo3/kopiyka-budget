@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Animated, Easing, FlatList, Pressable, SectionList, StyleSheet, Switch, Text, View, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { reduceMotion } from "@/lib/motion";
@@ -89,10 +89,11 @@ export function Chip({ label, icon, active, onPress, onLongPress, a11yHint, tint
    * one line — never an ellipsis.
    */
   cell?: boolean }) {
+  const flat = useContext(FlatCells) && cell;
   return (
     <Tap onPress={onPress} onLongPress={onLongPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={a11yHint} accessibilityState={{ selected: !!active, disabled: !!disabled }}
       accessibilityActions={onLongPress ? [{ name: "longpress", label: a11yHint ?? label }] : undefined} onAccessibilityAction={onLongPress ? (e) => { if (e.nativeEvent.actionName === "longpress") onLongPress(); } : undefined}
-      style={[styles.chip, compact && styles.chipCompact, cell && styles.chipCell, active && styles.chipActive, disabled && { opacity: 0.4 }]}>
+      style={[styles.chip, compact && styles.chipCompact, cell && styles.chipCell, flat && styles.chipCellFlat, active && styles.chipActive, disabled && { opacity: 0.4 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
       {cell
         ? <ButtonText fit={1} style={[styles.chipText, styles.chipCellText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
@@ -101,6 +102,9 @@ export function Chip({ label, icon, active, onPress, onLongPress, a11yHint, tint
   );
 }
 
+/** A `ChipGrid` short of height: its cells put the icon beside the label instead of above it. */
+const FlatCells = createContext(false);
+
 /**
  * Chips in fixed cells, `rows` rows high whatever the language or the text size: each chip has its
  * place and keeps it, so the thumb learns where Photo is rather than reading for it. A chip that
@@ -108,10 +112,11 @@ export function Chip({ label, icon, active, onPress, onLongPress, a11yHint, tint
  * Pass `Chip`s with `cell`. A child that is `null` or `false` is left out altogether (a feature that is
  * switched off), so keep anything that comes and goes at the end, where it moves nothing else.
  */
-export function ChipGrid({ children, rows = 2 }: { children: ReactNode[]; rows?: number }) {
+export function ChipGrid({ children, rows = 2, flat = false }: { children: ReactNode[]; rows?: number; flat?: boolean }) {
   const items = children.filter((c) => c != null && c !== false);
   const columns = Math.max(1, Math.ceil(items.length / rows));
   return (
+    <FlatCells.Provider value={flat}>
     <View style={styles.chipGrid}>
       {Array.from({ length: rows }, (_, r) => (
         <View key={r} style={styles.chipGridRow}>
@@ -119,6 +124,7 @@ export function ChipGrid({ children, rows = 2 }: { children: ReactNode[]; rows?:
         </View>
       ))}
     </View>
+    </FlatCells.Provider>
   );
 }
 
@@ -595,6 +601,8 @@ const styles = themed(() => StyleSheet.create({
   chipText: { color: C.label, fontSize: 15, fontWeight: "500" },
   chipTextActive: { color: C.onTint },
   chipCell: { flexDirection: "column", flexGrow: 1, flexShrink: 1, alignSelf: "stretch", minHeight: 50, paddingHorizontal: 4, paddingVertical: 6, gap: 3, borderRadius: R.md },
+  /** Short of height (the folded iPhone Duo): icon beside the label, one 36 pt line. */
+  chipCellFlat: { flexDirection: "row", minHeight: 36, paddingVertical: 4, gap: 5 },
   chipCellText: { alignSelf: "stretch", textAlign: "center", fontSize: 13 },
   // A label that wraps stays inside its button rather than pushing past it.
   buttonText: { flexShrink: 1, textAlign: "center" },
