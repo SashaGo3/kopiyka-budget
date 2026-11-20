@@ -64,11 +64,17 @@ export function addableKinds(existing: Pick<Insight, "kind">[]): typeof INSIGHT_
  */
 export function kindTitle(kind: InsightKind): string {
   const k = INSIGHT_KINDS.find((x) => x.kind === kind)?.kind;
-  return k ? t(`insights.kind.${k}.title`) : kind;
+  if (k) return t(`insights.kind.${k}.title`);
+  // A card of a kind no longer offered (core `retiredKind`) still has a name, never its id.
+  if (kind === "upcoming") return t("insights.retired.upcoming");
+  if (kind === "recurring_spend") return t("insights.retired.recurringSpend");
+  const now = retiredKind(kind);
+  return now && now !== kind ? kindTitle(now) : kind;
 }
 export function kindHint(kind: InsightKind): string {
   const k = INSIGHT_KINDS.find((x) => x.kind === kind)?.kind;
-  return k ? t(`insights.kind.${k}.hint`) : "";
+  if (k) return t(`insights.kind.${k}.hint`);
+  return retiredKind(kind) === null ? t("insights.retired.hint") : "";
 }
 
 /** A recurring rule's name in a list: its payee, else its category, else "Recurring" (core's `title`, translated). */

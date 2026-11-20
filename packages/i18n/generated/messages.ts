@@ -1299,6 +1299,12 @@ export interface Messages {
   "insights.reorder.emptyTitle": undefined;
   "insights.reorder.hint": undefined;
   "insights.reorder.title": undefined;
+  /** Under a retired card's name in the reorder list. */
+  "insights.retired.hint": undefined;
+  /** Name of a card of a kind the app no longer offers (removed in 1.1.0). */
+  "insights.retired.recurringSpend": undefined;
+  /** Name of a card of a kind the app no longer offers (removed in 1.1.0), still shown in lists. */
+  "insights.retired.upcoming": undefined;
   "insights.safe.short": { amount: string | number };
   /** Under "12 days"; day is "22 Sep". */
   "insights.salary.until": { day: string | number };
