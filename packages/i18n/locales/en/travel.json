@@ -5,6 +5,7 @@
   "error": {
     "running": "A trip or an event is already on. End it first.",
     "nameRequired": "Give it a name.",
+    "nameTaken": "A tag with that name already exists. Pick another name.",
     "notFound": "This trip or event no longer exists."
   },
   "line": {
@@ -40,6 +41,8 @@
     "categoryLabel": { "message": "{name} on {trip}", "note": "VoiceOver; name is a category, trip the trip's or event's name." }
   },
   "start": {
+    "addDate": "Add date",
+    "addDateLabel": "Add {day} to the name",
     "title": "{kind, select, event {New event} other {Travel mode}}",
     "pastTitle": { "message": "{kind, select, event {A past event} other {A past travel}}", "note": "Title when recording one that already happened." },
     "subtitle": "{kind, select, event {Every new expense gets the event’s tag; its budget counts everything with it, and none of it touches your monthly budgets.} other {Every new expense gets the travel tag; the budget counts everything with it, whatever currency it was paid in.}}",
@@ -122,6 +125,7 @@
     "history": "History"
   },
   "trip": {
+    "name": "Name",
     "noRateBody": "Connect to the internet once, or keep the budget in its currency.",
     "endTitle": { "message": "{kind, select, event {End {name}?} other {End travel mode for {name}?}}" },
     "endBody": { "message": "{line}. New expenses stop getting the “{name}” tag; it stays here as history.", "note": "line is the one-line summary (travel.line.*)." },

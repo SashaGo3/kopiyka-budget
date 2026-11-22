@@ -159,6 +159,35 @@ export function endFinishedTrips(db: SqlDriver, today = todayLocalDay()): number
   return over.length;
 }
 
+/**
+ * Rename a trip or an event. Its name is its tag's, so the tag is renamed and keeps its id: every
+ * transaction carrying it follows (DATA.md rule 1). A name another live tag already has is refused,
+ * since two tags reading the same could not be told apart. A trip whose tag has gone gets a new one
+ * under that name. Returns the tag.
+ */
+export function renameTrip(db: SqlDriver, budgetId: string, newName: string): Tag {
+  const name = newName.trim();
+  if (!name) throw new KopiykaError("trip_name_required", "Name required");
+  const b = getRow(db, "budgets", budgetId);
+  if (!b || b.deleted) throw new KopiykaError("trip_not_found", "Travel not found");
+  return db.transaction(() => {
+    const tag = b.tag_id ? getRow(db, "tags", b.tag_id) : null;
+    const live = tag && !tag.deleted ? tag : null;
+    if (live && live.name === name) return live;
+    if (listRows(db, "tags", "deleted=0 AND lower(name)=lower(?) AND id<>?", [name, live?.id ?? ""]).length) throw new KopiykaError("trip_name_taken", "A tag with that name exists");
+    if (live) return save(db, "tags", { ...live, name });
+    const made = createTag(db, { name, color: tagColorFor(tripKind(b)) });
+    save(db, "budgets", { ...b, tag_id: made.id });
+    return made;
+  });
+}
+
+/** A name with a day added after it, once: a name that already says it is left as it is ("Birthday" + "22 Nov 2026"). */
+export function nameWithDay(name: string, day: string): string {
+  const base = name.trim();
+  return base.includes(day) ? base : base ? `${base} ${day}` : day;
+}
+
 /** Turn travel mode off: the trip keeps its tag and budget as history. */
 export function endTrip(db: SqlDriver, budgetId: string, day = todayLocalDay()): Budget {
   const b = getRow(db, "budgets", budgetId);

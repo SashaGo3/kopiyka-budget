@@ -3039,6 +3039,7 @@ export interface Messages {
   /** Length of a trip. */
   "travel.days": { count: number };
   "travel.error.nameRequired": undefined;
+  "travel.error.nameTaken": undefined;
   "travel.error.notFound": undefined;
   "travel.error.running": undefined;
   /** Part of the one-line trip summary. */
@@ -3071,6 +3072,8 @@ export interface Messages {
   "travel.settings.startEventHint": undefined;
   "travel.settings.startHint": undefined;
   "travel.settings.title": undefined;
+  "travel.start.addDate": undefined;
+  "travel.start.addDateLabel": { day: string | number };
   "travel.start.addFailed": undefined;
   /** Under the locked Already over toggle while a trip or event is on. */
   "travel.start.alreadyOverLocked": undefined;
@@ -3116,6 +3119,7 @@ export interface Messages {
   "travel.trip.endIt": undefined;
   "travel.trip.endTitle": { kind: "event" | (string & {}); name: string | number };
   "travel.trip.keep": { kind: "event" | (string & {}) };
+  "travel.trip.name": undefined;
   /** Subtitle of the Amount row when the trip or event has no budget. */
   "travel.trip.noLimit": undefined;
   "travel.trip.noRateBody": undefined;

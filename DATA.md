@@ -117,6 +117,9 @@ through `tripLimited` — `tripStats` then reports `limited: false` with no rema
 over, and the card, widget and watch show the total instead of what is left. It changes nothing else:
 the money is still the trip's and still out of the monthly budgets.
 
+A trip's name is its tag's: renaming one renames the tag in place (`renameTrip`), so every
+transaction carrying it follows (rule 1), and a name another live tag already has is refused.
+
 A trip's money is the trip's. Travel mode is a one-off budget on a tag (`packages/core/src/trips.ts`),
 and whatever carries a trip tag (`tripTagIds`) is left out of every monthly budget — `budgetRows`,
 so `freeMoney` and the budget suggestion too — except a budget on that very tag; the Budgets screen's

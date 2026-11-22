@@ -12,6 +12,7 @@ export function errorText(e: unknown): string {
     case "bundle_without_backup": return t("data.import.bundleNoBackup");
     case "trip_running": return t("travel.error.running");
     case "trip_name_required": return t("travel.error.nameRequired");
+    case "trip_name_taken": return t("travel.error.nameTaken");
     case "trip_not_found": return t("travel.error.notFound");
     default: return e instanceof Error ? e.message : String(e);
   }

@@ -2,7 +2,7 @@
  * Travel mode on the phone: thin wrappers over core `trips.ts` plus the hooks the screens use.
  * The trip itself is a synced budget row, so nothing here is stored locally.
  */
-import { activeTrip, addPastTrip, endTrip, getRow, startTrip, tripKind, tripStats, type Budget, type PastTrip, type StartTrip, type TripKind, type TripStats } from "@kopiyka/core";
+import { activeTrip, addPastTrip, nameWithDay, endTrip, getRow, startTrip, tripKind, tripStats, type Budget, type PastTrip, type StartTrip, type TripKind, type TripStats } from "@kopiyka/core";
 import type { SFSymbol } from "expo-symbols";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
@@ -35,6 +35,12 @@ export function tripLine(s: TripStats): string {
     : s.days_left ? t("travel.line.dayOf", { day: s.day, days: s.days }) : t("travel.line.day", { day: s.day });
   return `${tripName(s)} · ${spent} · ${day}`;
 }
+
+/** A day as it goes into a name: "22 Nov 2026" — with the year, so next year's party reads apart. */
+export function nameDay(day: string): string { return humanDayTime(day, null, undefined, true); }
+
+/** The name with the day added after it, once: a name that already says it is left as it is. */
+export function withNameDay(name: string, day: string): string { return nameWithDay(name, nameDay(day)); }
 
 /** A trip's or event's name: its tag's, or a word in the app's language when the tag has gone. */
 export function tripName(s: Pick<TripStats, "name" | "budget">): string { return s.name ?? t("travel.untitled", { kind: tripKind(s.budget) }); }

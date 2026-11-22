@@ -7,8 +7,8 @@ import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { db } from "@/db";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
 import { SheetFrame, Subtle, Title, Tap } from "@/components/ui";
-import { C, R, S, themed } from "@/constants/theme";
-import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
+import { C, R, S, Type, themed } from "@/constants/theme";
+import { addPastTravel, nameDay, startTravel, tripCurrency, withNameDay } from "@/lib/travel";
 import { errorText } from "@/lib/errors";
 import { nextDay } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
@@ -151,6 +151,15 @@ export default function TravelStart() {
             <TextInput ref={nameRef} autoFocus value={name} onChangeText={setName} placeholder={placeholder} placeholderTextColor={C.tertiary} style={styles.input}
               onFocus={() => setNaming(true)} onBlur={() => setNaming(false)}
               returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} accessibilityLabel={past ? t("travel.start.nameLabelPast", { kind }) : t("travel.start.nameLabel", { kind })} />
+            {/* Today's day after the name ("Birthday 22 Nov 2026"). A past one's days are asked next,
+                so it is offered on its own screen afterwards (Name on Trips & Events). */}
+            {past || finalName.includes(nameDay(todayLocal())) ? null : (
+              <Tap onPress={() => setName(withNameDay(name || placeCity || "", todayLocal()))} hitSlop={8} style={styles.curPill}
+                accessibilityRole="button" accessibilityLabel={t("travel.start.addDateLabel", { day: nameDay(todayLocal()) })}>
+                <SymbolView name="calendar.badge.plus" size={13} tintColor={C.tint} />
+                <Text style={styles.addDate}>{t("travel.start.addDate")}</Text>
+              </Tap>
+            )}
           </View>
           <View style={styles.amountRow}>
             <Text onPress={naming ? () => nameRef.current?.blur() : undefined} style={[styles.amount, limitless && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{limitless ? t("travel.start.noLimit") : shown}</Text>
@@ -194,6 +203,7 @@ const styles = themed(() => StyleSheet.create({
   input: { flex: 1, fontSize: 22, fontWeight: "600", color: C.label, paddingVertical: S.sm },
   amountRow: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: S.xs },
   amount: { fontSize: 44, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"], flexShrink: 1 },
+  addDate: { ...Type.callout, color: C.tint },
   cur: { fontSize: 17, color: C.secondary, fontWeight: "600" },
   curPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.fill, borderRadius: R.card, paddingHorizontal: 10, paddingVertical: 4 },
 }));
