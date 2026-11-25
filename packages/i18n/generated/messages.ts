@@ -3208,6 +3208,7 @@ export interface Messages {
   "whatsNew.notes.v1_1_2.pickers": undefined;
   "whatsNew.notes.v1_1_2.rates": undefined;
   "whatsNew.notes.v1_1_2.receipts": undefined;
+  "whatsNew.notes.v1_1_2.rename": undefined;
   "whatsNew.notes.v1_1_2.sheets": undefined;
   "whatsNew.notes.v1_1_2.shops": undefined;
   "whatsNew.notes.v1_1_2.taps": undefined;

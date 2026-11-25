@@ -8,6 +8,7 @@
   "fixed": "Fixed",
   "notes": {
     "v1_1_2": {
+      "rename": "Trips and events can be renamed. Everything already tagged with the old name follows along.",
       "duo": "Ready for iPhone Duo. Folded, the content keeps clear of the side strip with the camera and the clock; unfolded, it takes the room. Every sheet keeps its Save button on screen, however short the screen.",
       "pickers": "Category and tag pickers open with the keyboard ready, and a shop’s usual categories come first, bringing their tags along. The row of past-category buttons on the entry sheet is gone.",
       "drag": "Dragging to reorder is smooth: rows slide out of the way and settle where you drop them, and long descriptions are no longer cut off.",

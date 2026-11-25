@@ -41,6 +41,7 @@ export const RELEASES: Release[] = [
       note("whatsNew.notes.v1_1_2.language", "character.bubble"),
       note("whatsNew.notes.v1_1_2.neverSuggest", "mappin.slash"),
       note("whatsNew.notes.v1_1_2.duo", "rectangle.split.2x1"),
+      note("whatsNew.notes.v1_1_2.rename", "pencil"),
     ],
     improved: [
       note("whatsNew.notes.v1_1_2.amount", "equal.circle"),

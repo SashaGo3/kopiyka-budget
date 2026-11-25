@@ -2451,6 +2451,7 @@ const catalog: Catalog = {
   "whatsNew.notes.v1_1_2.pickers": "Category and tag pickers open with the keyboard ready, and a shop’s usual categories come first, bringing their tags along. The row of past-category buttons on the entry sheet is gone.",
   "whatsNew.notes.v1_1_2.rates": "A card payment in a currency with no exchange rate, like the hryvnia, is converted once a rate is found, and stays an expense while it waits.",
   "whatsNew.notes.v1_1_2.receipts": "Receipts read themselves. Hold + for the receipt camera: it finds the paper, takes it, reads the total, the shop, the address and every line, and can split them by category.",
+  "whatsNew.notes.v1_1_2.rename": "Trips and events can be renamed. Everything already tagged with the old name follows along.",
   "whatsNew.notes.v1_1_2.sheets": "Tidier sheets: an account’s type is one choice instead of six buttons, a debt’s due date and reminder live in one place, and pickers show each account’s, tag’s and trip’s icon.",
   "whatsNew.notes.v1_1_2.shops": "Biedronka, Lidl, Сільпо, АТБ, WOG, Orlen, Uber, Uklon and a few hundred more are recognised the first time you pay there. The payment still waits in Pending for your yes, so the app guesses, and you decide.",
   "whatsNew.notes.v1_1_2.taps": "Every button now answers a tap, the moment your finger lands. Including the ones that used to sit there pretending not to notice.",

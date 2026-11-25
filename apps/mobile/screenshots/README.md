@@ -48,17 +48,12 @@ what it would do without changing anything. The art goes to App Review with the 
 `creative/` is the art App Store Connect added with iOS 27 above the product page and in search
 results. It is cropped differently on every device, so only the "Art Safe Area" of Apple's templates
 (developer.apple.com/app-store/asset-best-practices → Templates; the layer of that name, read with
-`magick identify`) is sure to be seen — `CREATIVE_SIZES` in `frame.mjs` carries those boxes. The
-layout is three phones, each in one of the app's colour themes and standing on a band of that
-theme's colour, with a short label above each, left-aligned with its phone and all on one line, and
-the watch in front of the first. The group spans the middle of the canvas (`stage` in
-`CREATIVE_SIZES`), well past the safe area: an iPhone shows the header's full height and about two
-thirds of its width, and art kept to the safe area looked like a thumbnail there. Regenerate just
-this art with `bun run screenshots -- --creative` (seconds, from the existing captures) and upload
-just it with `bun run screenshots:upload -- --creative-only`. Which captures, themes and labels (`store.creative.*` in
-`store.json`) are `creative` in `shots.json`. The themed captures are shot apart from the rest:
-`scripts/screenshots/capture.sh --phone --lang <code> --palette <theme id> --theme light|dark --only <id>`
-writes `raw/<lang>/iphone/<theme id>-<light|dark>/` and puts the simulator back on the default theme. `--no-creative` skips it.
+`magick identify`) is sure to be seen — `CREATIVE_SIZES` in `frame.mjs` carries those boxes. In the
+story style the slogan (`store.creative.slogan` and `line`) sits in the middle of that safe area, a
+phone turned in from each side with a card lifted out of it stands outside it, and the cat looks up
+from the bottom edge (`creative` in `shots.json`: `left`, `right`, `cat`). Regenerate just this art
+with `bun run screenshots -- --creative` (seconds, from the existing captures) and upload just it
+with `bun run screenshots:upload -- --creative-only`. `--no-creative` skips it.
 
 **iPhone Duo** (1398 × 2034 outer, 2007 × 2853 inner) has no set yet: Xcode 27.0 has no simulator
 for it. App Store Connect requires it only for builds made with the iOS 27.1 SDK, from April 2027.
@@ -126,15 +121,25 @@ The Ukrainian set carries a few entries the English one does not (`extra.*` and
 `trip.current.extra` in `demo.json`, placed in the last minutes of "today" so they top the
 transaction list); English leaves them out.
 
+### The look (story style)
+
+Since 1.1.2 `shots.json` says `"style": "story"`: cream, a serif headline (Apple's New York, from the
+Mac's fonts) with one `*word*` in the ginger accent, phones turned a few degrees, cards cut out of
+the capture and enlarged, and the cat (`apps/mobile/assets/siriusia/`). The numbered iPhone set is
+drawn as one canvas as wide as all ten slides and then cut, so a phone near a slide's edge runs on
+into the next. Every shot's `story` (positions as fractions of one slide) is documented in `_doc`.
+The voice is funny, cat jokes welcome, alcohol never. Card crops are capture pixels, given per
+language where the screens lay out differently: after a recapture that moved things, look at the
+cards on the contact sheet.
+
 ### Captions in another language
 
 `shots.json` holds keys (`store.shots.log.title`); the words are in
-`packages/i18n/locales/<lang>/store.json`. A `\n` in a caption is a manual break: the framer keeps it
-and only wraps further if a line does not fit, so break a translation where it reads well — Ukrainian
-runs about a quarter longer than English. Every set has its devices start on one line, below its
-tallest caption, so one overlong caption pushes every slide of that language down: keep titles to
-three lines and subtitles to three. After editing, `bun run i18n`, then
-`bun run screenshots -- --frame --lang uk` and look at the contact sheet.
+`packages/i18n/locales/<lang>/store.json`. A `\n` in a caption is a manual break. Every headline in a
+set is drawn at one size, the largest at which every line of every slide fits, so one long line
+shrinks them all: keep lines short (about 13 characters) and use four lines rather than a long one.
+After editing, `bun run i18n` at the repo root, then `bun run screenshots -- --frame --lang uk` and
+look at the contact sheet.
 
 `frame.mjs` wraps by measuring text with built-in advance widths, because it has no font library.
 The Latin ones are Helvetica's AFM metrics; Cyrillic (U+0400–U+04FF, plus ʼ « » – — ₴ №) came from

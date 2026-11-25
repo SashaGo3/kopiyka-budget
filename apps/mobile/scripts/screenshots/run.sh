@@ -89,8 +89,9 @@ if has install; then
   # (The simulators' location is set per language when the demo data is seeded: Lisbon, Kyiv.)
 fi
 
-# The creative art's phones, each in the colour theme shots.json gives it (`creative.features`). The
-# default theme's are the ordinary captures; the rest are shot here, one capture.sh run per theme.
+# The classic style's creative art drew its phones in colour themes (`creative.features`), shot here
+# one capture.sh run per theme. The story style (shots.json `style`) uses the ordinary light captures
+# and has no `features`, so this does nothing for it.
 capture_creative() { # <code>
   local id palette theme
   while read -r id palette theme; do
@@ -151,11 +152,12 @@ if has frame; then
     src="screenshots/appstore/$store"; dst="screenshots/Finals/$store"
     [[ -d "$src" ]] || continue
     rm -rf "$dst"; mkdir -p "$dst/iphone" "$dst/iphone-6.3" "$dst/ipad" "$dst/watch" "$dst/creative"
+    [[ -d "$src/duo" ]] && mkdir -p "$dst/duo" && cp "$src"/duo/*.png "$dst/duo/" 2>/dev/null || true
     cp "$src"/iphone-6.9/*.png "$dst/iphone/" 2>/dev/null || true
     cp "$src"/iphone-6.3/*.png "$dst/iphone-6.3/" 2>/dev/null || true
     cp "$src"/ipad-13/*.png "$dst/ipad/" 2>/dev/null || true
     cp "$src"/watch/*.png "$dst/watch/" 2>/dev/null || true
     cp "$src"/creative/*.png "$dst/creative/" 2>/dev/null || true
-    log "Finals: $dst ($(ls "$dst/iphone" | wc -l | tr -d ' ') iPhone 6.9\", $(ls "$dst/iphone-6.3" | wc -l | tr -d ' ') iPhone 6.3\", $(ls "$dst/ipad" | wc -l | tr -d ' ') iPad, $(ls "$dst/watch" | wc -l | tr -d ' ') watch, $(ls "$dst/creative" | wc -l | tr -d ' ') creative)"
+    log "Finals: $dst ($(ls "$dst/iphone" | wc -l | tr -d ' ') iPhone 6.9\", $(ls "$dst/iphone-6.3" | wc -l | tr -d ' ') iPhone 6.3\", $(ls "$dst/ipad" | wc -l | tr -d ' ') iPad, $(ls "$dst/watch" | wc -l | tr -d ' ') watch, $(ls "$dst/creative" | wc -l | tr -d ' ') creative, $(ls "$dst/duo" 2>/dev/null | wc -l | tr -d ' ') iPhone Duo)"
   done
 fi

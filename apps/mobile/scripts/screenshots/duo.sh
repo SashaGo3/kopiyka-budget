@@ -8,7 +8,7 @@
 # Builds the Release simulator app only when there is none (or with --build), installs it, seeds
 # each language's demo data and shoots the same screens as the iPad set. The simulator needs an
 # iOS 27.1+ runtime (xcodebuild -downloadPlatform iOS). Output: screenshots/raw/<lang>/duo/<theme>/.
-# There is no framed Duo art yet: frame.mjs and upload.sh know the iPhone, iPad and watch only.
+# frame.mjs frames them (story style) into appstore/<lang>/duo, and upload.sh sends them (upload-duo.mjs).
 # Everything else is passed to capture.sh (--lang, --theme, --only, --settle).
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$MOBILE_DIR"

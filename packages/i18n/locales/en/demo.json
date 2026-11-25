@@ -29,9 +29,9 @@
     "coffee1": { "name": "Starbucks", "place": "Starbucks, Rossio" },
     "coffee2": { "name": "A Brasileira", "place": "A Brasileira, Chiado" },
     "lunch1": { "name": "Time Out Market", "place": "Time Out Market, Cais do Sodré" },
-    "lunch2": { "name": "Cervejaria Ramiro", "place": "Cervejaria Ramiro, Intendente" },
+    "lunch2": { "name": "Casa do Alentejo", "place": "Casa do Alentejo, Baixa" },
     "dinner1": { "name": "Time Out Market", "place": "Time Out Market, Cais do Sodré" },
-    "dinner2": { "name": "Cervejaria Ramiro", "place": "Cervejaria Ramiro, Intendente" },
+    "dinner2": { "name": "Casa do Alentejo", "place": "Casa do Alentejo, Baixa" },
     "dinner3": { "name": "A Brasileira", "place": "A Brasileira, Chiado" },
     "taxi1": { "name": "Uber", "place": "Uber" },
     "taxi2": { "name": "Bolt", "place": "Bolt" },
@@ -64,13 +64,13 @@
       "metro": "Metro, wrong line twice"
     },
     "current": {
-      "name": { "message": "Porto: one more glass", "note": "The trip running today, shown on the travel screenshot. Doubles as its tag's name.", "max": 30 },
+      "name": { "message": "Porto: cat café tour", "note": "The trip running today, shown on the travel screenshot. Doubles as its tag's name.", "max": 30 },
       "train": "Train to Porto, snacks extra",
       "hotel": "Hotel, 214 stairs up",
       "dinner": "Dinner, Porto (I said small)",
-      "tasting": "Port tasting, purely educational",
+      "tasting": "Cat café, purely educational",
       "lunch": "Francesinha, no regrets yet",
-      "extra": { "message": "Vinho verde (medicinal)", "note": "An extra trip expense, the last one logged on the trip." }
+      "extra": { "message": "Treats for a cat I just met", "note": "An extra trip expense, the last one logged on the trip." }
     }
   },
   "transfer": { "message": "Hiding money from myself", "note": "The note on the monthly transfer to savings." },

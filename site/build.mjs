@@ -309,13 +309,14 @@ function loadMessages() {
  * The App Store text (packages/i18n/locales/<lang>/store.json, compiled by `bun run i18n` to
  * apps/mobile/screenshots/i18n/<lang>.json). The page uses the slide headlines and the watch
  * captions as they are, {{store.…}}, so a line is written once and reads the same on the store
- * and on the site. A slide's manual line breaks mean nothing on a web page and become spaces.
+ * and on the site. A slide's manual line breaks mean nothing on a web page and become spaces, and
+ * the `*word*` the slides draw in the accent colour is plain text here.
  */
 function readStore(lang) {
   const file = join(SHOTS, 'i18n', `${lang.code}.json`);
   if (!existsSync(file)) return {};
   const all = JSON.parse(readFileSync(file, 'utf8'));
-  return Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('store.')).map(([k, v]) => [k, v.replace(/\s*\n\s*/g, ' ')]));
+  return Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('store.')).map(([k, v]) => [k, v.replace(/\s*\n\s*/g, ' ').replace(/\*/g, '')]));
 }
 
 /**
