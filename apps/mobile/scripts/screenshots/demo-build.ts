@@ -17,8 +17,8 @@ import {
   seedCategories, COLORS,
   startTrip, endTrip, tripStats, listTrips,
   listDebts, debtTotals, settleDebt,
-  budgetRows, freeMoney, templateFromTransaction,
-  type Account, type Category, type Transaction, type RecurringRule, type SqlDriver,
+  budgetRows, freeMoney,
+  type Account, type Category, type RecurringRule, type SqlDriver,
 } from "@kopiyka/core";
 
 // ---------------------------------------------------------------------------------------------
@@ -88,14 +88,14 @@ const PROFILES: Record<string, Profile> = {
     },
     padding: { pharmacy: 9.9, presents: 28, kids: 32 },
     pastTrip: { budget: 800, hotel: 140, dinner: 34, museum: 15, metro: 9.5 },
-    trip: { budget: 600, train: 32.6, hotel: 189, dinner: 38, tasting: 11, dinner2: 41, lunch: 14.5, extra: null },
+    trip: { budget: 600, train: 32.6, hotel: 189, dinner: 38, tasting: 11, dinner2: 41, lunch: 14.5, extra: 6.5 },
     joint: { groceries: 64.5, household: 118 },
     rules: { rent: -1250, icloud: -2.99, spotify: -10.99, netflix: -15.99, gym: -39.9, phone: -29.9, energy: -62, salary: 3850, carInsurance: -380 },
     unpaid: { insurance: -48.5, taxes: -95 },
     pending: 7.4,
     debts: [120, 350, 45, 80, 25, 200, 60, 40],
     rates: { daily: [["USD", "EUR", 0.92], ["EUR", "USD", 1.087]], today: [["EUR", "PLN", 4.28]] },
-    extras: null,
+    extras: { trousers: 39.99, chocolate: 2.49, gambler: 5, teeth: 85 },
   },
   uk: {
     currency: "UAH", tz: [120, 180], home: { lat: 50.4501, lon: 30.5234 },
@@ -389,6 +389,24 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
     kids: [shop("kids1", catKids), shop("kids2", catKids)],
   } as const satisfies Record<string, readonly Merchant[]>;
 
+  // Jokes for the notes of everyday entries (`demo.meme.*`), by the kind of shop: how many each kind
+  // has in demo.json. Drawn from their own stream, so the rest of the dataset is the same with or
+  // without them.
+  const MEMES: Partial<Record<keyof typeof M, [group: string, count: number]>> = {
+    coffee: ["coffee", 4], lunch: ["lunch", 4], dinner: ["dinner", 4], groceries: ["groceries", 4], taxi: ["taxi", 4],
+    publicTransport: ["transport", 2], clothes: ["shopping", 4], electronics: ["shopping", 4], hobbies: ["shopping", 4],
+    furniture: ["shopping", 4], pharmacy: ["pharmacy", 2], entertainment: ["cinema", 2],
+  };
+  const memeOf = new Map<Merchant, [string, number]>();
+  for (const [kind, list] of Object.entries(M)) { const g = MEMES[kind as keyof typeof M]; if (g) for (const merchant of list) memeOf.set(merchant, g); }
+  const memeRand = mulberry32(seedFromString(`kopiyka-demo-memes-${TODAY}${SEED_SUFFIX}`));
+  /** About one entry in six gets a joke for a note, and keeps its shop as the payee. */
+  function meme(merchant: Merchant): string | null {
+    const g = memeOf.get(merchant);
+    if (!g || memeRand() >= 0.17) return null;
+    return m(`meme.${g[0]}${1 + Math.floor(memeRand() * g[1])}`);
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Transaction spec accumulator
   // ---------------------------------------------------------------------------------------------
@@ -403,7 +421,9 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
 
   function addSpec(m: Merchant, day: string, hh: number, mmMin: number, account: Acct, opts: { tagIds?: string[]; geo?: boolean; amount?: number } = {}) {
     const amount = -(opts.amount ?? Math.round((m.min + rand() * (m.max - m.min)) * 100) / 100);
-    const s: TxSpec = { date: day, hh, mm: mmMin, amountMinor: toMinor(amount, account === "Revolut" ? CARD : CUR), currency: account === "Revolut" ? CARD : CUR, account, category: m.category, notes: m.name, tagIds: opts.tagIds ?? [] };
+    const joke = meme(m);
+    const s: TxSpec = { date: day, hh, mm: mmMin, amountMinor: toMinor(amount, account === "Revolut" ? CARD : CUR), currency: account === "Revolut" ? CARD : CUR, account, category: m.category,
+      ...(joke ? { payee: m.name, notes: joke } : { notes: m.name }), tagIds: opts.tagIds ?? [] };
     if (chance(0.4) && opts.geo !== false) { s.lat = m.lat; s.lon = m.lon; s.place = m.place; }
     specs.push(s);
   }
@@ -505,7 +525,7 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
   specs.push({ date: periodDay(), hh: 17, mm: 10, amountMinor: -toMinor(P.padding.kids, CUR), currency: CUR, account: "Main", category: catKids, notes: m("shop.kids1.name"), tagIds: [tagKids.id] });
   for (const day of periodDays) weekly(day);
 
-  // -- Entries only some languages show (the Ukrainian set's, asked for word for word) -------------
+  // -- The day's last four entries (the Ukrainian words asked for word for word) -----------------
   // The last minutes of today, so they sit at the very top of the transaction list whatever the
   // random rows land on; the dentist comes after the chocolate.
   if (P.extras) {
@@ -566,7 +586,6 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
   const CAR_INSURANCE_ANCHOR = "2022-11-05"; // yearly, no occurrence inside the demo window
 
   const rules: RecurringRule[] = [];
-  const templatesByKey = new Map<string, Transaction>();
 
   for (const rs of ruleSpecs) {
     const startDate = rs.anchor;
@@ -578,8 +597,7 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
     });
     rules.push(rule);
     for (const day of past.filter((d) => d >= HISTORY_START)) {
-      const tx = createTransaction(db, { account_id: main.id, date: ts(day, ...timeParts(rs.time)), amount_minor: toMinor(rs.amount, CUR), category_id: rs.category.id, payee: rs.name, recurring_id: rule.id });
-      templatesByKey.set(rs.key, tx);
+      createTransaction(db, { account_id: main.id, date: ts(day, ...timeParts(rs.time)), amount_minor: toMinor(rs.amount, CUR), category_id: rs.category.id, payee: rs.name, recurring_id: rule.id });
     }
   }
   const carInsurance = createRecurring(db, {
@@ -660,10 +678,9 @@ export function buildDemo(db: SqlDriver, opts: DemoOptions) {
   const ruleId = (key: RuleSpec["key"]) => rules[ruleSpecs.findIndex((r) => r.key === key)]!.id;
   createInsight(db, { kind: "subscriptions", sort: 4, params: JSON.stringify({ exclude_rule_ids: [ruleId("rent"), ruleId("energy"), carInsurance.id] }) });
   createInsight(db, { kind: "regular", sort: 5, params: JSON.stringify({ category_ids: [catGroceries.id], frequency: "weekly" }) });
-  const gymTpl = templatesByKey.get("gym"), vodafoneTpl = templatesByKey.get("phone");
-  if (gymTpl && vodafoneTpl) {
-    createInsight(db, { kind: "upcoming", sort: 6, params: JSON.stringify({ templates: [templateFromTransaction(gymTpl), templateFromTransaction(vodafoneTpl)] }) });
-  }
+  // "Upcoming payments" was retired in 1.1.0 (core `retiredKind`), so the demo shows a card that is
+  // still offered in its place.
+  createInsight(db, { kind: "month_vs_usual", sort: 6, params: "{}" });
 
   // ---------------------------------------------------------------------------------------------
   // Exchange rates (offline demo: no network needed). Frankfurter convention: rate = quote per base.

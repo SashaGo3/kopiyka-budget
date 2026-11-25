@@ -14,6 +14,7 @@ import { latestCachedRate } from "./rates";
 import { convertMinor } from "./money";
 import { shownPaymentIcon } from "./logos";
 import { periodWindows, regularSeries, toSeries, type Series } from "./insightHistory";
+import type { FutureInputs } from "./forecast";
 
 export interface UpcomingTemplate { category_id: string | null; tag_ids: string[]; notes: string | null; amount_minor: number; account_id: string }
 
@@ -65,6 +66,13 @@ export interface InsightParams {
    * `period`; a new period starts with nothing ticked, so the list never has to be cleaned up.
    */
   ticked?: { period: string; keys: string[] };
+  /**
+   * Savings goal: the day the money is wanted by (YYYY-MM-DD). Optional: without one the card says
+   * when the pace gets there; with one, whether it gets there in time (`goalForecast`).
+   */
+  deadline?: string;
+  /** Purrphecy: the calculators' settings, as last left (forecast.ts `FutureInputs`). */
+  future?: FutureInputs;
 }
 
 /**
@@ -79,13 +87,18 @@ export type OfferedInsightKind = Exclude<InsightKind, "recurring_spend" | "upcom
 export const INSIGHT_KINDS: { kind: OfferedInsightKind; title: string; hint: string; instant?: boolean }[] = [
   { instant: true, kind: "free_money", title: "Left in budgets", hint: "What is left of your budgets this period, and what is still to be charged" },
   { instant: true, kind: "days_to_salary", title: "Until salary", hint: "Days left in the period and what you can spend per day" },
-  { kind: "savings_goal", title: "Savings goal", hint: "Progress of an account towards a target" },
+  { instant: true, kind: "forecast", title: "Siriusia sees the future", hint: "Your money in years: growth, a home, freedom" },
+  { kind: "savings_goal", title: "Savings goal", hint: "Progress of an account towards a target, and when you get there" },
   { kind: "account_balance", title: "Account balance", hint: "What is left on one account, and what moved this period" },
   { kind: "checklist", title: "Payments checklist", hint: "Which of these categories still have no transaction this period" },
   { kind: "subscriptions", title: "Subscriptions per year", hint: "What your recurring expenses cost yearly" },
   { kind: "regular", title: "Regular spending", hint: "Weekly or monthly average for a category" },
   { instant: true, kind: "values", title: "What it went on", hint: "This period split by how much each category matters to you" },
   { kind: "safety_buffer", title: "Safety buffer", hint: "How many months you could live on your money" },
+  { instant: true, kind: "month_vs_usual", title: "Month vs usual", hint: "What is above or below your usual spending this period" },
+  { instant: true, kind: "one_offs", title: "Biggest one-offs", hint: "The largest purchases this period that were not recurring" },
+  { instant: true, kind: "top_shops", title: "Where you shop most", hint: "The shops this period's money went to, and how that compares" },
+  { instant: true, kind: "spending_map", title: "Spending map", hint: "Where this period's money was spent, on a map" },
 ];
 
 /**
@@ -563,7 +576,7 @@ export function categoryChecklist(db: SqlDriver, p: InsightParams, o: { start: s
   const kidsOf = (id: string) => all.filter((c) => c.parent_id === id).map((c) => c.id);
   const inAccounts = (accountId: string) => !o.accountIds?.length || o.accountIds.includes(accountId);
   // Every expense of the period once, so each line below is a filter rather than a query.
-  const period = (listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND amount_minor<0 AND date>=? AND date<?", [o.start, o.end]) as Transaction[]).filter((t) => inAccounts(t.account_id));
+  const period = (listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND amount_minor<0 AND date>=? AND date<?", [o.start, o.end]) as Transaction[]).filter((t) => inAccounts(t.account_id));
   const lastOf = (txs: Transaction[]) => {
     const t = txs.find((x) => x.date < o.start) ?? txs[0];
     return t ? { id: t.id, amount_minor: t.amount_minor, currency: accounts.get(t.account_id)?.currency ?? "", date: t.date, tag_ids: tagIdsOf(t), notes: t.notes, account_id: t.account_id, payee: t.payee } : null;
@@ -577,7 +590,7 @@ export function categoryChecklist(db: SqlDriver, p: InsightParams, o: { start: s
     scopes.set(key, scope);
     const hit = (t: Transaction) => !!t.category_id && scope.includes(t.category_id) && (!tagId || tagIdsOf(t).includes(tagId));
     const rows = period.filter(hit);
-    const history = (listRows(db, "transactions", `deleted=0 AND transfer_id IS NULL AND category_id IN (${scope.map(() => "?").join(",")})`, scope, "date DESC") as Transaction[]).filter((t) => !tagId || tagIdsOf(t).includes(tagId));
+    const history = (listRows(db, "transactions", `deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND category_id IN (${scope.map(() => "?").join(",")})`, scope, "date DESC") as Transaction[]).filter((t) => !tagId || tagIdsOf(t).includes(tagId));
     const last = lastOf(history);
     const before = last ? history.filter((t) => t.amount_minor < 0 && t.date >= prevStart && t.date < o.start && inAccounts(t.account_id) && accounts.get(t.account_id)?.currency === last.currency) : [];
     const previous = before.length > 1 ? { total_minor: before.reduce((a, t) => a - t.amount_minor, 0), count: before.length, currency: last!.currency } : null;
@@ -697,7 +710,7 @@ export function upcomingPayments(db: SqlDriver, p: InsightParams, o: { start: st
   const accounts = new Map(listRows(db, "accounts", "1=1").map((a) => [a.id, a]));
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
   const tags = new Map(listRows(db, "tags", "1=1").map((t) => [t.id, t]));
-  const txs = listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND date>=? AND date<?", [o.start, o.end], "date DESC");
+  const txs = listRows(db, "transactions", "deleted=0 AND transfer_id IS NULL AND person_id IS NULL AND date>=? AND date<?", [o.start, o.end], "date DESC");
   const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
   return (p.templates ?? []).map((tpl) => {
     const hit = txs.find((t) => (t.category_id ?? null) === (tpl.category_id ?? null) && same(tagIdsOf(t), tpl.tag_ids) && normTitle(t.notes) === normTitle(tpl.notes));

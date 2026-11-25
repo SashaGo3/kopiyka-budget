@@ -1,9 +1,9 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { accountBalanceMinor, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
-import { Card, Money, Row, ScreenNote, SectionHeader, accountIcon, Empty } from "@/components/ui";
+import { Card, Money, Row, ScreenNote, SectionHeader, accountIcon, Empty, Tap } from "@/components/ui";
 import { NetWorth } from "@/components/AccountsSummary";
 import { C, themed } from "@/constants/theme";
 import { getCurrentAccount } from "@/lib/settings";
@@ -27,7 +27,7 @@ export default function AccountsSettings() {
   const archived = data.accounts.filter((a) => a.archived);
   return (
     <>
-      <Stack.Screen options={{ title: t("settingsLists.accounts.title"), headerRight: () => <Pressable onPress={() => router.push({ pathname: "/account/edit", params: { id: "new" } })} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("settingsLists.accounts.add")}><SymbolView name="plus" size={20} tintColor={C.tint} /></Pressable> }} />
+      <Stack.Screen options={{ title: t("settingsLists.accounts.title"), headerRight: () => <Tap onPress={() => router.push({ pathname: "/account/edit", params: { id: "new" } })} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("settingsLists.accounts.add")}><SymbolView name="plus" size={20} tintColor={C.tint} /></Tap> }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 180 }}>
         <ScreenNote more={t("settingsLists.accounts.introMore")}>{t("settingsLists.accounts.introShort")}</ScreenNote>
         {data.accounts.length ? <NetWorth totals={data.totals} /> : <Empty title={t("settingsLists.accounts.emptyTitle")} hint={t("settingsLists.accounts.emptyHint")} />}

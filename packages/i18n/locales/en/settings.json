@@ -46,7 +46,7 @@
     "pickDay": { "message": "Day of month", "note": "Title of the list of days 1–28." },
     "calendarMonth": "Calendar month",
     "midMonth": "Salary in the middle of the month",
-    "customLabel": "Custom…",
+    "customLabel": "Custom",
     "currently": { "message": "Currently the {ordinal}", "note": "ordinal is \"22nd\"." },
     "anyDay": "Any day up to the 28th"
   },
@@ -71,9 +71,13 @@
     "denied": "Turned off in the Settings app",
     "on": "Suggests the category you used at the same place"
   },
+  "locationIgnore": {
+    "title": "Never suggest",
+    "unset": { "message": "None · e.g. Parking, Fuel, Taxi", "note": "Categories paid next to other places, so where they were paid says nothing about the place." }
+  },
   "home": {
     "title": "Home",
-    "reading": "Reading location…",
+    "reading": "Reading location",
     "set": { "message": "{place} · no suggestions here", "note": "place is the home's place name, or its coordinates." },
     "unset": "Not set · skip category suggestions at home",
     "explain": { "message": "No category is suggested within {radius} m of home, since anything gets bought there.", "note": "Alert message; radius is a number of metres." },
@@ -86,7 +90,7 @@
   "data": {
     "title": "Data management",
     "inventory": { "message": "{count, plural, one {# transaction} other {# transactions}} · export, import, reset", "note": "Subtitle of the Data management row when there is nothing to say about backups." },
-    "backingUp": "Backing up…",
+    "backingUp": "Backing up",
     "failed": { "message": "Backup failed: {error}", "note": "error is the system's message, usually in English." },
     "off": { "message": "Backup off · {inventory}", "note": "inventory is the \"120 transactions · export, import, reset\" message." },
     "local": { "message": "{last} · iCloud is off, kept on this phone", "note": "last is \"Last backup Today at 19:21\"." },
@@ -109,7 +113,7 @@
     "diagnosticsSubtitle": "Boot trace and the last recorded crash",
     "testData": { "message": "Load test data", "note": "Development builds only." },
     "testDataSubtitle": "Replace everything with the screenshot dataset",
-    "testDataLoading": "Building…",
+    "testDataLoading": "Building",
     "testDataTitle": "Replace everything with test data?",
     "testDataBody": "Every account, entry and setting on this device is replaced by an invented dataset built for today. A backup of what is here now is written first.",
     "testDataAction": "Replace",

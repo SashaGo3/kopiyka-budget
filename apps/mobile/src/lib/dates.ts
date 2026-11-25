@@ -1,3 +1,4 @@
+import { compactDayLabel } from "@kopiyka/core";
 import { getLocale, t } from "@/i18n";
 
 /** Local-time ISO with offset, Budget Flow style but with a colon: 2026-09-07T14:32:37+02:00 */
@@ -36,6 +37,19 @@ export function dayLabel(iso: string, today = todayLocal()): string {
   if (day === todayLocal(y)) return t("common.yesterday");
   const d = new Date(day + "T12:00:00");
   return d.toLocaleDateString(getLocale(), { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+}
+
+/**
+ * The day on a chip, which has the width of a quarter of the screen: Today, Yesterday, or the weekday
+ * and the day in the shortest form that shows whole — "Tue 14 Nov", "вт 14.08.18" (core
+ * `compactDayLabel`); "вт, 14 серп. 2018" was cut off.
+ */
+export function dayChipLabel(iso: string, today = todayLocal()): string {
+  const day = iso.slice(0, 10);
+  if (day === today) return t("common.today");
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (day === todayLocal(y)) return t("common.yesterday");
+  return compactDayLabel(day, getLocale());
 }
 
 export function timeLabel(iso: string): string {

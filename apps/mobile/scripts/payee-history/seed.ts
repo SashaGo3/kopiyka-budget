@@ -66,6 +66,18 @@ function build(db: SqlDriver) {
   tx({ id: "t-bakery-old", account_id: acc.id, date: "2026-02-01T10:00:00+02:00", amount_minor: -400, payee: "Bakery", tag_ids: JSON.stringify(["bread"]) });
   tx({ id: "t-bakery-trip", account_id: acc.id, date: "2026-03-04T10:00:00+02:00", amount_minor: -400, payee: "Bakery", tag_ids: JSON.stringify(["tag-rome"]) });
 
+  // One landlord, two things paid to it: the rent (4 323.99 every month) and the service charges
+  // (500–670). The amount is what tells them apart (core `pickByAmount`).
+  createCategory(db, { id: "cat-rent", name: "Rent" });
+  createCategory(db, { id: "cat-fees", name: "Payments" });
+  createAccount(db, { id: "acc-usd", name: "Dollars", currency: "USD" });
+  const home = "SPOLDZIELNIA MIESZKANIOWA";
+  tx({ id: "t-rent-1", account_id: acc.id, date: "2026-07-01T10:00:00+02:00", amount_minor: -432399, payee: home, category_id: "cat-rent" });
+  tx({ id: "t-fees-1", account_id: acc.id, date: "2026-07-12T10:00:00+02:00", amount_minor: -51000, payee: home, category_id: "cat-fees" });
+  tx({ id: "t-rent-2", account_id: acc.id, date: "2026-08-01T10:00:00+02:00", amount_minor: -432399, payee: home, category_id: "cat-rent" });
+  tx({ id: "t-fees-2", account_id: acc.id, date: "2026-08-11T10:00:00+02:00", amount_minor: -67000, payee: home, category_id: "cat-fees" });
+  tx({ id: "t-fees-3", account_id: acc.id, date: "2026-09-10T10:00:00+02:00", amount_minor: -58050, payee: home, category_id: "cat-fees", tag_ids: JSON.stringify(["water"]) });
+
   // Twins for the one-minute duplicate window, dated relative to now: two inside it, one well outside.
   tx({ id: "t-twin-pending", account_id: acc.id, date: iso(15), amount_minor: -3300, payee: "ZABKA NANO 3087", pending: 1 });
   tx({ id: "t-twin-settled", account_id: acc.id, date: iso(25), amount_minor: -4400, payee: "Costa", pending: 0, category_id: food.id });
@@ -106,6 +118,12 @@ const questions: Questions = {
     { account_id: "acc-main", amount_minor: -4400, payee: "Costa", within_minutes: 1 },            // settled twin still counts
     { account_id: "acc-main", amount_minor: -5500, payee: "Costa", within_minutes: 1 },            // five minutes old: outside the window
     { account_id: "acc-other", amount_minor: -3300, payee: "ZABKA NANO 3087", within_minutes: 1 }, // other account
+    { account_id: "acc-main", amount_minor: -432399, payee: "SPOLDZIELNIA MIESZKANIOWA", within_minutes: 1 },  // the rent, exactly: sure
+    { account_id: "acc-main", amount_minor: -61234, payee: "SPOLDZIELNIA MIESZKANIOWA", within_minutes: 1 },   // inside the charges' range
+    { account_id: "acc-main", amount_minor: -445000, payee: "SPOLDZIELNIA MIESZKANIOWA", within_minutes: 1 },  // rent gone up: a lead
+    { account_id: "acc-main", amount_minor: -200000, payee: "SPOLDZIELNIA MIESZKANIOWA", within_minutes: 1 },  // near neither
+    { account_id: "acc-usd", amount_minor: -432399, payee: "SPOLDZIELNIA MIESZKANIOWA", within_minutes: 1 },   // another currency
+    { account_id: "acc-main", amount_minor: 432399, payee: "SPOLDZIELNIA MIESZKANIOWA", within_minutes: 1 },   // money coming in
   ],
   fill: [
     { id: "t-fill-blank", payee: "Zabka Nano", place: "Krakow", category_id: "cat-food", tag_ids: ["snack"], lat: 51.1, lon: 17.03, confirm: true },
@@ -127,7 +145,7 @@ const expected = {
   payment: questions.payment.map((q) => {
     const twin = samePaymentSince(ref, { account_id: q.account_id, amount_minor: q.amount_minor, sinceIso: iso(q.within_minutes * 60) });
     return {
-      history: payeeHistory(ref, q.payee, null),
+      history: payeeHistory(ref, q.payee, null, { amount_minor: q.amount_minor, account_id: q.account_id }),
       twin: twin ? { id: twin.id, payee: twin.payee, place: twin.place, category_id: twin.category_id, pending: twin.pending } : null,
     };
   }),

@@ -14,9 +14,9 @@ describe("backup", () => {
   // a phone comes back from a backup with its settings quietly reset.
   test("carries every preference the app stores, and no identity of the device it came from", () => {
     expect([...BACKUP_META_KEYS].sort()).toEqual([
-      "appearance", "backup_keep_days", "base_currency", "budget_scope", "budgets_sections", "current_account",
-      "hide_income", "home_lat", "home_lon", "home_place", "language", "location_enabled",
-      "period_start_day", "recurring_dismissed", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
+      "appearance", "backup_keep_days", "base_currency", "budget_scope", "budgets_sections", "category_names_seen", "category_order", "current_account",
+      "hide_income", "home_lat", "home_lon", "home_place", "insight_hints_dismissed", "language", "location_allow", "location_enabled", "location_ignore",
+      "pending_reminder", "period_start_day", "recurring_dismissed", "recurring_notify_days_before", "recurring_wait", "recurring_wait_days",
       "shortcut_notify", "show_balance", "theme",
     ]);
     // These describe the install, not the data, and must never travel with a backup.
@@ -162,7 +162,7 @@ describe("backup", () => {
 
     const b = fresh();
     const report = importBackup(b, json);
-    expect(report.imported).toEqual({ accounts: 1, categories: 2, tags: 1, transactions: 1, recurring_rules: 1, budgets: 1, insights: 0, debts: 0 });
+    expect(report.imported).toEqual({ accounts: 1, categories: 2, tags: 1, transactions: 1, recurring_rules: 1, budgets: 1, insights: 0, debts: 0, people: 0 });
     expect(getRow(b, "categories", cat.id)?.icon).toBe("cup.and.saucer.fill");
     expect(getRow(b, "tags", tag.id)?.category_ids).toBe(JSON.stringify([folder.id]));
     expect(getMeta(b, "period_start_day")).toBe("15");

@@ -66,6 +66,13 @@ immutability is what the rest relies on:
 So changing `photo` to a name nothing wrote orphans the image, and clearing it strands the file. If
 you ever need to rewrite photo names, move the files in the same pass.
 
+What a photo *says* — its text, a receipt's items and a category guessed for each — is a cache, not
+data: `apps/mobile/src/lib/photoText.ts` keeps it in the app's Caches folder under the photo's name
+(safe because the file under a name never changes), it is not backed up, and iOS may empty it, in
+which case the photo is simply read again. Sorting a receipt's items in the photo viewer writes
+nothing either; it hands the entry sheet a split, which becomes rows only when that split is kept
+(rule 11).
+
 One name can be held by **more than one row**: the parts of a split share the receipt that was
 photographed once (rule 11). So deleting a row is not a reason to delete its photo — `photoInUse`
 (`packages/core/src/repo.ts`) asks whether any live row still points at the file, and only the last
@@ -110,6 +117,9 @@ through `tripLimited` — `tripStats` then reports `limited: false` with no rema
 over, and the card, widget and watch show the total instead of what is left. It changes nothing else:
 the money is still the trip's and still out of the monthly budgets.
 
+A trip's name is its tag's: renaming one renames the tag in place (`renameTrip`), so every
+transaction carrying it follows (rule 1), and a name another live tag already has is refused.
+
 A trip's money is the trip's. Travel mode is a one-off budget on a tag (`packages/core/src/trips.ts`),
 and whatever carries a trip tag (`tripTagIds`) is left out of every monthly budget — `budgetRows`,
 so `freeMoney` and the budget suggestion too — except a budget on that very tag; the Budgets screen's
@@ -152,6 +162,24 @@ known the amount is **0** and the note says so — deliberately, because a zero 
 and the entry sheet refuses to save at zero, whereas writing the foreign number as if it were the
 account's currency silently inflates the month.
 
+That zero only waits for a rate. When the app is open, it converts every row still at 0 with a foreign
+original, pending or not (the sheet cannot save a zero, so it was never a choice) (`convertWaitingCharges`, `packages/core/src/rates.ts`, run by the sweep in
+`apps/mobile/src/lib/nativeWrites.ts`). It uses the rate of the payment's own day, keeps the
+original's sign, and removes the automation's "no exchange rate" words from `bank_note`. Those words
+were the app's, not the bank's (rule 20), and the original amount stays. A zero takes its direction
+from the original too (`rowIsIncome`, core `money.ts`), so a card payment never reads as income
+while it waits. Frankfurter (the ECB) has never published some currencies, the hryvnia among them,
+so a pair it does not know is asked of the Polish central bank's table A (`NBP`), through złoty.
+
+A receipt photographed in another currency is the same case. Filled into an account in another
+currency, it is converted at the rate of the day and saved with the receipt's own total as
+`entered_amount_minor` / `entered_currency` and the rate used. Without a rate the amount is left
+empty, for you to type, never the receipt's number. The receipt sheet asks which account paid
+(`payAccountFor`, `packages/core/src/payAccount.ts`): the account of the newest expense in that
+currency, held in it or converted from it, else an account held in it, else the one the sheet was
+opened on. Nothing is stored for that. It is read off the expenses each time, so paying once from
+another account is what teaches it.
+
 ## 7. Preferences live in `meta`, and only some of them travel
 
 Adding a preference means adding its key to `BACKUP_META_KEYS` (`packages/core/src/backup.ts`) or it
@@ -179,7 +207,31 @@ that carries one recolours the screens where they are (each screen's content re-
 phone. `recurring_dismissed` joined on 2026-10-15: the suggested regular payments a person said no
 to, as a JSON list of suggestion keys (`dismissSuggestion`, `packages/core/src/detect.ts`) — the
 account and the normalised name, so the same charge next month stays dismissed. A row pointed at on
-purpose ("from a past payment") still builds its rule. `backup.test.ts` pins the list so the
+purpose ("from a past payment") still builds its rule. `location_ignore` and `location_allow` joined on 2026-11-08: the
+exceptions to which categories are evidence of a place. A category whose every type is placeless
+(`PLACELESS_TYPES` — parking, taxi, rent, subscriptions, travel, donations, income: paid beside other places or from nowhere) is
+out by default; `location_ignore` (JSON ids, a folder standing for everything in it) puts more out,
+`location_allow` lets one back in. Set from Settings → Location → Never suggest and each category's
+own "Suggest by location"; read only through `locationIgnoredIds` (`packages/core/src/repo.ts`, and
+its Swift copy in `KPStore`). `category_order` joined on 2026-11-08: how every list of categories is ordered — `custom`, the
+default (`categories.sort`, dragged into place on Settings → Categories → Reorder), or `usage` over
+the last 180 days, a folder counting everything in it (core `categoryOrder.ts`). A pre-release build
+also offered `name`, and briefly a `tag_order`; a stored `name` reads as `custom`, and `tag_order` is
+off the list again — the Tags screen is always most used first. Ordering only reads. `sort` is
+written by the Reorder screen (and `parent_id`, for a category dropped into another folder) and by
+`keepOrder`, which makes the usage order the custom one when you switch; both write only the rows
+whose place or folder changed. `insight_hints_dismissed` joined on 2026-11-10: the insight
+cards suggested on the Insights tab that were waved away, as a JSON list of suggestion keys
+(`suggestInsights`, `packages/core/src/insightHints.ts` — a kind, and the account or category it is
+about), so a restored phone does not suggest them again. It replaced `forecast_promo` the same day
+(one TestFlight build had it); a `forecast_promo` of `dismissed` still counts as the forecast waved
+away, and a backup carrying the key is otherwise ignored. `category_names_seen` joined on 2026-11-11: the
+categories already looked at on Settings → Categories → Names in <language> (JSON ids, `markCategoryNamesSeen`),
+so the way in stays hidden after a Save until a new category named in another language turns up. `pending_reminder` joined on
+2026-11-14: the evening reminder about the Pending queue — `HH:MM`, or `off`; absent is on at
+22:00. Scheduled only while something is pending (`schedulePendingEvenings`,
+`apps/mobile/src/lib/notifications.ts`, and the automation's `KPNotify.pendingEvenings` with the app
+closed); recurring payments are never pending and never counted. `backup.test.ts` pins the list so the
 next drift shows up in a diff.
 
 Keys are deliberately excluded when they describe *this install* rather than your data:
@@ -200,7 +252,21 @@ that a merge will read — the deletion would be forgotten and the row would com
 from the shop's name rather than filed before — the Pending queue shows it in the tint colour with
 "· guess"), `"shortcut-transfer"` (the other leg of a transfer the app wrote itself, because the
 bank only ever notified one side — rule 18), `"receipt"`, `"watch"`, `"siri"`, or `null` for
-hand-entered. A guess never skips the Pending queue; only history does.
+hand-entered. A guess never skips the Pending queue; only history does. A shop history knows but
+has filed more than one way (fuel one week, a hot dog the next) is a guess too: the newest way is
+filled in, the row waits in Pending, and the category picker ("Filed here before", at its top)
+offers every way it was filed — counted without the row asking (`payeeOptions`'s `exceptId`). Picked
+there from the entry sheet, a new or pending row takes that way's tags along with it.
+
+The amount can settle which way it is (`pickByAmount`, `packages/core/src/payee.ts`, and its Swift
+copy `KPStore.pickByAmount`): one landlord takes the rent (4 323.99 every month) and the service
+charges (500–670). Past payments to the name in the same direction and currency are compared. The
+same amount filed one way only, or an amount inside one way's range (two payments or more behind
+it) and within 10 % of no other, is **sure**: that way is filled in, and the payment counts as filed
+one way (`variants` 1), so an exact name skips Pending as history does. Within 10 % of one way's range
+only is a **lead**: that way is filled in, and the row still waits as a guess. Anything else changes
+nothing. Nothing is stored for it. It is worked out from the rows each time, so there is nothing to
+back up or keep in step. The payee-history harness (`scripts/payee-history`) checks that the two copies agree.
 
 ## 10. Never write the database file from outside the running app
 
@@ -217,8 +283,9 @@ Create and remove test rows through the core API (`bun -e` with `openBunDb` + `c
 
 One shop sells dinner and a lamp, and filing the whole receipt under either is a lie. So the entry
 sheet's Split writes **one ordinary transaction per part** (`packages/core/src/split.ts`), all sharing
-the account, date, payee, note, place, coordinates and photo, each with its own amount, category and
-tags. The entry being edited keeps its id and takes whatever the other parts leave it (rule 1), so
+the account, date, payee, place, coordinates and photo, each with its own amount, category and
+tags. A part may carry a note of its own (`SplitPart.note` — "the lamp", or the receipt lines sorted
+into it on the photo); one without shares the entry's note. The entry being edited keeps its id and takes whatever the other parts leave it (rule 1), so
 splitting an existing row never detaches its history.
 
 Nothing links the parts afterwards — there is no `split_id`, and there is deliberately nothing to
@@ -359,6 +426,11 @@ claimed is Medium. Ticking a category on the first question takes it out of the 
 not want to think about goes, and by elimination it honestly means "the things in between". It also
 makes High-and-Low-at-once unreachable rather than a contradiction settled by some arbitrary rule.
 
+The category editor asks the same two questions for one category — tick "could stop" or "could not
+live without", or neither for in between — and only when its folder has no mark (a marked folder
+answers for it). Saved untouched, a new category stays at 0, so the flow's "new only" pass asks
+about it later.
+
 Two things the writer must keep doing:
 
 - **A level that covers a whole folder is written on the folder, and its categories cleared to 0.**
@@ -413,6 +485,21 @@ Three things are load-bearing:
 - **A file without the column keeps what the phone knows.** `preset` is not in `ROW_DEFAULTS`, so a
   backup from a 1.0.2 build — newer or not — never clears a key, and an older build importing a newer
   backup simply ignores the column.
+- **A category of your own reads in the app's language too** (v27). Named in another language than
+  the app's — the language was changed after naming it (`nameLooksIn`: Cyrillic is Ukrainian) — it
+  is shown translated when `COMMON_NAMES` (`commonNames.ts`) knows the name, whole or part by part
+  ("Car (General)" → «Авто (загальне)»): `autoName`. Nothing is written for that, so no `updated_at`
+  moves (rule 15's lesson), and an unknown name ("Ola Wishes") is shown as written.
+  `categories.names` is JSON `{"uk": "Коти"}`: a name given in a language, which wins over all of
+  the above — including the category's own name kept on purpose (`{"uk": "Cats"}`), which is how
+  "don't translate this one" is stored. `name` is never rewritten, so CSV, older builds and backups
+  still read a real name. Read through `categoryName`; write through `namesToStore`, which leaves out
+  a name that only repeats what `autoName` would show. Set on Settings → Categories → Names in
+  <language> (`category/names.tsx`, offered only when some category is named in another language) and
+  in the category editor, where for such a category the top field is this language's name and the
+  stored one is the "Original name" below it. Swift's `KPStore.nameSQL` reads `names` but has no copy
+  of the list, so Shortcuts' own category lists show an untranslated name as stored. Not in
+  `ROW_DEFAULTS`: a backup from before v27 leaves the phone's translations alone.
 
 ## 17. So do the names the app chose for you
 
@@ -533,6 +620,127 @@ the shop's name stands for both, so nothing is printed twice.
 - **Not in `ROW_DEFAULTS`**: a backup from before v23 leaves the phone's text alone, and an older
   build ignores the column.
 
+## 21. A shop is matched to a type, and the type to your category
+
+A category's **types** (`categories.type`, v24) say what kind of thing it is — `food.groceries`,
+`transport.parking` — whatever it is called, and it may be several: "Car" is fuel and parking. The
+column holds a JSON list. The vocabulary is the ready-made categories' keys plus
+any no preset seeds (`EXTRA_CATEGORY_TYPES`: `transport.bike` and `personal.cash` — `transport.parking`
+was one until it became a ready-made category in 1.1.2), and a key is forever, like a preset's (rule 16). Several categories may carry the
+same type; `categoryForShop` decides among them. 1.1.2 also split `bills.fees` (bank fees and
+commissions) out of `bills.taxes`, renamed "Taxes & fees" to "Taxes" with the old names on
+`FORMER_PRESET_NAMES`, and added `bills.services` and `personal.charity` — new keys, so onboarding seeds
+them on a new phone. An existing one is offered them in Settings → Categories → Add ready-made
+categories (`missingPresets`: a preset nothing was made from *and* no category of yours already is,
+by type or by name), added only when ticked, into the folder of that name if there is one
+(`seedCategories(db, lang, only)`).
+Read it through `categoryTypes` (`packages/core/src/categoryTypes.ts`), never off the column, and
+write it through `typesToStore`:
+
+- a list on the row is what a person said (or accepted from a suggestion on Save); unknown keys are
+  dropped, and a bare key — what the first 1.1.2 build wrote — is a list of one;
+- `"[]"` (or the older `"none"`) is "no type, on purpose" — a ready-made category renamed into
+  something else, or one of your own answered None ("Sodastream" is not a kind of shop). Only a
+  *choice* writes it: `typesToStore(types, preset, chosen)` stores an empty list as NULL ("not said",
+  still asking) unless the caller says it was chosen — the picker handing back nothing, or the types
+  screen's "Not needed";
+- NULL is "not said", and a ready-made category then answers with its `preset`. That is the whole
+  migration for anyone already on the default categories: **nothing is backfilled**, no `updated_at`
+  moves (rule 15's lesson), and a preset renamed to "Їжа вдома" is still groceries.
+
+A category of your own has no type until one is saved. The editor and Settings → Categories →
+Category types offer what its name suggests (`suggestCategoryTypes`, every language's names and
+keywords — narrowed by the folder it is in, which also stands in for an empty name when the folder
+is one kind of thing: "General" in "Car", never anything in "Shopping"), and the types screen,
+failing that, what its payments suggest (`suggestTypesFromHistory`, last two years): a payee you
+also pay from a typed category of *one* kind lends that kind ("Payments" to the landlord "Rent" is
+paid to), else the shop list; only payments with a payee count, and a shop-list guess must also be a
+good share of all the category's rows (a petrol station sells more than fuel). The editor writes on
+Save; the types screen writes each pick as its picker closes, and "Use all suggestions" writes every
+suggestion at once, with an Undo — in both, only the rows whose answer changes.
+
+`packages/core/src/shops.ts` maps well-known shops (Poland, Ukraine, worldwide) to types, never to
+categories; `categoryForShop` files the type into whichever of your live, pickable categories
+carries it — the most specific when several do (fewest types), then the most used of the last 90
+days. Three things are load-bearing:
+
+- **History comes first and a shop list is only a guess.** The notification automation asks it after
+  `payeeHistory` and before the word match and location; what it finds is logged pending as
+  `"shortcut-guess"` (rule 9), so the first payment at a shop always waits for a yes, and after that
+  it is history. The entry sheet only *offers* it, from the place name, marked suggested.
+- **Whole words, longest first, the same on both sides.** `native/KPShops.swift` is generated from
+  the list (`bun run scripts/shops.ts` in packages/core, with its own copy of `normalizeName`) and
+  `test/shops.test.ts` fails when they drift. A marketplace that sells everything is left out.
+- **Not in `ROW_DEFAULTS`**: a backup from before v24 leaves the phone's types alone, and an older
+  build ignores the column. The state file carries each category's resolved `type` so the automation
+  can match while the app owns the database (rule 10).
+
+## 22. A forecast reads money, and keeps its settings on its own card
+
+"Siriusia sees the future" (uk «Сірюсюкен баче майбутнє»; insight kind `forecast`, called Purrphecy
+in the code) and the savings goal's forecast (`packages/core/src/forecast.ts`) write no money. They
+read your pace — `moneyPace`: income less spending per complete period, every currency averaged over the same periods (from the first one anything happened in, in any currency — a salary that moved from złoty to dollars is not counted twice), money coming in under an expense category (a refund, savings taken back out) lowering spending rather than counting as income, money moved between two of
+the accounts read left out (moved in from, or out to, one outside them counted, because for them it
+arrived or left), a trip's spending counted (unlike the budgets) — and carry it forward.
+
+The forecast speaks **one currency**: `paceIn` converts every currency's balance and average month
+at the latest cached rate and adds them, because a salary paid in dollars and a life spent in złoty
+is one person saving, not one currency losing money while another piles it up. A currency with no
+rate yet is left out and named on the screen, never guessed. The currency is `params.future.currency`,
+absent meaning the base currency; the accounts are `params.future.account_ids`, absent or empty
+meaning every account that counts towards net worth.
+
+What the calculators were left at — rates, years, a home's price, the habit weighed — lives in that
+card's `params.future`, not in `meta`. It is a fact about that card, so it travels with the card in
+backups and to the other device, and nothing has to be added to `BACKUP_META_KEYS` (rule 7). An
+absent field means "the default, or your own numbers": `futureInputs` fills it in on every read, so
+a stored value is only ever something a person chose.
+
+A savings goal's optional `params.deadline` (YYYY-MM-DD) is the same kind of thing. A build from
+before it ignores both keys, and shows a `forecast` card as one it does not know.
+
+## 23. A friend's share is theirs, and what they owe is what their rows add up to
+
+You pay 120.00 for a dinner for three. The bank took 120.00, so the account says −120.00 — but only
+40.00 was your dinner. A split with friends (`packages/core/src/people.ts`) writes the purchase as
+several rows, like any split (rule 11): your part keeps the entry's id and its category, and each
+friend's share is a row of its own carrying their `transactions.person_id` (v25), the purchase it was
+carved from (`share_of`) and, if you listed them, what it was for (`items`, JSON `[{name,
+amount_minor}]`). No category and no tags: a trip tag would count it against the trip. The rows
+still add up to what left the account.
+
+- **A row with a person is never your spending or your income.** Going out, it is their share;
+  coming in, it is them paying you back. Every total leaves it out — `NO_PERSON`, added beside
+  `transfer_id IS NULL` in budgets, insights, trips, detection and payee history (and its Swift copy
+  in `KPShared`, guarded for a database from before v25). The forecast is the exception, as it is for
+  debts (rule 19): money lent is money gone until it comes back, so a share counts as spent and a
+  repayment nets it off.
+- **What a friend owes is what their rows add up to** (`personBalances`), per currency, never across
+  them. Nothing is stored, so a repayment is pointed at the friend and covers whatever is oldest
+  rather than any one dinner.
+- **"Let it go" keeps the ids.** What is still owed — the newest shares, since repayments cover the
+  oldest — loses its person and takes the purchase's category (`letItGo`). A share only partly paid
+  is split in two: the paid part stays theirs, and the rest is a new row of yours.
+- **A share never teaches a shop.** It carries the shop's name and no category, so payee history
+  must not read it as "this shop has no category".
+- **People are a synced table** (`people`: a name, the Contacts identifier they were picked from,
+  colour, order, archived) and travel with backups. A file without the `people` key — every backup
+  from before v25 — leaves the phone's people alone *even when replacing*; otherwise restoring one
+  would wipe every friend while their rows still name them. A debt can name a person too
+  (`debts.person_id`), so their page shows it beside their shares.
+- **Friends can be kept together** (v26): `people.group_id` is shared by the members of a group — a
+  couple, flatmates — and is a fresh id with no table behind it, because a group is named after
+  whoever is in it ("Ola & Max", `groupName`) and so has nothing else to store. Read through
+  `peopleGroups`, which ignores a group of one; `groupPeople` makes a group exactly the friends
+  given and clears any group a friend left alone (`packages/core/src/people.ts`). A group adds up its
+  members' balances for display only: shares and repayments still name one person each. Not in
+  `ROW_DEFAULTS`, so a backup from before v26 leaves the phone's groups alone.
+- **`to_split = 1`** marks a payment to be split later (`toSplitQueue`); writing a split clears it.
+- **`budgets.people`** is who a trip or an event is with (JSON person ids, read through
+  `budgetPeople`): the friends the entry sheet offers to split with while it runs.
+- **None of the new columns is in `ROW_DEFAULTS`**: a backup from before v25 leaves the phone's
+  links alone, and an older build ignores them.
+
 ## Handing an export to an AI to restructure
 
 The workflow this is written for: export, have a model reorganise categories/tags/folders, import
@@ -545,7 +753,9 @@ back. What to tell it:
    renamed category stops being translated on its own (rule 16), so there is never a reason to edit it.
    Leave `bank_ref` and an account's `numbers` alone too: they are how bank notifications find
    accounts and pair transfers (rule 18). And `debt_id`: it is what a debt counts as paid (rule 19).
-   And `bank_note`: it is what the bank said, which nothing else records (rule 20).
+   And `bank_note`: it is what the bank said, which nothing else records (rule 20). And `person_id`,
+   `share_of` and `items`: they are what a friend owes you (rule 23). `type` may be
+   set to any key of `CATEGORY_TYPES`, or `"none"` (rule 21).
 4. Leave `amount_minor` and every transaction alone unless the point of the pass is the transactions.
    Leave `importance` alone too, or say nothing about it: a column the file omits keeps whatever the
    phone already had, but an `importance: 0` written over a marked category erases an answer only a

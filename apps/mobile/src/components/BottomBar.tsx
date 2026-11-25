@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Animated, Pressable, StyleSheet, useColorScheme, useWindowDimensions, type ColorValue, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from "react-native";
+import { reduceMotion } from "@/lib/motion";
 import { router } from "expo-router";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
-import { C, Elevation, R, themed } from "@/constants/theme";
+import { C, Elevation, R, S, themed } from "@/constants/theme";
 import { THEMES, type ThemeId } from "@kopiyka/core";
 import { useTheme } from "@/lib/theme";
 import { Glass, GlassGroup, useGlass } from "@/components/glass";
 import { ButtonText } from "@/components/ui";
-import { RECEIPT_SCANNER_ENABLED } from "@/constants/features";
-import { newPickKey, usePickResult } from "@/store/pick";
-import { PAD_BUTTON_WIDTH, columnOverhang, isPad } from "@/constants/layout";
-import type { ReceiptParse } from "@/lib/bridge";
+import { PAD_BUTTON_WIDTH, columnOverhang, isPad, sidePad, useWindowInsets } from "@/constants/layout";
+import { takePhoto } from "@/lib/camera";
 import { t } from "@/i18n";
 
 /**
@@ -37,8 +36,8 @@ import { t } from "@/i18n";
 export function BottomBar({ children, above, style, visible = true }: { children: ReactNode; above?: ReactNode; style?: StyleProp<ViewStyle>; visible?: boolean }) {
   const glass = useGlass();
   const { width } = useWindowDimensions();
-  const anim = useRef(new Animated.Value(1)).current;
-  useEffect(() => { Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 220, useNativeDriver: true }).start(); }, [visible, anim]);
+  const [anim] = useState(() => new Animated.Value(1));
+  useEffect(() => { Animated.timing(anim, { toValue: visible ? 1 : 0, duration: reduceMotion() ? 0 : 220, useNativeDriver: true }).start(); }, [visible, anim]);
   // Hidden is 0.02 rather than 0 while glass is on: opacity 0 on a glass view or any ancestor
   // switches the material off natively and it does not come back. The bar is translated clear
   // of the screen anyway, so the floor is never visible.
@@ -46,12 +45,19 @@ export function BottomBar({ children, above, style, visible = true }: { children
   // How far up the fade reaches: the bar's own height (it wraps onto a second line in selection
   // mode) on a phone; on an iPad the column is tall, so only as high as Log at its foot.
   const [barHeight, setBarHeight] = useState<number>(TAB_BUTTON);
-  const bottom = (StyleSheet.flatten([styles.wrap, style]).bottom as number | undefined) ?? 0;
+  // The folded iPhone Duo keeps its tab bar in a column down the side (the side safe area is how it
+  // shows), so there is nothing at the foot to stand above: the bar drops to just over the home
+  // indicator, and the fade, measured from it, shrinks with it.
+  const insets = useWindowInsets();
+  const sideTabs = !isPad && (insets.left > 0 || insets.right > 0);
+  const lowered = sideTabs ? { bottom: insets.bottom + S.md } : null;
+  const bottom = (StyleSheet.flatten([styles.wrap, lowered, style]).bottom as number | undefined) ?? 0;
   return (
     <>
-    <BottomFade height={bottom + (isPad ? 56 : barHeight) + FADE_ABOVE} visible={visible} anim={anim} />
+    <BottomFade height={bottom + (isPad ? 56 : barHeight) + FADE_ABOVE} visible={visible} anim={anim}
+      sides={sideTabs ? { left: -sidePad(insets.left), right: -sidePad(insets.right) } : undefined} />
     <Animated.View onLayout={(e) => setBarHeight(Math.round(e.nativeEvent.layout.height))} pointerEvents={visible ? "box-none" : "none"} style={[styles.wrap, isPad ? styles.alignRight : styles.alignLeft,
-      isPad ? { right: EDGE - columnOverhang(width) } : null, style,
+      isPad ? { right: EDGE - columnOverhang(width) } : null, lowered, style,
       // Far enough to clear a column of five buttons, so scrolling down slides it away rather than
       // leaving the top of it hanging on screen.
       { opacity, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [isPad ? 420 : 160, 0] }) }] }]}>
@@ -72,10 +78,11 @@ const FADE_ABOVE = 16;
  * It also catches taps. A row half-visible between the buttons, or just above the tab bar, opened on
  * a tap meant for the bar. It hides with the bar, and the rows underneath can be tapped again.
  */
-function BottomFade({ height, visible, anim }: { height: number; visible: boolean; anim: Animated.Value }) {
+function BottomFade({ height, visible, anim, sides }: { height: number; visible: boolean; anim: Animated.Value; sides?: ViewStyle }) {
   return (
     <Animated.View pointerEvents={visible ? "auto" : "none"} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
-      style={[styles.fade, { height, opacity: anim }]}>
+      style={[styles.fade, sides, { height, opacity: anim }]}>
+      {/* `sides`: out under the side column too (the folded iPhone Duo), or the blur ends in a hard edge at the content's. */}
       <MaskedView style={StyleSheet.absoluteFill} maskElement={<LinearGradient colors={["transparent", "black"]} locations={[0, 0.55]} style={StyleSheet.absoluteFill} />}>
         <BlurView tint="systemUltraThinMaterial" intensity={60} style={StyleSheet.absoluteFill} />
       </MaskedView>
@@ -105,8 +112,9 @@ export function useScrollHide(): { visible: boolean; onScroll: (e: NativeSynthet
 
 /**
  * Primary LOG action, half the screen wide so it is hard to miss with a thumb. Tap opens the
- * entry sheet (Expense / Income / Transfer is chosen there). With the receipt scanner enabled a
- * long press photographs a receipt first and opens the sheet prefilled from it.
+ * entry sheet (Expense / Income / Transfer is chosen there). A long press goes to the receipt
+ * first: the camera opens at once (lib/camera.ts), and the new expense opens with the photo, which
+ * shows over it with what it says (photo/view) — read, filled in, and saved from there.
  */
 /** The theme's accent as a plain string; takes the theme so the React Compiler re-computes it on a switch. */
 function glassTint(theme: ThemeId, dark: boolean): string { return THEMES[theme][dark ? "dark" : "light"].accent; }
@@ -117,19 +125,19 @@ export function LogButton({ account }: { account?: string } = {}) {
   // gains the glass edge and refraction. A plain colour does not follow a theme switch natively, so
   // this one re-renders with it.
   const tint = glassTint(useTheme(), useColorScheme() === "dark");
-  const [key] = useState(() => newPickKey("logreceipt"));
-  usePickResult<ReceiptParse>(key, useCallback((r: ReceiptParse) => {
-    setTimeout(() => router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", receipt: JSON.stringify(r), ...(account ? { account } : {}) } }), 350);
-  }, [account]));
-  const scan = RECEIPT_SCANNER_ENABLED ? () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: "/receipt/scan", params: { key } }); } : undefined;
+  const scan = async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const shot = await takePhoto();
+    if (shot) router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", shot, ...(account ? { account } : {}) } });
+  };
   return (
     <Pressable
       onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/transaction/[id]", params: { id: "new", kind: "expense", ...(account ? { account } : {}) } }); }}
-      onLongPress={scan}
+      onLongPress={() => void scan()}
       // On a phone it takes the rest of the row, so its right end lines up with the tab bar's search
       // button below. In the iPad column it is one button among several standing above it, so it
       // takes their width instead.
-      style={({ pressed }) => [styles.fab, isPad ? { width: PAD_BUTTON_WIDTH } : styles.fabPhone, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ui.logA11y")} accessibilityHint={scan ? t("ui.logHint") : undefined}>
+      style={({ pressed }) => [styles.fab, isPad ? { width: PAD_BUTTON_WIDTH } : styles.fabPhone, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ui.logA11y")} accessibilityHint={t("ui.logHint")}>
       <Glass style={styles.fabFill} solid={styles.fabSolid} tint={tint} interactive />
       <SymbolView name="plus" size={22} tintColor={C.onTint} weight="bold" />
       <ButtonText fit={1} style={styles.text} maxFontSizeMultiplier={1.4}>{t("ui.log")}</ButtonText>
@@ -152,16 +160,20 @@ export function LogButton({ account }: { account?: string } = {}) {
  * them). It knocks harder than a tap — a gesture nobody made by accident deserves to be felt — and
  * `a11yHint` is where it gets said out loud, because a hidden gesture is no gesture at all.
  */
-export function BarButton({ icon, label, onPress, onLongPress, active, a11y, a11yHint, color }: { icon: SFSymbol; label?: string; onPress: () => void; onLongPress?: () => void; active?: boolean; a11y: string; a11yHint?: string; color?: ColorValue }) {
+/**
+ * `wide` is for a bar's only button, whose label is a sentence ("Approve all 12"): it takes the width
+ * it needs on one line instead of the usual cap that wraps a long label onto two.
+ */
+export function BarButton({ icon, label, onPress, onLongPress, active, a11y, a11yHint, color, wide }: { icon: SFSymbol; label?: string; onPress: () => void; onLongPress?: () => void; active?: boolean; a11y: string; a11yHint?: string; color?: ColorValue; wide?: boolean }) {
   const tint = color ?? C.tint;
   return (
     <Pressable onPress={() => { void Haptics.selectionAsync(); onPress(); }}
       onLongPress={onLongPress ? () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onLongPress(); } : undefined}
       accessibilityRole="button" accessibilityLabel={a11y} accessibilityHint={a11yHint} accessibilityState={{ selected: !!active }}
-      style={({ pressed }) => [styles.btn, isPad && styles.btnPad, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.btn, isPad && styles.btnPad, wide && !isPad && styles.btnWide, pressed && styles.pressed]}>
       <Glass style={styles.btnFill} solid={styles.btnSolid} interactive />
       <SymbolView name={icon} size={20} tintColor={tint} weight="semibold" />
-      {label ? <ButtonText fit={2} style={[styles.btnText, { color: tint }, active && styles.btnTextActive]} maxFontSizeMultiplier={1.4}>{label}</ButtonText> : null}
+      {label ? <ButtonText fit={wide ? 1 : 2} style={[styles.btnText, { color: tint }, active && styles.btnTextActive]} maxFontSizeMultiplier={1.4}>{label}</ButtonText> : null}
     </Pressable>
   );
 }
@@ -191,6 +203,7 @@ const styles = themed(() => StyleSheet.create({
   text: { color: C.onTint, fontSize: 17, fontWeight: "700" },
   btn: { minWidth: isPad ? 52 : TAB_BUTTON, minHeight: isPad ? 52 : TAB_BUTTON, paddingHorizontal: 14, borderRadius: R.pill, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, maxWidth: 190, position: "relative" },
   btnPad: { width: PAD_BUTTON_WIDTH, maxWidth: PAD_BUTTON_WIDTH },
+  btnWide: { maxWidth: "100%", paddingHorizontal: 18 },
   btnFill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: R.pill },
   btnSolid: { backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.separator, ...Elevation },
   btnText: { color: C.tint, fontSize: 15, fontWeight: "600", flexShrink: 1 },

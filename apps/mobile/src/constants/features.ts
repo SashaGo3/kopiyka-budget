@@ -1,9 +1,6 @@
 /** Feature switches. Flip and reload; no code paths are removed. */
 import { Platform } from "react-native";
 
-/** In-app receipt photographing (long-press Log, Receipt chip). Off for now: slow and inaccurate on device. The Shortcut intent is unaffected. */
-export const RECEIPT_SCANNER_ENABLED = false;
-
 /**
  * The Shortcuts automation that logs bank notifications rests on the "When I receive a
  * notification" trigger, which arrived in iOS 27. Below that the trigger is not in the Shortcuts

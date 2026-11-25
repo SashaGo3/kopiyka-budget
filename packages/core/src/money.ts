@@ -93,3 +93,13 @@ export function oneCurrency(
   });
   return { currency, missing: [...missing], totals };
 }
+
+/**
+ * Whether a transaction is money coming in. A zero has no sign of its own: a foreign charge logged at
+ * 0 for want of a rate (DATA.md rule 6) takes its direction from the bank's original, so a card
+ * payment in Kyiv is still an expense while it waits for its amount.
+ */
+export function rowIsIncome(t: { amount_minor: number; entered_amount_minor?: number | null }): boolean {
+  if (t.amount_minor !== 0) return t.amount_minor > 0;
+  return (t.entered_amount_minor ?? 0) >= 0;
+}

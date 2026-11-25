@@ -4,15 +4,16 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
   accountBalanceMinor, accountHistory, budgetRows, categoryChecklist, categoryImportance, checklistTotals, commitments, formatMinor, getRow, incomeSeries, incomeSources, listRows, parseInsightParams, regularSeries,
-  retiredKind, safetyBuffer, savingsGoal, shownPaymentIcon, spendSeries, subscriptionsPerYear, toSeries, type Category, type Insight, type Series,
+  retiredKind, safetyBuffer, shownPaymentIcon, spendSeries, spendingPlaces, subscriptionsPerYear, toSeries, type Category, type Insight, type Series,
 } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { ButtonText, Card, Empty, Money, ProgressBar, Row, SectionHeader } from "@/components/ui";
+import { ButtonText, Card, Empty, Money, ProgressBar, Row, SectionHeader, Tap } from "@/components/ui";
 import { InsightCard } from "@/components/InsightCard";
 import { HistoryChart } from "@/components/HistoryChart";
 import { PeriodPill } from "@/components/PeriodPill";
 import { PaymentIcon } from "@/components/PaymentIcon";
+import { SpendMap } from "@/components/SpendMap";
 import { C, S, themed, themeHue } from "@/constants/theme";
 import { humanDayTime, monthLong, todayLocal } from "@/lib/dates";
 import { anchorDay, currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
@@ -22,6 +23,7 @@ import { budgetTitle, nameMaps } from "@/lib/budgetName";
 import { INSIGHT_LOOK, kindTitle, perPeriod, ruleTitle } from "@/lib/insights";
 import { acctName, catName } from "@/lib/names";
 import { t } from "@/i18n";
+import { future } from "@/components/future/lazy";
 
 /**
  * One insight opened. The card is at the top, as it is on the Insights tab, and under it everything
@@ -38,6 +40,8 @@ import { t } from "@/i18n";
  * - Regular spending: its own windows — per week for a weekly card — so the averages are the card's.
  * - What it went on: spending by period beside the split.
  * - Safety buffer: the accounts counted, and what a month of the comfort level has cost.
+ * - Month vs usual: every folder on the card, and spending by period under it.
+ * - Spending map: the map itself, and every place on it.
  */
 export default function InsightDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,17 +65,20 @@ export default function InsightDetail() {
     <>
       <Stack.Screen options={{ title, headerLargeTitle: false,
         headerRight: () => (
-          <Pressable onPress={() => router.push({ pathname: "/insight/edit", params: { id: insight.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("insights.detail.edit")}>
+          <Tap onPress={() => router.push({ pathname: "/insight/edit", params: { id: insight.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("insights.detail.edit")}>
             <ButtonText style={styles.headerLink} maxFontSizeMultiplier={1.3}>{t("insights.detail.edit")}</ButtonText>
-          </Pressable>
+          </Tap>
         ) }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120, paddingTop: S.sm, gap: S.md }}>
+        {/* The future has no month: Purrphecy is drawn whole, with no pill and no card above it. */}
+        {kind === "forecast" ? (() => { const { PurrphecyDetails } = future(); return <PurrphecyDetails insight={insight} />; })() : <>
         <View style={styles.pills}>
           <PeriodPill period={period} onPrev={() => setPeriod(shiftPeriod(period, -1))} onNext={() => setPeriod(shiftPeriod(period, 1))} onReset={() => setPeriod(currentPeriod())}
             onPick={() => router.push({ pathname: "/pick/month", params: { key: monthKey, selected: period.start, now: currentPeriod().start } })} />
         </View>
         <InsightCard insight={insight} detail />
         <Details insight={insight} hue={hue} />
+        </>}
       </ScrollView>
     </>
   );
@@ -98,10 +105,10 @@ function Histories({ series, title, hue, weekly, kind, empty }: { series: Series
   const arrow = (dir: -1 | 1) => {
     const to = series[i + dir];
     return (
-      <Pressable onPress={() => { if (to) setAt(i + dir); }} disabled={!to} hitSlop={10} style={[styles.arrow, !to && { opacity: 0.3 }]}
+      <Tap onPress={() => { if (to) setAt(i + dir); }} disabled={!to} hitSlop={10} style={[styles.arrow, !to && { opacity: 0.3 }]}
         accessibilityRole="button" accessibilityLabel={to ? t("insights.detail.showCurrency", { currency: to.currency }) : undefined} accessibilityElementsHidden={!to}>
         <SymbolView name={dir < 0 ? "chevron.left" : "chevron.right"} size={15} weight="semibold" tintColor={C.tint} />
-      </Pressable>
+      </Tap>
     );
   };
   return (
@@ -141,9 +148,8 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
           cats: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, c])) };
       case "savings_goal":
       case "account_balance": {
-        const goal = kind === "savings_goal" ? savingsGoal(d, p) : null;
         const h = p.account_id ? accountHistory(d, p.account_id, { startDay, today: day }) : null;
-        return { kind, goal, h, name: p.account_id ? acctName(getRow(d, "accounts", p.account_id)) : "" };
+        return { kind, h, name: p.account_id ? acctName(getRow(d, "accounts", p.account_id)) : "" };
       }
       case "checklist":
         return { kind, totals: checklistTotals(categoryChecklist(d, p, { start: period.start, end: period.end, accountIds: scoped })),
@@ -167,6 +173,10 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
         const accounts = b.account_ids.map((aid) => getRow(d, "accounts", aid)).filter((a): a is NonNullable<typeof a> => !!a);
         return { kind, b, accounts, history };
       }
+      case "month_vs_usual":
+        return { kind, history: spendSeries(d, { categoryIds: [], accountIds: scoped, startDay, today: day }) };
+      case "spending_map":
+        return { kind, v: spendingPlaces(d, { start: period.start, end: period.end, accountIds: scoped })[0] ?? null };
       default: return { kind: "none" as const };
     }
   }, [insight.params, kind, period.start, day, scope, startDay, accountIds.join(",")]);
@@ -235,24 +245,12 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
       const balance = toSeries(h.currency, h.periods.map((x) => ({ start: x.start, end: x.end, minor: x.balance_minor, current: x.current })));
       const done = h.periods.filter((x) => !x.current);
       const pace = done.length ? Math.round(done.reduce((a, x) => a + x.net_minor, 0) / done.length) : null;
-      const goal = data.goal;
-      const toGo = goal ? goal.target - goal.balance : 0;
-      // Months still needed at the average pace, as the month it lands in; nothing to say when the
-      // pace is not taking the balance towards the goal at all.
-      const eta = goal && toGo > 0 && pace && pace > 0 ? (() => {
-        const months = Math.ceil(toGo / pace);
-        const [y, m] = todayLocal().split("-").map(Number) as [number, number];
-        const at = new Date(Date.UTC(y, m - 1 + months, 1));
-        return { months, label: `${monthLong(at.getUTCMonth() + 1)} ${at.getUTCFullYear()}` };
-      })() : null;
       return <>
-        {goal || pace !== null ? (
-          <Section title={goal ? t("insights.detail.goal") : t("insights.detail.pace")}>
+        {/* A goal's road, verdict and milestones (components/future/Goal.tsx); an account's pace. */}
+        {data.kind === "savings_goal" ? (() => { const { GoalDetails } = future(); return <GoalDetails p={p} hue={hue} />; })() : pace !== null ? (
+          <Section title={t("insights.detail.pace")}>
             <Card>
-              {goal ? <Row title={t("insights.detail.target")} right={money(goal.target, goal.currency)} /> : null}
-              {goal ? <Row title={toGo > 0 ? t("insights.detail.toGo") : t("insights.detail.reached")} right={money(Math.abs(toGo), goal.currency, toGo > 0 ? undefined : C.green)} style={styles.divider} /> : null}
-              {pace !== null ? <Row title={t("insights.detail.avgChange", { count: done.length })} right={money(pace, h.currency, pace < 0 ? C.red : C.green)} style={goal ? styles.divider : undefined} /> : null}
-              {goal && toGo > 0 ? <Row title={t("insights.detail.eta")} right={<Text style={styles.amount}>{eta ? t("insights.detail.etaAt", { month: eta.label, count: eta.months }) : t("insights.detail.etaNever")}</Text>} style={styles.divider} /> : null}
+              <Row title={t("insights.detail.avgChange", { count: done.length })} right={money(pace, h.currency, pace < 0 ? C.red : C.green)} />
             </Card>
           </Section>
         ) : null}
@@ -323,7 +321,21 @@ function Details({ insight, hue }: { insight: Insight; hue: ColorValue }) {
       return <Histories series={data.series} weekly={data.weekly} hue={hue} empty={t("insights.detail.noHistory")}
         title={(currency) => data.weekly ? t("insights.detail.perWeekHistory", { currency }) : t("insights.detail.perMonthHistory", { currency })} />;
     case "values":
+    case "month_vs_usual":
       return <Histories series={data.history} title={spendTitle} hue={hue} />;
+    case "spending_map": {
+      const v = data.v;
+      if (!v) return null;
+      return <>
+        <SpendMap places={v.places} />
+        <Section title={t("insights.map.all")}>
+          <Card>
+            {v.places.map((pl, i) => <Row key={pl.key} title={pl.place ?? t("insights.map.unnamed")} subtitle={t("insights.shops.count", { count: pl.count })}
+              right={money(pl.spent_minor, v.currency)} style={i > 0 ? styles.divider : undefined} />)}
+          </Card>
+        </Section>
+      </>;
+    }
     case "safety_buffer": {
       const b = data.b;
       if (!b) return null;
@@ -358,14 +370,14 @@ function prevDay(d: string): string { const [y, m, dd] = d.split("-").map(Number
 
 const styles = themed(() => StyleSheet.create({
   pills: { flexDirection: "row", paddingHorizontal: S.lg },
-  amount: { fontSize: 16, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
+  amount: { fontSize: 17, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
   headerText: { paddingHorizontal: 12, paddingVertical: 6 },
   headerLink: { color: C.tint, fontSize: 17 },
   budgetRow: { paddingHorizontal: S.lg, paddingVertical: S.md, gap: 6 },
   budgetTop: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  rowName: { flex: 1, fontSize: 16, color: C.label },
+  rowName: { flex: 1, fontSize: 17, color: C.label },
   rowSub: { fontSize: 13, color: C.secondary },
   arrows: { flexDirection: "row", alignItems: "center", gap: S.md },
   arrow: { paddingHorizontal: 4 },

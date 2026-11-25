@@ -1,11 +1,14 @@
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from "react";
-import { LayoutAnimation, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Collapsible } from "@/components/Collapsible";
+import { staggerDelay } from "@/lib/motion";
 import { Stack, router } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { budgetRows, categorySpend, formatMinor, listRows, listTrips, oneCurrency, sumInBase, tagSpend, tripTagIds } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, PressCard, ProgressBar, SectionHeader, StatPair } from "@/components/ui";
+import { OwedCard } from "@/components/OwedCard";
+import { AmountPill, Card, CategoryIcon, CategoryIconStack, Empty, FadeIn, Money, PressCard, ProgressBar, SectionHeader, StatPair, Tap, ButtonText } from "@/components/ui";
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
@@ -20,6 +23,7 @@ import { catName } from "@/lib/names";
 import { tripLook } from "@/lib/travel";
 import { budgetLook } from "@/lib/budgetName";
 import { t } from "@/i18n";
+import { freshNonce } from "@/lib/nav";
 
 type Line = { id: string | null; name: string; spent: number; icon: string | null; color: string | null };
 /**
@@ -47,7 +51,7 @@ export default function BudgetsScreen() {
   const scopeName = scopeLabel(scope, accounts);
   const keys = useMemo(() => ({ scope: newPickKey("scope"), month: newPickKey("month") }), []);
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
-  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), []));
+  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), [setPeriod]));
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: t("budgets.scopePicker"), options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
@@ -131,16 +135,23 @@ export default function BudgetsScreen() {
    * tag budget is what that category cost *while carrying the tag*, so opening it on the category
    * alone would show more money than the line says — every other Shopping row of the month included.
    */
-  const openCategory = (id: string | null | undefined, name: string, tag?: string | null) => router.push({ pathname: "/transactions", params: { ...(id !== undefined ? { category: id ?? "none" } : {}), name, ...(tag ? { tag } : {}), from: start, to: end, accounts: scopeIds.join(","), nonce: String(Date.now()) } });
+  const openCategory = (id: string | null | undefined, name: string, tag?: string | null) => router.push({ pathname: "/transactions", params: { ...(id !== undefined ? { category: id ?? "none" } : {}), name, ...(tag ? { tag } : {}), from: start, to: end, accounts: scopeIds.join(","), nonce: freshNonce() } });
   /** A trip's line in Spending: everything with its tag in this period, whatever the category. */
   const openTrip = (tag: string, name: string) => openCategory(undefined, name, tag);
-  const toggle = (key: string) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
+  const toggle = (key: string) => { setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; }); };
 
   // The sections in the order chosen on the reorder screen (Settings key `budgets_sections`).
   const sections = useQuery(() => getBudgetsSections());
   const blocks: Record<BudgetsSection, ReactNode> = {
+    // Friends who owe you, open debts and payments waiting to be split; drawn only when there are any.
+    owed: <OwedCard />,
     budgets: (
       <>
+          {/* The section's header comes first, over Planned and Available: without it the two
+              blocks sat right under whatever section was above, and read as part of it. */}
+          {data.rows.length ? (
+            <SectionHeader>{scope ? t("budgets.monthlyScoped", { period: period.subtitle ?? period.title, scope: scopeName }) : t("budgets.monthly", { period: period.subtitle ?? period.title })}</SectionHeader>
+          ) : null}
           {data.rows.length ? (
             <StatPair stats={[
               { label: data.rows.length > counted.length ? t("budgets.plannedOf", { counted: counted.length, total: data.rows.length }) : t("budgets.planned.title"), minor: planned.minor, currency: base, color: C.green, onPress: () => router.push("/budget/planned") },
@@ -155,11 +166,6 @@ export default function BudgetsScreen() {
             </View>
           ) : null}
           {data.rows.length === 0 ? <Empty title={budgetAccount ? t("budgets.emptyFor", { account: scopeName }) : t("budgets.empty")} hint={t("budgets.emptyHint")} /> : null}
-          {data.rows.length ? (
-            <SectionHeader right={data.rows.length > 1 || data.spending.length || pastTrips.length
-              ? <Pressable onPress={() => router.push("/budget/reorder")} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("budgets.reorder.title")}><Text style={styles.addText}>{t("budgets.reorder.button")}</Text></Pressable>
-              : undefined}>{scope ? t("budgets.monthlyScoped", { period: period.subtitle ?? period.title, scope: scopeName }) : t("budgets.monthly", { period: period.subtitle ?? period.title })}</SectionHeader>
-          ) : null}
           {data.rows.map((b, bi) => {
             const ratio = b.limit > 0 ? Math.min(1, b.spent / b.limit) : 0;
             const over = b.spent > b.limit;
@@ -172,7 +178,7 @@ export default function BudgetsScreen() {
             const saved = b.limit - b.spent;
             const status = over ? t("budgets.status.exceeded") : exact ? t("budgets.status.exact") : kept ? t("budgets.status.saved", { amount: `${formatMinor(saved, b.currency)} ${b.currency}` }) : t("budgets.available");
             return (
-              <FadeIn key={b.id} delay={bi * 40}>
+              <FadeIn key={b.id} delay={staggerDelay(bi, 40)}>
               {/* The whole card is the way in to the budget's details; changing it is Edit there, and
                   moving it is Reorder above the list. */}
               <PressCard style={styles.budget} onPress={() => router.push({ pathname: "/budgets/[id]", params: { id: b.id } })}
@@ -182,7 +188,7 @@ export default function BudgetsScreen() {
                     ? <CategoryIconStack items={b.icons} size={34} />
                     : <CategoryIcon name={b.name} icon={b.icon} color={b.color} size={34} />}
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.budgetName} numberOfLines={2}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
+                    <Text style={styles.budgetName}>{b.parent ? `${b.parent} › ` : ""}{b.name}</Text>
                     <Text style={styles.budgetSub}>{periodLabel(start, end)} · {status}{b.counted ? "" : ` · ${t("budgets.notInPlanned")}`}</Text>
                   </View>
                   {exact || kept ? (
@@ -199,10 +205,10 @@ export default function BudgetsScreen() {
               </FadeIn>
             );
           })}
-          <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button">
+          <Tap onPress={() => router.push({ pathname: "/budget/edit", params: { id: "new", ...(budgetAccount ? { account: budgetAccount } : {}) } })} style={styles.addRow} accessibilityRole="button" accessibilityLabel={budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}>
             <SymbolView name="plus.circle" size={18} tintColor={C.tint} />
-            <Text style={styles.addText}>{budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}</Text>
-          </Pressable>
+            <ButtonText style={styles.addText}>{budgetAccount ? t("budgets.addFor", { account: scopeName }) : t("budgets.add")}</ButtonText>
+          </Tap>
       </>
     ),
     spending: (
@@ -219,30 +225,32 @@ export default function BudgetsScreen() {
                 const openDebt = (id: string | null) => id && router.push({ pathname: "/debt/edit", params: { id } });
                 return (
                   <View key={key}>
-                    <Pressable onPress={() => (expandable ? toggle(key) : g.trip ? openCategory(g.children[0]?.id ?? null, g.name, g.trip) : openCategory(g.id, g.name))} style={[styles.spendRow, i > 0 && styles.divider]} accessibilityRole="button" accessibilityLabel={`${g.name}, ${g.spent / 100} ${g.currency}`} accessibilityState={{ expanded: open }}>
+                    <Tap onPress={() => (expandable ? toggle(key) : g.trip ? openCategory(g.children[0]?.id ?? null, g.name, g.trip) : openCategory(g.id, g.name))} style={[styles.spendRow, i > 0 && styles.divider]} accessibilityRole="button" accessibilityLabel={`${g.name}, ${g.spent / 100} ${g.currency}`} accessibilityState={{ expanded: open }}>
                       <CategoryIcon name={g.name} icon={g.icon} color={g.color} size={28} />
                       <Text style={styles.spendName}>{g.name}</Text>
                       <Money minor={-g.spent} currency={g.currency} />
                       <SymbolView name={expandable ? (open ? "chevron.down" : "chevron.right") : "chevron.right"} size={12} tintColor={C.tertiary} />
-                    </Pressable>
-                    {open ? (
+                    </Tap>
+                    {expandable ? (
+                      <Collapsible open={open} lazy>
                       <View style={styles.children}>
                         {g.debts ? null : (
-                          <Pressable onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.spending.allLabel", { name: g.name })}>
+                          <Tap onPress={openAll} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.spending.allLabel", { name: g.name })}>
                             <SymbolView name={g.trip ? (g.icon as SFSymbol | null) ?? "airplane" : "folder"} size={14} tintColor={C.tint} />
                             <Text style={[styles.childText, { color: C.tint, fontWeight: "600" }]}>{t("budgets.spending.allIn", { name: g.name })}</Text>
                             <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
-                          </Pressable>
+                          </Tap>
                         )}
                         {g.children.map((ch) => (
-                          <Pressable key={ch.id ?? "none"} onPress={() => (g.debts ? openDebt(ch.id) : openCategory(ch.id, ch.name, g.trip))} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.childLabel", { name: ch.name })}>
+                          <Tap key={ch.id ?? "none"} onPress={() => (g.debts ? openDebt(ch.id) : openCategory(ch.id, ch.name, g.trip))} style={styles.childRow} accessibilityRole="button" accessibilityLabel={t("budgets.childLabel", { name: ch.name })}>
                             <CategoryIcon name={ch.name} icon={ch.icon} color={ch.color} size={20} />
                             <Text style={styles.childText}>{ch.name}</Text>
                             <Money minor={-ch.spent} currency={g.currency} style={styles.childAmt} />
                             <SymbolView name="chevron.right" size={11} tintColor={C.tertiary} />
-                          </Pressable>
+                          </Tap>
                         ))}
                       </View>
+                      </Collapsible>
                     ) : null}
                   </View>
                 );
@@ -262,15 +270,24 @@ export default function BudgetsScreen() {
     travel: (
       <>
           {pastTrips.length ? (
-            <SectionHeader right={pastTrips.length > 3 ? <Pressable onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setPastOpen((v) => !v); }} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><Text style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</Text></Pressable> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
+            <SectionHeader right={pastTrips.length > 3 ? <Tap onPress={() => setPastOpen((v) => !v)} accessibilityRole="button" accessibilityLabel={pastOpen ? t("budgets.travelHistory.hideLabel") : t("budgets.travelHistory.showLabel")}><ButtonText style={styles.addText}>{pastOpen ? t("budgets.travelHistory.hide") : t("budgets.travelHistory.show", { count: pastTrips.length })}</ButtonText></Tap> : undefined}>{t("budgets.travelHistory.title")}</SectionHeader>
           ) : null}
-          {(pastTrips.length > 3 ? (pastOpen ? pastTrips : []) : pastTrips).map((x) => <TripCard key={x.id} budget={x} compact />)}
+          {pastTrips.length > 3
+            ? <Collapsible open={pastOpen} lazy>{pastTrips.map((x) => <TripCard key={x.id} budget={x} compact />)}</Collapsible>
+            : pastTrips.map((x) => <TripCard key={x.id} budget={x} compact />)}
       </>
     ),
   };
+  // Something to put in order: two budgets, or a budget and another section beside it.
+  const canReorder = data.rows.length > 1 || (data.rows.length > 0 && (data.spending.length > 0 || pastTrips.length > 0));
   return (
     <>
-      <Stack.Screen options={{ title: t("budgets.screenTitle"), headerLargeTitle: true }} />
+      {/* Reorder moves the sections as well as the budgets, so it belongs to the whole screen: at the
+          top, in the header, not inside one of the sections it moves. */}
+      <Stack.Screen options={{ title: t("budgets.screenTitle"), headerLargeTitle: true,
+        unstable_headerRightItems: () => canReorder
+          ? [{ type: "button", label: t("budgets.reorder.title"), icon: { type: "sfSymbol", name: "line.3.horizontal" }, onPress: () => router.push("/budget/reorder"), sharesBackground: false, accessibilityLabel: t("budgets.reorder.title") }]
+          : [] }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Period and scope live in the content, not the native header: once scrolled they leave with the large title instead of crowding the compact "Budgets" bar. */}
@@ -288,7 +305,7 @@ export default function BudgetsScreen() {
 function fmt(minor: number) { return (minor / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
 
 const styles = themed(() => StyleSheet.create({
-  addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.lg, height: 44, borderRadius: R.card, borderWidth: 1, borderStyle: "dashed", borderColor: C.tint },
+  addRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.lg, minHeight: 44, borderRadius: R.card, borderWidth: 1, borderStyle: "dashed", borderColor: C.tint },
   addText: { color: C.tint, fontSize: 15, fontWeight: "600" },
   pills: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, paddingTop: S.xs },
   noteRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
@@ -296,13 +313,13 @@ const styles = themed(() => StyleSheet.create({
   noteText: { color: C.label, fontSize: 15 },
   budget: { marginHorizontal: S.lg, marginBottom: S.sm, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: 6 },
   budgetHead: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  budgetName: { fontSize: 17, fontWeight: "600", color: C.label },
+  budgetName: { flexShrink: 1, fontSize: 17, fontWeight: "600", color: C.label },
   budgetSub: { fontSize: 13, color: C.secondary },
-  celebrate: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: C.greenSoft },
+  celebrate: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.sm, backgroundColor: C.greenSoft },
   celebrateText: { fontSize: 15, fontWeight: "600", color: C.green },
   childAmt: { fontSize: 15, color: C.secondary },
   spendRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, minHeight: 46 },
-  spendName: { flex: 1, fontSize: 16, color: C.label },
+  spendName: { flex: 1, fontSize: 17, color: C.label },
   totalName: { fontWeight: "600" },
   totalAmt: { fontWeight: "700" },
   ratesWarn: { color: C.orange, fontSize: 12, paddingHorizontal: S.xl, paddingTop: S.xs },

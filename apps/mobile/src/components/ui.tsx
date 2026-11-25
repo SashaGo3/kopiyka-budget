@@ -1,21 +1,53 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, StyleSheet, Switch, Text, View, type ColorValue, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle, type TextProps } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, Animated, Easing, FlatList, Pressable, SectionList, StyleSheet, Switch, Text, View, useWindowDimensions, type ColorValue, type GestureResponderEvent, type LayoutChangeEvent, type PressableProps, type StyleProp, type ViewStyle, type TextStyle, type TextProps, type FlatListProps, type SectionListProps } from "react-native";
+import { Collapsible } from "@/components/Collapsible";
+import { reduceMotion } from "@/lib/motion";
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, R, S, themeTone, themed } from "@/constants/theme";
+import { useWindowInsets } from "@/constants/layout";
+import { C, R, S, Type, themeTone, themed } from "@/constants/theme";
 import { iconFor, numberFormat, tagColor } from "@kopiyka/core";
 import { t } from "@/i18n";
+import { SHRINK_STEPS, breaksMidWord } from "@/lib/wordBreak";
 
 /** Sheet skeleton: informational top, inputs pinned to the bottom. */
 export function SheetFrame({ top, bottom, onLayout }: { top: ReactNode; bottom: ReactNode; onLayout?: (e: LayoutChangeEvent) => void }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={{ backgroundColor: C.bgGrouped }} onLayout={onLayout}>
-      <View>{top}</View>
+      {/* Only the top: on the folded iPhone Duo the camera and the clock cover the sheet's top corner,
+          and nothing below it, so the keypad keeps the sheet's whole width. */}
+      <ClearOfSides>{top}</ClearOfSides>
       <View style={{ paddingBottom: Math.max(insets.bottom, S.md), paddingTop: S.md, gap: S.md }}>{bottom}</View>
     </View>
   );
+}
+
+/**
+ * Pads its content clear of the window's side insets, but only by as much as it actually overlaps
+ * them. A presented screen (a modal, a sheet) reports no side inset of its own, while the folded
+ * iPhone Duo keeps its camera and clock in a strip down one side of the window; and a sheet floating
+ * in the middle of the unfolded screen is nowhere near the strip, so the full inset would only
+ * waste width there. Measured in the window, again on every layout (folding is a layout).
+ */
+export function ClearOfSides({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const { left, right } = useWindowInsets();
+  const ref = useRef<View>(null);
+  const [frame, setFrame] = useState<{ x: number; width: number } | null>(null);
+  const measure = useCallback(() => {
+    ref.current?.measureInWindow((x, _y, width) => {
+      if (width) setFrame((was) => (was?.x === x && was.width === width ? was : { x, width }));
+    });
+  }, []);
+  const x = frame?.x ?? 0;
+  const width = frame?.width ?? windowWidth;
+  // Before the first measurement a view is taken to fill the window, which is what most of them do.
+  const padLeft = left ? Math.max(0, left - x) : 0;
+  const padRight = right ? Math.max(0, x + width - (windowWidth - right)) : 0;
+  return <View ref={ref} onLayout={measure} style={[style, padLeft || padRight ? { paddingLeft: padLeft, paddingRight: padRight } : null]}>{children}</View>;
 }
 
 export function Title({ children, style, numberOfLines }: { children: ReactNode; style?: StyleProp<TextStyle>; numberOfLines?: number }) {
@@ -37,29 +69,69 @@ export function Subtle({ children, style }: { children: ReactNode; style?: Style
  * half size at most) until it fits; past even that it is clipped (`ellipsizeMode="clip"`) rather
  * than printed with "…". test/buttons.test.ts holds every button label in the app to this.
  */
-export function ButtonText({ fit, style, ...rest }: Omit<TextProps, "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"> & { fit?: 1 | 2 }) {
+export function ButtonText({ fit, style, onTextLayout, ...rest }: Omit<TextProps, "numberOfLines" | "ellipsizeMode" | "adjustsFontSizeToFit" | "minimumFontScale"> & { fit?: 1 | 2 | 3 }) {
+  // Wrapping is only ever between words: a word too wide for the slot shrinks the label a step at a
+  // time (lib/wordBreak.ts) instead of being split wherever the line ran out. Starts over when the
+  // words change.
+  const words = typeof rest.children === "string" ? rest.children : undefined;
+  const [shrink, setShrink] = useState({ words, step: 0 });
+  const step = shrink.words === words ? shrink.step : 0;
+  const base: TextStyle | null = step ? StyleSheet.flatten([fit ? styles.buttonFit : styles.buttonText, style]) : null;
+  const shrunk = base ? { fontSize: (base.fontSize ?? 17) * SHRINK_STEPS[step]!, ...(base.lineHeight ? { lineHeight: base.lineHeight * SHRINK_STEPS[step]! } : null) } : null;
+  const layout: TextProps["onTextLayout"] = (e) => {
+    if (step < SHRINK_STEPS.length - 1 && breaksMidWord(e.nativeEvent.lines.map((l) => l.text))) setShrink({ words, step: step + 1 });
+    onTextLayout?.(e);
+  };
   return fit
-    ? <Text {...rest} style={[styles.buttonFit, style]} numberOfLines={fit} adjustsFontSizeToFit minimumFontScale={0.5} ellipsizeMode="clip" />
-    : <Text {...rest} style={[styles.buttonText, style]} />;
+    ? <Text {...rest} onTextLayout={layout} style={[styles.buttonFit, style, shrunk]} numberOfLines={fit} adjustsFontSizeToFit minimumFontScale={0.5} ellipsizeMode="clip" />
+    : <Text {...rest} onTextLayout={layout} style={[styles.buttonText, style, shrunk]} />;
 }
 
-export function Chip({ label, icon, active, onPress, tint, compact, disabled, cell }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean;
+const AnimatedPressable = Reanimated.createAnimatedComponent(Pressable);
+
+/**
+ * Anything you tap that has no pressed look of its own. It dims the moment the finger lands and eases
+ * back when it lifts, the way an iOS button does — so even a quick tap that opens a sheet a beat later
+ * is seen to have landed. A `style` that is already faded (a disabled look) is dimmed from there, not
+ * reset to full. Rows that highlight instead (`Row`) and controls that scale (`PressCard`, the keypad)
+ * keep their own answer; this is for everything else, and a bare `Pressable` with an `onPress` and no
+ * pressed state is the thing it replaces.
+ */
+export function Tap({ style, onPressIn, onPressOut, dim = 0.45, ...rest }: Omit<PressableProps, "style"> & { style?: StyleProp<ViewStyle>; dim?: number }) {
+  const lit = useSharedValue(1);
+  const base = Number(StyleSheet.flatten(style)?.opacity ?? 1);
+  const fade = useAnimatedStyle(() => ({ opacity: base * lit.value }), [base]);
+  return (
+    <AnimatedPressable {...rest} style={[style, fade]}
+      onPressIn={(e: GestureResponderEvent) => { lit.value = withTiming(dim, { duration: 70 }); onPressIn?.(e); }}
+      onPressOut={(e: GestureResponderEvent) => { lit.value = withTiming(1, { duration: 240 }); onPressOut?.(e); }} />
+  );
+}
+
+export function Chip({ label, icon, active, onPress, onLongPress, a11yHint, tint, compact, disabled, cell }: { label: string; icon?: SFSymbol; active?: boolean; onPress?: () => void; tint?: string; compact?: boolean; disabled?: boolean;
+  /** A second answer on the same chip, for whoever knows it is there; say what it does in `a11yHint`. */
+  onLongPress?: () => void; a11yHint?: string;
   /**
    * Fills one cell of a `ChipGrid`: the icon sits above the label, so the label has the cell's whole
    * width (beside the icon, "Повернення" had a third of the room it needs), and shrinks to fit it on
    * one line — never an ellipsis.
    */
   cell?: boolean }) {
+  const flat = useContext(FlatCells) && cell;
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!active, disabled: !!disabled }}
-      style={({ pressed }) => [styles.chip, compact && styles.chipCompact, cell && styles.chipCell, active && styles.chipActive, disabled && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
+    <Tap onPress={onPress} onLongPress={onLongPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={a11yHint} accessibilityState={{ selected: !!active, disabled: !!disabled }}
+      accessibilityActions={onLongPress ? [{ name: "longpress", label: a11yHint ?? label }] : undefined} onAccessibilityAction={onLongPress ? (e) => { if (e.nativeEvent.actionName === "longpress") onLongPress(); } : undefined}
+      style={[styles.chip, compact && styles.chipCompact, cell && styles.chipCell, flat && styles.chipCellFlat, active && styles.chipActive, disabled && { opacity: 0.4 }]}>
       {icon ? <SymbolView name={icon} size={15} tintColor={active ? C.onTint : tint ?? C.tint} /> : null}
       {cell
-        ? <ButtonText fit={1} style={[styles.chipText, styles.chipCellText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
+        ? <ButtonText fit={1} style={[styles.chipText, styles.chipCellText, flat && styles.chipCellFlatText, active && styles.chipTextActive]} maxFontSizeMultiplier={1.3}>{label}</ButtonText>
         : <ButtonText style={[styles.chipText, active && styles.chipTextActive]}>{label}</ButtonText>}
-    </Pressable>
+    </Tap>
   );
 }
+
+/** A `ChipGrid` short of height: its cells put the icon beside the label instead of above it. */
+const FlatCells = createContext(false);
 
 /**
  * Chips in fixed cells, `rows` rows high whatever the language or the text size: each chip has its
@@ -68,10 +140,11 @@ export function Chip({ label, icon, active, onPress, tint, compact, disabled, ce
  * Pass `Chip`s with `cell`. A child that is `null` or `false` is left out altogether (a feature that is
  * switched off), so keep anything that comes and goes at the end, where it moves nothing else.
  */
-export function ChipGrid({ children, rows = 2 }: { children: ReactNode[]; rows?: number }) {
+export function ChipGrid({ children, rows = 2, flat = false }: { children: ReactNode[]; rows?: number; flat?: boolean }) {
   const items = children.filter((c) => c != null && c !== false);
   const columns = Math.max(1, Math.ceil(items.length / rows));
   return (
+    <FlatCells.Provider value={flat}>
     <View style={styles.chipGrid}>
       {Array.from({ length: rows }, (_, r) => (
         <View key={r} style={styles.chipGridRow}>
@@ -79,6 +152,7 @@ export function ChipGrid({ children, rows = 2 }: { children: ReactNode[]; rows?:
         </View>
       ))}
     </View>
+    </FlatCells.Provider>
   );
 }
 
@@ -118,10 +192,10 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
       {options.map((o) => {
         const on = o.value === value;
         return (
-          <Pressable key={o.value} onPress={() => onChange(o.value)} accessibilityRole="button" accessibilityLabel={o.label} accessibilityState={{ selected: on }} style={[styles.segItem, on && styles.segOn]}>
+          <Tap key={o.value} onPress={() => onChange(o.value)} accessibilityRole="button" accessibilityLabel={o.label} accessibilityState={{ selected: on }} style={[styles.segItem, on && styles.segOn]}>
             {/* One line, shrinking to fit: a segment is a third of a row, and "Автоматично" broke mid-word. */}
             <ButtonText fit={1} style={[styles.segText, on && { color: o.color ?? C.label, fontWeight: "600" }]}>{o.label}</ButtonText>
-          </Pressable>
+          </Tap>
         );
       })}
     </View>
@@ -151,7 +225,7 @@ export function Row({ title, titleNode, subtitle, subtitleColor, left, right, on
             <View style={styles.badge}><Text style={styles.badgeText} maxFontSizeMultiplier={1.3}>{badge}</Text></View>
           </View>
         ) : <Text style={[styles.rowTitle, destructive && { color: C.red }]}>{title}</Text>}
-        {subtitle ? <Text numberOfLines={3} style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
+        {subtitle ? <Text style={[styles.rowSub, subtitleColor && { color: subtitleColor }]}>{subtitle}</Text> : null}
       </View>
       {right}
       {onPress && !right ? <SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /> : null}
@@ -182,7 +256,7 @@ export function Money({ minor, currency, style, colored, sign, approx }: { minor
   const frac = String(abs % 100).padStart(d, "0");
   const color = colored ? (neg ? C.label : C.green) : C.label;
   return (
-    <Text style={[styles.money, { color }, style]} maxFontSizeMultiplier={1.6}>
+    <Text style={[styles.money, { color }, style]} maxFontSizeMultiplier={2}>
       {approx ? "≈" : ""}{neg ? "−" : sign ? "+" : ""}{int}{decimal}{frac} <Text style={{ opacity: 0.55, fontSize: 13 }}>{currency}</Text>
     </Text>
   );
@@ -190,19 +264,30 @@ export function Money({ minor, currency, style, colored, sign, approx }: { minor
 
 /** Progress bar whose fill eases to its value; `ratio` 0..1. */
 export function ProgressBar({ ratio, color, height = 6 }: { ratio: number; color: string | ColorValue; height?: number }) {
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.timing(anim, { toValue: Math.max(0, Math.min(1, ratio)), duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(); }, [ratio, anim]);
+  // The fill is a full-width bar slid in from the left, so it moves on the UI thread (a transform)
+  // rather than re-laying the row out every frame (a width); its rounded right end stays round.
+  // Made once and kept in state rather than a ref: it is read while rendering.
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const [anim] = useState(() => new Animated.Value(reduceMotion() ? clamped : 0));
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (reduceMotion()) { anim.setValue(clamped); return; }
+    Animated.timing(anim, { toValue: clamped, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [clamped, anim]);
   return (
-    <View style={{ height, borderRadius: height / 2, backgroundColor: C.fill, overflow: "hidden" }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}>
-      <Animated.View style={{ height, borderRadius: height / 2, backgroundColor: color, width: anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }} />
+    <View style={{ height, borderRadius: height / 2, backgroundColor: C.fill, overflow: "hidden" }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}>
+      <Animated.View style={{ height, borderRadius: height / 2, backgroundColor: color, width: "100%", opacity: width ? 1 : 0,
+        transform: [{ translateX: anim.interpolate({ inputRange: [0, 1], outputRange: [-width, 0] }) }] }} />
     </View>
   );
 }
 
 /** Fades and lifts its children in on mount (cards, list groups). */
 export function FadeIn({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
-  const anim = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.timing(anim, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(); }, [anim, delay]);
+  // With Reduce Motion it is simply there: no fade, no lift, no wait.
+  const [anim] = useState(() => new Animated.Value(reduceMotion() ? 1 : 0));
+  useEffect(() => { if (!reduceMotion()) Animated.timing(anim, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(); }, [anim, delay]);
   return <Animated.View style={[style, { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}>{children}</Animated.View>;
 }
 
@@ -216,11 +301,11 @@ export function PressCard({ children, style, onPress, onLongPress, accessibility
   children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void; onLongPress?: () => void; accessibilityLabel?: string; accessibilityHint?: string; disabled?: boolean;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const to = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: v === 1 ? 6 : 0 }).start();
+  const to = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
   return (
     <Pressable onPress={onPress} disabled={disabled} delayLongPress={400}
       onLongPress={onLongPress ? () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); to(1); onLongPress(); } : undefined}
-      onPressIn={() => to(0.97)} onPressOut={() => to(1)}
+      onPressIn={() => to(0.96)} onPressOut={() => to(1)}
       accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityHint={accessibilityHint}>
       {({ pressed }) => (
         <Animated.View style={[style, styles.pressCard, { transform: [{ scale }] }]}>
@@ -237,9 +322,9 @@ export function TagPill({ name, color, onPress }: { name: string; color?: string
   // No colour of its own: one derived from the name, so a row of tags is not a row of identical pills.
   const tint = tagColor(name, color);
   return (
-    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={t("ui.tagA11y", { name })} style={[styles.tag, { backgroundColor: tint + "22", borderColor: tint + "55" }]}>
+    <Tap onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={t("ui.tagA11y", { name })} style={[styles.tag, { backgroundColor: tint + "22", borderColor: tint + "55" }]}>
       <ButtonText style={[styles.tagText, { color: tint }]}>#{name}</ButtonText>
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -270,12 +355,56 @@ export function HeaderBar({ title, left, right, style }: { title: string; left?:
   );
 }
 
+/**
+ * The one shape for a picker sheet (`picker` detents in _layout): the list *is* the screen and the
+ * header rides in it as its first, sticky item. A sheet with detents sizes and scrolls its first
+ * scroll view, so a header in a View above the list leaves the list unsized and the rows broken —
+ * build every picker from `PickerList` / `PickerSections` + `PickerHeader` rather than by hand.
+ *
+ * A list redraws its rows only when `data` or `extraData` changes, and a picker's ticks live in
+ * state its memoised data knows nothing about — so a tap changed the Done count and left every
+ * tick where it was. `renderItem` is a fresh closure over that state on each render, so it is the
+ * `extraData`: whatever the picker's state, the rows follow it.
+ */
+export function PickerList<T>({ header, style, contentContainerStyle, ...rest }: Omit<FlatListProps<T>, "ListHeaderComponent"> & { header: ReactNode }) {
+  return <FlatList stickyHeaderIndices={[0]} extraData={rest.renderItem} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
+}
+export function PickerSections<T, S>({ header, style, contentContainerStyle, ...rest }: Omit<SectionListProps<T, S>, "ListHeaderComponent"> & { header: ReactNode }) {
+  return <SectionList stickySectionHeadersEnabled={false} extraData={rest.renderItem} {...rest} style={[styles.pickerList, style]} contentContainerStyle={[styles.pickerContent, contentContainerStyle]} ListHeaderComponent={<View style={styles.pickerHead}>{header}</View>} />;
+}
+
+/**
+ * A picker's title bar: an optional text action on the left (clear / "Any"), bold while nothing is
+ * chosen, and the filled Done pill on the right, counting what will be handed back. `children` sit
+ * under the bar (a search field, the transfer slots) and stay pinned with it.
+ */
+export function PickerHeader({ title, clear, done, children }: {
+  title: string;
+  clear?: { label: string; onPress: () => void; active?: boolean; a11y?: string };
+  done: { onPress: () => void; count?: number; disabled?: boolean };
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      <HeaderBar style={styles.pickerBar} title={title}
+        left={clear ? <Tap onPress={clear.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={clear.a11y ?? clear.label}><ButtonText style={[styles.pickerLink, clear.active && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{clear.label}</ButtonText></Tap> : undefined}
+        right={<Tap onPress={done.onPress} disabled={done.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} accessibilityState={{ disabled: !!done.disabled }} style={[styles.pickerDone, done.disabled && { opacity: 0.4 }]}><ButtonText style={styles.pickerDoneText} maxFontSizeMultiplier={1.3}>{done.count ? t("pick.doneCount", { count: done.count }) : t("common.done")}</ButtonText></Tap>} />
+      {children}
+    </>
+  );
+}
+
+/** The tick a picker row ends with. */
+export function PickCheck({ state }: { state: boolean | "half" }) {
+  return <SymbolView name={state === "half" ? "minus.circle.fill" : state ? "checkmark.circle.fill" : "circle"} size={22} tintColor={state === true ? C.tint : C.tertiary} />;
+}
+
 /** Plain header for card modals: text actions only, no native glass bubbles. */
 export function ModalHeader({ title, left, right }: { title: string; left?: { label: string; onPress: () => void }; right?: { label: string; onPress: () => void; disabled?: boolean; bold?: boolean } }) {
   return (
     <HeaderBar title={title} style={styles.modalHeader}
-      left={left ? <Pressable onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><ButtonText style={styles.modalLink} maxFontSizeMultiplier={1.3}>{left.label}</ButtonText></Pressable> : null}
-      right={right ? <Pressable onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><ButtonText style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]} maxFontSizeMultiplier={1.3}>{right.label}</ButtonText></Pressable> : null} />
+      left={left ? <Tap onPress={left.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={left.label}><ButtonText style={styles.modalLink} maxFontSizeMultiplier={1.3}>{left.label}</ButtonText></Tap> : null}
+      right={right ? <Tap onPress={right.onPress} disabled={right.disabled} hitSlop={10} accessibilityRole="button" accessibilityLabel={right.label} accessibilityState={{ disabled: !!right.disabled }}><ButtonText style={[styles.modalLink, right.bold !== false && { fontWeight: "700" }, right.disabled && { opacity: 0.4 }]} maxFontSizeMultiplier={1.3}>{right.label}</ButtonText></Tap> : null} />
   );
 }
 
@@ -290,10 +419,10 @@ export function ToggleRow({ title, subtitle, value, onChange, icon, iconColor, s
 /** Red text row for destructive actions, placed under the confirm bar. */
 export function DeleteRow({ label, onPress, icon = "trash" }: { label: string; onPress: () => void; icon?: SFSymbol }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.deleteRow, pressed && { opacity: 0.5 }]}>
+    <Tap onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.deleteRow}>
       <SymbolView name={icon} size={15} tintColor={C.red} />
       <ButtonText style={styles.deleteText}>{label}</ButtonText>
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -351,9 +480,9 @@ export function CategoryIconStack({ items, size = 30, max = 3, cutout = C.card }
 
 export function BigButton({ label, onPress, destructive, disabled }: { label: string; onPress: () => void; destructive?: boolean; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.big, destructive && { backgroundColor: C.red }, (pressed || disabled) && { opacity: 0.5 }]}>
+    <Tap onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={[styles.big, destructive && { backgroundColor: C.red }, disabled && { opacity: 0.5 }]}>
       <ButtonText style={styles.bigText}>{label}</ButtonText>
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -366,11 +495,11 @@ export function StatPair({ stats }: { stats: { label: string; minor: number; cur
   return (
     <View style={styles.stats}>
       {stats.map((s) => (
-        <Pressable key={s.label} onPress={s.onPress} disabled={!s.onPress} style={({ pressed }) => [styles.stat, pressed && { opacity: 0.6 }]}
+        <Tap key={s.label} onPress={s.onPress} disabled={!s.onPress} style={styles.stat}
           accessibilityRole={s.onPress ? "button" : undefined} accessibilityLabel={s.onPress ? t("ui.approxA11y", { label: s.label }) : undefined}>
           <Text style={styles.statLabel} maxFontSizeMultiplier={1.4}>{s.label}</Text>
           <Money minor={s.minor} currency={s.currency} approx={s.approx} style={[styles.statValue, s.color ? { color: s.color } : null]} />
-        </Pressable>
+        </Tap>
       ))}
     </View>
   );
@@ -399,19 +528,18 @@ export function Footnote({ children, more, style }: { children: ReactNode; more?
 
 function InfoNote({ children, more, style }: { children: ReactNode; more?: ReactNode; style?: StyleProp<ViewStyle> }) {
   const [open, setOpen] = useState(false);
-  const toggle = () => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setOpen((v) => !v); };
+  const toggle = () => setOpen((v) => !v);
   return (
     <View style={style}>
       <View style={styles.noteRow}>
         <Text style={styles.noteText}>{children}</Text>
         {more ? (
-          <Pressable onPress={toggle} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("common.moreInfo")} accessibilityState={{ expanded: open }}
-            style={({ pressed }) => [styles.noteInfo, pressed && { opacity: 0.5 }]}>
+          <Tap onPress={toggle} hitSlop={14} accessibilityRole="button" accessibilityLabel={t("common.moreInfo")} accessibilityState={{ expanded: open }} style={styles.noteInfo}>
             <SymbolView name={open ? "info.circle.fill" : "info.circle"} size={16} tintColor={C.secondary} />
-          </Pressable>
+          </Tap>
         ) : null}
       </View>
-      {more && open ? <Text style={[styles.noteText, styles.noteMore]}>{more}</Text> : null}
+      {more ? <Collapsible open={open} lazy><Text style={[styles.noteText, styles.noteMore]}>{more}</Text></Collapsible> : null}
     </View>
   );
 }
@@ -455,18 +583,25 @@ export function runBusy(show: () => void, work: () => void, done: () => void): v
 export function Empty({ title, hint, action }: { title: string; hint?: string; action?: { label: string; onPress: () => void } }) {
   return (
     <View style={{ padding: S.xxl, alignItems: "center", gap: S.sm }}>
-      <Text style={{ color: C.secondary, fontSize: 17, fontWeight: "600" }}>{title}</Text>
+      <Text style={{ ...Type.headline, color: C.secondary, textAlign: "center" }}>{title}</Text>
       {hint ? <Text style={{ color: C.tertiary, textAlign: "center" }}>{hint}</Text> : null}
       {action ? (
-        <Pressable onPress={action.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={action.label} style={({ pressed }) => pressed && { opacity: 0.6 }}>
-          <Text style={{ color: C.tint, fontSize: 15, fontWeight: "600", paddingTop: S.xs }}>{action.label}</Text>
-        </Pressable>
+        <Tap onPress={action.onPress} hitSlop={10} accessibilityRole="button" accessibilityLabel={action.label} style={{ paddingTop: S.xs }}>
+          <ButtonText style={{ ...Type.callout, fontWeight: "600", color: C.tint }}>{action.label}</ButtonText>
+        </Tap>
       ) : null}
     </View>
   );
 }
 
 const styles = themed(() => StyleSheet.create({
+  pickerList: { flex: 1, backgroundColor: C.bgGrouped },
+  pickerContent: { paddingBottom: 60 },
+  pickerHead: { backgroundColor: C.bgGrouped, paddingBottom: S.sm },
+  pickerBar: { paddingTop: S.md },
+  pickerLink: { color: C.tint, fontSize: 15 },
+  pickerDone: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: R.pill, justifyContent: "center" },
+  pickerDoneText: { color: C.onTint, fontSize: 15, fontWeight: "700" },
   // Clipped so the veil follows whatever corners the card has.
   pressCard: { overflow: "hidden" },
   pressVeil: { backgroundColor: C.fill },
@@ -480,20 +615,23 @@ const styles = themed(() => StyleSheet.create({
   noteInfo: { paddingTop: 1 },
   noteMore: { marginTop: S.xs },
   title: { fontSize: 22, fontWeight: "700", color: C.label },
-  subtle: { fontSize: 14, color: C.secondary },
+  subtle: { fontSize: 15, color: C.secondary },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, paddingHorizontal: S.md },
-  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: R.sm },
   pillNeg: { backgroundColor: C.redSoft },
   pillWarn: { backgroundColor: C.orangeSoft },
   pillPos: { backgroundColor: C.greenSoft },
   pillNeutral: { backgroundColor: C.fill },
   pillText: { fontSize: 15, fontWeight: "600" },
-  chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 12, minHeight: 38, paddingVertical: 6, borderRadius: 19, backgroundColor: C.fill, flexGrow: 1, flexBasis: "auto", minWidth: 0, maxWidth: "100%" },
+  chip: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 12, minHeight: 38, paddingVertical: 6, borderRadius: R.pill, backgroundColor: C.fill, flexGrow: 1, flexBasis: "auto", minWidth: 0, maxWidth: "100%" },
   chipCompact: { flexGrow: 0, flexBasis: "auto", minWidth: 0 },
   chipActive: { backgroundColor: C.tint },
   chipText: { color: C.label, fontSize: 15, fontWeight: "500" },
   chipTextActive: { color: C.onTint },
   chipCell: { flexDirection: "column", flexGrow: 1, flexShrink: 1, alignSelf: "stretch", minHeight: 50, paddingHorizontal: 4, paddingVertical: 6, gap: 3, borderRadius: R.md },
+  /** Short of height (the folded iPhone Duo): icon beside the label, one 36 pt line. */
+  chipCellFlat: { flexDirection: "row", alignItems: "center", justifyContent: "center", minHeight: 36, paddingVertical: 4, gap: 5 },
+  chipCellFlatText: { alignSelf: "center", flexShrink: 1 },
   chipCellText: { alignSelf: "stretch", textAlign: "center", fontSize: 13 },
   // A label that wraps stays inside its button rather than pushing past it.
   buttonText: { flexShrink: 1, textAlign: "center" },
@@ -512,8 +650,8 @@ const styles = themed(() => StyleSheet.create({
   badge: { flexShrink: 0, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: C.tint },
   badgeText: { fontSize: 11, fontWeight: "700", color: C.onTint, textTransform: "uppercase", letterSpacing: 0.4 },
   rowSub: { fontSize: 13, color: C.secondary, marginTop: 1 },
-  iconBox: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  card: { backgroundColor: C.card, borderRadius: R.md, overflow: "hidden", marginHorizontal: S.lg },
+  iconBox: { width: 30, height: 30, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
+  card: { backgroundColor: C.card, borderRadius: R.card, overflow: "hidden", marginHorizontal: S.lg },
   stats: { flexDirection: "row", gap: S.md, paddingHorizontal: S.lg, paddingTop: S.sm, paddingBottom: S.sm },
   stat: { flex: 1, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md, paddingVertical: 10, gap: 3 },
   statLabel: { color: C.secondary, fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
@@ -521,8 +659,8 @@ const styles = themed(() => StyleSheet.create({
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.sm },
   sectionText: { fontSize: 13, color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
   money: { fontSize: 17, fontVariant: ["tabular-nums"], fontWeight: "500" },
-  deleteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 40 },
-  tag: { paddingHorizontal: 8, minHeight: 24, paddingVertical: 2, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", maxWidth: 200 },
+  deleteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44 },
+  tag: { paddingHorizontal: 8, minHeight: 24, paddingVertical: 2, borderRadius: R.pill, borderWidth: 1, alignItems: "center", justifyContent: "center", maxWidth: 200 },
   tagText: { fontSize: 13, fontWeight: "600" },
   headerBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg },
   modalHeader: { minHeight: 52 },
@@ -532,5 +670,5 @@ const styles = themed(() => StyleSheet.create({
   modalLink: { color: C.tint, fontSize: 17 },
   deleteText: { color: C.red, fontSize: 15, fontWeight: "500" },
   big: { marginHorizontal: S.md, minHeight: 50, paddingVertical: 10, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center" },
-  bigText: { color: C.onTint, fontSize: 18, fontWeight: "600" },
+  bigText: { color: C.onTint, fontSize: 17, fontWeight: "600" },
 }));

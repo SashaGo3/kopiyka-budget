@@ -56,7 +56,7 @@
       "message": "1 {from} = {rate} {to} (ECB)",
       "note": "ECB is the European Central Bank, where the rate comes from."
     },
-    "fetching": "Fetching rate…",
+    "fetching": "Fetching rate",
     "none": {
       "message": "No exchange rate. Type the amount that arrived.",
       "note": "Under a cross-currency transfer when no rate could be fetched or found cached."

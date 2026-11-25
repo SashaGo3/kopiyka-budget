@@ -3,7 +3,7 @@ import { Alert, Animated, Pressable, StyleSheet, Text, View, type StyleProp, typ
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
 import { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr, numberFormat } from "@kopiyka/core";
-import { C, R, S, themed } from "@/constants/theme";
+import { C, R, S, Type, themed } from "@/constants/theme";
 import { getLanguage, t } from "@/i18n";
 import { ButtonText } from "@/components/ui";
 export { applyDigitWhole, applyKey, applyKeySigned, evalExpr, evalPartial, exprSign, formatExpr, hasOperator, negateExpr };
@@ -37,7 +37,12 @@ export interface KeypadProps {
   /** Take whatever height the parent leaves, keys shrinking to `fillKey`'s minimum, instead of a
    *  fixed one: for a screen that has to show the whole keypad without scrolling (onboarding). */
   fill?: boolean;
+  /** Height of a key row (default `KEY_HEIGHT`); the operator row keeps its proportion. Lower on a
+   *  screen too short for the whole sheet, such as the folded iPhone Duo's outer one. */
+  keyHeight?: number;
 }
+
+export const KEY_HEIGHT = 50;
 
 const GRID: string[][] = [["7", "8", "9", "⌫"], ["4", "5", "6", "C"], ["1", "2", "3", "±"], ["0", ".", "extra"]];
 const OPS = ["÷", "×", "−", "+"];
@@ -65,9 +70,9 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
   const [scale] = useState(() => new Animated.Value(1));
   const [lit] = useState(() => new Animated.Value(on ? 1 : 0));
   useEffect(() => { Animated.timing(lit, { toValue: on ? 1 : 0, duration: 160, useNativeDriver: true }).start(); }, [on, lit]);
-  const to = (v: number, speed: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed, bounciness: v === 1 ? 10 : 0 }).start();
+  const to = (v: number, speed: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed, bounciness: 0 }).start();
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} onPressIn={() => to(0.93, 40)} onPressOut={() => to(1, 20)} style={fill ? { flex: 1 } : undefined}
+    <Pressable onPress={onPress} onLongPress={onLongPress} onPressIn={() => to(0.96, 40)} onPressOut={() => to(1, 20)} style={fill ? { flex: 1 } : undefined}
       accessibilityRole="button" accessibilityLabel={a11y} accessibilityState={a11yState}>
       <Animated.View style={[style, { transform: [{ scale }] }]}>
         {onStyle ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, onStyle, { opacity: lit }]} /> : null}
@@ -77,7 +82,11 @@ function AnimatedKey({ on, onPress, onLongPress, style, onStyle, a11y, a11yState
   );
 }
 
-export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign, onEdit, fill }: KeypadProps) {
+export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, allowSign = true, onToggleSign, onEdit, fill, keyHeight }: KeypadProps) {
+  const short = keyHeight && keyHeight < KEY_HEIGHT ? { minHeight: keyHeight } : null;
+  // The digits shrink with a short key, so a 32 pt key still has room around its number.
+  const shortText = short ? { fontSize: Math.min(27, Math.round(keyHeight! * 0.62)) } : null;
+  const shortOp = short ? { minHeight: Math.round(keyHeight! * 0.72) } : null;
   // The decimal point applies to the number being typed — the part after the last operator — so
   // that tail is what says whether it has been pressed.
   const tail = value.split(/[+−×÷]/).pop() ?? "";
@@ -121,26 +130,26 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
   return (
     <View style={[styles.wrap, fill && { flex: 1 }]}>
       <View style={styles.ops}>
-        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("keypad.divide") : o === "×" ? t("keypad.multiply") : o === "−" ? t("keypad.subtract") : t("keypad.add")} style={({ pressed }) => [styles.op, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
+        {OPS.map((o) => <Pressable key={o} onPress={() => press(o)} accessibilityRole="button" accessibilityLabel={o === "÷" ? t("keypad.divide") : o === "×" ? t("keypad.multiply") : o === "−" ? t("keypad.subtract") : t("keypad.add")} style={({ pressed }) => [styles.op, shortOp, pressed && styles.pressed]}><Text style={styles.opText} maxFontSizeMultiplier={1.3}>{o}</Text></Pressable>)}
       </View>
       {GRID.map((row, i) => (
-        <View key={i} style={[styles.row, fill && { flex: 1 }]}>
+        <View key={i} style={[styles.row, fill && styles.fillRow]}>
           {row.map((k) => {
             if (k === "extra") {
-              if (!extra) return <View key="extra" style={[styles.key, fill && styles.fillKey, { flex: 2.08, backgroundColor: "transparent" }]} />;
+              if (!extra) return <View key="extra" style={[styles.key, short, fill && styles.fillKey, { flex: 2.08, backgroundColor: "transparent" }]} />;
               const main = (
                 <Pressable key="extra" onPress={extra.onPress} accessibilityRole="button" accessibilityLabel={extra.a11y ?? extra.label}
-                  style={({ pressed }) => [styles.key, styles.extra, extra2 && { flex: 1 }, extra.active && [styles.extraActive, extra.color ? { backgroundColor: extra.color + "33", borderColor: extra.color } : null], pressed && styles.pressed]}>
-                  <SymbolView name={extra.icon} size={20} tintColor={extra.active ? extra.color ?? C.onTint : C.tint} />
-                  <ButtonText fit={2} style={[styles.extraText, extra.active && { color: extra.color ?? C.onTint }]} maxFontSizeMultiplier={1.3}>{extra.label}</ButtonText>
+                  style={({ pressed }) => [styles.key, short, styles.extra, extra2 && { flex: 1 }, extra.active && [styles.extraActive, extra.color ? { backgroundColor: extra.color + "33", borderColor: extra.color } : null], pressed && styles.pressed]}>
+                  <SymbolView name={extra.icon} size={17} tintColor={extra.active ? extra.color ?? C.onTint : C.tint} />
+                  <ButtonText fit={3} style={[styles.extraText, extra.active && { color: extra.color ?? C.onTint }]} maxFontSizeMultiplier={1.3}>{extra.label}</ButtonText>
                 </Pressable>
               );
               if (!extra2) return main;
               return (
-                <View key="extra" style={[styles.key, { flex: 2.08, backgroundColor: "transparent", flexDirection: "row", gap: S.sm }]}>
+                <View key="extra" style={[styles.key, short, { flex: 2.08, backgroundColor: "transparent", flexDirection: "row", gap: S.sm }]}>
                   {main}
                   <Pressable onPress={extra2.onPress} accessibilityRole="button" accessibilityLabel={extra2.a11y}
-                    style={({ pressed }) => [styles.key, styles.small, extra2.active && styles.smallActive, pressed && styles.pressed]}>
+                    style={({ pressed }) => [styles.key, short, styles.small, extra2.active && styles.smallActive, pressed && styles.pressed]}>
                     <SymbolView name={extra2.icon} size={20} tintColor={extra2.active ? C.onTint : C.tint} />
                     {extra2.badge ? <Text style={[styles.smallBadge, extra2.active && { color: C.onTint }]}>{extra2.badge}</Text> : null}
                   </Pressable>
@@ -150,7 +159,7 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             const wide = k === "0";
             const fn = k === "⌫" || k === "C" || k === "±";
             if (k === "±" && !allowSign) return (
-              <View key={k} style={[styles.keySlot, styles.key, fill && styles.fillKey, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel={t("keypad.changeSign")} accessibilityState={{ disabled: true }}>
+              <View key={k} style={[styles.keySlot, styles.key, short, fill && styles.fillKey, { opacity: 0.35 }]} accessible accessibilityRole="button" accessibilityLabel={t("keypad.changeSign")} accessibilityState={{ disabled: true }}>
                 <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
               </View>
             );
@@ -158,12 +167,12 @@ export const Keypad = memo(function Keypad({ value, onChange, extra, extra2, all
             return (
               <View key={k} style={wide ? styles.wide : styles.keySlot}>
                 <AnimatedKey fill={fill} on={dot && dotOn} onPress={() => press(k)} onLongPress={k === "⌫" ? () => { setOnWhole(false); onChange(""); } : undefined}
-                  style={[styles.key, fill && styles.fillKey]} onStyle={dot ? styles.dotKey : undefined}
+                  style={[styles.key, short, fill && styles.fillKey]} onStyle={dot ? styles.dotKey : undefined}
                   a11y={k === "⌫" ? t("keypad.delete") : k === "C" ? t("keypad.clear") : k === "±" ? t("keypad.changeSign") : dot ? (dotOn ? t("keypad.decimalTyping") : tail.includes(".") ? t("keypad.decimalWhole") : t("keypad.decimal")) : k}
                   a11yState={dot ? { selected: dotOn } : undefined}>
                   {k === "⌫" ? <SymbolView name="delete.left" size={22} tintColor={C.label} />
                     : k === "±" ? <SymbolView name="plus.forwardslash.minus" size={20} tintColor={C.label} />
-                    : <Text style={[styles.keyText, k === "C" && styles.clear, fn && styles.fnText, dot && dotOn && styles.dotText]} maxFontSizeMultiplier={1.3}>{dot ? decimalChar : k}</Text>}
+                    : <Text style={[styles.keyText, shortText, k === "C" && styles.clear, fn && styles.fnText, dot && dotOn && styles.dotText]} maxFontSizeMultiplier={1.3}>{dot ? decimalChar : k}</Text>}
                 </AnimatedKey>
               </View>
             );
@@ -196,7 +205,7 @@ export function Caret({ pulse, color }: { pulse: number; color: string }) {
   const [on, setOn] = useState(false);
   useEffect(() => {
     if (!pulse) return;
-    setOn(true);
+    setOn(true); // eslint-disable-line react-hooks/set-state-in-effect -- the first blink of a timer this effect starts
     let n = 0;
     const blink = setInterval(() => { n++; setOn(n < 4 ? n % 2 === 0 : false); if (n >= 4) clearInterval(blink); }, 420);
     return () => clearInterval(blink);
@@ -226,6 +235,8 @@ const styles = themed(() => StyleSheet.create({
   key: { minHeight: 50, borderRadius: R.md, alignItems: "center", justifyContent: "center", backgroundColor: C.fill, overflow: "hidden" },
   wide: { flex: 1 },
   fillKey: { flex: 1, minHeight: 36 },
+  // A row never shrinks below its keys, or on a short screen they are drawn over each other.
+  fillRow: { flex: 1, minHeight: 36 },
   pressed: { opacity: 0.55 },
   caret: { fontWeight: "200" },
   keyText: { fontSize: 27, fontWeight: "500", color: C.label, fontVariant: ["tabular-nums"] },
@@ -234,13 +245,15 @@ const styles = themed(() => StyleSheet.create({
   // The same "this key is on" language as the Category and Tags keys below it.
   dotKey: { backgroundColor: C.tint, borderRadius: R.md },
   dotText: { color: C.onTint, fontWeight: "700" },
-  extra: { flex: 2.08, flexDirection: "row", borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", gap: 6, paddingHorizontal: 8 },
+  // A category's name has about 90 pt beside the tags key: three lines, a smaller icon and a tighter
+  // gap let "Ресторани та кафе" read whole instead of shrinking until it clips.
+  extra: { flex: 2.08, flexDirection: "row", borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", gap: S.xs, paddingHorizontal: S.sm },
   extraActive: { backgroundColor: C.tint, borderStyle: "solid" },
-  extraText: { fontSize: 14, color: C.tint, fontWeight: "600", flexShrink: 1 },
+  extraText: { ...Type.callout, color: C.tint, fontWeight: "600", flexShrink: 1 },
   small: { flex: 0, width: 50, borderWidth: 1.5, borderStyle: "dashed", borderColor: C.tint, backgroundColor: "transparent", flexDirection: "row", gap: 2 },
   smallActive: { backgroundColor: C.tint, borderStyle: "solid" },
   smallBadge: { fontSize: 13, fontWeight: "700", color: C.tint },
-  confirm: { marginHorizontal: S.md, minHeight: 56, paddingVertical: 8, borderRadius: 16, backgroundColor: C.tint, alignItems: "center", justifyContent: "center", gap: 1 },
-  confirmAmount: { alignSelf: "stretch", textAlign: "center", paddingHorizontal: S.md, color: "white", fontSize: 19, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  confirm: { marginHorizontal: S.md, minHeight: 56, paddingVertical: 8, borderRadius: R.md, backgroundColor: C.tint, alignItems: "center", justifyContent: "center", gap: 1 },
+  confirmAmount: { alignSelf: "stretch", textAlign: "center", paddingHorizontal: S.md, color: "white", fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
   confirmLabel: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "600" },
 }));

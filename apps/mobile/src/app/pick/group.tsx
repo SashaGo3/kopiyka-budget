@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { DEFAULT_ACCOUNT_GROUP, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { Row } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { Row, Tap } from "@/components/ui";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { groupName } from "@/lib/names";
 
@@ -41,10 +41,10 @@ export default function PickGroup() {
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.group.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} accessibilityLabel={t("pick.group.searchA11y")} />
           </View>
           {canCreate ? (
-            <Pressable onPress={() => pick(q.trim())} style={styles.row} accessibilityRole="button">
+            <Tap onPress={() => pick(q.trim())} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.group.create", { name: q.trim() })}>
               <SymbolView name="plus.circle" size={20} tintColor={C.tint} />
               <Text style={[styles.rowText, { color: C.tint }]}>{t("pick.group.create", { name: q.trim() })}</Text>
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
       }
@@ -58,8 +58,8 @@ export default function PickGroup() {
 
 const styles = themed(() => StyleSheet.create({
   title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingVertical: S.md },
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 48 },
   rowText: { flex: 1, fontSize: 17, color: C.label },
   transparent: { backgroundColor: "transparent" },

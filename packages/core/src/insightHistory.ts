@@ -162,7 +162,7 @@ export function incomeSeries(db: SqlDriver, o: { accountIds?: string[]; startDay
   windows.forEach((w, i) => {
     const rows = db.all<{ currency: string; minor: number }>(
       `SELECT a.currency AS currency, SUM(t.amount_minor) AS minor FROM transactions t JOIN accounts a ON a.id=t.account_id
-       WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.debt_id IS NULL AND t.amount_minor>0 AND t.date>=? AND t.date<?${scope}
+       WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.debt_id IS NULL AND t.amount_minor>0 AND t.date>=? AND t.date<?${scope}
        GROUP BY a.currency`, [w.start, w.end, ...(o.accountIds?.length ? o.accountIds : [])]);
     for (const r of rows) {
       const arr = per.get(r.currency) ?? new Array<number>(windows.length).fill(0);
@@ -181,7 +181,7 @@ export function incomeSources(db: SqlDriver, o: { start: string; end: string; ac
   return db.all<{ category_id: string | null; payee: string | null; currency: string; minor: number; n: number }>(
     `SELECT t.category_id AS category_id, t.payee AS payee, a.currency AS currency, SUM(t.amount_minor) AS minor, COUNT(*) AS n
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.debt_id IS NULL AND t.amount_minor>0 AND t.date>=? AND t.date<?${scope}
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.debt_id IS NULL AND t.amount_minor>0 AND t.date>=? AND t.date<?${scope}
      GROUP BY t.category_id, t.payee, a.currency ORDER BY minor DESC`, [o.start, o.end, ...(o.accountIds?.length ? o.accountIds : [])]);
 }
 

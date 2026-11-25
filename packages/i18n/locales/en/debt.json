@@ -1,4 +1,15 @@
 {
+  "dueMenu": {
+    "change": "Change date",
+    "remindOn": "Remind me",
+    "remindOff": "Don’t remind me",
+    "time": { "message": "Reminder time", "note": "Opens the time picker for the reminder." },
+    "remove": "Remove due date"
+  },
+  "accountMenu": {
+    "change": "Change account",
+    "remove": "No account"
+  },
   "paidSoFar": { "message": "Paid {paid} so far · {left} to go", "note": "By the payments pointed at this debt; amounts are \"500.00 PLN\"." },
   "$comment": "The debt sheet (app/debt/edit.tsx).",
   "direction": {
@@ -17,12 +28,8 @@
   "amountA11y": { "message": "Amount {amount}", "note": "VoiceOver label; amount with its currency code." },
   "who": "Who?",
   "noDueDate": "No due date",
-  "clearDate": "Clear date",
   "account": "Account (optional)",
-  "noAccount": "No account",
   "notes": "Notes",
-  "reminderOn": "Reminder on",
-  "reminderOff": "Reminder off",
   "confirm": {
     "save": "Tap to save",
     "add": "Tap to add",

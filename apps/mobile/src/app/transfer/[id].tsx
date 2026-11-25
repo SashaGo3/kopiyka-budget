@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { accountBalanceMinor, createTransfer, formatMinor, getRow, jsonIds, listRows, numberFormat, remove, toMinor, fromMinor, rateOrFallback, updateTransfer, deriveTransfer, type Side } from "@kopiyka/core";
@@ -7,13 +7,14 @@ import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { ButtonText, Chip, SheetFrame, Subtle, ChipRow, DeleteRow } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { ButtonText, Chip, SheetFrame, Subtle, ChipRow, DeleteRow, Tap } from "@/components/ui";
+import { C, R, S, themed } from "@/constants/theme";
 import { dayLabel, dayWithNow, localIso, todayLocal } from "@/lib/dates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { dismissSettledPaymentNotices } from "@/lib/notifications";
 import { catName, acctName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 
 type TransferPair = { from: string; to: string };
@@ -198,13 +199,15 @@ export default function TransferSheet() {
   })();
   const keyLabel = side === "from" ? t("transfer.editReceiving") : t("transfer.editSending");
 
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <View style={styles.headRow}>
             <Subtle style={{ flex: 1 }}>{wasPending ? t("transfer.reviewTitle") : t("transfer.title")}</Subtle>
-            {stacked ? <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("transfer.backA11y")} style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><Text style={styles.backText} maxFontSizeMultiplier={1.3}>{t("common.back")}</Text></Pressable> : null}
+            {stacked ? <Tap onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("transfer.backA11y")} style={styles.back}><SymbolView name="chevron.left" size={13} tintColor={C.tint} /><ButtonText style={styles.backText} maxFontSizeMultiplier={1.3}>{t("common.back")}</ButtonText></Tap> : null}
           </View>
           <Leg role={t("transfer.from")} account={acctName(from)} amount={fromShown ?? (fromValue !== null ? String(fromValue) : waiting("from") ? "…" : "0")} currency={from?.currency ?? ""} derived={ready && !typed.from && fromShown !== null}
             active={ready && side === "from"} onPress={() => (from ? setSide("from") : pickFrom())} onPickAccount={pickFrom} negative
@@ -212,9 +215,9 @@ export default function TransferSheet() {
           <View style={styles.arrowRow}>
             <SymbolView name="arrow.down" size={18} tintColor={C.tertiary} />
             {from && to ? (
-              <Pressable onPress={swap} hitSlop={10} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
+              <Tap onPress={swap} hitSlop={10} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
                 <SymbolView name="arrow.up.arrow.down" size={13} tintColor={C.tint} />
-              </Pressable>
+              </Tap>
             ) : null}
           </View>
           <Leg role={t("transfer.to")} account={acctName(to)} amount={toShown ?? (toValue !== null ? String(toValue) : waiting("to") ? "…" : "0")} currency={to?.currency ?? ""} derived={ready && !typed.to && toShown !== null}
@@ -236,7 +239,7 @@ export default function TransferSheet() {
           </ChipRow>
           {/* Waits for both accounts: the amount is the last thing a transfer is told. */}
           <View pointerEvents={ready ? "auto" : "none"} style={ready ? null : styles.waiting} accessibilityElementsHidden={!ready} importantForAccessibility={ready ? "auto" : "no-hide-descendants"}>
-            <Keypad value={typed[side] ? expr : ""} onChange={onType} allowSign={false}
+            <Keypad keyHeight={sheetFit.keyHeight} value={typed[side] ? expr : ""} onChange={onType} allowSign={false}
               extra={{ label: keyLabel, icon: "arrow.up.arrow.down", active: side === "to", onPress: () => setSide(other) }} />
           </View>
           <ConfirmBar amount={fromShown && from ? `${fromShown} ${from.currency}${toShown && to && (cross || toShown !== fromShown) ? ` → ${toShown} ${to.currency}` : ""}` : "0"}
@@ -263,12 +266,12 @@ function Leg({ role, account, amount, currency, active, derived, onPress, onPick
 }) {
   const moved = after !== null && after !== balance;
   return (
-    <Pressable onPress={onPress} style={[styles.leg, active && styles.legActive]} accessibilityRole="button"
+    <Tap onPress={onPress} style={[styles.leg, active && styles.legActive]} accessibilityRole="button"
       accessibilityLabel={t("transfer.legA11y", { role, account: account ?? t("transfer.noAccount"), amount, currency })} accessibilityState={{ selected: active }}>
-      <Pressable onPress={onPickAccount} style={styles.legHead} accessibilityRole="button" accessibilityLabel={t("transfer.pickA11y", { role, account: account ?? t("transfer.chooseAccount") })}>
+      <Tap onPress={onPickAccount} style={styles.legHead} accessibilityRole="button" accessibilityLabel={t("transfer.pickA11y", { role, account: account ?? t("transfer.chooseAccount") })}>
         <Text style={[styles.legLabel, !account && { color: C.tint, fontWeight: "600" }]}>{role} · {account ?? t("transfer.chooseAccount")}</Text>
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
       <ButtonText fit={1} style={[styles.legAmount, negative ? null : { color: C.green }, derived && styles.legDerived]}>{negative ? "−" : "+"}{amount} <Text style={styles.legCur}>{currency}</Text></ButtonText>
       {currency ? (
         <View style={styles.legBalance} accessibilityLabel={moved ? t("transfer.balanceAfterA11y", { balance: formatMinor(balance, currency), after: formatMinor(after, currency), currency }) : t("transfer.balanceA11y", { balance: formatMinor(balance, currency), currency })}>
@@ -280,7 +283,7 @@ function Leg({ role, account, amount, currency, active, derived, onPress, onPick
           <Text style={styles.balanceText}>{currency}</Text>
         </View>
       ) : null}
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -298,9 +301,9 @@ function rateLine(from: string, to: string, value: number, source: "cached" | "m
 const styles = themed(() => StyleSheet.create({
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.sm, gap: 6 },
   headRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
-  back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, minHeight: 28 },
-  backText: { color: C.tint, fontSize: 14, fontWeight: "600" },
-  leg: { backgroundColor: C.card, borderRadius: 14, padding: S.md, borderWidth: 2, borderColor: "transparent" },
+  back: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: C.fill, borderRadius: R.pill, paddingHorizontal: 10, minHeight: 28 },
+  backText: { color: C.tint, fontSize: 15, fontWeight: "600" },
+  leg: { backgroundColor: C.card, borderRadius: R.card, padding: S.md, borderWidth: 2, borderColor: "transparent" },
   legActive: { borderColor: C.tint },
   legHead: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", paddingVertical: 2, paddingRight: 4 },
   legLabel: { color: C.secondary, fontSize: 13, flexShrink: 1 },
@@ -310,7 +313,7 @@ const styles = themed(() => StyleSheet.create({
   legDerived: { opacity: 0.55 },
   legCur: { fontSize: 15, color: C.secondary },
   arrowRow: { alignItems: "center", justifyContent: "center", height: 22 },
-  swap: { position: "absolute", right: 0, flexDirection: "row", alignItems: "center", backgroundColor: C.fill, borderRadius: 12, paddingHorizontal: 10, height: 24 },
+  swap: { position: "absolute", right: 0, flexDirection: "row", alignItems: "center", backgroundColor: C.fill, borderRadius: R.pill, paddingHorizontal: 10, minHeight: 24 },
   meta: { color: C.tertiary, fontSize: 13, marginTop: 4, minHeight: 18 },
   waiting: { opacity: 0.35 },
 }));

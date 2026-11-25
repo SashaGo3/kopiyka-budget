@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kopiyka",
     "slug": "kopiyka",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kopiyka",
@@ -21,6 +21,7 @@
           "UIInterfaceOrientationLandscapeRight"
         ],
         "NSCameraUsageDescription": "Take a photo of a receipt to attach it to an entry. Photos stay on your phone.",
+        "NSContactsUsageDescription": "Pick friends from your contacts when you split a bill or plan an event, so Kopiyka knows who owes you what. Only the names you choose are saved, and they stay on your phone.",
         "ITSAppUsesNonExemptEncryption": false,
         "EXDevMenuShowFloatingActionButton": false,
         "NSUbiquitousContainers": {
@@ -37,6 +38,11 @@
             "UIApplicationShortcutItemType": "dev.kopiyka.log",
             "UIApplicationShortcutItemTitle": "quickActionLog",
             "UIApplicationShortcutItemIconSymbolName": "plus.circle"
+          },
+          {
+            "UIApplicationShortcutItemType": "dev.kopiyka.scan",
+            "UIApplicationShortcutItemTitle": "quickActionScan",
+            "UIApplicationShortcutItemIconSymbolName": "doc.viewfinder"
           }
         ]
       },
@@ -54,7 +60,7 @@
           "iCloud.dev.kopiyka"
         ]
       },
-      "buildNumber": "93"
+      "buildNumber": "128"
     },
     "android": {
       "package": "dev.kopiyka.app",
@@ -100,6 +106,12 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#2B2B2E",
           "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Pick friends from your contacts when you split a bill or plan an event, so Kopiyka knows who owes you what. Only the names you choose are saved, and they stay on your phone."
         }
       ],
       [

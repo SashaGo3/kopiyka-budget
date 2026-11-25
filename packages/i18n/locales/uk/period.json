@@ -21,7 +21,7 @@
   },
   "netWorth": {
     "title": "Статки",
-    "fetching": "Отримуємо курс {currencies}…",
+    "fetching": "Отримуємо курс {currencies}",
     "noRate": "Ще немає курсу для {currencies}. Підʼєднайся до інтернету хоча б раз."
   }
 }

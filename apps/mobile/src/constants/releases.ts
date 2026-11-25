@@ -27,6 +27,39 @@ const note = (key: MessageKey & `whatsNew.notes.${string}`, icon?: string) => ({
 // dropped on 2026-09-28.
 export const RELEASES: Release[] = [
   {
+    version: "1.1.2",
+    date: "2026-11-20",
+    added: [
+      note("whatsNew.notes.v1_1_2.forecast", "sparkles"),
+      note("whatsNew.notes.v1_1_2.friends", "person.2"),
+      note("whatsNew.notes.v1_1_2.receipts", "doc.text.viewfinder"),
+      note("whatsNew.notes.v1_1_2.shops", "storefront"),
+      note("whatsNew.notes.v1_1_2.calendar", "calendar"),
+      note("whatsNew.notes.v1_1_2.types", "square.grid.2x2"),
+      note("whatsNew.notes.v1_1_2.insights", "chart.bar.xaxis"),
+      note("whatsNew.notes.v1_1_2.map", "map"),
+      note("whatsNew.notes.v1_1_2.language", "character.bubble"),
+      note("whatsNew.notes.v1_1_2.neverSuggest", "mappin.slash"),
+      note("whatsNew.notes.v1_1_2.duo", "rectangle.split.2x1"),
+      note("whatsNew.notes.v1_1_2.rename", "pencil"),
+    ],
+    improved: [
+      note("whatsNew.notes.v1_1_2.amount", "equal.circle"),
+      note("whatsNew.notes.v1_1_2.hints", "lightbulb"),
+      note("whatsNew.notes.v1_1_2.undo", "arrow.uturn.backward"),
+      note("whatsNew.notes.v1_1_2.order", "arrow.up.arrow.down"),
+      note("whatsNew.notes.v1_1_2.taps", "hand.tap"),
+      note("whatsNew.notes.v1_1_2.folder", "folder"),
+      note("whatsNew.notes.v1_1_2.pickers", "keyboard"),
+      note("whatsNew.notes.v1_1_2.drag", "arrow.up.and.down.and.arrow.left.and.right"),
+      note("whatsNew.notes.v1_1_2.sheets", "rectangle.stack"),
+    ],
+    fixed: [
+      note("whatsNew.notes.v1_1_2.rates", "dollarsign.arrow.circlepath"),
+      note("whatsNew.notes.v1_1_2.graphite", "circle.lefthalf.filled"),
+    ],
+  },
+  {
     version: "1.1.1",
     date: "2026-10-28",
     added: [

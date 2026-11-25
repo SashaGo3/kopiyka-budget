@@ -195,6 +195,40 @@ export const MIGRATIONS: string[][] = [
     // typed around it, and nothing typed can lose it. Rows from before keep the bank's text in `notes`.
     `ALTER TABLE transactions ADD COLUMN bank_note TEXT`,
   ],
+  [
+    // v24: what kinds of thing a category is (a JSON list: "food.groceries", "transport.parking"),
+    // whatever it is called — what a shop's name is matched to (shops.ts). NULL is "not said": a
+    // ready-made category answers with its `preset`, so nothing is backfilled; "[]" is "none, on
+    // purpose". Read it through `categoryTypes` (categoryTypes.ts), never off the column.
+    `ALTER TABLE categories ADD COLUMN type TEXT`,
+  ],
+  [
+    // v25: friends. A person is someone you split with (people.ts, DATA.md rule 23); a row carrying
+    // `person_id` is money between you and them — their share of something you paid (going out), or
+    // them paying you back (coming in) — and is neither your spending nor your income. `share_of` is
+    // the purchase a share was carved from, `items` what the share was for (JSON), `to_split` a
+    // payment marked to be split later, and `budgets.people` who an event or trip is with (JSON ids).
+    `CREATE TABLE IF NOT EXISTS people (${SYNC_COLS},
+      name TEXT NOT NULL, contact_id TEXT, color TEXT, sort INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0)`,
+    `ALTER TABLE transactions ADD COLUMN person_id TEXT`,
+    `ALTER TABLE transactions ADD COLUMN share_of TEXT`,
+    `ALTER TABLE transactions ADD COLUMN items TEXT`,
+    `ALTER TABLE transactions ADD COLUMN to_split INTEGER NOT NULL DEFAULT 0`,
+    `CREATE INDEX IF NOT EXISTS idx_transactions_person ON transactions(person_id)`,
+    `ALTER TABLE debts ADD COLUMN person_id TEXT`,
+    `ALTER TABLE budgets ADD COLUMN people TEXT`,
+  ],
+  [
+    // v26: friends kept together — a couple, flatmates. Members of a group share a `group_id` (a
+    // fresh id, no table of its own): the group is named after whoever is in it, so there is no name
+    // to store or to go stale. Read through `peopleGroups` (people.ts), which ignores a group of one.
+    `ALTER TABLE people ADD COLUMN group_id TEXT`,
+  ],
+  [
+    // v27: a category of your own named in each language — JSON `{"uk": "Коти"}`, read through
+    // `categoryName` (presets.ts). The stored `name` stays the name everywhere a language has none.
+    `ALTER TABLE categories ADD COLUMN names TEXT`,
+  ],
 ];
 
 const ADD_COLUMN = /^\s*ALTER TABLE (\w+) ADD COLUMN (\w+)/i;

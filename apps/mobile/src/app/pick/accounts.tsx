@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { ButtonText, HeaderBar, Row, accountIcon } from "@/components/ui";
+import { PickerHeader, PickerSections, Row, accountIcon, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
@@ -28,21 +28,17 @@ export default function PickAccounts() {
   const toggleGroup = (ids: string[]) => setChosen((c) => (ids.every((id) => c.includes(id)) ? c.filter((x) => !ids.includes(x)) : [...c, ...ids.filter((id) => !c.includes(id))]));
   const done = () => { resolvePick(key, chosen); router.back(); };
   return (
-    <SectionList style={{ flex: 1, backgroundColor: C.bgGrouped }} sections={sections} keyExtractor={(a) => a.id} contentContainerStyle={{ paddingBottom: 60 }} stickySectionHeadersEnabled={false}
-      ListHeaderComponent={
-        <HeaderBar style={styles.head} title={t("pick.accounts.title")}
-          left={<Pressable onPress={() => setChosen([])} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("pick.accounts.anyA11y")}><ButtonText style={[styles.link, !chosen.length && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{t("pick.any")}</ButtonText></Pressable>}
-          right={<Pressable onPress={done} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} style={styles.doneBtn}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{chosen.length ? t("pick.doneCount", { count: chosen.length }) : t("common.done")}</ButtonText></Pressable>} />
-      }
+    <PickerSections sections={sections} keyExtractor={(a) => a.id}
+      header={<PickerHeader title={t("pick.accounts.title")} clear={{ label: t("pick.any"), a11y: t("pick.accounts.anyA11y"), onPress: () => setChosen([]), active: !chosen.length }} done={{ onPress: done, count: chosen.length }} />}
       renderSectionHeader={({ section }) => {
         const ids = section.data.map((a) => a.id);
         const all = ids.length > 0 && ids.every((id) => chosen.includes(id));
         const some = !all && ids.some((id) => chosen.includes(id));
         return (
-          <Pressable onPress={() => toggleGroup(ids)} style={styles.group} accessibilityRole="checkbox" accessibilityState={{ checked: all ? true : some ? "mixed" : false }} accessibilityLabel={t("pick.accounts.groupA11y", { group: section.title, count: ids.length })}>
+          <Tap onPress={() => toggleGroup(ids)} style={styles.group} accessibilityRole="checkbox" accessibilityState={{ checked: all ? true : some ? "mixed" : false }} accessibilityLabel={t("pick.accounts.groupA11y", { group: section.title, count: ids.length })}>
             <Text style={styles.groupTitle}>{section.title}</Text>
             <SymbolView name={all ? "checkmark.circle.fill" : some ? "minus.circle" : "circle"} size={22} tintColor={all || some ? C.tint : C.tertiary} />
-          </Pressable>
+          </Tap>
         );
       }}
       renderItem={({ item: a }) => (
@@ -53,10 +49,6 @@ export default function PickAccounts() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  head: { paddingTop: S.md, paddingBottom: S.sm, backgroundColor: C.bgGrouped },
-  link: { color: C.tint, fontSize: 15 },
-  doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
-  done: { color: C.onTint, fontSize: 15, fontWeight: "700" },
   group: { flexDirection: "row", alignItems: "center", paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.xs, minHeight: 44 },
   groupTitle: { flex: 1, fontSize: 17, fontWeight: "600", color: C.label },
   account: { backgroundColor: "transparent", paddingLeft: S.lg + S.md },

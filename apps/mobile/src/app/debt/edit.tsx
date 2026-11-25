@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { ActionSheetIOS, Alert, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { createDebt, debtPaid, formatMinor, getRow, remove, save, settleDebt, toMinor, fromMinor, trimNumber, DEFAULT_DEBT_NOTIFY_TIME, type Debt, type DebtDirection } from "@kopiyka/core";
 import { db } from "@/db";
@@ -13,6 +13,7 @@ import { getBaseCurrency } from "@/lib/rates";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { acctName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 const directions = (): { value: DebtDirection; label: string }[] => [
   { value: "owed_to_me", label: t("debt.direction.owedToMe") },
@@ -108,8 +109,27 @@ export default function DebtEdit() {
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "debts", existing.id)); leave(); } },
   ]);
 
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
+  const pickDate = () => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: dueDate ?? todayLocal() } });
+  const pickAccount = () => router.push({ pathname: "/pick/account", params: { key: keys.account, selected: accountId ?? "" } });
+  const menu = (acts: { label: string; run: () => void; destructive?: boolean }[]) => ActionSheetIOS.showActionSheetWithOptions(
+    { options: [...acts.map((a) => a.label), t("common.cancel")], cancelButtonIndex: acts.length, destructiveButtonIndex: acts.some((a) => a.destructive) ? acts.findIndex((a) => a.destructive) : undefined },
+    (i) => { if (i < acts.length) acts[i]!.run(); });
+  /** No date yet: straight to the calendar. With one: what to change about it. */
+  const dueMenu = () => (!dueDate ? pickDate() : menu([
+    { label: t("debt.dueMenu.change"), run: pickDate },
+    notify ? { label: t("debt.dueMenu.remindOff"), run: () => setNotify(false) } : { label: t("debt.dueMenu.remindOn"), run: () => setNotify(true) },
+    ...(notify ? [{ label: t("debt.dueMenu.time"), run: () => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: notifyTime } }) }] : []),
+    { label: t("debt.dueMenu.remove"), run: () => setDueDate(null), destructive: true },
+  ]));
+  const accountMenu = () => (!account ? pickAccount() : menu([
+    { label: t("debt.accountMenu.change"), run: pickAccount },
+    { label: t("debt.accountMenu.remove"), run: () => setAccountId(null), destructive: true },
+  ]));
+
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <Title>{heroTitle}</Title>
@@ -125,17 +145,15 @@ export default function DebtEdit() {
           <ChipRow>
             <Chip icon="person" label={person || t("debt.who")} active={!!person} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.person, title: t("debt.who"), value: person } })} />
             <Chip icon="coloncurrencysign.circle" label={currency} active onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: currency } })} />
-            <Chip icon="calendar" label={dueDate ? humanDayTime(dueDate) : t("debt.noDueDate")} active={!!dueDate} onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.date, selected: dueDate ?? todayLocal() } })} />
-            {dueDate ? <Chip icon="xmark.circle" compact label={t("debt.clearDate")} onPress={() => setDueDate(null)} /> : null}
+            {/* The date, its reminder and the reminder's time are one answer ("when, and do I hear about
+                it"), so one chip: the menu behind it changes any part of it. */}
+            <Chip icon={dueDate ? (notify ? "bell.fill" : "calendar") : "calendar"} label={dueDate ? (notify ? `${humanDayTime(dueDate)} · ${notifyTime}` : humanDayTime(dueDate)) : t("debt.noDueDate")} active={!!dueDate} onPress={dueMenu} />
           </ChipRow>
           <ChipRow>
-            <Chip icon="creditcard" label={acctName(account) ?? t("debt.account")} active={!!account} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.account, selected: accountId ?? "" } })} />
-            {account ? <Chip icon="xmark.circle" compact label={t("debt.noAccount")} onPress={() => setAccountId(null)} /> : null}
+            <Chip icon="creditcard" label={acctName(account) ?? t("debt.account")} active={!!account} onPress={accountMenu} />
             <Chip icon="note.text" label={notes.split("\n")[0] || t("debt.notes")} active={!!notes} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.notes, title: t("debt.notes"), value: notes, multiline: "1" } })} />
-            {dueDate ? <Chip icon={notify ? "bell.fill" : "bell.slash"} label={notify ? t("debt.reminderOn") : t("debt.reminderOff")} active={notify} onPress={() => setNotify((v) => !v)} /> : null}
-            {dueDate && notify ? <Chip icon="clock" label={notifyTime} active onPress={() => router.push({ pathname: "/pick/time", params: { key: keys.time, selected: notifyTime } })} /> : null}
           </ChipRow>
-          <Keypad value={expr} onChange={setExpr} onToggleSign={() => setDirection((d) => (d === "owed_to_me" ? "i_owe" : "owed_to_me"))} />
+          <Keypad keyHeight={sheetFit.keyHeight} value={expr} onChange={setExpr} onToggleSign={() => setDirection((d) => (d === "owed_to_me" ? "i_owe" : "owed_to_me"))} />
           <ConfirmBar amount={shown} label={valid ? (existing ? t("debt.confirm.save") : t("debt.confirm.add")) : person.trim() ? t("debt.confirm.amount") : t("debt.confirm.who")} onPress={commit} disabled={!valid} color={direction === "owed_to_me" ? (C.green as unknown as string) : undefined} />
           {existing && !existing.settled_date ? <DeleteRow icon="checkmark.circle" label={t("debt.paid.row")} onPress={markPaid} /> : null}
           {existing?.settled_date ? (

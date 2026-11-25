@@ -4,7 +4,7 @@
  * corrupt the WAL — native/KPWrites.swift), so it sends the write here and waits for the answer.
  */
 import { AppState } from "react-native";
-import { approvePending, claimRecurring, createTransaction, endFinishedTrips, fillPending, getRow, listRows, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, photoInUse, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef, type PairOutcome } from "@kopiyka/core";
+import { approvePending, claimRecurring, convertWaitingCharges, createTransaction, endFinishedTrips, fillPending, getRow, listRows, pairTransferLeg, pairTransferLegs, payeeHistory, payeeOptions, photoInUse, remove, samePaymentSince, save, suggestCategoryAt, withTripTag, writeBankRef, type PairOutcome } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, notifyChange } from "@/store";
 import { KPBridge, type NativeWrite } from "./bridge";
@@ -12,6 +12,7 @@ import { localIso, todayLocal } from "./dates";
 import { waitDefaultDays } from "./settings";
 import { acctName } from "./names";
 import { deletePhoto } from "./photos";
+import { incomingEnded, incomingLanded, incomingStarted, syncIncoming } from "./incoming";
 
 /** Entries waiting in the Pending queue: the app's badge, and what a native write is told after it lands. */
 export function pendingCount(): number {
@@ -41,6 +42,8 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       const id = String(w.id);
       // The watch may deliver the same entry twice (a reply that timed out, then the queued transfer).
       if (getRow(db, "transactions", id)) return {};
+      // The placeholder the list has been showing for this notification goes as the row arrives.
+      incomingLanded(str(w.incoming));
       let paired: PairOutcome = null;
       mutate((d) => {
         const row = createTransaction(d, {
@@ -110,16 +113,21 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       // The same name, filed by hand once: exact shop name, then the note, then the shop's first word,
       // so different branches of one chain ("ZABKA ZE212 K.5" / "ZABKA NANO 3087") still find each
       // other. Tags and the name's last known location come back too.
-      const hist = payeeHistory(db, str(w.payee), str(w.note));
+      // A payment comes with its amount, which tells apart two things paid to one name — the rent
+      // and the service charges, both to the landlord (core `pickByAmount`).
+      const amount = w.op === "payment" ? { amount_minor: Number(w.amount_minor), account_id: String(w.account_id) } : null;
+      const hist = payeeHistory(db, str(w.payee), str(w.note), amount);
       const reply: Record<string, unknown> = {
         category_id: hist.category_id ?? undefined, tag_ids: hist.tag_ids,
         place: hist.place ?? undefined, lat: hist.lat ?? undefined, lon: hist.lon ?? undefined,
         // Whether it was this very name or only one starting with the same word: the automation
         // trusts the first and treats the second as a guess.
         match: hist.match ?? undefined,
+        by_amount: hist.by_amount ?? undefined,
         // How many different ways this name was filed before. More than one and the automation has no
         // business picking for you: the entry stays pending so the sheet can ask which it was.
-        variants: payeeOptions(db, str(w.payee), str(w.note)).length,
+        // An amount that settles which of them this is makes it one way, as far as this payment goes.
+        variants: hist.by_amount === "sure" ? 1 : payeeOptions(db, str(w.payee), str(w.note)).length,
       };
       if (w.op === "payment") {
         // Wallet and the bank app both notify the same tap, and iOS can re-deliver a notification.
@@ -131,6 +139,11 @@ async function apply(w: NativeWrite): Promise<Record<string, unknown>> {
       }
       return reply;
     }
+    case "incoming":
+      // A bank notification is being read (start) or has been dealt with (end): the list's placeholder row.
+      if (w.state === "start") incomingStarted(String(w.token), num(w.started) ?? undefined);
+      else incomingEnded(String(w.token));
+      return {};
     case "fillIn": {
       // The second notification for one payment knows things the first did not (Wallet has the tidy
       // shop name, the bank app the city). Only empty fields are written — never an overwrite — and
@@ -156,15 +169,32 @@ function sweep(): void {
   try {
     if (db.transaction(() => pairTransferLegs(db) + endFinishedTrips(db, todayLocal())) > 0) notifyChange();
   } catch { /* a sweep is a nicety; the rows are still there, unpaired, for the next one */ }
+  convertSoon();
+}
+
+/**
+ * A foreign charge the automation logged at 0 for want of a rate gets one now (core
+ * `convertWaitingCharges`, DATA.md rule 6). It needs the network, so it runs on its own and only
+ * once at a time; offline it changes nothing and the next sweep tries again.
+ */
+let converting = false;
+function convertSoon(): void {
+  if (converting) return;
+  converting = true;
+  convertWaitingCharges(db, todayLocal())
+    .then((n) => { if (n > 0) notifyChange(); }, () => {})
+    .finally(() => { converting = false; });
 }
 
 /** Start answering native write requests. Call once, as early as possible (before any watch message can arrive). */
 export function installNativeWrites(): () => void {
   sweep();
-  const appState = AppState.addEventListener("change", (s) => { if (s === "active") sweep(); });
+  // A notification being read when the app opens, or comes back: its placeholder row (lib/incoming.ts).
+  syncIncoming(KPBridge.incomingReadings());
+  const appState = AppState.addEventListener("change", (s) => { if (s === "active") { syncIncoming(KPBridge.incomingReadings()); sweep(); } });
   const off = KPBridge.onNativeWrite((w) => {
     void apply(w).then(
-      (reply) => KPBridge.finishNativeWrite(w.request, true, null, reply),
+      (reply) => { KPBridge.finishNativeWrite(w.request, true, null, reply); if (w.op === "addTransaction") convertSoon(); },
       (e: unknown) => KPBridge.finishNativeWrite(w.request, false, e instanceof Error ? e.message : String(e)),
     );
   });

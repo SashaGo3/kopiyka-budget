@@ -3,7 +3,7 @@ import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createBudget, createCategory, createTag, createTransaction, createTransfer, listRows, tagIdsOf } from "../src/repo";
 import { activeBudgets, budgetRows } from "../src/insights";
-import { activeTrip, activeTripTagId, addPastTrip, endFinishedTrips, tripKind, daysBetween, defaultTripEnd, endTrip, listTrips, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
+import { activeTrip, activeTripTagId, addPastTrip, endFinishedTrips, tripKind, daysBetween, defaultTripEnd, endTrip, listTrips, nameWithDay, renameTrip, startTrip, tagTransactions, tripStats, withTripTag } from "../src/trips";
 import { getRow, save } from "../src/repo";
 
 function seed() {
@@ -232,5 +232,25 @@ describe("events", () => {
     expect(tripKind({ kind: null })).toBe("trip");
     expect(tripKind({ kind: "something-newer" })).toBe("trip");
     expect(tripKind(addPastTrip(db, { name: "Party", kind: "event", currency: "EUR", amount_minor: 1, starts: "2026-05-01", ends: "2026-05-01" }).budget)).toBe("event");
+  });
+
+  test("renaming a trip renames its tag in place; a name another tag has is refused", () => {
+    const { db, pln, food } = seed();
+    const { budget, tag } = addPastTrip(db, { name: "Rome", currency: "PLN", amount_minor: 0, starts: "2026-05-01", ends: "2026-05-04" });
+    const tx = createTransaction(db, { account_id: pln.id, date: "2026-05-02T12:00:00+02:00", amount_minor: -500, category_id: food.id, tag_ids: JSON.stringify([tag.id]) });
+    const renamed = renameTrip(db, budget.id, "  Rome & Naples ");
+    expect(renamed).toMatchObject({ id: tag.id, name: "Rome & Naples" });
+    expect(tripStats(db, getRow(db, "budgets", budget.id)!).name).toBe("Rome & Naples");
+    expect(tagIdsOf(getRow(db, "transactions", tx.id)!)).toEqual([tag.id]);
+    createTag(db, { name: "work" });
+    expect(() => renameTrip(db, budget.id, "Work")).toThrow();
+    expect(() => renameTrip(db, budget.id, " ")).toThrow();
+    expect(renameTrip(db, budget.id, "rome & naples").name).toBe("rome & naples");
+  });
+
+  test("a day goes after the name once", () => {
+    expect(nameWithDay(" Birthday ", "22 Nov 2026")).toBe("Birthday 22 Nov 2026");
+    expect(nameWithDay("Birthday 22 Nov 2026", "22 Nov 2026")).toBe("Birthday 22 Nov 2026");
+    expect(nameWithDay("", "22 Nov 2026")).toBe("22 Nov 2026");
   });
 });

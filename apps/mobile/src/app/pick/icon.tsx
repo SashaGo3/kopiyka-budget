@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap, ButtonText } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { ICON_CATALOG, ICON_GROUPS, searchIcons, type CatalogIcon, type IconGroup } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 const COLS = 6;
@@ -72,11 +73,11 @@ export default function PickIcon() {
             <TextInput value={q} onChangeText={setQ} placeholder={t("pick.icon.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" accessibilityLabel={t("pick.icon.search")} />
           </View>
           {!ql ? (
-            <Pressable onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
+            <Tap onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
               <View style={styles.autoIcon}><SymbolView name="wand.and.stars" size={16} tintColor={C.tertiary} /></View>
-              <Text style={styles.autoText}>{t("pick.automatic")}</Text>
+              <ButtonText style={styles.autoText}>{t("pick.automatic")}</ButtonText>
               {!selected ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
       }
@@ -88,10 +89,10 @@ export default function PickIcon() {
             {item.icons.map((icon) => {
               const on = selected === icon.name;
               return (
-                <Pressable key={icon.name} onPress={() => choose(icon.name)} style={[styles.cell, on && { borderColor: tint, backgroundColor: tint + "1F" }]}
+                <Tap key={icon.name} onPress={() => choose(icon.name)} style={[styles.cell, on && { borderColor: tint, backgroundColor: tint + "1F" }]}
                   accessibilityRole="button" accessibilityLabel={`${groupLabel(icon.group)}: ${icon.keywords.split(" ")[0]}`} accessibilityState={{ selected: on }}>
                   <SymbolView name={icon.name as SFSymbol} size={22} tintColor={on ? tint : C.secondary} />
-                </Pressable>
+                </Tap>
               );
             })}
             {/* Keeps the last row of a group left-aligned instead of spreading four icons across six slots. */}
@@ -104,14 +105,14 @@ export default function PickIcon() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.lg, marginBottom: S.md, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.lg, marginBottom: S.md, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   autoRow: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 44, marginBottom: S.sm },
   autoIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   autoText: { flex: 1, fontSize: 17, color: C.label },
   group: { fontSize: 13, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4, marginTop: S.sm, marginBottom: S.xs },
   row: { flexDirection: "row", gap: S.sm },
-  cell: { flex: 1, aspectRatio: 1, maxWidth: 48, minHeight: 48, borderRadius: 12, backgroundColor: C.card, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "transparent", marginBottom: S.sm },
+  cell: { flex: 1, aspectRatio: 1, maxWidth: 48, minHeight: 48, borderRadius: R.md, backgroundColor: C.card, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "transparent", marginBottom: S.sm },
   pad: { backgroundColor: "transparent", borderColor: "transparent" },
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingVertical: S.xl },
 }));

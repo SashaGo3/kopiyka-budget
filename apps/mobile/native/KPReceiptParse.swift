@@ -21,6 +21,8 @@ enum KPReceiptText {
     /// "fiscal" (Polish receipt layout), "intelligence" (on-device model) or "keywords" (fallback).
     var method: String
     var text: String
+    /// The shop's street and town as printed under its name ("ul. Oleska 7, 45-052 Opole"), when found.
+    var address: String? = nil
   }
 
   static let price = try! NSRegularExpression(pattern: #"(-?\d{1,6}[.,]\d{2})(?![\d])"#)
@@ -34,38 +36,56 @@ enum KPReceiptText {
 
   // MARK: Polish fiscal receipt
 
-  static func isFiscal(_ lines: [String]) -> Bool { lines.contains { fold($0).contains("paragon fiskalny") } }
+  /// A Polish till receipt, fiscal or not: both print the same layout under a "PARAGON FISKALNY" or
+  /// "NIEFISKALNY" header (an e-paragon, a printer's demo, a receipt from a shop's own till).
+  static func isFiscal(_ lines: [String]) -> Bool { lines.contains { isHeader(fold($0)) } }
+  static func isHeader(_ low: String) -> Bool { low.contains("paragon fiskalny") || low.contains("niefiskalny") }
+
+  /// "SUMA:  PLN 31.21" and "SUMA PLN 31,21" alike: colons dropped, runs of spaces made one.
+  static func key(_ s: String) -> String {
+    fold(s).replacingOccurrences(of: #"[:\s]+"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+  }
+
+  /// The quantity block of an item row: "1 SZT *", "1*", "1 x", "0,500 kg x", OCR's "Iszt." for "1szt."
+  /// and "1SZI*" (the T read as I) — "sz" and any one letter after it — and a decimal quantity with
+  /// whatever the "*" was read as right before the unit price ("1.0%4.02", "1.0k3.45").
+  static let quantity = try! NSRegularExpression(pattern: #"(^|\s)[\dIl]+(?:[.,]\d+)?\s*(?:sz\p{L}?|kg|x|×|\*)|(^|\s)\d+[.,]\d+\s?[^\s\d.,]\s?(?=\d)|\s+x\s*\d"#, options: [.caseInsensitive])
 
   static func fiscal(lines: [String]) -> Parse? {
-    let low = lines.map(fold)
-    guard let head = low.firstIndex(where: { $0.contains("paragon fiskalny") }) else { return nil }
-    // Items run until the tax summary begins.
-    let endMarkers = ["sprzedaz opodatk", "ptu ", "suma ptu", "suma pln", "rabat", "opakowania", "kaucja", "do zaplaty", "rozliczenie"]
+    let low = lines.map(key)
+    guard let head = low.firstIndex(where: isHeader) else { return nil }
+    // Items run until the tax summary begins: "SPRZEDAŻ OPODATKOWANA A", its short "Sp.op.A", "PTU A=23%",
+    // "Kwota PTU", or a total.
+    let endMarkers = ["sprzedaz", "sp.op", "sp. op", "ptu ", "kwota ptu", "suma", "razem", "rabat", "opakowania", "kaucja", "do zaplaty", "rozliczenie"]
     var end = lines.count
     for i in (head + 1)..<lines.count where endMarkers.contains(where: { low[i].hasPrefix($0) || low[i].contains(" \($0)") }) { end = i; break }
     var items: [Item] = []
     var pendingName: String? = nil
-    // OCR often reads "1szt." as "Iszt." or "lszt.".
-    let qty = try! NSRegularExpression(pattern: #"\s+[\dIl]+\s*(szt|x|×)|\s+x\s*\d"#, options: [.caseInsensitive])
     for i in (head + 1)..<end {
-      let raw = lines[i]
+      let raw = lines[i].trimmingCharacters(in: .whitespaces)
       let nums = numbers(raw)
-      if nums.isEmpty { pendingName = raw.trimmingCharacters(in: .whitespaces); continue }
-      // Name = text before the quantity block; price = last value on the row (the tax letter A/B/C may trail it).
-      var name = raw
-      if let m = qty.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)), let r = Range(m.range, in: raw) { name = String(raw[..<r.lowerBound]) }
+      if nums.isEmpty {
+        // A long name is printed on a row of its own, its quantity and price on the next.
+        if raw.rangeOfCharacter(from: .letters) != nil, !isHeader(low[i]) { pendingName = pendingName.map { "\($0) \(raw)" } ?? raw }
+        continue
+      }
+      // Name = text before the quantity block; a row that starts with one belongs to the name above it.
+      var name: String
+      if let m = quantity.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)), let r = Range(m.range, in: raw) { name = String(raw[..<r.lowerBound]) }
       else { name = raw.replacingOccurrences(of: #"\s*-?\d{1,6}[.,]\d{2}.*$"#, with: "", options: .regularExpression) }
       // Polish receipts end item names with the VAT class letter ("200g-C", "250ml A").
       name = name.replacingOccurrences(of: #"[\s-][A-G]$"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
       if name.rangeOfCharacter(from: .letters) == nil || name.count < 2 { name = pendingName ?? name }
       else if let p = pendingName, name.count < 4 { name = "\(p) \(name)" }
       pendingName = nil
-      guard let price = nums.last, price > 0, name.rangeOfCharacter(from: .letters) != nil else { continue }
+      // The line's own total: last on the row, after the quantity × unit price — the tax letter that
+      // follows it may have been read as a digit ("31.21D", "5.958").
+      guard let price = trailingPrice(raw) ?? lineTotal(raw) ?? nums.last, price > 0, name.rangeOfCharacter(from: .letters) != nil else { continue }
       items.append(Item(name: prettyName(name), price: price))
     }
     // Total: the "SUMA PLN" row; its number may have been merged into a neighbouring row by OCR.
     func value(near label: String) -> Double? {
-      guard let i = low.firstIndex(where: { $0.contains(label) }) else { return nil }
+      guard let i = low.firstIndex(where: { $0.contains(label) && !$0.contains("suma ptu") }) else { return nil }
       let own = numbers(lines[i].replacingOccurrences(of: #"(?i)ptu\s*[a-z]\s*\d+%"#, with: "", options: .regularExpression))
       if let v = own.last, v > 0 { return v }
       for j in [i + 1, i - 1] where j >= 0 && j < lines.count { if let v = numbers(lines[j]).last, v > 0, !low[j].contains("ptu") || low[j].contains("suma ptu") { return v } }
@@ -99,11 +119,23 @@ enum KPReceiptText {
   }
 
   /// "KANAPKA TROJ TUNCZYK 200g-C" → "Kanapka Troj Tunczyk 200g-C": shouty receipt text reads better in a note.
+  /// OCR reads a lowercase l as a capital inside a word: "JabŁka", "OpoLe", "OLeska". An L, Ł or I
+  /// followed by a lowercase letter, and not at a word's start, goes back to lowercase — the one
+  /// misreading this undoes; a capital anywhere else ("McDonald") is left alone.
+  static func fixCase(_ s: String) -> String {
+    s.replacingOccurrences(of: #"(?<=\p{L})L(?=\p{Ll})"#, with: "l", options: .regularExpression)
+      .replacingOccurrences(of: #"(?<=\p{L})Ł(?=\p{Ll})"#, with: "ł", options: .regularExpression)
+      .replacingOccurrences(of: #"(?<=\p{Ll})I(?=\p{Ll})"#, with: "l", options: .regularExpression)
+  }
+
+  /// Also: a lone "|" between words is OCR's reading of a printed "I" ("SKÓRY | PIĘT"), and a name the
+  /// till printed in lower case starts with a capital like every other ("paluszki" → "Paluszki").
   static func prettyName(_ s: String) -> String {
-    let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+    let t = fixCase(s.trimmingCharacters(in: .whitespacesAndNewlines))
+      .replacingOccurrences(of: #"(?<=\s)\|(?=\s)"#, with: "I", options: .regularExpression)
     let upper = t.unicodeScalars.filter { CharacterSet.uppercaseLetters.contains($0) }.count
     let lower = t.unicodeScalars.filter { CharacterSet.lowercaseLetters.contains($0) }.count
-    guard upper >= 3, upper >= lower * 3 else { return t }
+    guard upper >= 3, upper >= lower * 3 else { return t.first.map { String($0).uppercased() + t.dropFirst() } ?? t }
     return t.lowercased().split(separator: " ").map { w in w.first.map { String($0).uppercased() + w.dropFirst() } ?? "" }.joined(separator: " ")
   }
 
@@ -112,7 +144,7 @@ enum KPReceiptText {
     var t = s.replacingOccurrences(of: "\"", with: "").replacingOccurrences(of: "„", with: "").replacingOccurrences(of: "”", with: "")
     t = t.replacingOccurrences(of: #"(?i)^(sklep|shop|store|market)\s+"#, with: "", options: .regularExpression)
     t = t.split(separator: " ").filter { $0.rangeOfCharacter(from: .decimalDigits) == nil }.joined(separator: " ")
-    t = t.trimmingCharacters(in: .whitespacesAndNewlines)
+    t = fixCase(t.trimmingCharacters(in: .whitespacesAndNewlines))
     if t.count > 3, t == t.uppercased() { t = t.capitalized }
     return t.isEmpty ? "Receipt" : t
   }
@@ -131,9 +163,9 @@ enum KPReceiptText {
     for (i, l) in lines.enumerated() {
       let low = lower[i]
       if totalWords.contains(where: { low.contains($0) }) || skipWords.contains(where: { low.contains($0) }) { continue }
-      guard let p = numbers(l).last, p > 0, p <= total || total == 0 else { continue }
+      guard let p = trailingPrice(l) ?? lineTotal(l) ?? numbers(l).last, p > 0, p <= total || total == 0 else { continue }
       let name = l.replacingOccurrences(of: #"\s*-?\d{1,6}[.,]\d{2}.*$"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
-      if name.count >= 3, name.rangeOfCharacter(from: .letters) != nil { items.append(Item(name: name, price: p)) }
+      if name.count >= 3, name.rangeOfCharacter(from: .letters) != nil { items.append(Item(name: prettyName(name), price: p)) }
     }
     let merchant = lines.first { l in l.count >= 3 && l.rangeOfCharacter(from: .letters) != nil && numbers(l).isEmpty && !skipWords.contains(where: { fold(l).contains($0) }) } ?? "Receipt"
     let all = lower.joined(separator: "\n")
@@ -143,6 +175,79 @@ enum KPReceiptText {
   }
 
   /// dd.mm.yyyy, dd-mm-yyyy, dd/mm/yyyy or yyyy-mm-dd → YYYY-MM-DD.
+  /// The shop's address from the receipt's head: lines naming a street ("ul.", "al.", "вул.", "Str.")
+  /// or carrying a postal code ("45-052", "01001"), before the tax number, the date or the items.
+  /// At most two such lines, joined with a comma. Nil when the head names no address.
+  static func address(in lines: [String]) -> String? {
+    let street = try! NSRegularExpression(pattern: #"^(ul|al|pl|os|ulica|aleja|вул|вулиця|просп|пр-т|пл|str|straße|strasse|st)\.?\s*\p{L}"#, options: [.caseInsensitive])
+    let postal = try! NSRegularExpression(pattern: #"(^|\s)(\d{2}-\d{3}|\d{5})\s+\p{L}{2,}"#)
+    let stops = ["nip", "regon", "tel", "paragon", "fiskal", "фіскальн", "чек", "kasa", "суми", "suma", "razem", "www", "@"]
+    // A street printed without "ul." ("Waryńskiego 4") is known by the postal line under it.
+    let bare = try! NSRegularExpression(pattern: #"^\p{L}[\p{L}.' -]{2,}\s\d{1,4}[a-zA-Z]?(/\d{1,4}[a-zA-Z]?)?$"#)
+    // A row may hold several printed lines joined by a double space — a receipt photographed askew
+    // reads the company, the street and the postcode as one row — so each segment is judged on its own.
+    let head = Array(lines.prefix(14)).flatMap { $0.components(separatedBy: "  ") }
+      .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    var found: [String] = []
+    for (i, line) in head.enumerated() {
+      let low = fold(line)
+      if stops.contains(where: { low.contains($0) }) || !numbers(line).isEmpty && !low.contains("ul") { if !found.isEmpty { break } else { continue } }
+      let range = NSRange(line.startIndex..., in: line)
+      let isPostal = postal.firstMatch(in: line, range: range) != nil
+      if street.firstMatch(in: line, range: range) != nil || isPostal {
+        if found.isEmpty, isPostal, i > 0, bare.firstMatch(in: head[i - 1], range: NSRange(head[i - 1].startIndex..., in: head[i - 1])) != nil,
+           !stops.contains(where: { fold(head[i - 1]).contains($0) }) { found.append(fixCase(head[i - 1])) }
+        // "ul.Oleska 7" → "ul. Oleska 7": OCR drops the space after the abbreviation.
+        found.append(fixCase(line).replacingOccurrences(of: #"^(\p{L}{1,4})\.(?=\p{L})"#, with: "$1. ", options: .regularExpression))
+        if found.count >= 2 { break }
+      } else if !found.isEmpty { break }
+    }
+    return found.isEmpty ? nil : found.joined(separator: ", ")
+  }
+
+  /// A weighed or counted line prints the quantity and the unit price before the line's own total
+  /// ("Ser żółty 0.500kg*11.90   5.95B"). On a receipt photographed a little askew the total at the
+  /// right edge is read as a row of its own, leaving only the unit price beside the name — so the
+  /// line's total is worked out from what it prints: quantity × unit price, rounded to the cent.
+  static let quantityTimesPrice = try! NSRegularExpression(pattern: #"(?<![\d.,\p{L}])(\d{1,4}(?:[.,]\d{3}|[.,]\d{1,2}(?=\s*(?:kg|g|sz\p{L}?|шт|pcs|l)))?)\s*(?:kg|g|sz\p{L}?|шт|pcs|l)?\.?\s*(?:[*x×+#]|\s)\s*(\d{1,6}[.,]\d{2})(?!\d)"#, options: [.caseInsensitive])
+  /// The price at the end of an item line. The tax class letter printed after it ("5.95B", "13.20D")
+  /// is often read as a digit ("5.958", "13.200"), which would hide the price from `numbers`, or as
+  /// some other letter altogether ("25,82月").
+  static let trailing = try! NSRegularExpression(pattern: #"(?<![\d.,])(\d{1,6}[.,]\d{2})[0-9\p{L}]?\.?\s*$"#)
+  static func trailingPrice(_ line: String) -> Double? {
+    guard let m = trailing.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+          let r = Range(m.range(at: 1), in: line) else { return nil }
+    return Double(line[r].replacingOccurrences(of: ",", with: "."))
+  }
+
+  /// A line that opens with its own quantity column ("1  ACTIMEL FRESA X14   6,49") has said how many
+  /// already: a number further along is part of the name (a pack of 14, a 43-wide cover), not a count.
+  static let leadingQuantity = try! NSRegularExpression(pattern: #"^\s*\d{1,3}\s+\p{L}"#)
+
+  static func lineTotal(_ line: String) -> Double? {
+    if leadingQuantity.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) != nil { return nil }
+    guard let m = quantityTimesPrice.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+          let q = Range(m.range(at: 1), in: line).flatMap({ Double(line[$0].replacingOccurrences(of: ",", with: ".")) }),
+          let u = Range(m.range(at: 2), in: line).flatMap({ Double(line[$0].replacingOccurrences(of: ",", with: ".")) }),
+          q > 0, u > 0 else { return nil }
+    return (q * u * 100).rounded() / 100
+  }
+
+  /// Items whose price is a unit price (the on-device model often takes it) are corrected against the
+  /// line each came from: the line that starts with the item's name and prints a quantity × price.
+  static func reconcile(_ items: [Item], lines: [String]) -> [Item] {
+    items.map { item in
+      let name = fold(item.name).trimmingCharacters(in: .whitespaces)
+      let first = name.split(separator: " ").first.map(String.init) ?? ""
+      // The line that starts with the item's name; failing that, one starting with its first word that
+      // prints this price as its unit price (the model's spelling and OCR's often differ: "żółty"/"Żökty").
+      let line = lines.first(where: { name.count >= 3 && fold(fixCase($0)).hasPrefix(name) })
+        ?? lines.first(where: { first.count >= 3 && fold(fixCase($0)).hasPrefix(first) && numbers($0).contains(where: { abs($0 - item.price) < 0.005 }) })
+      guard let line, let total = lineTotal(line) ?? trailingPrice(line), abs(total - item.price) > 0.004 else { return item }
+      return Item(name: item.name, price: total)
+    }
+  }
+
   static func date(in lines: [String]) -> String? {
     let dmy = try! NSRegularExpression(pattern: #"(?<!\d)(\d{2})[./-](\d{2})[./-](20\d{2})(?!\d)"#)
     let ymd = try! NSRegularExpression(pattern: #"(?<!\d)(20\d{2})-(\d{2})-(\d{2})(?!\d)"#)

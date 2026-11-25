@@ -6,13 +6,15 @@ import { SymbolView } from "expo-symbols";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { Card, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, ToggleRow } from "@/components/ui";
+import { Card, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, Tap, ToggleRow } from "@/components/ui";
+import { humanDayTime, todayLocal } from "@/lib/dates";
 import { InsightCard } from "@/components/InsightCard";
 import { C, S, themed, themeTone } from "@/constants/theme";
 import { INSIGHT_GROUPS, INSIGHT_LOOK, addableKinds, comfortDefaults, kindsIn, kindHint, kindTitle, perPeriod, ruleTitle } from "@/lib/insights";
 import { catName, acctName } from "@/lib/names";
 import { t } from "@/i18n";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
+import { dismissTo } from "@/lib/nav";
 
 /**
  * Pick a kind — grouped by what it is about, so twelve cards are three short lists rather than one
@@ -21,12 +23,15 @@ import { useDirty, useDiscardGuard } from "@/lib/discard";
  * marked until it is given.
  */
 export default function InsightEdit() {
-  const { id, kind: presetKind } = useLocalSearchParams<{ id: string; kind?: string }>();
+  // `kind` and `params` start a new card part-way set up — a suggestion from the Insights tab that
+  // needs only the answer a person must give (a goal's target).
+  const { id, kind: presetKind, params: presetParams } = useLocalSearchParams<{ id: string; kind?: string; params?: string }>();
   const existing = id === "new" ? null : (getRow(db, "insights", id) as Insight | undefined) ?? null;
   // A card of a kind folded into another ("Safe to spend") is edited, and saved, as that other kind.
   const [kind, setKind] = useState<InsightKind | null>((existing ? retiredKind(existing.kind) ?? existing.kind : null) ?? (presetKind as InsightKind) ?? null);
-  const [p, setP] = useState<InsightParams>(() => (existing ? parseInsightParams(existing.params) : {}));
-  // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
+  const [p, setP] = useState<InsightParams>(() => (existing ? parseInsightParams(existing.params) : presetParams ? parseInsightParams(presetParams) : {}));
+  // Closing with changes asks first (lib/discard.ts); saving and converting leave through `leave`. Deleting
+  // goes to the Insights tab instead: the screen underneath may be the deleted card's own page.
   const exit = useDiscardGuard(useDirty([kind, p]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const names = useQuery((d) => ({ accounts: new Map(listRows(d, "accounts", "1=1").map((a) => [a.id, a])), categories: new Map(listRows(d, "categories", "1=1").map((c) => [c.id, catName(c)])), tags: new Map(listRows(d, "tags", "1=1").map((x) => [x.id, x.name])) }));
@@ -37,7 +42,7 @@ export default function InsightEdit() {
   const kinds = addableKinds(others);
   const excluded = new Set(p.exclude_rule_ids ?? []);
   const toggleRule = (id: string) => setP((s) => { const ex = new Set(s.exclude_rule_ids ?? []); if (ex.has(id)) ex.delete(id); else ex.add(id); return { ...s, exclude_rule_ids: [...ex] }; });
-  const keys = useMemo(() => ({ title: newPickKey("ititle"), acc: newPickKey("iacc"), accs: newPickKey("iaccs"), target: newPickKey("itarget"), monthly: newPickKey("imonthly"), months: newPickKey("imonths"), cats: newPickKey("icats"), ctags: newPickKey("ictags") }), []);
+  const keys = useMemo(() => ({ title: newPickKey("ititle"), acc: newPickKey("iacc"), accs: newPickKey("iaccs"), target: newPickKey("itarget"), monthly: newPickKey("imonthly"), months: newPickKey("imonths"), deadline: newPickKey("ideadline"), cats: newPickKey("icats"), ctags: newPickKey("ictags") }), []);
   /**
    * The settings a kind starts with. A new safety buffer comes filled in — the comfort level from
    * what is marked most important (or the essentials among the ready-made categories), no goal, and
@@ -53,12 +58,17 @@ export default function InsightEdit() {
     const cid = tagsFor.current; if (!cid) return;
     setP((s) => { const ct = { ...(s.category_tags ?? {}) }; if (v.length) ct[cid] = v; else delete ct[cid]; return { ...s, category_tags: Object.keys(ct).length ? ct : undefined }; });
   }, []));
-  usePickResult<string>(keys.title, useCallback((v: string) => setP((s) => ({ ...s, title: v || undefined })), []));
+  // The name field opens holding the name the card goes by now, so it is edited rather than retyped.
+  // Handed back unchanged (or emptied), the card keeps no name of its own and goes on following its
+  // kind's, in whatever language the app is in.
+  const defaultName = kind ? kindTitle(kind) : "";
+  usePickResult<string>(keys.title, useCallback((v: string) => setP((s) => ({ ...s, title: v.trim() && v.trim() !== defaultName ? v.trim() : undefined })), [defaultName]));
   usePickResult<string>(keys.acc, useCallback((v: string) => setP((s) => ({ ...s, account_id: v })), []));
   // The safety buffer counts several accounts; a card saved with one moves over to the list.
   usePickResult<string[]>(keys.accs, useCallback((v: string[]) => setP((s) => { const { account_id: _, ...rest } = s; return { ...rest, account_ids: v }; }), []));
   usePickResult<number>(keys.target, useCallback((v: number) => setP((s) => ({ ...s, target_minor: v })), []));
   usePickResult<number>(keys.monthly, useCallback((v: number) => setP((s) => ({ ...s, monthly_minor: v })), []));
+  usePickResult<string>(keys.deadline, useCallback((v: string) => setP((s) => ({ ...s, deadline: v })), []));
   usePickResult<string>(keys.months, useCallback((v: string) => setP((s) => ({ ...s, months: Number(v) })), []));
   // Tags chosen for a category that is no longer on the list go with it.
   usePickResult<string[]>(keys.cats, useCallback((v: string[]) => setP((s) => {
@@ -66,7 +76,7 @@ export default function InsightEdit() {
     const ct = Object.fromEntries(Object.entries(s.category_tags ?? {}).filter(([k]) => ids.includes(k)));
     return { ...s, category_ids: ids, category_tags: Object.keys(ct).length ? ct : undefined };
   }), []));
-  const kindName = kind ? kindTitle(kind) : "";
+  const kindName = defaultName;
   const account = p.account_id ? names.accounts.get(p.account_id) : undefined;
   const currency = account?.currency ?? "EUR";
   const needsAccount = kind === "savings_goal" || kind === "account_balance";
@@ -85,7 +95,7 @@ export default function InsightEdit() {
     mutate((d) => existing ? save(d, "insights", { ...existing, kind: k, params: JSON.stringify(params) }) : createInsight(d, { kind: k, params: JSON.stringify(params), sort: nextSort(d) }));
     leave();
   };
-  const del = () => existing && Alert.alert(t("insights.edit.removeTitle"), undefined, [{ text: t("common.cancel"), style: "cancel" }, { text: t("insights.edit.remove"), style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); leave(); } }]);
+  const del = () => existing && Alert.alert(t("insights.edit.removeTitle"), undefined, [{ text: t("common.cancel"), style: "cancel" }, { text: t("insights.edit.remove"), style: "destructive", onPress: () => { mutate((d) => remove(d, "insights", existing.id)); exit(() => dismissTo({ pathname: "/insights" })); } }]);
   const money = (minor?: number) => (minor != null ? `${formatMinor(minor, currency)} ${currency}` : t("insights.edit.notSet"));
   const catList = (p.category_ids ?? []).map((cid) => names.categories.get(cid) ?? "?").join(", ");
 
@@ -119,7 +129,7 @@ export default function InsightEdit() {
               </View>
             </View>
             <Card>
-              <Row icon="textformat" iconColor="#8E8E93" title={t("insights.edit.title")} subtitle={p.title || t("insights.edit.defaultTitle", { title: kindName })} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.title, title: t("insights.edit.title"), value: p.title ?? "" } })} />
+              <Row icon="textformat" iconColor="#8E8E93" title={t("insights.edit.title")} subtitle={p.title || t("insights.edit.defaultTitle", { title: kindName })} onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.title, title: t("insights.edit.title"), value: p.title || kindName } })} />
               {needsAccount ? <Row icon="creditcard" title={t("insights.edit.account")} subtitle={acctName(account) ?? t("insights.edit.required")} subtitleColor={required(!account)} onPress={() => router.push({ pathname: "/pick/account", params: { key: keys.acc, selected: p.account_id ?? "" } })} style={styles.divider} /> : null}
               {kind === "safety_buffer" ? (
                 <>
@@ -130,6 +140,10 @@ export default function InsightEdit() {
                 </>
               ) : null}
               {needsTarget ? <Row icon="flag" iconColor="#34C759" title={t("insights.edit.target")} subtitle={money(p.target_minor)} onPress={() => router.push({ pathname: "/pick/amount", params: { key: keys.target, title: t("insights.edit.target"), currency, value: String(p.target_minor ?? "") } })} style={styles.divider} /> : null}
+              {/* Optional: with a date Siriusia says whether the pace makes it in time, and what would. */}
+              {needsTarget ? <Row icon="calendar" iconColor="#FF9F0A" title={t("future.goal.deadline")} subtitle={p.deadline ? humanDayTime(p.deadline, null, todayLocal(), true) : t("future.goal.noDeadline")}
+                onPress={() => router.push({ pathname: "/pick/date", params: { key: keys.deadline, selected: p.deadline ?? `${Number(todayLocal().slice(0, 4)) + 1}${todayLocal().slice(4)}` } })} style={styles.divider}
+                right={p.deadline ? <Tap onPress={() => setP((s) => { const { deadline: _, ...rest } = s; return rest; })} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("future.goal.clearDeadline")}><SymbolView name="xmark.circle.fill" size={20} tintColor={C.tertiary} /></Tap> : undefined} /> : null}
               {kind === "checklist" || kind === "regular" ? <Row icon="folder" iconColor="#FF9F0A" title={t("insights.edit.categories")} subtitle={catList || (kind === "checklist" && p.include_recurring ? t("insights.edit.none") : t("insights.edit.required"))} subtitleColor={required(!hasCategories)} onPress={() => router.push({ pathname: "/pick/categories", params: { key: keys.cats, selected: (p.category_ids ?? []).join(","), title: t("insights.edit.categories") } })} style={styles.divider} /> : null}
             </Card>
             {/* Each category is waited for once, or once per tag: one Insurance category paid for
@@ -237,5 +251,5 @@ const styles = themed(() => StyleSheet.create({
   kindHead: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.md },
   kindIcon: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   kindTitle: { color: C.label, fontSize: 20, fontWeight: "700" },
-  kindHint: { color: C.secondary, fontSize: 14, marginTop: 2 },
+  kindHint: { color: C.secondary, fontSize: 15, marginTop: 2 },
 }));

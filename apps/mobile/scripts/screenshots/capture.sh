@@ -5,6 +5,7 @@
 #   scripts/screenshots/capture.sh                 # iPhone + iPad (light + dark) and watch
 #   scripts/screenshots/capture.sh --phone --theme light
 #   scripts/screenshots/capture.sh --ipad
+#   scripts/screenshots/capture.sh --duo           # the foldable iPhone Duo; only when asked for
 #   scripts/screenshots/capture.sh --phone --watch # several flags pick several devices
 #   scripts/screenshots/capture.sh --no-ipad       # everything except the iPad
 #   scripts/screenshots/capture.sh --only log,budgets --theme dark
@@ -36,7 +37,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # old two-device run and `--ipad` on its own re-shoots the iPad set.
 # SETTLE: seconds from launch to shot. On the iOS 27 simulators a launch onto a link is drawn about
 # 4 s in (3 was enough on iOS 26), later while the other simulators are busy, so 6.
-DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-6}"
+DO_PHONE=1; DO_WATCH=1; DO_IPAD=1; DO_DUO=0; PICKED=0; THEMES=(light dark); ONLY=""; SETTLE="${SHOTS_SETTLE:-6}"
 LANG_SPEC="all"; SEED=auto; PALETTE=""
 pick() { [[ $PICKED == 1 ]] || { DO_PHONE=0; DO_WATCH=0; DO_IPAD=0; PICKED=1; }; }
 while [[ $# -gt 0 ]]; do
@@ -44,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     --phone) pick; DO_PHONE=1 ;;
     --watch) pick; DO_WATCH=1 ;;
     --ipad)  pick; DO_IPAD=1 ;;
+    --duo)   pick; DO_DUO=1 ;;
     --no-ipad) DO_IPAD=0 ;;
     --theme) shift; [[ "$1" == both ]] && THEMES=(light dark) || THEMES=("$1") ;;
     --only) shift; ONLY=",$1," ;;
@@ -89,7 +91,7 @@ load_lang() { # <code>
 }
 
 # ------------------------------------------------------------------ iPhone + iPad
-PHONE="$(ensure_sim "$PHONE_NAME" "$PHONE_TYPE" iOS)"
+PHONE=""; [[ $DO_PHONE == 1 || $DO_WATCH == 1 ]] && PHONE="$(ensure_sim "$PHONE_NAME" "$PHONE_TYPE" iOS)"
 
 # Every shot is reachable by deep link alone, so nothing taps the phone and agent-device is not
 # used here. If you ever do need a gesture (say a dataset where the trip card pushes every budget
@@ -123,12 +125,14 @@ cold() {
 shoot() { # <id>
   local out="$RAW_DIR/$KIND/${PALETTE:+$PALETTE-}$THEME/$1.png" size
   mkdir -p "$(dirname "$out")"
-  xcrun simctl io "$SIM" screenshot "$out" >/dev/null 2>&1
+  local display=(); [[ "$KIND" == duo ]] && display=(--display="$DUO_DISPLAY")
+  xcrun simctl io "$SIM" screenshot ${display[@]+"${display[@]}"} "$out" >/dev/null 2>&1
+  [[ -f "$out" ]] || { warn "    no screenshot from \"$SIM_NAME\""; return 1; }
   size="$(png_size "$out")"
   log "  $LANG_CODE/$KIND/$THEME/$1  $size"
   # frame.mjs lays its slides out against the native size; a rotated or differently sized
   # simulator would be resampled into the bezel instead of landing in it 1:1.
-  [[ "$size" == "$EXPECT" ]] || warn "    expected $EXPECT — is \"$SIM_NAME\" the right device, in portrait?"
+  [[ -z "$EXPECT" || "$size" == "$EXPECT" ]] || warn "    expected $EXPECT — is \"$SIM_NAME\" the right device, in portrait?"
 }
 
 # One entry per shot id in shots.json (plus a few spares). Add a screen here and in shots.json.
@@ -199,6 +203,11 @@ capture_phone_ipad() {
     IPAD="$(ensure_sim "$IPAD_NAME" "$IPAD_TYPE" iOS)"
     capture_ios "$IPAD" "$IPAD_NAME" ipad "$IPAD_SIZE" wifi "${IPAD_SHOTS[@]}"
   fi
+  # The Duo is an iPhone, but its set is the iPad's: the watch slide is the phone's.
+  if [[ $DO_DUO == 1 ]]; then
+    DUO="$(ensure_sim "$DUO_NAME" "$DUO_TYPE" iOS)"
+    capture_ios "$DUO" "$DUO_NAME" duo "$DUO_SIZE" cellular "${IPAD_SHOTS[@]}"
+  fi
 }
 
 # ---------------------------------------------------------------- watch
@@ -260,6 +269,7 @@ for code in "${LANGS[@]}"; do
     targets=()
     [[ $DO_PHONE == 1 || $DO_WATCH == 1 ]] && targets+=("$PHONE")
     [[ $DO_IPAD == 1 ]] && targets+=("$(ensure_sim "$IPAD_NAME" "$IPAD_TYPE" iOS)")
+    [[ $DO_DUO == 1 ]] && targets+=("$(ensure_sim "$DUO_NAME" "$DUO_TYPE" iOS)")
     for t in "${targets[@]}"; do boot_sim "$t"; done
     seed_demo "$code" "${targets[@]}"
     load_lang "$code"   # the seed rewrote the demo file; read the ids again

@@ -10,12 +10,16 @@
 #   bun run screenshots:upload -- --lang uk           # one language (en or en-US, uk); the others stay as they are
 #   bun run screenshots:upload -- --no-creative       # leave the header and search results art alone
 #   bun run screenshots:upload -- --creative-only     # only that art: no screenshots, no text
+#   bun run screenshots:upload -- --no-duo            # leave the iPhone Duo screenshots alone
+#   bun run screenshots:upload -- --duo-only          # only the iPhone Duo screenshots
 #
 # The web uploader places files in whatever order they finish uploading; deliver uploads them one
 # by one, sorted by file name, so the numbers in the names become the order on the store.
 # Then the header and search results art in Finals/<lang>/creative, which deliver has no place for:
 # upload-creative.mjs puts it in the app's asset library and places it on the version (--no-creative
-# skips it). Nothing else is touched: no binary, no URLs or age rating, no submission for review.
+# skips it), and the iPhone Duo set in Finals/<lang>/duo, whose size deliver does not know yet:
+# upload-duo.mjs, after deliver, which clears every slot of a language it uploads (--no-duo skips it).
+# Nothing else is touched: no binary, no URLs or age rating, no submission for review.
 #
 # Login: an App Store Connect API key when apps/mobile/.env has ASC_KEY_PATH / ASC_KEY_ID /
 # ASC_ISSUER_ID (see .env.example), otherwise fastlane asks for your Apple ID and the 2FA code.
@@ -27,12 +31,14 @@ cd "$MOBILE_DIR"
 
 # No version given: deliver edits whichever version App Store Connect has open for editing (the
 # newest one not yet live or in review) and never creates one. A version given is used as named.
-VERSION=""; TEXT=true; ONLY_LANG=""; CREATIVE=true; CREATIVE_ONLY=false
+VERSION=""; TEXT=true; ONLY_LANG=""; CREATIVE=true; CREATIVE_ONLY=false; DUO=true; DUO_ONLY=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --screenshots-only) TEXT=false ;;
     --no-creative) CREATIVE=false ;;
     --creative-only) CREATIVE_ONLY=true ;;
+    --no-duo) DUO=false ;;
+    --duo-only) DUO_ONLY=true ;;
     --lang) shift; ONLY_LANG="${1:?--lang needs a language}" ;;
     --lang=*) ONLY_LANG="${1#--lang=}" ;;
     *) VERSION="$1" ;;
@@ -46,6 +52,9 @@ if [[ -n "$ONLY_LANG" && ! -d "screenshots/Finals/$ONLY_LANG" ]]; then
 fi
 # deliver replaces only the languages it is handed, so leaving one out leaves it alone on the store.
 want_lang() { [[ -z "$ONLY_LANG" || "$1" == "$ONLY_LANG" ]]; }
+if $DUO_ONLY; then
+  exec node "$MOBILE_DIR/scripts/screenshots/upload-duo.mjs" ${VERSION:+"$VERSION"} ${ONLY_LANG:+--lang "$ONLY_LANG"}
+fi
 if $CREATIVE_ONLY; then
   exec node "$MOBILE_DIR/scripts/screenshots/upload-creative.mjs" ${VERSION:+"$VERSION"} ${ONLY_LANG:+--lang "$ONLY_LANG"}
 fi
@@ -120,7 +129,12 @@ FASTLANE_SKIP_UPDATE_CHECK=1 fastlane deliver \
   --force true \
   "${AUTH[@]+"${AUTH[@]}"}"
 
+if $CREATIVE || $DUO; then
+  [[ -n "${ASC_KEY_PATH:-}" ]] || { echo "Header and search results art and the iPhone Duo set skipped: they need the API key (ASC_KEY_PATH in .env)" >&2; exit 0; }
+fi
 if $CREATIVE; then
-  [[ -n "${ASC_KEY_PATH:-}" ]] || { echo "Header and search results art skipped: it needs the API key (ASC_KEY_PATH in .env)" >&2; exit 0; }
   node "$MOBILE_DIR/scripts/screenshots/upload-creative.mjs" ${VERSION:+"$VERSION"} ${ONLY_LANG:+--lang "$ONLY_LANG"}
+fi
+if $DUO; then
+  node "$MOBILE_DIR/scripts/screenshots/upload-duo.mjs" ${VERSION:+"$VERSION"} ${ONLY_LANG:+--lang "$ONLY_LANG"}
 fi

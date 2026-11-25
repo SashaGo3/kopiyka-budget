@@ -109,6 +109,7 @@ enum KPPreset {
   private static let former: [String: [String]] = [
     "home.utilities": ["Комунальні"],
     "bills": ["Платежі"],
+    "bills.taxes": ["Taxes & fees", "Податки й комісії"],
   ]
 
   /// The name to show: the preset's, in the app's language, while unrenamed; otherwise as stored.

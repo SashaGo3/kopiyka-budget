@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createTransaction, getRow, remove, suggestCategoryNear } from "../src/repo";
-import { fillPending, isFiledBefore, isTrustedFiling, noPayeeHistory, payeeHistory, payeeOptions, samePaymentSince } from "../src/payee";
+import { fillPending, isFiledBefore, isTrustedFiling, noPayeeHistory, payeeHistory, payeeOptions, pickByAmount, samePaymentSince } from "../src/payee";
 
 function seed() {
   const db = openBunDb(); migrate(db);
@@ -74,13 +74,13 @@ describe("payeeHistory", () => {
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Costa", category_id: food.id, place: "Costa, Gdansk", lat: 51.11, lon: 17.03 });
     // Newer, filed, but with no location: the category comes from here, the place from the row above.
     createTransaction(db, { account_id: acc.id, date: "2026-09-06T10:00:00+02:00", amount_minor: -1400, payee: "Costa", category_id: food.id, tag_ids: JSON.stringify(["coffee"]) });
-    expect(payeeHistory(db, "Costa")).toEqual({ category_id: food.id, tag_ids: ["coffee"], place: "Costa, Gdansk", lat: 51.11, lon: 17.03, match: "exact" });
+    expect(payeeHistory(db, "Costa")).toEqual({ category_id: food.id, tag_ids: ["coffee"], place: "Costa, Gdansk", lat: 51.11, lon: 17.03, match: "exact", by_amount: null });
   });
 
   test("a note matches a row that was filed under the same note", () => {
     const { db, acc, food } = seed();
     createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -900, notes: "Gym membership", category_id: food.id, tag_ids: JSON.stringify(["health"]), place: "Zdrofit" });
-    expect(payeeHistory(db, null, "gym membership")).toEqual({ category_id: food.id, tag_ids: ["health"], place: "Zdrofit", lat: null, lon: null, match: "exact" });
+    expect(payeeHistory(db, null, "gym membership")).toEqual({ category_id: food.id, tag_ids: ["health"], place: "Zdrofit", lat: null, lon: null, match: "exact", by_amount: null });
     expect(payeeHistory(db, null, "Gym")).toEqual(nothing);
   });
 
@@ -297,10 +297,100 @@ describe("payeeOptions", () => {
     expect(payeeOptions(db, "ORLEN 9")).toEqual([{ category_id: fuel.id, tag_ids: [], count: 1 }]);
   });
 
+  test("a pending row asking which it was is not one of its own answers", () => {
+    const { db, acc, food } = seed();
+    const fuel = createCategory(db, { name: "Fuel" });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -20000, payee: "ORLEN 4021", category_id: fuel.id });
+    createTransaction(db, { account_id: acc.id, date: "2026-09-02T10:00:00+02:00", amount_minor: -1200, payee: "ORLEN 4021", category_id: food.id });
+    // The automation pre-filled the newest way and left the row pending.
+    const asking = createTransaction(db, { account_id: acc.id, date: "2026-09-03T10:00:00+02:00", amount_minor: -1500, payee: "ORLEN 4021", category_id: food.id, pending: 1 });
+    expect(payeeOptions(db, "ORLEN 4021")[0]).toEqual({ category_id: food.id, tag_ids: [], count: 2 });
+    expect(payeeOptions(db, "ORLEN 4021", null, 6, asking.id)).toEqual([
+      { category_id: food.id, tag_ids: [], count: 1 },
+      { category_id: fuel.id, tag_ids: [], count: 1 },
+    ]);
+  });
+
   test("deleted and transfer rows are not options", () => {
     const { db, acc, food } = seed();
     const t = createTransaction(db, { account_id: acc.id, date: "2026-09-01T10:00:00+02:00", amount_minor: -1000, payee: "Gone", category_id: food.id });
     remove(db, "transactions", t.id);
     expect(payeeOptions(db, "Gone")).toEqual([]);
+  });
+});
+
+describe("one name, told apart by the amount", () => {
+  /** One landlord: the rent is 4 323.99 every month, the service charges 500–670. */
+  function landlord() {
+    const { db, acc } = seed();
+    const rent = createCategory(db, { name: "Rent" });
+    const fees = createCategory(db, { name: "Payments" });
+    const usd = createAccount(db, { name: "Dollars", currency: "USD" });
+    const tx = (date: string, amount_minor: number, category_id: string, account_id = acc.id) =>
+      createTransaction(db, { account_id, date, amount_minor, payee: "SPOLDZIELNIA MIESZKANIOWA", category_id });
+    tx("2026-07-01T10:00:00+02:00", -432399, rent.id);
+    tx("2026-07-12T10:00:00+02:00", -51000, fees.id);
+    tx("2026-08-01T10:00:00+02:00", -432399, rent.id);
+    tx("2026-08-11T10:00:00+02:00", -67000, fees.id);
+    tx("2026-09-10T10:00:00+02:00", -58050, fees.id);
+    return { db, acc, usd, rent, fees, tx };
+  }
+  const NAME = "SPOLDZIELNIA MIESZKANIOWA";
+
+  test("without an amount the newest way answers, as before", () => {
+    const { db, fees } = landlord();
+    expect(payeeHistory(db, NAME)).toMatchObject({ category_id: fees.id, by_amount: null });
+  });
+
+  test("the rent's exact amount is the rent, and settles it", () => {
+    const { db, acc, rent } = landlord();
+    expect(payeeHistory(db, NAME, null, { amount_minor: -432399, account_id: acc.id })).toMatchObject({ category_id: rent.id, match: "exact", by_amount: "sure" });
+  });
+
+  test("an amount inside the service charges' range is a service charge, and settles it", () => {
+    const { db, acc, fees, rent } = landlord();
+    // Make the rent the newest row, so the amount is what decides and not the order.
+    createTransaction(db, { account_id: acc.id, date: "2026-10-01T10:00:00+02:00", amount_minor: -432399, payee: NAME, category_id: rent.id });
+    expect(payeeHistory(db, NAME, null, { amount_minor: -61234, account_id: acc.id })).toMatchObject({ category_id: fees.id, by_amount: "sure" });
+  });
+
+  test("a rent that went up a little points to the rent, but is only a lead", () => {
+    const { db, acc, rent } = landlord();
+    expect(payeeHistory(db, NAME, null, { amount_minor: -445000, account_id: acc.id })).toMatchObject({ category_id: rent.id, by_amount: "near" });
+  });
+
+  test("an amount nowhere near either says nothing", () => {
+    const { db, acc, fees } = landlord();
+    expect(payeeHistory(db, NAME, null, { amount_minor: -200000, account_id: acc.id })).toMatchObject({ category_id: fees.id, by_amount: null });
+  });
+
+  test("amounts in another currency are not compared", () => {
+    const { db, usd, fees } = landlord();
+    expect(payeeHistory(db, NAME, null, { amount_minor: -432399, account_id: usd.id })).toMatchObject({ category_id: fees.id, by_amount: null });
+  });
+
+  test("the way the amount points to is offered first", () => {
+    const { db, acc, rent, fees } = landlord();
+    expect(payeeOptions(db, NAME).map((o) => o.category_id)).toEqual([fees.id, rent.id]);
+    expect(payeeOptions(db, NAME, null, 6, null, { amount_minor: -432399, account_id: acc.id }).map((o) => o.category_id)).toEqual([rent.id, fees.id]);
+  });
+
+  test("pickByAmount", () => {
+    const row = (key: string, amount_minor: number, same_currency = true) => ({ key, amount_minor, same_currency });
+    const rows = [row("rent", -432399), row("rent", -432399), row("fees", -50000), row("fees", -67000)];
+    expect(pickByAmount(rows, -432399)).toEqual({ key: "rent", sure: true });
+    expect(pickByAmount(rows, -60000)).toEqual({ key: "fees", sure: true });
+    expect(pickByAmount(rows, -46000)).toEqual({ key: "fees", sure: false });
+    expect(pickByAmount(rows, -200000)).toBeNull();
+    // Money coming in is not compared with money going out.
+    expect(pickByAmount(rows, 432399)).toBeNull();
+    // One way of filing is nothing to choose between.
+    expect(pickByAmount([row("rent", -432399)], -432399)).toBeNull();
+    // A single past payment is a point, not a range: near it is a lead, never sure.
+    expect(pickByAmount([row("rent", -432399), row("fees", -60000)], -61000)).toEqual({ key: "fees", sure: false });
+    // Overlapping ranges say nothing.
+    expect(pickByAmount([row("a", -1000), row("a", -3000), row("b", -2000), row("b", -4000)], -2500)).toBeNull();
+    // The same amount filed both ways says nothing.
+    expect(pickByAmount([row("a", -1000), row("b", -1000)], -1000)).toBeNull();
   });
 });

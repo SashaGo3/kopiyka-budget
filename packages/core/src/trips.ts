@@ -94,6 +94,8 @@ export function withTripTag(db: SqlDriver, tagIds: string[], today?: string): st
 
 export interface StartTrip {
   name: string;
+  /** Who it is with (person ids, `budgets.people`): the friends a split offers while it runs. */
+  people?: string[];
   /** Defaults to "trip". */
   kind?: TripKind;
   currency: string;
@@ -118,7 +120,7 @@ export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: T
   return db.transaction(() => {
     const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: tagColorFor(p.kind) });
     const starts = p.starts ?? todayLocalDay(p.today);
-    const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts, ends: p.ends < starts ? starts : p.ends, account_id: null, category_id: null });
+    const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts, ends: p.ends < starts ? starts : p.ends, account_id: null, category_id: null, people: p.people?.length ? JSON.stringify(p.people) : null });
     return { budget, tag };
   });
 }
@@ -127,7 +129,7 @@ export function startTrip(db: SqlDriver, p: StartTrip): { budget: Budget; tag: T
 function tagColorFor(kind: TripKind | undefined): string { return kind === "event" ? "#FF2D55" : "#0A84FF"; }
 
 /** `amount_minor` 0 = no limit (`tripLimited`). */
-export interface PastTrip { name: string; kind?: TripKind; currency: string; amount_minor: number; starts: string; ends: string }
+export interface PastTrip { name: string; kind?: TripKind; currency: string; amount_minor: number; starts: string; ends: string; people?: string[] }
 
 /**
  * Record a trip that has already happened: the same tag and one-off budget `startTrip` makes, born
@@ -140,7 +142,7 @@ export function addPastTrip(db: SqlDriver, p: PastTrip): { budget: Budget; tag: 
   const ends = p.ends < p.starts ? p.starts : p.ends;
   return db.transaction(() => {
     const tag = listRows(db, "tags", "deleted=0 AND lower(name)=lower(?)", [name])[0] ?? createTag(db, { name, color: tagColorFor(p.kind) });
-    const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts: p.starts, ends, ended: ends, account_id: null, category_id: null });
+    const budget = createBudget(db, { tag_id: tag.id, period: "once", kind: p.kind ?? "trip", currency: p.currency, amount_minor: p.amount_minor, starts: p.starts, ends, ended: ends, account_id: null, category_id: null, people: p.people?.length ? JSON.stringify(p.people) : null });
     return { budget, tag };
   });
 }
@@ -155,6 +157,35 @@ export function endFinishedTrips(db: SqlDriver, today = todayLocalDay()): number
   const over = listRows(db, "budgets", `${TRIP_WHERE} AND ended IS NULL AND ends IS NOT NULL AND ends < ?`, [today]);
   for (const b of over) save(db, "budgets", { ...b, ended: b.ends! < b.starts ? b.starts : b.ends });
   return over.length;
+}
+
+/**
+ * Rename a trip or an event. Its name is its tag's, so the tag is renamed and keeps its id: every
+ * transaction carrying it follows (DATA.md rule 1). A name another live tag already has is refused,
+ * since two tags reading the same could not be told apart. A trip whose tag has gone gets a new one
+ * under that name. Returns the tag.
+ */
+export function renameTrip(db: SqlDriver, budgetId: string, newName: string): Tag {
+  const name = newName.trim();
+  if (!name) throw new KopiykaError("trip_name_required", "Name required");
+  const b = getRow(db, "budgets", budgetId);
+  if (!b || b.deleted) throw new KopiykaError("trip_not_found", "Travel not found");
+  return db.transaction(() => {
+    const tag = b.tag_id ? getRow(db, "tags", b.tag_id) : null;
+    const live = tag && !tag.deleted ? tag : null;
+    if (live && live.name === name) return live;
+    if (listRows(db, "tags", "deleted=0 AND lower(name)=lower(?) AND id<>?", [name, live?.id ?? ""]).length) throw new KopiykaError("trip_name_taken", "A tag with that name exists");
+    if (live) return save(db, "tags", { ...live, name });
+    const made = createTag(db, { name, color: tagColorFor(tripKind(b)) });
+    save(db, "budgets", { ...b, tag_id: made.id });
+    return made;
+  });
+}
+
+/** A name with a day added after it, once: a name that already says it is left as it is ("Birthday" + "22 Nov 2026"). */
+export function nameWithDay(name: string, day: string): string {
+  const base = name.trim();
+  return base.includes(day) ? base : base ? `${base} ${day}` : day;
 }
 
 /** Turn travel mode off: the trip keeps its tag and budget as history. */
@@ -254,7 +285,7 @@ export function tripStats(db: SqlDriver, b: Budget, o: { today?: string; rateFor
     if (ids.length) {
       const rows = db.all<{ category_id: string | null; currency: string; amount_minor: number; date: string }>(
         `SELECT t.category_id, a.currency, t.amount_minor, t.date FROM transactions t JOIN accounts a ON a.id=t.account_id
-         WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.recurring_id IS NULL AND t.amount_minor<0 AND t.tag_ids LIKE ? AND t.id IN (${ids.map(() => "?").join(",")})`,
+         WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.recurring_id IS NULL AND t.amount_minor<0 AND t.tag_ids LIKE ? AND t.id IN (${ids.map(() => "?").join(",")})`,
         [`%"${b.tag_id}"%`, ...ids]);
       for (const r of rows) {
         const rate = rateFor(r.currency, b.currency);

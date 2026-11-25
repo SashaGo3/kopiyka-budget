@@ -5,7 +5,7 @@ import { CATEGORY_PRESET, presetCounts, presetKey, presetName, seedCategories } 
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { FadeIn } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { setOnboarded } from "@/lib/onboarding";
 import { getLanguage, t } from "@/i18n";
 
@@ -48,9 +48,9 @@ export default function OnboardingCategories() {
 
 const styles = themed(() => StyleSheet.create({
   list: { gap: S.sm, paddingTop: S.sm },
-  folder: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: 14, padding: S.md },
+  folder: { flexDirection: "row", gap: S.md, alignItems: "center", backgroundColor: C.card, borderRadius: R.card, padding: S.md },
   icon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  name: { fontSize: 16, fontWeight: "700", color: C.label },
+  name: { fontSize: 17, fontWeight: "700", color: C.label },
   kind: { fontSize: 12, fontWeight: "600", color: C.secondary },
   cats: { fontSize: 13, color: C.secondary, marginTop: 2, lineHeight: 18 },
 }));

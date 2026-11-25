@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import {
@@ -8,7 +8,7 @@ import {
 } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
-import { BigButton, Card, Empty, ModalHeader, CategoryIcon } from "@/components/ui";
+import { BigButton, Card, Empty, ModalHeader, CategoryIcon, Tap, ButtonText } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
@@ -25,6 +25,12 @@ import { t } from "@/i18n";
  * want to think about goes; arrived at by elimination it honestly means "the things in between".
  * It also makes marking something both High and Low unreachable rather than a contradiction the app
  * has to settle by some arbitrary rule.
+ *
+ * Categories added after a sitting arrive unmarked (a folder with no mark of its own cannot answer
+ * for them). Re-sorting forty categories to place two is the wrong price, so when some are marked
+ * and some are not the flow opens on **the unmarked ones only** — the same two questions, the rest
+ * kept exactly as they were (they are the seed, and only rows whose level changes are written).
+ * "Show all" switches to the whole list at any point, with every tick made so far kept.
  *
  * Nothing is written until the second question is answered, and the count on its button is what
  * `applyImportance` writes — `importanceMarks` computes both, so the button cannot promise one edit
@@ -51,9 +57,14 @@ export default function ImportanceFlow() {
   const seed = useMemo(() => {
     const level = categoryImportance(asked);
     const leaves = markableLeaves(asked);
+    const fresh = leaves.filter((c) => !level.get(c.id)).map((c) => c.id);
     return {
       high: new Set(leaves.filter((c) => level.get(c.id) === 3).map((c) => c.id)),
       low: new Set(leaves.filter((c) => level.get(c.id) === 1).map((c) => c.id)),
+      // The ones still unanswered as the flow opened — fixed for the sitting, so a category does not
+      // vanish from the list the moment it is ticked.
+      fresh: new Set(fresh),
+      partial: fresh.length > 0 && fresh.length < leaves.length,
     };
     // Seeded once: coming back after adding categories should start from the answers already given,
     // not from a blank sheet. Later renders must not overwrite what is being edited.
@@ -61,6 +72,7 @@ export default function ImportanceFlow() {
   }, []);
   const [high, setHigh] = useState<Set<string>>(seed.high);
   const [low, setLow] = useState<Set<string>>(seed.low);
+  const [onlyNew, setOnlyNew] = useState(seed.partial);
 
   /** Folders with what is inside them, then the categories that belong to no folder. */
   const groups = useMemo<Group[]>(() => {
@@ -85,7 +97,7 @@ export default function ImportanceFlow() {
   const folderRows = affected.filter((a) => groups.some((g) => g.folder?.id === a.row.id)).length;
 
   /** Step 1 (could stop) offers everything; step 2 (could not live without) only what step 1 did not claim. */
-  const offered = (kids: Category[]) => (step === 0 ? kids : kids.filter((c) => !low.has(c.id)));
+  const offered = (kids: Category[]) => kids.filter((c) => (!onlyNew || seed.fresh.has(c.id)) && (step === 0 || !low.has(c.id)));
   const chosen = step === 0 ? low : high;
   /**
    * Tick or untick `ids` on this step's answer. Ticked on the first question, a category is gone
@@ -120,20 +132,20 @@ export default function ImportanceFlow() {
         return (
           <Card key={folder?.id ?? "loose"} style={styles.group}>
             {folder ? (
-              <Pressable onPress={() => toggleFolder(rows)} style={[styles.row, styles.folderRow]} accessibilityRole="button"
+              <Tap onPress={() => toggleFolder(rows)} style={[styles.row, styles.folderRow]} accessibilityRole="button"
                 accessibilityLabel={t("category.importance.folderA11y", { name: catName(folder) })} accessibilityState={{ selected: full }}>
                 <CategoryIcon name={catName(folder)} icon={folder.icon} color={folder.color} size={28} />
-                <Text style={[styles.name, { fontWeight: "600" }]}>{catName(folder)} <Text style={styles.all}>{t("category.importance.all", { count: rows.length })}</Text></Text>
+                <ButtonText style={[styles.name, { fontWeight: "600" }]}>{catName(folder)} <Text style={styles.all}>{t("category.importance.all", { count: rows.length })}</Text></ButtonText>
                 <Check state={full ? "full" : half ? "half" : "off"} />
-              </Pressable>
+              </Tap>
             ) : <Text style={styles.looseHead}>{t("category.importance.noFolder")}</Text>}
             {rows.map((c) => (
-              <Pressable key={c.id} onPress={() => toggle(c.id)} style={[styles.row, folder ? styles.child : null]} accessibilityRole="button"
+              <Tap key={c.id} onPress={() => toggle(c.id)} style={[styles.row, folder ? styles.child : null]} accessibilityRole="button"
                 accessibilityLabel={catName(c)} accessibilityState={{ selected: chosen.has(c.id) }}>
                 <CategoryIcon name={catName(c)} icon={c.icon} color={c.color} size={26} />
                 <Text style={styles.name}>{catName(c)}</Text>
                 <Check state={chosen.has(c.id) ? "full" : "off"} />
-              </Pressable>
+              </Tap>
             ))}
           </Card>
         );
@@ -170,6 +182,14 @@ export default function ImportanceFlow() {
               <Text style={styles.step}>{t("category.importance.step", { step: step + 1, total: 2 })}</Text>
               <Text style={styles.question}>{steps()[step]!.title}</Text>
               <Text style={styles.hint}>{steps()[step]!.hint}</Text>
+              {seed.partial ? (
+                <View style={styles.scope}>
+                  <Text style={styles.scopeText}>{onlyNew ? t("category.importance.onlyNew", { count: seed.fresh.size }) : t("category.importance.allShown")}</Text>
+                  <Tap onPress={() => setOnlyNew((v) => !v)} hitSlop={8} accessibilityRole="button" accessibilityLabel={onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}>
+                    <ButtonText style={styles.scopeLink}>{onlyNew ? t("category.importance.showAll") : t("category.importance.showNew")}</ButtonText>
+                  </Tap>
+                </View>
+              ) : null}
             </View>
           }
           renderItem={() => <>{picking}{last ? summary : null}</>}
@@ -190,12 +210,15 @@ const styles = themed(() => StyleSheet.create({
   head: { paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.sm },
   step: { fontSize: 13, color: C.tertiary, fontWeight: "600" },
   question: { fontSize: 22, fontWeight: "700", color: C.label, paddingTop: 2 },
-  hint: { fontSize: 14, color: C.secondary, paddingTop: 6, lineHeight: 19 },
+  hint: { fontSize: 15, color: C.secondary, paddingTop: 6, lineHeight: 19 },
+  scope: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: S.md, marginTop: S.md, paddingVertical: S.sm, paddingHorizontal: S.md, borderRadius: R.card, backgroundColor: C.card },
+  scopeText: { flex: 1, fontSize: 15, color: C.label, lineHeight: 19 },
+  scopeLink: { fontSize: 15, color: C.tint, fontWeight: "600" },
   group: { marginHorizontal: S.lg, marginBottom: S.sm, borderRadius: R.card, paddingVertical: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.md, minHeight: 46 },
   folderRow: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.separator, paddingBottom: 6, marginBottom: 2 },
   child: { paddingLeft: S.md + 14 },
-  name: { flex: 1, fontSize: 16, color: C.label },
+  name: { flex: 1, fontSize: 17, color: C.label },
   all: { fontSize: 13, color: C.secondary, fontWeight: "400" },
   looseHead: { fontSize: 13, color: C.tertiary, fontWeight: "600", paddingHorizontal: S.md, paddingTop: 4, paddingBottom: 2 },
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingHorizontal: S.xl, paddingVertical: S.xxl },

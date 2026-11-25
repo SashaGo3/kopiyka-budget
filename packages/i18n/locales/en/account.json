@@ -1,4 +1,6 @@
 {
+  "moreA11y": { "message": "Archive or delete", "note": "VoiceOver label of the corner button that holds Archive and Delete when the account sheet is short of room." },
+  "typeTitle": { "message": "Account type", "note": "Title of the picker the account sheet's type chip opens." },
   "$comment": "The account sheet (app/account/edit.tsx) and an account's own screen (app/accounts/[id].tsx).",
   "newTitle": "New account",
   "editTitle": "Edit account",

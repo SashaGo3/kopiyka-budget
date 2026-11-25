@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { accountBalanceMinor, listRows } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { ButtonText, HeaderBar, Money, Row, accountIcon } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { ButtonText, Money, PickerHeader, PickerList, Row, accountIcon, Tap } from "@/components/ui";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
 
@@ -51,30 +51,28 @@ export default function PickTransferAccounts() {
     const role = s === "from" ? t("transfer.from") : t("transfer.to");
     const active = focus === s;
     return (
-      <Pressable onPress={() => setFocus(s)} style={[styles.slot, active && styles.slotActive]} accessibilityRole="button" accessibilityState={{ selected: active }}
+      <Tap onPress={() => setFocus(s)} style={[styles.slot, active && styles.slotActive]} accessibilityRole="button" accessibilityState={{ selected: active }}
         accessibilityLabel={t("transfer.pickA11y", { role, account: a ? acctName(a) : t("transfer.chooseAccount") })}>
         <Text style={styles.slotRole}>{role}</Text>
         <ButtonText fit={1} style={[styles.slotName, !a && { color: active ? C.tint : C.tertiary }]}>{a ? acctName(a) : t("transfer.chooseAccount")}</ButtonText>
         {a ? <Text style={styles.slotCur}>{a.currency}</Text> : null}
-      </Pressable>
+      </Tap>
     );
   };
 
   return (
-    <FlatList style={{ flex: 1, backgroundColor: C.bgGrouped }} data={accounts} keyExtractor={(a) => a.id} contentContainerStyle={{ paddingBottom: 60 }}
-      ListHeaderComponent={
-        <View style={styles.head}>
-          <HeaderBar title={t("transfer.pickTitle")}
-            right={<Pressable onPress={done} disabled={!ready} hitSlop={10} accessibilityRole="button" accessibilityLabel={t("common.done")} accessibilityState={{ disabled: !ready }} style={[styles.doneBtn, !ready && { opacity: 0.4 }]}><ButtonText style={styles.done} maxFontSizeMultiplier={1.3}>{t("common.done")}</ButtonText></Pressable>} />
+    <PickerList data={accounts} keyExtractor={(a) => a.id}
+      header={
+        <PickerHeader title={t("transfer.pickTitle")} done={{ onPress: done, disabled: !ready }}>
           <View style={styles.slots}>
             {slot("from")}
-            <Pressable onPress={swap} disabled={!pair.from && !pair.to} hitSlop={8} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
+            <Tap onPress={swap} disabled={!pair.from && !pair.to} hitSlop={8} style={styles.swap} accessibilityRole="button" accessibilityLabel={t("transfer.swapA11y")}>
               <SymbolView name="arrow.left.arrow.right" size={14} tintColor={C.tint} />
-            </Pressable>
+            </Tap>
             {slot("to")}
           </View>
           <Text style={styles.hint}>{focus === "from" ? t("transfer.chooseFrom") : t("transfer.chooseTo")}</Text>
-        </View>
+        </PickerHeader>
       }
       renderItem={({ item: a }) => {
         const side: Side | null = pair.from === a.id ? "from" : pair.to === a.id ? "to" : null;
@@ -89,15 +87,12 @@ export default function PickTransferAccounts() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  head: { paddingTop: S.md, paddingBottom: S.sm, gap: S.sm, backgroundColor: C.bgGrouped },
-  doneBtn: { backgroundColor: C.tint, paddingHorizontal: 14, minHeight: 34, paddingVertical: 4, borderRadius: 17, justifyContent: "center" },
-  done: { color: C.onTint, fontSize: 15, fontWeight: "700" },
-  slots: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg },
-  slot: { flex: 1, minWidth: 0, backgroundColor: C.card, borderRadius: 14, padding: S.md, borderWidth: 2, borderColor: "transparent", gap: 2 },
+  slots: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.lg, marginTop: S.sm },
+  slot: { flex: 1, minWidth: 0, backgroundColor: C.card, borderRadius: R.card, padding: S.md, borderWidth: 2, borderColor: "transparent", gap: 2 },
   slotActive: { borderColor: C.tint },
   slotRole: { color: C.secondary, fontSize: 13 },
   slotName: { color: C.label, fontSize: 17, fontWeight: "600" },
   slotCur: { color: C.tertiary, fontSize: 12 },
-  swap: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
-  hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl },
+  swap: { width: 32, height: 32, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
 }));

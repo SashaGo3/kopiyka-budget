@@ -23,6 +23,8 @@ export interface Messages {
   "account.excluded": undefined;
   /** Chip: the account counts towards net worth. */
   "account.inNetWorth": undefined;
+  /** VoiceOver label of the corner button that holds Archive and Delete when the account sheet is short of room. */
+  "account.moreA11y": undefined;
   /** Chip that opens the name field while the account has none. */
   "account.name": undefined;
   /** Title of the text field that names an account. */
@@ -55,6 +57,8 @@ export interface Messages {
   "account.type.investment": undefined;
   "account.type.other": undefined;
   "account.type.savings": undefined;
+  /** Title of the picker the account sheet's type chip opens. */
+  "account.typeTitle": undefined;
   /** Hint under a prefilled balance: a digit replaces it, backspace edits it. */
   "account.typeToReplace": undefined;
   "account.unarchive": undefined;
@@ -96,6 +100,13 @@ export interface Messages {
   "automation.settings.automate": undefined;
   "automation.settings.automateSubtitle": undefined;
   "automation.settings.denied": undefined;
+  "automation.settings.evening": undefined;
+  "automation.settings.eveningOff": undefined;
+  /** Subtitle of the evening reminder toggle; time is "22:00". */
+  "automation.settings.eveningOn": { time: string | number };
+  /** Footnote under the evening reminder. */
+  "automation.settings.eveningShort": undefined;
+  "automation.settings.eveningTime": undefined;
   "automation.settings.granted": undefined;
   "automation.settings.log": undefined;
   /** Unfolds under logHintShort. */
@@ -117,6 +128,7 @@ export interface Messages {
   "automation.settings.title": undefined;
   "automation.settings.whenLogs": undefined;
   "automation.settings.whenWrong": undefined;
+  "automation.settings.whilePending": undefined;
   "automation.shortcut.account": undefined;
   "automation.shortcut.accountSub": undefined;
   "automation.shortcut.expect": undefined;
@@ -278,6 +290,8 @@ export interface Messages {
   "budgets.plannedOf": { counted: string | number; total: string | number };
   /** amount is "300.00 EUR". */
   "budgets.reorder.amountOff": { amount: string | number };
+  "budgets.reorder.budgetsSection": undefined;
+  "budgets.reorder.budgetsTitle": undefined;
   "budgets.reorder.button": undefined;
   "budgets.reorder.emptyHint": undefined;
   "budgets.reorder.emptyTitle": undefined;
@@ -385,6 +399,7 @@ export interface Messages {
   "category.icon": undefined;
   /** After a folder name: ticking it ticks all of its count categories. */
   "category.importance.all": { count: string | number };
+  "category.importance.allShown": undefined;
   "category.importance.changes": { count: number };
   "category.importance.empty.hint": undefined;
   "category.importance.empty.title": undefined;
@@ -405,18 +420,53 @@ export interface Messages {
   "category.importance.noFolder": undefined;
   "category.importance.nothingLeft": undefined;
   "category.importance.nothingToChange": undefined;
+  /** Banner in the what-matters flow when some categories are marked and some were added since. */
+  "category.importance.onlyNew": { count: number };
+  "category.importance.showAll": undefined;
+  "category.importance.showNew": undefined;
   /** Progress over the question. */
   "category.importance.step": { step: string | number; total: string | number };
   "category.importance.title": undefined;
   "category.income": undefined;
   /** folder is the folder's name. */
   "category.inheritedColour": { folder: string | number };
+  "category.matters.between": undefined;
+  "category.matters.fromFolder": { folder: string | number };
+  /** Section in the category editor: how much this category matters. */
+  "category.matters.header": undefined;
+  "category.matters.tapAgain": undefined;
+  "category.matters.unmarked": undefined;
+  "category.names.a11y": { name: string | number; language: string | number };
+  /** language is the app's language name. */
+  "category.names.intro": { language: string | number };
+  /** Chip: leave the category's own name untranslated. */
+  "category.names.keep": { name: string | number };
+  "category.names.none": { language: string | number };
+  /** Row on Settings → Categories. */
+  "category.names.row": { language: string | number };
+  "category.names.rowCount": { count: number };
+  "category.names.rowNew": { count: number };
+  /** language is the app's language name, e.g. "Українська". */
+  "category.names.title": { language: string | number };
+  "category.noFolder": undefined;
   "category.recolour.subtitle": undefined;
   "category.recolour.title": undefined;
+  "category.reorder.emptyHint": undefined;
+  "category.reorder.emptyTitle": undefined;
+  /** Hint on top of the categories reorder screen. */
+  "category.reorder.hint": undefined;
+  "category.reorder.income": undefined;
+  "category.reorder.moveTitle": { name: string | number };
+  /** names is a comma-separated list of category names. */
+  "category.reorder.stayedBody": { names: string | number };
+  "category.reorder.stayedTitle": undefined;
+  "category.reorder.title": undefined;
   /** Segmented control: this row is a category inside a folder. */
   "category.shape.category": undefined;
   /** Segmented control: this row is a folder. */
   "category.shape.folder": undefined;
+  /** Switch: may this category be offered because of where you are? Off by default for parking, taxi, bills. */
+  "category.suggestHere": undefined;
   "category.title.editCategory": undefined;
   "category.title.editFolder": undefined;
   "category.title.newCategory": undefined;
@@ -425,6 +475,38 @@ export interface Messages {
   "category.transactions.header": undefined;
   "category.transactions.inCategory": undefined;
   "category.transactions.inFolder": undefined;
+  /** language is the app's language name, e.g. "English". */
+  "category.translations.hint": { language: string | number };
+  "category.translations.original": undefined;
+  /** Section header in the category editor; language is "English" or "Українська". */
+  "category.translations.originalIn": { language: string | number };
+  "category.translations.useOriginal": undefined;
+  /** Under a category type in the picker: the user's other categories that already have this type. names = comma-separated category names. */
+  "category.type.also": { names: string | number };
+  "category.type.none": undefined;
+  /** type is a category type's name, guessed from the category's name; saved on Save. */
+  "category.type.suggested": { type: string | number };
+  "category.type.title": undefined;
+  /** Why a type was suggested from payments: this payee is filed under the user's category elsewhere. */
+  "category.types.becauseLike": { payee: string | number; category: string | number };
+  /** Why a type was suggested: payees the shop list recognises. */
+  "category.types.becauseShops": { payees: string | number };
+  /** Under a category with no type and nothing to suggest. */
+  "category.types.choose": undefined;
+  /** type was guessed from the shops this category's payments went to; tap to keep or change. */
+  "category.types.fromHistory": { type: string | number };
+  /** Footer of Settings → Categories → Category types. */
+  "category.types.hint": undefined;
+  /** Section at the top of Category types: categories nobody has given a type yet. */
+  "category.types.needs": { count: string | number };
+  /** Small button on a category with no type and nothing to suggest: no type, on purpose. */
+  "category.types.notNeeded": undefined;
+  "category.types.notNeededA11y": { name: string | number };
+  "category.types.title": undefined;
+  /** Button shown after Use all suggestions; puts the types back as they were. */
+  "category.types.undo": { count: number };
+  /** Button: save every suggested type at once. count = how many categories have one. */
+  "category.types.useAll": { count: number };
   "category.whichFolder": undefined;
   "common.add": undefined;
   /** A day and a time: "22 Sep at 11:17". */
@@ -677,11 +759,12 @@ export interface Messages {
   "dates.short.oct": undefined;
   "dates.short.sep": undefined;
   "debt.account": undefined;
+  "debt.accountMenu.change": undefined;
+  "debt.accountMenu.remove": undefined;
   /** VoiceOver label; amount with its currency code. */
   "debt.amountA11y": { amount: string | number };
   /** Sheet title while no person is named yet. */
   "debt.borrowed": undefined;
-  "debt.clearDate": undefined;
   "debt.confirm.add": undefined;
   "debt.confirm.amount": undefined;
   "debt.confirm.save": undefined;
@@ -693,9 +776,14 @@ export interface Messages {
   "debt.direction.iOwe": undefined;
   /** Segmented control. */
   "debt.direction.owedToMe": undefined;
+  "debt.dueMenu.change": undefined;
+  "debt.dueMenu.remindOff": undefined;
+  "debt.dueMenu.remindOn": undefined;
+  "debt.dueMenu.remove": undefined;
+  /** Opens the time picker for the reminder. */
+  "debt.dueMenu.time": undefined;
   /** Sheet title while no person is named yet. */
   "debt.lent": undefined;
-  "debt.noAccount": undefined;
   "debt.noDueDate": undefined;
   "debt.notes": undefined;
   "debt.paid.body": undefined;
@@ -707,8 +795,6 @@ export interface Messages {
   "debt.paidBack": { date: string | number };
   /** By the payments pointed at this debt; amounts are "500.00 PLN". */
   "debt.paidSoFar": { paid: string | number; left: string | number };
-  "debt.reminderOff": undefined;
-  "debt.reminderOn": undefined;
   "debt.reopen.body": undefined;
   "debt.reopen.confirm": undefined;
   "debt.reopen.title": undefined;
@@ -721,6 +807,188 @@ export interface Messages {
   "debt.summary.reminder": { time: string | number };
   "debt.summary.youOwe": undefined;
   "debt.who": undefined;
+  "future.card.noData": undefined;
+  /** Forecast card on the Insights tab, first line. */
+  "future.card.teaser": undefined;
+  /** Chart axis label for millions: "1.2M". n is already formatted. */
+  "future.compact.million": { n: string | number };
+  /** Chart axis label for thousands: "350k". n is already formatted. */
+  "future.compact.thousand": { n: string | number };
+  "future.disclaimer": undefined;
+  "future.freedom.at": { year: string | number; total: string | number; pct: string | number };
+  "future.freedom.explain": { rate: string | number; times: string | number };
+  "future.freedom.leanSooner": { span: string | number; amount: string | number };
+  /** Label on the target line of the chart. */
+  "future.freedom.line": undefined;
+  "future.freedom.never": undefined;
+  "future.freedom.noChange": undefined;
+  "future.freedom.noData": undefined;
+  "future.freedom.number": undefined;
+  "future.freedom.pot": { rate: string | number };
+  "future.freedom.progress": { pct: string | number; have: string | number };
+  "future.freedom.road": undefined;
+  "future.freedom.saveMore": { amount: string | number };
+  "future.freedom.sooner": { span: string | number };
+  "future.freedom.spendLess": undefined;
+  "future.freedom.when": { year: string | number; span: string | number };
+  "future.freedom.withdraw": undefined;
+  "future.freedom.yearly": undefined;
+  "future.freedom.yearlySub": undefined;
+  "future.goal.atAhead": { month: string | number; amount: string | number };
+  "future.goal.atPast": { month: string | number; amount: string | number };
+  "future.goal.behind": { need: string | number; pace: string | number };
+  "future.goal.boost": { amount: string | number };
+  "future.goal.boostSub": { count: number; when: string | number };
+  /** Goal card, after the account name: "Savings · by 1 Jun 2027". */
+  "future.goal.by": { deadline: string | number };
+  "future.goal.clearDeadline": undefined;
+  "future.goal.deadline": undefined;
+  "future.goal.done": undefined;
+  "future.goal.etaIn": { count: number; when: string | number };
+  "future.goal.forDeadline": { amount: string | number };
+  "future.goal.milestone": { pct: string | number; amount: string | number };
+  "future.goal.monthsLeft": { count: number };
+  "future.goal.need": undefined;
+  "future.goal.noDeadline": undefined;
+  /** Goal card: "<balance> of 20 000 PLN". */
+  "future.goal.of": { target: string | number };
+  "future.goal.onTrack": { when: string | number; deadline: string | number };
+  "future.goal.open": { pace: string | number; when: string | number };
+  "future.goal.overdue": { amount: string | number };
+  "future.goal.pace": undefined;
+  "future.goal.reachedIn": { when: string | number };
+  "future.goal.road": undefined;
+  "future.goal.sooner": undefined;
+  "future.goal.stalled": undefined;
+  "future.goal.stalledBy": { need: string | number; deadline: string | number };
+  /** Label on the target line of the chart. */
+  "future.goal.target": undefined;
+  /** Line above the columns for the touched year. */
+  "future.grow.at": { year: string | number; total: string | number; put: string | number; grew: string | number };
+  "future.grow.cross": { year: string | number };
+  "future.grow.crossSub": undefined;
+  /** years is a formatted decimal, "10.2". */
+  "future.grow.doubles": { years: string | number };
+  "future.grow.doublesSub": undefined;
+  "future.grow.inputs": undefined;
+  "future.grow.itGrew": undefined;
+  "future.grow.mine": undefined;
+  "future.grow.monthly": undefined;
+  "future.grow.noCross": undefined;
+  "future.grow.raise": undefined;
+  "future.grow.real": { rate: string | number };
+  "future.grow.result": { count: number };
+  /** Siriusia's speech bubble on the Compound interest tab. */
+  "future.grow.says": { count: number; total: string | number; grew: string | number };
+  "future.grow.start": undefined;
+  "future.grow.total": undefined;
+  "future.grow.youPut": undefined;
+  "future.habit.average": { category: string | number };
+  "future.habit.averageSub": undefined;
+  "future.habit.cut": undefined;
+  "future.habit.freed": undefined;
+  "future.habit.inYears": { count: number };
+  "future.habit.invested": { rate: string | number };
+  "future.habit.none": undefined;
+  /** Chip that opens the category picker. */
+  "future.habit.other": undefined;
+  "future.habit.says": { category: string | number; amount: string | number };
+  "future.habit.which": undefined;
+  "future.home.down": undefined;
+  "future.home.downTitle": { amount: string | number };
+  "future.home.extra": undefined;
+  "future.home.extraHint": undefined;
+  "future.home.fastLegend": undefined;
+  "future.home.inputs": undefined;
+  "future.home.instalment": undefined;
+  "future.home.interest": undefined;
+  "future.home.interestSub": { pct: string | number };
+  "future.home.loanTitle": { amount: string | number };
+  "future.home.monthly": undefined;
+  "future.home.never": undefined;
+  "future.home.overpay": undefined;
+  "future.home.owed": { year: string | number; owed: string | number };
+  "future.home.owedFast": { year: string | number; owed: string | number; fast: string | number };
+  "future.home.owedLegend": undefined;
+  "future.home.price": undefined;
+  "future.home.progress": { have: string | number; down: string | number; pct: string | number };
+  "future.home.rate": undefined;
+  "future.home.ready": undefined;
+  "future.home.saved": undefined;
+  "future.home.saves": undefined;
+  "future.home.share": { pct: string | number };
+  "future.home.sooner": { span: string | number };
+  "future.home.total": undefined;
+  "future.home.when": { when: string | number; span: string | number };
+  "future.home.years": undefined;
+  /** when = "Feb 2029", span = "2 years 3 months". */
+  "future.inMonths": { when: string | number; span: string | number };
+  "future.inflation.at": { year: string | number; market: string | number; deposit: string | number; cash: string | number };
+  "future.inflation.hint": undefined;
+  "future.inflation.keep": { count: number };
+  "future.inflation.keepSub": undefined;
+  "future.inflation.rate": undefined;
+  "future.inflation.says": { count: number; amount: string | number; real: string | number };
+  "future.inflation.title": undefined;
+  /** Label on the line marking today's value. */
+  "future.inflation.today": undefined;
+  "future.milestones": undefined;
+  "future.never": undefined;
+  /** Left end of a forecast chart's axis. */
+  "future.now": undefined;
+  "future.nudge.late": undefined;
+  "future.nudge.lateSub": undefined;
+  "future.nudge.more": { amount: string | number };
+  "future.nudge.moreSub": { count: number };
+  "future.nudge.title": undefined;
+  /** Chart legend and row. rate = "4%". */
+  "future.path.deposit": { rate: string | number };
+  /** Chart legend and row. rate = "7%". */
+  "future.path.market": { rate: string | number };
+  "future.path.mattress": undefined;
+  "future.rate.deposit": undefined;
+  "future.rate.market": undefined;
+  "future.real.subtitle": { rate: string | number };
+  "future.real.title": undefined;
+  "future.setup.accounts": undefined;
+  /** Value of the Accounts row: every account counts. */
+  "future.setup.accountsAll": undefined;
+  "future.setup.accountsSome": { count: number };
+  "future.setup.currency": undefined;
+  "future.setup.have": undefined;
+  "future.setup.haveSub": undefined;
+  /** list = "USD, EUR". */
+  "future.setup.missing": { list: string | number };
+  "future.setup.monthly": undefined;
+  /** Under "You put away a month": where the number comes from. */
+  "future.setup.pace": { count: number; income: string | number; spend: string | number };
+  "future.setup.title": undefined;
+  "future.setup.yours": undefined;
+  /** "2 years 3 months"; both parts already formatted. */
+  "future.span.both": { years: string | number; months: string | number };
+  "future.span.months": { count: number };
+  "future.span.years": { count: number };
+  /** Forecast tab chip: financial independence. */
+  "future.tab.freedom": undefined;
+  /** Forecast tab chip. */
+  "future.tab.grow": undefined;
+  /** Forecast tab chip: what cutting a category would grow into. */
+  "future.tab.habit": undefined;
+  /** Forecast tab chip: the home-buying calculator. */
+  "future.tab.home": undefined;
+  /** Forecast tab chip. */
+  "future.tab.inflation": undefined;
+  /** Forecast tab chip: your own forecast. */
+  "future.tab.you": undefined;
+  "future.yearsCount": { count: number };
+  "future.yearsLabel": undefined;
+  /** Line above the chart for the touched year. */
+  "future.you.at": { year: string | number; market: string | number; deposit: string | number; mattress: string | number };
+  "future.you.negative": undefined;
+  "future.you.paths": { count: number };
+  "future.you.putInSub": undefined;
+  /** Siriusia's speech bubble on the You tab. */
+  "future.you.says": { count: number; amount: string | number; grew: string | number };
   "insights.add": undefined;
   /** What came in and went out this period. */
   "insights.balance.inOut": { income: string | number; spent: string | number };
@@ -743,7 +1011,10 @@ export interface Messages {
   "insights.buffer.noEssentialsHint": undefined;
   /** currencies is "USD, EUR". */
   "insights.buffer.noRate": { currencies: string | number };
-  "insights.checklist.allDone": { period: string | number };
+  /** Big line on the payments checklist when every line of the period is paid. */
+  "insights.checklist.allDone": undefined;
+  /** Under "All paid": how many lines, and the period; the amount paid follows after another ·. */
+  "insights.checklist.allDoneSub": { count: number; period: string | number };
   /** Alert after tapping an open checklist line; its title is the line's name. */
   "insights.checklist.askBody": undefined;
   /** Alert button: opens a new entry prefilled from the last payment. */
@@ -876,6 +1147,8 @@ export interface Messages {
   "insights.edit.goalHint": undefined;
   /** Section in the Add insight list. */
   "insights.edit.group.accounts": undefined;
+  /** Section in the Add insight list: forecasts and goals. */
+  "insights.edit.group.future": undefined;
   /** Section in the Add insight list. */
   "insights.edit.group.payments": undefined;
   /** Section in the Add insight list. */
@@ -928,6 +1201,26 @@ export interface Messages {
   "insights.goal.reached": undefined;
   "insights.goal.toGo": { amount: string | number };
   "insights.gone": undefined;
+  "insights.hints.add": undefined;
+  "insights.hints.dismissA11y": { title: string | number };
+  "insights.hints.more": undefined;
+  /** A suggestion that needs one more answer (a goal's target) opens the editor. */
+  "insights.hints.setUp": undefined;
+  "insights.hints.title": undefined;
+  "insights.hints.titleFirst": undefined;
+  "insights.hints.why.budgets": { count: number };
+  /** name is a category. */
+  "insights.hints.why.habit": { count: number; name: string | number };
+  "insights.hints.why.history": { count: number };
+  "insights.hints.why.importance": undefined;
+  "insights.hints.why.manual": { count: number };
+  "insights.hints.why.places": { count: number };
+  "insights.hints.why.recurring": { count: number };
+  "insights.hints.why.salary": undefined;
+  /** name is an account. */
+  "insights.hints.why.savings": { name: string | number };
+  "insights.hints.why.shops": { count: number };
+  "insights.hints.why.usual": { count: number };
   "insights.history.avg.month": { count: number };
   "insights.history.avg.week": { count: number };
   /** VoiceOver label of a history chart. */
@@ -951,23 +1244,45 @@ export interface Messages {
   "insights.kind.checklist.title": undefined;
   "insights.kind.days_to_salary.hint": undefined;
   "insights.kind.days_to_salary.title": undefined;
+  "insights.kind.forecast.hint": undefined;
+  "insights.kind.forecast.title": undefined;
   "insights.kind.free_money.hint": undefined;
   "insights.kind.free_money.title": undefined;
+  "insights.kind.month_vs_usual.hint": undefined;
+  "insights.kind.month_vs_usual.title": undefined;
+  "insights.kind.one_offs.hint": undefined;
+  "insights.kind.one_offs.title": undefined;
   "insights.kind.regular.hint": undefined;
   "insights.kind.regular.title": undefined;
   "insights.kind.safety_buffer.hint": undefined;
   "insights.kind.safety_buffer.title": undefined;
   "insights.kind.savings_goal.hint": undefined;
   "insights.kind.savings_goal.title": undefined;
+  "insights.kind.spending_map.hint": undefined;
+  "insights.kind.spending_map.title": undefined;
   "insights.kind.subscriptions.hint": undefined;
   "insights.kind.subscriptions.title": undefined;
+  "insights.kind.top_shops.hint": undefined;
+  "insights.kind.top_shops.title": undefined;
   "insights.kind.values.hint": undefined;
   "insights.kind.values.title": undefined;
+  /** Section on the details screen listing every place. */
+  "insights.map.all": undefined;
+  /** Under the top places: how much of the period the map covers. */
+  "insights.map.located": { pct: string | number };
+  "insights.map.nothing": undefined;
+  /** A place with coordinates but no name. */
+  "insights.map.unnamed": undefined;
   /** "3 months"; also the big number on Safety buffer, which may be a fraction (1.5). */
   "insights.months": { count: number };
   "insights.noBudgets": undefined;
   /** Progress towards a target: "1 200.00 EUR of 5 000.00 EUR". */
   "insights.of": { have: string | number; target: string | number };
+  "insights.oneOffs.nothing": undefined;
+  /** VoiceOver label of one purchase; opens it. */
+  "insights.oneOffs.openA11y": { title: string | number; amount: string | number; day: string | number };
+  /** A purchase with no shop, note or bank text. */
+  "insights.oneOffs.untitled": undefined;
   /** VoiceOver label of a card's header; title is the card's name. */
   "insights.openLabel": { title: string | number };
   "insights.per.daily": { count: number };
@@ -988,16 +1303,42 @@ export interface Messages {
   "insights.reorder.emptyTitle": undefined;
   "insights.reorder.hint": undefined;
   "insights.reorder.title": undefined;
+  /** Under a retired card's name in the reorder list. */
+  "insights.retired.hint": undefined;
+  /** Name of a card of a kind the app no longer offers (removed in 1.1.0). */
+  "insights.retired.recurringSpend": undefined;
+  /** Name of a card of a kind the app no longer offers (removed in 1.1.0), still shown in lists. */
+  "insights.retired.upcoming": undefined;
   "insights.safe.short": { amount: string | number };
   /** Under "12 days"; day is "22 Sep". */
   "insights.salary.until": { day: string | number };
   "insights.screenTitle": undefined;
+  /** Section on the details screen. */
+  "insights.shops.all": undefined;
+  /** Under a shop's name. */
+  "insights.shops.count": { count: number };
+  /** Trend: nothing was spent at this shop in the period before. */
+  "insights.shops.new": undefined;
+  "insights.shops.nothing": undefined;
   /** "9.99 EUR per month"; per is insights.per.*. */
   "insights.subscriptions.amountPer": { amount: string | number; per: string | number };
   /** Under the yearly total: the same divided by 12. The tag makes the amount bold. */
   "insights.subscriptions.perMonth": { amount: string | number };
   /** Under the yearly total. */
   "insights.subscriptions.perYear": { included: string | number; count: number };
+  /** Section on the details screen listing every line. */
+  "insights.usual.all": undefined;
+  /** VoiceOver label of one line. */
+  "insights.usual.lineA11y": { name: string | number; amount: string | number; change: string | number };
+  /** Instead of a percentage: nothing was spent here in the periods before. */
+  "insights.usual.new": undefined;
+  "insights.usual.nothing": undefined;
+  /** Big text when spending is within a few percent of the usual. */
+  "insights.usual.same": undefined;
+  /** Under the big percentage while the period is still running. */
+  "insights.usual.soFar": { amount: string | number; usual: string | number };
+  /** Under the big percentage for a finished period. */
+  "insights.usual.whole": { amount: string | number; usual: string | number };
   /** Legend: categories nobody has marked. */
   "insights.values.level.l0": undefined;
   /** Legend: low importance. */
@@ -1022,11 +1363,15 @@ export interface Messages {
   "keypad.add": undefined;
   /** Under the amount: the most this part can be. */
   "keypad.amount.available": { amount: string | number; currency: string | number };
+  /** Under a friend's share while it is typed: what you and the friends on an equal share each come to. */
+  "keypad.amount.othersEach": { amount: string | number; currency: string | number };
   /** Default title over the calculator screen. */
   "keypad.amount.title": undefined;
   "keypad.amount.tooMuch": undefined;
   "keypad.amount.tooMuchShort": undefined;
   "keypad.amount.use": undefined;
+  /** Under a friend's share while it is typed, when you are the only one left on an equal share. */
+  "keypad.amount.yoursLeft": { amount: string | number; currency: string | number };
   /** Wide keypad key that opens the category picker. */
   "keypad.category": undefined;
   "keypad.categoryA11y": { name: string | number };
@@ -1050,6 +1395,7 @@ export interface Messages {
   "layout.error.title": undefined;
   "layout.pending": undefined;
   "layout.recurringDue": undefined;
+  "misc.deleted": { count: number };
   "misc.discard.changesBody": undefined;
   /** Alert when closing an editor with unsaved changes. */
   "misc.discard.changesTitle": undefined;
@@ -1059,6 +1405,8 @@ export interface Messages {
   "misc.discard.flowTitle": undefined;
   "misc.discard.keepEditing": undefined;
   "misc.discard.keepGoing": undefined;
+  /** Button on the toast after a delete. */
+  "misc.undo": undefined;
   /** Title of a transfer in the watch's history list. */
   "misc.watch.transfer": undefined;
   /** Title of a history row on the watch with no note, shop or category. */
@@ -1071,6 +1419,10 @@ export interface Messages {
   "notify.debt.todayTitle": { person: string | number };
   /** Title of a debt reminder the day before it is due; person is who the debt is with. */
   "notify.debt.tomorrowTitle": { person: string | number };
+  /** count is how many entries wait in the Pending queue. */
+  "notify.pending.body": { count: number };
+  /** Title of the evening reminder (default 22:00) scheduled while entries wait in the Pending queue. */
+  "notify.pending.title": undefined;
   /** Title when a manual rule's payment is due and needs confirming. */
   "notify.recurring.due": { name: string | number };
   "notify.recurring.dueOn": { amount: string | number; date: string | number };
@@ -1193,6 +1545,128 @@ export interface Messages {
   "pending.transfer.fill": undefined;
   /** Title of a pending transfer between two of your accounts, found in bank notifications. */
   "pending.transfer.title": undefined;
+  /** Line on the card for the debts screen. */
+  "people.card.debts": undefined;
+  /** Subtitle of the Owed to you section on the Budgets reorder screen. */
+  "people.card.reorderSection": undefined;
+  /** Card on the Budgets screen. */
+  "people.card.title": undefined;
+  "people.card.toSplit": { count: number };
+  "people.event.deleteAll": undefined;
+  /** Asked when deleting a purchase that friends' shares were carved from. */
+  "people.event.deleteShares": { count: number };
+  "people.event.deleteSharesBody": undefined;
+  "people.event.keepShares": undefined;
+  "people.event.nobody": undefined;
+  /** Row on the trip/event sheet that picks the friends. */
+  "people.event.people": undefined;
+  "people.group.a11y": { name: string | number; count: string | number };
+  /** Joins the last two first names in a group's name: "Ola, Max & Ira". */
+  "people.group.and": undefined;
+  /** Row under an opened group on Debts. */
+  "people.group.edit": undefined;
+  /** Link beside the Friends header on Debts: pick friends to keep together. */
+  "people.group.make": undefined;
+  "people.group.makeA11y": undefined;
+  /** Under a group's name; amount is "40,00 PLN". */
+  "people.group.owe": { amount: string | number };
+  /** Under a group's name when you owe them. */
+  "people.group.owed": { amount: string | number };
+  "people.items.add": undefined;
+  "people.items.amount": undefined;
+  "people.items.done": undefined;
+  "people.items.intro": undefined;
+  "people.items.name": undefined;
+  /** Title of the items list for one friend's share. */
+  "people.items.title": { name: string | number };
+  /** amount is "52,00 PLN". */
+  "people.items.total": { amount: string | number };
+  "people.list.even": undefined;
+  /** Under a friend's name when you owe them. */
+  "people.list.owed": { amount: string | number };
+  /** Under a friend's name; amount is "40,00 PLN". */
+  "people.list.owes": { amount: string | number };
+  /** Section header on the Debts screen and the Budgets card. */
+  "people.list.title": undefined;
+  /** Running balance after a history line; amount is "85,00 PLN". */
+  "people.page.after": { amount: string | number };
+  "people.page.history": undefined;
+  "people.page.letGo": undefined;
+  "people.page.letGoAction": undefined;
+  /** Confirmation; amount is "40,00 PLN". */
+  "people.page.letGoBody": { amount: string | number; name: string | number };
+  "people.page.letGoTitle": undefined;
+  "people.page.noAccount": undefined;
+  /** Over a friend's balance. */
+  "people.page.owesYou": undefined;
+  "people.page.paidBack": undefined;
+  /** Title over the calculator. */
+  "people.page.paidBackTitle": { name: string | number };
+  "people.page.remind": undefined;
+  /** One line of the reminder message. */
+  "people.page.remindLine": { what: string | number; date: string | number; amount: string | number };
+  /** Message sent from the share sheet; lines are "Bistro, 7 Nov: 40,00 PLN" one per line. */
+  "people.page.remindText": { name: string | number; amount: string | number; lines: string | number };
+  "people.page.remove": undefined;
+  "people.page.removeBody": undefined;
+  "people.page.removeTitle": { name: string | number };
+  "people.page.rename": undefined;
+  "people.page.renameTitle": undefined;
+  /** A history line for money from the friend. */
+  "people.page.repaid": undefined;
+  "people.page.settled": undefined;
+  /** A history line without a shop name. */
+  "people.page.share": undefined;
+  /** Over a friend's balance when they paid more than their shares. */
+  "people.page.youOwe": undefined;
+  /** Row that creates a friend with the name typed. */
+  "people.pick.add": { name: string | number };
+  "people.pick.contacts": undefined;
+  "people.pick.contactsFailed": undefined;
+  "people.pick.empty": undefined;
+  "people.pick.search": undefined;
+  "people.pick.searchA11y": undefined;
+  /** Title of the friends picker. */
+  "people.pick.title": undefined;
+  /** In place of a category on money from a friend. */
+  "people.row.repaid": { name: string | number };
+  /** In place of a category on a friend's share of a purchase. */
+  "people.row.share": { name: string | number };
+  "people.split.addItems": undefined;
+  /** Link beside the friends header: opens the people picker to add or remove friends. */
+  "people.split.edit": undefined;
+  "people.split.equalA11y": undefined;
+  /** Caption: this friend's amount was typed rather than an equal share. */
+  "people.split.fixed": undefined;
+  /** VoiceOver label of a friend's row. */
+  "people.split.friendA11y": { name: string | number; amount: string | number; currency: string | number };
+  "people.split.hideReceipt": undefined;
+  /** Title over the calculator for a friend's share. */
+  "people.split.howMuch": { name: string | number };
+  /** The items a friend had, joined with commas: "Lamp, beer". */
+  "people.split.items": { list: string | number };
+  /** Line added to the entry's note; list is "Ola 40,00 PLN, Max 40,00 PLN". */
+  "people.split.noteLine": { list: string | number };
+  /** Section header over the friends' shares on the split screen. */
+  "people.split.owes": undefined;
+  "people.split.receiptA11y": undefined;
+  "people.split.removeFriend": { name: string | number };
+  "people.split.showReceipt": undefined;
+  /** One-tap suggestion while an event or trip with people runs; names are "Ola, Max". */
+  "people.split.withEvent": { names: string | number };
+  /** Button on the split screen. */
+  "people.split.withFriends": undefined;
+  /** Section header over your own parts once friends are in the split. */
+  "people.split.you": undefined;
+  "people.toSplit.empty": undefined;
+  "people.toSplit.emptyHint": undefined;
+  /** Header button on the split screen: save the entry marked to split later. */
+  "people.toSplit.later": undefined;
+  /** Chip on the entry sheet that marks the payment for the To split queue. */
+  "people.toSplit.mark": undefined;
+  "people.toSplit.markedA11y": undefined;
+  /** Screen of payments marked to be split later. */
+  "people.toSplit.title": undefined;
   "period.calendar.next": undefined;
   "period.calendar.previous": undefined;
   /** currencies is a list of codes, "USD, PLN". */
@@ -1219,28 +1693,30 @@ export interface Messages {
   "period.scope.hint": undefined;
   /** VoiceOver label of the account scope pill; scope is an account or group name, or "All accounts". */
   "period.scope.label": { scope: string | number };
-  "photo.allowCamera": undefined;
   /** VoiceOver label of the full-screen photo. */
   "photo.attached": undefined;
-  "photo.cameraNeeded": undefined;
-  "photo.cameraOff": undefined;
-  /** Pick a picture from the photo library instead of taking one. */
-  "photo.fromLibrary": undefined;
   "photo.libraryError": undefined;
-  "photo.receipt.cameraNeeded": undefined;
-  /** error is a short reason, possibly from the system. */
-  "photo.receipt.failed": { error: string | number };
-  /** Status over the camera while it waits to read a receipt. */
-  "photo.receipt.hold": undefined;
-  /** Added after the status, after " · ", once several tries have failed. Lowercase. */
-  "photo.receipt.lightTip": undefined;
-  "photo.receipt.looking": undefined;
-  "photo.receipt.noPhoto": undefined;
-  "photo.receipt.noTotal": undefined;
-  "photo.receipt.reading": undefined;
-  "photo.receipt.takeNow": undefined;
+  /** Button over a read receipt: save it as the entry, split by the items' categories. Short. */
+  "photo.read.continue": undefined;
+  "photo.read.copied": undefined;
+  "photo.read.copyAll": undefined;
+  /** VoiceOver label of the day chip over a read receipt. */
+  "photo.read.dayA11y": { day: string | number };
+  /** Tab under the full-screen photo: the receipt's lines. */
+  "photo.read.items": { count: number };
+  /** Beside the account chip when the receipt cannot be converted into the account's currency yet. */
+  "photo.read.noRate": { currency: string | number };
+  "photo.read.noText": undefined;
+  /** Last line of the receipt content written into the entry's note. */
+  "photo.read.noteTotal": { amount: string | number };
+  /** Receipt sheet, a receipt in another currency: the account chip. */
+  "photo.read.payA11y": { account: string | number };
+  /** Tab under the full-screen photo: the text read from it. */
+  "photo.read.text": undefined;
+  "photo.read.uncategorized": undefined;
+  "photo.read.zoomA11y": undefined;
   "photo.remove": undefined;
-  "photo.take": undefined;
+  "photo.replace": undefined;
   "pick.account.title": undefined;
   "pick.accounts.all": undefined;
   "pick.accounts.anyA11y": undefined;
@@ -1286,6 +1762,8 @@ export interface Messages {
   "pick.category.noFolder": undefined;
   "pick.category.recent": undefined;
   "pick.category.search": undefined;
+  /** Section: the categories this shop's earlier payments were filed under. */
+  "pick.category.thisShop": undefined;
   "pick.category.whichDebt": undefined;
   /** VoiceOver. */
   "pick.category.wholeA11y": { name: string | number };
@@ -1428,6 +1906,8 @@ export interface Messages {
   "pick.payIcon.webHint": undefined;
   /** name is what was typed. */
   "pick.tags.create": { name: string | number };
+  /** Section shown while searching: tags set up for a different category than the entry's. */
+  "pick.tags.elsewhere": undefined;
   "pick.tags.empty": undefined;
   "pick.tags.other": undefined;
   "pick.tags.search": undefined;
@@ -1453,9 +1933,13 @@ export interface Messages {
   "preset.account.name": undefined;
   /** The group every account is in until given another (DATA.md rule 17). Not a category. */
   "preset.accountGroup.name": undefined;
+  "preset.bills.fees.description": undefined;
+  "preset.bills.fees.name": undefined;
   "preset.bills.insurance.description": undefined;
   "preset.bills.insurance.name": undefined;
   "preset.bills.name": undefined;
+  "preset.bills.services.description": undefined;
+  "preset.bills.services.name": undefined;
   "preset.bills.subscriptions.description": undefined;
   "preset.bills.subscriptions.name": undefined;
   "preset.bills.taxes.description": undefined;
@@ -1508,6 +1992,10 @@ export interface Messages {
   "preset.income.salary.name": undefined;
   "preset.personal.beauty.description": undefined;
   "preset.personal.beauty.name": undefined;
+  "preset.personal.cash.description": undefined;
+  "preset.personal.cash.name": undefined;
+  "preset.personal.charity.description": undefined;
+  "preset.personal.charity.name": undefined;
   "preset.personal.education.description": undefined;
   "preset.personal.education.name": undefined;
   "preset.personal.hobbies.description": undefined;
@@ -1527,11 +2015,15 @@ export interface Messages {
   "preset.shopping.name": undefined;
   "preset.shopping.wishes.description": undefined;
   "preset.shopping.wishes.name": undefined;
+  "preset.transport.bike.description": undefined;
+  "preset.transport.bike.name": undefined;
   "preset.transport.car.description": undefined;
   "preset.transport.car.name": undefined;
   "preset.transport.fuel.description": undefined;
   "preset.transport.fuel.name": undefined;
   "preset.transport.name": undefined;
+  "preset.transport.parking.description": undefined;
+  "preset.transport.parking.name": undefined;
   "preset.transport.publicTransport.description": undefined;
   "preset.transport.publicTransport.name": undefined;
   "preset.transport.taxi.description": undefined;
@@ -1742,6 +2234,9 @@ export interface Messages {
   "settings.location.denied": undefined;
   "settings.location.on": undefined;
   "settings.location.title": undefined;
+  "settings.locationIgnore.title": undefined;
+  /** Categories paid next to other places, so where they were paid says nothing about the place. */
+  "settings.locationIgnore.unset": undefined;
   "settings.notifications.ask": undefined;
   "settings.notifications.denied": undefined;
   "settings.notifications.granted": undefined;
@@ -1838,7 +2333,33 @@ export interface Messages {
   "settingsLists.categories.newCategory": undefined;
   "settingsLists.categories.newFolder": undefined;
   "settingsLists.categories.noFolder": undefined;
+  /** Sort option: the order dragged into place. */
+  "settingsLists.categories.order.custom": undefined;
+  /** Alert when switching from By usage to Custom. */
+  "settingsLists.categories.order.keepBody": undefined;
+  "settingsLists.categories.order.keepOld": undefined;
+  "settingsLists.categories.order.keepThis": undefined;
+  "settingsLists.categories.order.keepTitle": undefined;
+  "settingsLists.categories.order.reorder": undefined;
+  /** Subtitle of Reorder while By usage is chosen. */
+  "settingsLists.categories.order.reorderFromUsage": undefined;
+  /** Section header above the sort switch on Settings → Categories. */
+  "settingsLists.categories.order.title": undefined;
+  /** Sort option: most used first. */
+  "settingsLists.categories.order.usage": undefined;
+  /** Under the sort switch when By usage is chosen. */
+  "settingsLists.categories.order.usageNote": undefined;
+  /** Ready-made categories (Bank fees, Donations…) this phone has nothing for. */
+  "settingsLists.categories.presets.count": { count: number };
+  "settingsLists.categories.presets.none": undefined;
+  "settingsLists.categories.presets.title": undefined;
   "settingsLists.categories.title": undefined;
+  /** Section header on Settings → Categories over the rows that need an answer; count = categories waiting. */
+  "settingsLists.categories.toSort": { count: string | number };
+  "settingsLists.categories.types": undefined;
+  "settingsLists.categories.typesAll": undefined;
+  /** Categories a well-known shop cannot be matched to yet. */
+  "settingsLists.categories.typesMissing": { count: number };
   "settingsLists.debts.add": undefined;
   "settingsLists.debts.addA11y": undefined;
   "settingsLists.debts.emptyHint": undefined;
@@ -1862,6 +2383,18 @@ export interface Messages {
   "settingsLists.recurring.addA11y": undefined;
   "settingsLists.recurring.addAll": undefined;
   "settingsLists.recurring.auto": undefined;
+  "settingsLists.recurring.calendar.dayA11y": { count: number; day: string | number };
+  "settingsLists.recurring.calendar.emptyDay": undefined;
+  "settingsLists.recurring.calendar.emptyMonth": undefined;
+  "settingsLists.recurring.calendar.expected": undefined;
+  "settingsLists.recurring.calendar.late": undefined;
+  /** Recurring screen: switch to the list of rules. */
+  "settingsLists.recurring.calendar.list": undefined;
+  "settingsLists.recurring.calendar.paid": undefined;
+  /** Under the month grid; amounts in the base currency, with their sign. */
+  "settingsLists.recurring.calendar.summary": { left: string | number; paid: string | number };
+  /** Recurring screen: switch to the month of payment dates. */
+  "settingsLists.recurring.calendar.title": undefined;
   /** How long a rule waits for the bank's charge. */
   "settingsLists.recurring.days": { count: number };
   "settingsLists.recurring.defaultReminder": undefined;
@@ -1934,10 +2467,16 @@ export interface Messages {
   "settingsLists.tags.introMore": undefined;
   /** Note above the tags list; the ⓘ unfolds introMore. */
   "settingsLists.tags.introShort": undefined;
+  /** Empty search result on Settings → Tags. */
+  "settingsLists.tags.noMatch": { query: string | number };
+  "settingsLists.tags.noMatchHint": undefined;
+  "settingsLists.tags.search": undefined;
   "settingsLists.tags.title": undefined;
   /** Row at the foot of Settings → Tags and the title of the page it opens: tags made by travel mode, one per trip or event. */
   "settingsLists.tags.travel": undefined;
   "settingsLists.tags.travelNote": undefined;
+  /** Second line of a tag on Settings → Tags: the categories its payments were filed under, with counts, e.g. "Eating out (12), Groceries (5), +2". */
+  "settingsLists.tags.usedWith": { categories: string | number };
   /** How many transactions carry the tag. */
   "settingsLists.tags.uses": { count: number };
   "settingsLists.tags.usesAny": { count: number };
@@ -2073,8 +2612,6 @@ export interface Messages {
   "transaction.entry.chip.pending": undefined;
   "transaction.entry.chip.photo": undefined;
   "transaction.entry.chip.place": undefined;
-  /** Chip that opens the receipt scanner. */
-  "transaction.entry.chip.receipt": undefined;
   /** Chip: the amount typed is money that came back on an earlier expense. */
   "transaction.entry.chip.return": undefined;
   /** Chip that splits the entry into parts with their own categories. */
@@ -2101,10 +2638,19 @@ export interface Messages {
   "transaction.entry.forgetReturns.action": undefined;
   "transaction.entry.forgetReturns.body": { amount: string | number; currency: string | number };
   "transaction.entry.forgetReturns.title": undefined;
+  "transaction.entry.fromReceipt.amount": undefined;
+  "transaction.entry.fromReceipt.category": undefined;
+  "transaction.entry.fromReceipt.date": undefined;
+  "transaction.entry.fromReceipt.note": undefined;
+  "transaction.entry.fromReceipt.shop": undefined;
+  /** Button: fill the entry in from the receipt on its photo. Short. */
+  "transaction.entry.fromReceipt.update": undefined;
   "transaction.entry.hideBalance": undefined;
   "transaction.entry.kind.expense": undefined;
   "transaction.entry.kind.income": undefined;
   "transaction.entry.kind.transfer": undefined;
+  /** VoiceOver label of the pill that switches between expense, income and transfer; kind is one of transaction.entry.kind.*. */
+  "transaction.entry.kindA11y": { kind: string | number };
   /** VoiceOver label: the entry has map coordinates but no place name. */
   "transaction.entry.locationPinned": undefined;
   "transaction.entry.makeTransfer.action": undefined;
@@ -2144,6 +2690,8 @@ export interface Messages {
   "transaction.entry.returnedLine": { back: string | number; paid: string | number };
   "transaction.entry.showBalance": undefined;
   "transaction.entry.splitA11y": { count: number };
+  /** VoiceOver hint on the Split chip: holding it saves the entry into the To split queue. */
+  "transaction.entry.splitLaterHint": undefined;
   "transaction.entry.splitNeedsTotal.body": undefined;
   "transaction.entry.splitNeedsTotal.title": undefined;
   /** Split summary line: a part without a category. Lowercase, it follows an amount. */
@@ -2156,9 +2704,19 @@ export interface Messages {
   "transaction.entry.unsaved.incomplete": undefined;
   "transaction.entry.unsaved.keep": undefined;
   "transaction.entry.unsaved.title": undefined;
+  "transaction.entry.unsavedPhoto.added": undefined;
+  /** Closing an existing entry after adding or removing its photo without saving. */
+  "transaction.entry.unsavedPhoto.body": undefined;
+  "transaction.entry.unsavedPhoto.removed": undefined;
+  /** Under a part on the split screen; without one, the part shares the entry's note. */
+  "transaction.split.addNote": undefined;
   "transaction.split.addPart": undefined;
   "transaction.split.addRestTags": undefined;
   "transaction.split.addTags": undefined;
+  /** Link under the total on the split screen: adds a tip on top, shared like the rest. */
+  "transaction.split.addTip": undefined;
+  /** VoiceOver hint on the split screen's total. */
+  "transaction.split.changeTotal": undefined;
   "transaction.split.chooseCategory": undefined;
   "transaction.split.chooseRestCategory": undefined;
   "transaction.split.entries": { count: number };
@@ -2171,16 +2729,26 @@ export interface Messages {
   "transaction.split.intro": undefined;
   "transaction.split.noCategory": undefined;
   "transaction.split.notYet": undefined;
+  /** Title of the text sheet for one part's note on the split screen. */
+  "transaction.split.note": undefined;
+  "transaction.split.noteA11y": { note: string | number };
   /** n is the part's number (2, 3…); category is its name or "no category". */
   "transaction.split.partA11y": { n: string | number; amount: string | number; currency: string | number; category: string | number };
-  "transaction.split.ready": { count: number };
   "transaction.split.removePart": { n: string | number };
   /** Small caption under the amount that stays on the entry itself. */
   "transaction.split.rest": undefined;
   "transaction.split.restCategoryA11y": { name: string | number };
   "transaction.split.restTagsA11y": { names: string | number };
   "transaction.split.save": undefined;
+  /** Title over the calculator that types the tip. */
+  "transaction.split.tip": undefined;
   "transaction.split.title": undefined;
+  /** Label beside the whole amount being split, at the top of the split screen. */
+  "transaction.split.total": undefined;
+  /** Under a changed total on the split screen: the entry's amount before. */
+  "transaction.split.wasTotal": { amount: string | number; currency: string | number };
+  /** Under the total once a tip is added; tap to change it. */
+  "transaction.split.withTip": { amount: string | number; currency: string | number };
   /** One converted amount and the rate used. */
   "transactions.approx.at": { amount: string | number; currency: string | number; rate: string | number };
   "transactions.approx.expensesBody": { lines: string | number; currency: string | number };
@@ -2218,11 +2786,19 @@ export interface Messages {
   "transactions.empty.filters": { count: number };
   /** Why the list is empty; parts are the pieces below joined with commas: "Nothing from Cash, in August 2026, with 2 filters on." */
   "transactions.empty.hint": { parts: string | number };
+  /** Empty list on another month, nothing else narrowing it; period is "Oct 2026" or "15 Oct – 14 Nov". */
+  "transactions.empty.month": { period: string | number };
+  /** Empty list on the current month, with no filters or account scope. */
+  "transactions.empty.monthNow": undefined;
   "transactions.empty.period": { period: string | number };
   "transactions.empty.scope": { scope: string | number };
   /** On Search, what was typed: "Nothing matching “coffee”, with 1 filter on." */
   "transactions.empty.search": { q: string | number };
   "transactions.empty.title": undefined;
+  /** Button under an empty list on another month. */
+  "transactions.empty.toCurrent": undefined;
+  /** Button under this month's empty list: opens the latest earlier month with transactions; period is "Oct 2026". */
+  "transactions.empty.toEarlier": { period: string | number };
   "transactions.expenses": undefined;
   "transactions.filter.account": undefined;
   "transactions.filter.accounts": undefined;
@@ -2277,6 +2853,8 @@ export interface Messages {
   /** A payment the bank charged in another currency: the original amount. */
   "transactions.list.entered": { amount: string | number; currency: string | number };
   "transactions.list.enteredRate": { amount: string | number; currency: string | number; rate: string | number };
+  /** VoiceOver label of the placeholder row shown while a bank notification is being read. */
+  "transactions.list.incomingA11y": undefined;
   "transactions.list.pending": undefined;
   "transactions.list.pendingA11y": undefined;
   /** Part of the payment was returned; both are formatted amounts. */
@@ -2297,14 +2875,10 @@ export interface Messages {
   "transactions.range.until": { day: string | number };
   "transactions.rates.fetching": { currencies: string | number };
   "transactions.rates.missing": { currencies: string | number };
-  /** what is a comma-separated list of what narrows the list: "2 filters, an account scope, August 2026". */
-  "transactions.reset.body": { what: string | number };
-  "transactions.reset.clear": { count: number };
+  /** Undo toast after holding the Filter button (or double-tapping the tab) cleared the filters. */
+  "transactions.reset.cleared": { count: number };
+  /** Undo toast after the list went back to the current month and every account. */
   "transactions.reset.defaults": undefined;
-  "transactions.reset.filters": { count: number };
-  /** Part of the reset question: the list shows only some accounts. */
-  "transactions.reset.scope": undefined;
-  "transactions.reset.title": undefined;
   /** Title of the account-scope picker. */
   "transactions.scopeTitle": undefined;
   "transactions.searchPlaceholder": undefined;
@@ -2315,6 +2889,8 @@ export interface Messages {
   /** Screen title in selection mode. */
   "transactions.selected": { count: string | number };
   "transactions.title": undefined;
+  /** Under the count of payments marked Split later, on Transactions. */
+  "transactions.toSplitSub": undefined;
   "transactions.travel": undefined;
   /** Title when the list shows future-dated entries. */
   "transactions.upcoming": undefined;
@@ -2463,6 +3039,7 @@ export interface Messages {
   /** Length of a trip. */
   "travel.days": { count: number };
   "travel.error.nameRequired": undefined;
+  "travel.error.nameTaken": undefined;
   "travel.error.notFound": undefined;
   "travel.error.running": undefined;
   /** Part of the one-line trip summary. */
@@ -2495,6 +3072,8 @@ export interface Messages {
   "travel.settings.startEventHint": undefined;
   "travel.settings.startHint": undefined;
   "travel.settings.title": undefined;
+  "travel.start.addDate": undefined;
+  "travel.start.addDateLabel": { day: string | number };
   "travel.start.addFailed": undefined;
   /** Under the locked Already over toggle while a trip or event is on. */
   "travel.start.alreadyOverLocked": undefined;
@@ -2540,6 +3119,7 @@ export interface Messages {
   "travel.trip.endIt": undefined;
   "travel.trip.endTitle": { kind: "event" | (string & {}); name: string | number };
   "travel.trip.keep": { kind: "event" | (string & {}) };
+  "travel.trip.name": undefined;
   /** Subtitle of the Amount row when the trip or event has no budget. */
   "travel.trip.noLimit": undefined;
   "travel.trip.noRateBody": undefined;
@@ -2611,6 +3191,29 @@ export interface Messages {
   "whatsNew.notes.v1_1_1.recurringNext": undefined;
   "whatsNew.notes.v1_1_1.tagPages": undefined;
   "whatsNew.notes.v1_1_1.tripEnds": undefined;
+  "whatsNew.notes.v1_1_2.amount": undefined;
+  "whatsNew.notes.v1_1_2.calendar": undefined;
+  "whatsNew.notes.v1_1_2.drag": undefined;
+  "whatsNew.notes.v1_1_2.duo": undefined;
+  "whatsNew.notes.v1_1_2.folder": undefined;
+  "whatsNew.notes.v1_1_2.forecast": undefined;
+  "whatsNew.notes.v1_1_2.friends": undefined;
+  "whatsNew.notes.v1_1_2.graphite": undefined;
+  "whatsNew.notes.v1_1_2.hints": undefined;
+  "whatsNew.notes.v1_1_2.insights": undefined;
+  "whatsNew.notes.v1_1_2.language": undefined;
+  "whatsNew.notes.v1_1_2.map": undefined;
+  "whatsNew.notes.v1_1_2.neverSuggest": undefined;
+  "whatsNew.notes.v1_1_2.order": undefined;
+  "whatsNew.notes.v1_1_2.pickers": undefined;
+  "whatsNew.notes.v1_1_2.rates": undefined;
+  "whatsNew.notes.v1_1_2.receipts": undefined;
+  "whatsNew.notes.v1_1_2.rename": undefined;
+  "whatsNew.notes.v1_1_2.sheets": undefined;
+  "whatsNew.notes.v1_1_2.shops": undefined;
+  "whatsNew.notes.v1_1_2.taps": undefined;
+  "whatsNew.notes.v1_1_2.types": undefined;
+  "whatsNew.notes.v1_1_2.undo": undefined;
   /** Beside an older version's heading, when more than one release is shown. */
   "whatsNew.skipped": undefined;
   "whatsNew.title": undefined;

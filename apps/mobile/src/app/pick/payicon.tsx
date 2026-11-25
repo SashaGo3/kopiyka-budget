@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TextInput, View } from "react-native";
+import { Tap } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import { ICON_CATALOG, guessLogo, searchIcons, searchLogos, type Logo } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { LogoTile } from "@/components/PaymentIcon";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { domainOf, domainsIn, siteIcon } from "@/lib/siteIcon";
 import { iconFromPhotos } from "@/lib/iconImage";
 import { t } from "@/i18n";
@@ -61,7 +62,7 @@ export default function PickPaymentIcon() {
   useEffect(() => {
     const typedSite = domainOf(ql);
     const domains = typedSite ? [typedSite] : ql ? [] : domainsIn(payee, match).slice(0, 2);
-    if (!domains.length) { setWeb({ items: [], busy: false }); return; }
+    if (!domains.length) { setWeb({ items: [], busy: false }); return; } // eslint-disable-line react-hooks/set-state-in-effect -- starts or clears an async fetch
     let alive = true;
     setWeb((w) => ({ ...w, busy: true }));
     const timer = setTimeout(async () => {
@@ -104,11 +105,11 @@ export default function PickPaymentIcon() {
     if (chars.some((c) => EMOJI.test(c))) choose(`emoji:${chars.slice(0, 8).join("")}`);
   };
   const option = (label: string, value: string, left: React.ReactNode) => (
-    <Pressable onPress={() => choose(value)} style={styles.optRow} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: (selected ?? "") === value }}>
+    <Tap onPress={() => choose(value)} style={styles.optRow} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: (selected ?? "") === value }}>
       {left}
-      <Text style={styles.optText} numberOfLines={1}>{label}</Text>
+      <Text style={styles.optText}>{label}</Text>
       {(selected ?? "") === value ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
-    </Pressable>
+    </Tap>
   );
   const label = (c: Cell) => c.kind === "logo" ? c.logo.title : c.kind === "sf" ? c.name.replace(/\./g, " ") : c.kind === "photo" ? t("pick.payIcon.photo")
     : c.web.domain;
@@ -151,14 +152,14 @@ export default function PickPaymentIcon() {
               const k = cellKey(cell);
               const on = selected === k;
               return (
-                <Pressable key={k} onPress={() => void take(cell)} disabled={!!taking} style={[styles.cell, on && { borderColor: C.tint }]}
+                <Tap key={k} onPress={() => void take(cell)} disabled={!!taking} style={[styles.cell, on && { borderColor: C.tint }]}
                   accessibilityRole="button" accessibilityLabel={label(cell)} accessibilityState={{ selected: on }}>
                   {taking === k ? <ActivityIndicator size="small" />
                     : cell.kind === "logo" ? <LogoTile logo={cell.logo} size={26} />
                     : cell.kind === "sf" ? <SymbolView name={cell.name as SFSymbol} size={18} tintColor={on ? C.tint : C.secondary} />
                     : cell.kind === "photo" ? <SymbolView name="photo.badge.plus" size={18} tintColor={C.tint} />
                     : <Image source={{ uri: cell.web.uri }} style={styles.picture} />}
-                </Pressable>
+                </Tap>
               );
             })}
             {Array.from({ length: COLS - item.cells.length }, (_, i) => <View key={`pad${i}`} style={[styles.cell, styles.pad]} pointerEvents="none" />)}
@@ -170,10 +171,10 @@ export default function PickPaymentIcon() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.lg, marginBottom: S.md, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.lg, marginBottom: S.md, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   optRow: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 40, marginBottom: S.xs },
-  optIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  optIcon: { width: 28, height: 28, borderRadius: R.sm, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   optText: { flex: 1, fontSize: 17, color: C.label },
   hint: { fontSize: 13, color: C.secondary },
   headRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.sm, marginBottom: S.xs },

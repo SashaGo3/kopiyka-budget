@@ -20,15 +20,21 @@ export const INSIGHT_LOOK: Record<InsightKind, { icon: SFSymbol; color: string }
   values: { icon: "heart.text.square", color: "#FF3B30" },
   safety_buffer: { icon: "lifepreserver", color: "#32ADE6" },
   safe_to_spend: { icon: "checkmark.shield", color: "#34C759" },
+  month_vs_usual: { icon: "arrow.up.arrow.down", color: "#FF9500" },
+  one_offs: { icon: "bag", color: "#FF2D55" },
+  top_shops: { icon: "storefront", color: "#5856D6" },
+  spending_map: { icon: "map", color: "#34C759" },
+  forecast: { icon: "sparkles", color: "#AF52DE" },
 };
 
 /**
  * How the "Add insight" list is sectioned: by what a card is about. A kind core gains and nobody files
  * here is not lost: `kindsIn` puts it in the last group rather than leaving a card nobody can add.
  */
-export const INSIGHT_GROUPS: { id: "spending" | "accounts" | "payments"; kinds: InsightKind[] }[] = [
-  { id: "spending", kinds: ["free_money", "days_to_salary", "regular", "values"] },
-  { id: "accounts", kinds: ["account_balance", "savings_goal", "safety_buffer"] },
+export const INSIGHT_GROUPS: { id: "future" | "spending" | "accounts" | "payments"; kinds: InsightKind[] }[] = [
+  { id: "future", kinds: ["forecast", "savings_goal"] },
+  { id: "spending", kinds: ["free_money", "days_to_salary", "month_vs_usual", "regular", "values", "one_offs", "top_shops", "spending_map"] },
+  { id: "accounts", kinds: ["account_balance", "safety_buffer"] },
   { id: "payments", kinds: ["checklist", "subscriptions"] },
 ];
 
@@ -58,11 +64,17 @@ export function addableKinds(existing: Pick<Insight, "kind">[]): typeof INSIGHT_
  */
 export function kindTitle(kind: InsightKind): string {
   const k = INSIGHT_KINDS.find((x) => x.kind === kind)?.kind;
-  return k ? t(`insights.kind.${k}.title`) : kind;
+  if (k) return t(`insights.kind.${k}.title`);
+  // A card of a kind no longer offered (core `retiredKind`) still has a name, never its id.
+  if (kind === "upcoming") return t("insights.retired.upcoming");
+  if (kind === "recurring_spend") return t("insights.retired.recurringSpend");
+  const now = retiredKind(kind);
+  return now && now !== kind ? kindTitle(now) : kind;
 }
 export function kindHint(kind: InsightKind): string {
   const k = INSIGHT_KINDS.find((x) => x.kind === kind)?.kind;
-  return k ? t(`insights.kind.${k}.hint`) : "";
+  if (k) return t(`insights.kind.${k}.hint`);
+  return retiredKind(kind) === null ? t("insights.retired.hint") : "";
 }
 
 /** A recurring rule's name in a list: its payee, else its category, else "Recurring" (core's `title`, translated). */

@@ -2,7 +2,7 @@
  * Local preferences (not synced): stored in the meta table so they survive reinstalls
  * of the dev client and are included in the full data export.
  */
-import { DEFAULT_WAIT_DAYS, getHome, getMeta, setHome, setMeta } from "@kopiyka/core";
+import { CATEGORY_ORDER_KEY, DEFAULT_WAIT_DAYS, getCategoryOrder, getHome, type CategoryOrder, getMeta, locationIgnoredIds, setHome, setLocationIgnoreChoice, setMeta } from "@kopiyka/core";
 import { db } from "@/db";
 import { notifyChange } from "@/store";
 import { t } from "@/i18n";
@@ -18,6 +18,21 @@ function write(key: string, value: string): void { setMeta(db, key, value); noti
  */
 export function getShortcutNotify(): boolean { return read("shortcut_notify") !== "0"; }
 export function setShortcutNotify(on: boolean): void { write("shortcut_notify", on ? "1" : "0"); }
+
+/**
+ * The evening reminder about the Pending queue (meta `pending_reminder`): a time of day "HH:MM",
+ * or "off". Absent is on at 22:00 — the end of a day of card payments is when they are worth going
+ * through, and a reminder that fires only while something waits costs nothing on a quiet day.
+ * Scheduled by `rescheduleRecurringNotifications` and, with the app closed, by the automation
+ * (native/KPNotify.swift `pendingEvenings`), which reads it from the state file.
+ */
+export const DEFAULT_PENDING_REMINDER = "22:00";
+export function getPendingReminder(): string | null {
+  const v = read("pending_reminder");
+  if (v === "off") return null;
+  return v && /^\d{2}:\d{2}$/.test(v) ? v : DEFAULT_PENDING_REMINDER;
+}
+export function setPendingReminder(time: string | null): void { write("pending_reminder", time ?? "off"); }
 
 /**
  * Wait for the bank's own charge before a recurring rule acts on its own.
@@ -56,6 +71,9 @@ export function setLocationEnabled(on: boolean): void { write("location_enabled"
 /** Home: no category is suggested near it (core `suggestCategoryAt`; the watch bridge applies the same rule). */
 export function getHomeLocation(): { lat: number; lon: number; place: string | null } | null { return getHome(db); }
 export function setHomeLocation(home: { lat: number; lon: number; place: string | null } | null): void { setHome(db, home); notifyChange(); }
+/** Categories whose payments are never evidence of a place — parking, taxi by default (core `locationIgnoredIds`). */
+export function getLocationIgnoreIds(): string[] { return [...locationIgnoredIds(db)]; }
+export function setLocationIgnoreIds(ids: string[]): void { setLocationIgnoreChoice(db, ids); notifyChange(); }
 
 /**
  * Show the account's balance on the entry sheet from the moment it opens, instead of keeping it
@@ -71,15 +89,28 @@ export function setShowBalance(on: boolean): void { write("show_balance", on ? "
  * Income from the filter sheet never lands on a deliberately empty list.
  */
 /** The Budgets screen's sections, top to bottom. Missing or unknown entries fall back to the default order. */
-export type BudgetsSection = "budgets" | "spending" | "travel";
-export const BUDGETS_SECTIONS: BudgetsSection[] = ["budgets", "spending", "travel"];
+export type BudgetsSection = "owed" | "budgets" | "spending" | "travel";
+export const BUDGETS_SECTIONS: BudgetsSection[] = ["owed", "budgets", "spending", "travel"];
+/**
+ * A section missing from a saved order arrives where the default puts it: Owed to you (new in 1.1.2)
+ * at the top, ahead of an order saved before it existed, and anything else at the end.
+ */
 export function getBudgetsSections(): BudgetsSection[] {
   let saved: unknown = [];
   try { saved = JSON.parse(read("budgets_sections") ?? "[]"); } catch { /* the default */ }
-  const known = (Array.isArray(saved) ? saved : []).filter((x): x is BudgetsSection => BUDGETS_SECTIONS.includes(x as BudgetsSection));
-  return [...new Set([...known, ...BUDGETS_SECTIONS])];
+  const known = [...new Set((Array.isArray(saved) ? saved : []).filter((x): x is BudgetsSection => BUDGETS_SECTIONS.includes(x as BudgetsSection)))];
+  const missing = BUDGETS_SECTIONS.filter((x) => !known.includes(x));
+  const first = missing.filter((x) => x === "owed");
+  return [...first, ...known, ...missing.filter((x) => x !== "owed")];
 }
 export function setBudgetsSections(order: BudgetsSection[]): void { write("budgets_sections", JSON.stringify(order)); }
+
+/**
+ * How categories are listed — folders and what is in them — on Settings → Categories, the pickers and
+ * Category types: the order dragged into place, or most used first (core categoryOrder.ts).
+ */
+export function getCategoryOrderSetting(): CategoryOrder { return getCategoryOrder(db); }
+export function setCategoryOrderSetting(v: CategoryOrder): void { write(CATEGORY_ORDER_KEY, v); }
 
 export function getHideIncome(): boolean { return read("hide_income") === "1"; }
 export function setHideIncome(on: boolean): void { write("hide_income", on ? "1" : "0"); }

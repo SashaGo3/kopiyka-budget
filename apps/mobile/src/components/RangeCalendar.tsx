@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Tap } from "@/components/ui";
 import * as Haptics from "expo-haptics";
 import { SymbolView } from "expo-symbols";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime, monthBounds, shiftMonth } from "@/lib/dates";
 import { getLocale, t } from "@/i18n";
 
 /** One-letter weekday headers, Monday first, in the app's language (1 Jan 2024 was a Monday). */
-function weekdays(): string[] {
+export function weekdays(): string[] {
   const locale = getLocale();
   return Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: "narrow" }));
 }
@@ -16,6 +17,17 @@ function weekdays(): string[] {
 function day(y: number, m: number, d: number): string {
   const x = new Date(y, m - 1, d);
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+}
+
+/** The weeks of the month `month` (YYYY-MM-01), Monday first; days outside it are null. */
+export function monthWeeks(month: string): (string | null)[][] {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  // Monday first: the week a trip is planned in, weekends together at the end.
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const count = new Date(y, m, 0).getDate();
+  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: count }, (_, i) => day(y, m, i + 1))];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
 }
 
 /**
@@ -34,13 +46,7 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
   start: string; end: string | null; onChange: (start: string, end: string | null) => void; maxStart?: string; maxEnd?: string;
 }) {
   const [month, setMonth] = useState(() => monthBounds(end ?? start).start);
-  const [y, m] = month.split("-").map(Number) as [number, number];
-  // Monday first: the week a trip is planned in, weekends together at the end.
-  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
-  const count = new Date(y, m, 0).getDate();
-  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: count }, (_, i) => day(y, m, i + 1))];
-  while (cells.length % 7) cells.push(null);
-  const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+  const weeks = monthWeeks(month);
 
   const tap = (d: string) => {
     void Haptics.selectionAsync();
@@ -52,13 +58,13 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Pressable onPress={() => setMonth(shiftMonth(month, -1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.previous")}>
+        <Tap onPress={() => setMonth(shiftMonth(month, -1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.previous")}>
           <SymbolView name="chevron.left" size={16} tintColor={C.tint} />
-        </Pressable>
+        </Tap>
         <Text style={styles.month}>{monthBounds(month).label}</Text>
-        <Pressable onPress={() => setMonth(shiftMonth(month, 1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.next")}>
+        <Tap onPress={() => setMonth(shiftMonth(month, 1))} hitSlop={10} style={styles.nav} accessibilityRole="button" accessibilityLabel={t("period.calendar.next")}>
           <SymbolView name="chevron.right" size={16} tintColor={C.tint} />
-        </Pressable>
+        </Tap>
       </View>
       <View style={styles.week}>
         {weekdays().map((w, i) => <Text key={i} style={styles.weekday}>{w}</Text>)}
@@ -75,14 +81,14 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
             const bandRight = inside || (d === start && end !== null && end !== start);
             const off = !!maxEnd && d > maxEnd;
             return (
-              <Pressable key={j} onPress={() => tap(d)} disabled={off} style={[styles.cell, off && { opacity: 0.3 }]} accessibilityRole="button"
+              <Tap key={j} onPress={() => tap(d)} disabled={off} style={[styles.cell, off && { opacity: 0.3 }]} accessibilityRole="button"
                 accessibilityLabel={humanDayTime(d)} accessibilityState={{ selected: edge || inside, disabled: off }}>
                 {bandLeft ? <View style={[styles.band, { left: 0, right: "50%" }]} /> : null}
                 {bandRight ? <View style={[styles.band, { left: "50%", right: 0 }]} /> : null}
                 <View style={[styles.dot, edge && styles.dotOn]}>
                   <Text style={[styles.dayText, inside && styles.dayInside, edge && styles.dayOn]}>{Number(d.slice(8, 10))}</Text>
                 </View>
-              </Pressable>
+              </Tap>
             );
           })}
         </View>
@@ -92,15 +98,15 @@ export function RangeCalendar({ start, end, onChange, maxStart, maxEnd }: {
 }
 
 const styles = themed(() => StyleSheet.create({
-  wrap: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 16, paddingHorizontal: S.sm, paddingVertical: S.md, gap: 2 },
+  wrap: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.sm, paddingVertical: S.md, gap: 2 },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: S.sm, paddingBottom: S.sm },
-  nav: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: C.fill },
+  nav: { width: 36, height: 36, borderRadius: R.pill, alignItems: "center", justifyContent: "center", backgroundColor: C.fill },
   month: { fontSize: 17, fontWeight: "600", color: C.label },
   week: { flexDirection: "row" },
   weekday: { flex: 1, textAlign: "center", fontSize: 12, fontWeight: "600", color: C.tertiary, paddingBottom: 4 },
   cell: { flex: 1, height: 44, alignItems: "center", justifyContent: "center" },
   band: { position: "absolute", top: 4, bottom: 4, backgroundColor: C.tint, opacity: 0.18 },
-  dot: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  dot: { width: 36, height: 36, borderRadius: R.pill, alignItems: "center", justifyContent: "center" },
   dotOn: { backgroundColor: C.tint },
   dayText: { fontSize: 17, color: C.label, fontVariant: ["tabular-nums"] },
   dayInside: { color: C.tint, fontWeight: "600" },

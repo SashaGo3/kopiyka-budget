@@ -109,6 +109,9 @@ struct KPWatchState: Codable {
     /// Retired in the app: still named on the history rows that carry it, never offered for
     /// anything new (`KPRank.categories`). Absent in a state file written before archiving existed.
     var archived: Bool? = nil
+    /// What kinds of thing it is (core `categoryTypes`), what a well-known shop is matched to
+    /// (KPShops). Absent in a state file written before category types existed.
+    var types: [String]? = nil
   }
   /// The home the app knows (meta `home_lat`/`home_lon`); no category is suggested near it.
   struct Home: Codable, Hashable { let lat: Double; let lon: Double }
@@ -142,6 +145,9 @@ struct KPWatchState: Codable {
   /// Whether the Shortcut automation may say it logged a payment (meta `shortcut_notify`).
   /// Absent means an older state file, and the preference is on unless turned off — so nil reads as on.
   var shortcut_notify: Bool? = nil
+  /// The evening reminder about the Pending queue (meta `pending_reminder`): "HH:MM" or "off".
+  /// Absent in an older state file, and then it is the default, on at 22:00.
+  var pending_reminder: String? = nil
   /// Newest cached exchange rate per "BASE>QUOTE" pair; the inverse is derived when only one side is stored.
   var rates: [String: Double]? = nil
   /// The app's language ("uk"), so the watch and its complication speak it too (`KPL.store` on arrival).
@@ -171,7 +177,7 @@ struct KPWatchState: Codable {
                             uses: c.uses, description: nil, archived: c.archived)
     }
     s.accounts = accounts.map { a in var a = a; a.numbers = nil; return a }
-    s.home = nil; s.shortcut_notify = nil; s.rates = nil
+    s.home = nil; s.shortcut_notify = nil; s.pending_reminder = nil; s.rates = nil
     return s
   }
   static func from(json: String) -> KPWatchState? { json.data(using: .utf8).flatMap { try? JSONDecoder().decode(KPWatchState.self, from: $0) } }
@@ -336,6 +342,8 @@ enum KPFormat {
 /// Category with folder name, description and usage: what the receipt reader chooses from.
 struct KPCategoryRef {
   let id: String; let name: String; let parent: String?; let description: String?; let uses: Int
+  /// Core `categoryTypes`: what a well-known shop is filed into (KPShops). Empty when nothing says.
+  var types: [String] = []
   var path: String { parent.map { "\($0) › \(name)" } ?? name }
 }
 
@@ -451,6 +459,7 @@ enum KPStore {
     case "location_enabled": return (s.location_enabled ?? false) ? "1" : "0"
     // Absent from an older state file: the preference is on unless it says otherwise, so nil reads as on.
     case "shortcut_notify": return (s.shortcut_notify ?? true) ? "1" : "0"
+    case "pending_reminder": return s.pending_reminder
     case "home_lat": return s.home.map { String($0.lat) }
     case "home_lon": return s.home.map { String($0.lon) }
     default: return nil
@@ -482,6 +491,17 @@ enum KPStore {
       while sqlite3_step(stmt) == SQLITE_ROW { out.insert(str(stmt, 0)) }
       sqlite3_finalize(stmt)
     }
+    return out
+  }
+
+  /// The first column of every row `sql` returns, as text, with `binds` bound in order.
+  static func queryStrings(_ db: OpaquePointer, _ sql: String, _ binds: [String]) -> [String] {
+    var stmt: OpaquePointer?
+    guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+    defer { sqlite3_finalize(stmt) }
+    for (i, b) in binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
+    var out: [String] = []
+    while sqlite3_step(stmt) == SQLITE_ROW { out.append(str(stmt, 0)) }
     return out
   }
 
@@ -520,6 +540,15 @@ enum KPStore {
   }
 
   /// Whether a column exists — the direct path runs on whatever schema the file is at.
+  /// A category's name in the app's language, as SQL over the row aliased `a`: its own translation
+  /// (`categories.names`, v27, DATA.md rule 16) when it has one for this language, else the stored name —
+  /// which `KPPreset.name` then translates if it is still a ready-made one. Core `categoryName`.
+  static func nameSQL(_ db: OpaquePointer, _ a: String) -> String {
+    guard hasColumn(db, "categories", "names") else { return "\(a).name" }
+    let lang = KPL.language.filter { $0.isLetter || $0 == "-" }
+    return "COALESCE(CASE WHEN json_valid(\(a).names) THEN NULLIF(TRIM(json_extract(\(a).names, '$.\"\(lang)\"')), '') END, \(a).name)"
+  }
+
   static func hasColumn(_ db: OpaquePointer, _ table: String, _ column: String) -> Bool {
     var stmt: OpaquePointer?
     guard sqlite3_prepare_v2(db, "SELECT COUNT(*) FROM pragma_table_info(?) WHERE name=?", -1, &stmt, nil) == SQLITE_OK else { return false }
@@ -553,12 +582,12 @@ enum KPStore {
     let cats = fileState()?.categories ?? []
     let folders = Set(cats.compactMap(\.parent_id))
     return cats.filter { $0.kind == "expense" && !folders.contains($0.id) }
-      .map { .init(id: $0.id, name: $0.name, parent: $0.parent_name, description: $0.description, uses: $0.uses) }
+      .map { .init(id: $0.id, name: $0.name, parent: $0.parent_name, description: $0.description, uses: $0.uses, types: $0.types ?? []) }
   }
 
   /// Works before the `description` column exists (older database): falls back to a query without it.
   private static func categoryRefs(_ db: OpaquePointer) -> [KPCategoryRef] {
-    func run(_ sql: String, described: Bool) -> [KPCategoryRef]? {
+    func run(_ sql: String, described: Bool, typed: Bool = false) -> [KPCategoryRef]? {
       var stmt: OpaquePointer?
       guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
       defer { sqlite3_finalize(stmt) }
@@ -568,17 +597,21 @@ enum KPStore {
         // Names as the app shows them (KPPreset); the description as the receipt reader matches it.
         let preset = opt(stmt, 5), parentPreset = opt(stmt, 6)
         out.append(.init(id: str(stmt, 0), name: KPPreset.name(str(stmt, 1), preset: preset), parent: opt(stmt, 2).map { KPPreset.name($0, preset: parentPreset) },
-                         description: described ? KPPreset.matchText(opt(stmt, 3), preset: preset) : nil, uses: Int(sqlite3_column_int(stmt, 4))))
+                         description: described ? KPPreset.matchText(opt(stmt, 3), preset: preset) : nil, uses: Int(sqlite3_column_int(stmt, 4)),
+                         // Core `categoryTypes`: the stated list, else the preset's.
+                         types: KPShops.types(typed ? opt(stmt, 7) : nil, preset: preset)))
       }
       return out
     }
     let uses = "(SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses"
+    let cn = nameSQL(db, "c"), pn = nameSQL(db, "p")
     // "Has nothing inside it" is what makes a row pickable, the same rule as core's `folderIds`.
     let leaf = "NOT EXISTS (SELECT 1 FROM categories k WHERE k.deleted=0 AND k.parent_id=c.id)"
-    // Older databases lack `preset` (v18) or `description`: each falls back to a query without it.
-    return run("SELECT c.id, c.name, p.name, c.description, \(uses), c.preset, p.preset FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
-      ?? run("SELECT c.id, c.name, p.name, c.description, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
-      ?? run("SELECT c.id, c.name, p.name, NULL, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: false)
+    // Older databases lack `type` (v24), `preset` (v18) or `description`: each falls back to a query without it.
+    return run("SELECT c.id, \(cn), \(pn), c.description, \(uses), c.preset, p.preset, c.type FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true, typed: true)
+      ?? run("SELECT c.id, \(cn), \(pn), c.description, \(uses), c.preset, p.preset FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
+      ?? run("SELECT c.id, \(cn), \(pn), c.description, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: true)
+      ?? run("SELECT c.id, \(cn), \(pn), NULL, \(uses), NULL, NULL FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 AND c.kind='expense' AND \(leaf) ORDER BY c.sort, c.name", described: false)
       ?? []
   }
 
@@ -615,7 +648,7 @@ enum KPStore {
     func run(_ described: String, _ presets: String = "c.preset, p.preset") -> [KPWatchState.Category]? {
       var stmt: OpaquePointer?
       let sql = """
-        SELECT c.id, c.name, c.parent_id, p.name, c.kind, c.icon, c.color,
+        SELECT c.id, \(nameSQL(db, "c")), c.parent_id, \(nameSQL(db, "p")), c.kind, c.icon, c.color,
           (SELECT COUNT(*) FROM transactions t WHERE t.deleted=0 AND t.category_id=c.id AND t.date>=?) AS uses, \(described), \(presets)
         FROM categories c LEFT JOIN categories p ON p.id=c.parent_id WHERE c.deleted=0 ORDER BY c.sort, c.name
         """
@@ -679,7 +712,7 @@ enum KPStore {
     var stmt: OpaquePointer?
     let bankNote = hasColumn(db, "transactions", "bank_note") ? "t.bank_note" : "NULL"
     let sql = """
-      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, c.name, p.name, t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets), \(bankNote),
+      SELECT t.id, t.date, t.amount_minor, a.currency, a.name, t.account_id, t.category_id, \(nameSQL(db, "c")), \(nameSQL(db, "p")), t.notes, t.payee, t.tag_ids, t.pending, t.transfer_id, \(presets), \(bankNote),
         t.place, t.lat, t.lon, t.entered_amount_minor, t.entered_currency
       FROM transactions t JOIN accounts a ON a.id=t.account_id
       LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN categories p ON p.id=c.parent_id
@@ -732,7 +765,7 @@ enum KPStore {
         accounts: accounts(db).map { .init(id: $0.id, name: $0.name, currency: $0.currency, balance: balances[$0.id] ?? 0) },
         categories: cats, tags: tags, together: together, history: history(db, limit: 50), snapshot: snap,
         location_enabled: meta(db, "location_enabled") == "1",
-        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0", language: KPL.chosen)
+        home: home(db), shortcut_notify: meta(db, "shortcut_notify") != "0", pending_reminder: meta(db, "pending_reminder"), language: KPL.chosen)
     }
     if let built { return built }
     // JS owns the database. It writes the state file before every `updateWatch`, so this is current.
@@ -772,14 +805,40 @@ enum KPStore {
     withDatabase { db in
       if let h = home(db), distanceMeters(lat, lon, h.lat, h.lon) <= homeRadiusM { return nil }
       let key = place.map(placeKey) ?? ""
-      if !key.isEmpty, let named = pickNearby(db, lat: lat, lon: lon, radiusM: samePlaceRadiusM, keep: { placeKey($0 ?? "") == key }) { return named }
-      return pickNearby(db, lat: lat, lon: lon, radiusM: radiusM, keep: { _ in true })
+      let skip = locationIgnored(db)
+      if !key.isEmpty, let named = pickNearby(db, lat: lat, lon: lon, radiusM: samePlaceRadiusM, skip: skip, keep: { placeKey($0 ?? "") == key }) { return named }
+      return pickNearby(db, lat: lat, lon: lon, radiusM: radiusM, skip: skip, keep: { _ in true })
     }
+  }
+
+  /// Mirrors core `locationIgnoredIds`: categories whose every type is placeless (parking, taxi —
+  /// KPShops.placeless), plus meta `location_ignore` with each folder opened up, minus meta
+  /// `location_allow`. Their rows are no evidence of what a place is, so the history search skips them.
+  private static func locationIgnored(_ db: OpaquePointer) -> Set<String> {
+    func ids(_ key: String) -> [String] {
+      guard let raw = meta(db, key), let data = raw.data(using: .utf8) else { return [] }
+      return (try? JSONSerialization.jsonObject(with: data)) as? [String] ?? []
+    }
+    var named = Set(ids("location_ignore"))
+    var cats: [(id: String, parent: String?, types: [String])] = []
+    var stmt: OpaquePointer?
+    // Before v24 there is no `type` column: the preset alone answers.
+    let typed = sqlite3_prepare_v2(db, "SELECT id, parent_id, type, preset FROM categories WHERE deleted=0", -1, &stmt, nil) == SQLITE_OK
+    if !typed { sqlite3_finalize(stmt); stmt = nil; guard sqlite3_prepare_v2(db, "SELECT id, parent_id, NULL, preset FROM categories WHERE deleted=0", -1, &stmt, nil) == SQLITE_OK else { return named } }
+    while sqlite3_step(stmt) == SQLITE_ROW { cats.append((str(stmt, 0), opt(stmt, 1), KPShops.types(opt(stmt, 2), preset: opt(stmt, 3)))) }
+    sqlite3_finalize(stmt)
+    var changed = !named.isEmpty
+    while changed {
+      changed = false
+      for c in cats where c.parent.map(named.contains) == true && !named.contains(c.id) { named.insert(c.id); changed = true }
+    }
+    for c in cats where KPShops.isPlaceless(c.types) { named.insert(c.id) }
+    return named.subtracting(ids("location_allow"))
   }
 
   /// The most-used category among rows within `radiusM` that `keep` accepts; ties go to the most
   /// recent, because the rows arrive newest first and the maximum below is stable.
-  private static func pickNearby(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double, keep: (String?) -> Bool) -> String? {
+  private static func pickNearby(_ db: OpaquePointer, lat: Double, lon: Double, radiusM: Double, skip: Set<String> = [], keep: (String?) -> Bool) -> String? {
     let dLat = radiusM / 111_000, dLon = radiusM / (111_000 * max(0.2, cos(lat * .pi / 180)))
     var stmt: OpaquePointer?
     let sql = """
@@ -797,6 +856,7 @@ enum KPStore {
       if distanceMeters(lat, lon, rlat, rlon) > radiusM { continue }
       if !keep(opt(stmt, 3)) { continue }
       let id = str(stmt, 0)
+      if skip.contains(id) { continue }
       if counts[id] == nil { order.append(id) }
       counts[id, default: 0] += 1
     }
@@ -819,6 +879,9 @@ enum KPStore {
     /// nothing was found (core `PayeeMatch`). A first-word match is a guess: "BLIK INTERNET:
     /// FLYSTORE.PL" and "BLIK INTERNET: ALLEGRO.PL" share everything except the shop.
     var match: String?
+    /// The amount chose between the ways this name was filed (`pickByAmount`): "sure" when it settles
+    /// it, "near" when it only points one way, nil when it was not asked or said nothing.
+    var byAmount: String?
     /// History has a category for this name, by whatever route — enough to fill the field in.
     var filedBefore: Bool { categoryId != nil }
     /// …and it was this very name, so the entry is already understood and needs no trip through the
@@ -860,7 +923,39 @@ enum KPStore {
     withDatabase { payeeHistory($0, payee: payee, note: note) }
   }
 
-  private static func payeeHistory(_ db: OpaquePointer, payee: String?, note: String?) -> PayeeHistory {
+  /**
+   Which of the ways a name was filed this amount belongs to — the rent (4 323.99 every month) or the
+   service charges (500–670), both paid to the landlord. Mirrors core `pickByAmount`
+   (packages/core/src/payee.ts), rule for rule:
+
+   - the same amount, filed one way only: sure;
+   - inside one way's range, with two payments or more behind it, and no other way within 10 %: sure;
+   - within 10 % of one way's range and no other's: a lead, not a decision.
+
+   Only past payments in the same direction and currency count, and only with two ways or more.
+   */
+  static func pickByAmount(_ rows: [(key: String, amountMinor: Int, sameCurrency: Bool)], _ amountMinor: Int) -> (key: String, sure: Bool)? {
+    let target = abs(amountMinor)
+    guard target > 0 else { return nil }
+    let sign = amountMinor.signum()
+    var order: [String] = []
+    var ways: [String: [Int]] = [:]
+    for r in rows where r.sameCurrency && r.amountMinor.signum() == sign {
+      if ways[r.key] == nil { order.append(r.key) }
+      ways[r.key, default: []].append(abs(r.amountMinor))
+    }
+    guard ways.count >= 2 else { return nil }
+    let exact = order.filter { ways[$0]!.contains(target) }
+    if exact.count > 1 { return nil }
+    if let key = exact.first { return (key, true) }
+    // Integers only: within 10 % of [min, max] is 10·target ∈ [9·min, 11·max].
+    let near = order.filter { target * 10 >= ways[$0]!.min()! * 9 && target * 10 <= ways[$0]!.max()! * 11 }
+    guard near.count == 1, let key = near.first, let a = ways[key] else { return nil }
+    return (key, a.count >= 2 && target >= a.min()! && target <= a.max()!)
+  }
+
+  private static func payeeHistory(_ db: OpaquePointer, payee: String?, note: String?,
+                                   amountMinor: Int? = nil, accountId: String? = nil) -> PayeeHistory {
     var out = PayeeHistory()
     let shop = payee?.trimmingCharacters(in: .whitespacesAndNewlines)
     // The whole note, not its first line: an automation writes one line, and an exact match is the
@@ -873,6 +968,9 @@ enum KPStore {
     let bankCol = hasColumn(db, "transactions", "bank_note")
     let byName = "(payee = ? COLLATE NOCASE OR notes = ? COLLATE NOCASE\(bankCol ? " OR bank_note = ? COLLATE NOCASE" : ""))"
     let names = { (n: String) in Array(repeating: n, count: bankCol ? 3 : 2) }
+    // A friend's share of a purchase (v25, DATA.md rule 23) carries the shop's name but is not a
+    // payment at that shop of yours, so it never answers what the shop is.
+    let mine = hasColumn(db, "transactions", "person_id") ? " AND person_id IS NULL" : ""
     var tries: [(clause: String, binds: [String], exact: Bool)] = []
     if let s = shop, !s.isEmpty { tries.append((byName, names(s), true)) }
     if let t = title, !t.isEmpty, t.lowercased() != shop?.lowercased() { tries.append((byName, names(t), true)) }
@@ -888,7 +986,7 @@ enum KPStore {
     func newest(_ cols: String, _ has: String) -> (stmt: OpaquePointer, exact: Bool)? {
       for t in tries {
         var stmt: OpaquePointer?
-        let sql = "SELECT \(cols) FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND \(has) AND \(t.clause) ORDER BY date DESC LIMIT 1"
+        let sql = "SELECT \(cols) FROM transactions WHERE deleted=0 AND transfer_id IS NULL\(mine) AND \(has) AND \(t.clause) ORDER BY date DESC LIMIT 1"
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
         for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
         if sqlite3_step(stmt) == SQLITE_ROW, let stmt { return (stmt, t.exact) }
@@ -900,15 +998,16 @@ enum KPStore {
     let skip = uncarriedTagIds(db)
     /// The filed rows (category, tags it may hand on) for the first name that has any, newest first.
     /// A row whose only tags are ones it cannot hand on was never filed as far as the shop goes.
-    var filed: (rows: [(categoryId: String?, tagIds: [String])], exact: Bool)?
+    var filed: (rows: [(categoryId: String?, tagIds: [String], amountMinor: Int, currency: String?)], exact: Bool)?
     for t in tries {
       var stmt: OpaquePointer?
-      let sql = "SELECT category_id, tag_ids FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) ORDER BY date DESC LIMIT 200"
+      let sql = "SELECT category_id, tag_ids, amount_minor, (SELECT currency FROM accounts a WHERE a.id = transactions.account_id) FROM transactions WHERE deleted=0 AND transfer_id IS NULL\(mine) AND (category_id IS NOT NULL OR tag_ids <> '[]') AND \(t.clause) ORDER BY date DESC LIMIT 200"
       guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { continue }
       for (i, b) in t.binds.enumerated() { sqlite3_bind_text(stmt, Int32(i + 1), b, -1, T) }
-      var rows: [(categoryId: String?, tagIds: [String])] = []
+      var rows: [(categoryId: String?, tagIds: [String], amountMinor: Int, currency: String?)] = []
       while sqlite3_step(stmt) == SQLITE_ROW {
-        let row = (categoryId: opt(stmt, 0), tagIds: jsonIds(str(stmt, 1)).filter { !skip.contains($0) })
+        let row = (categoryId: opt(stmt, 0), tagIds: jsonIds(str(stmt, 1)).filter { !skip.contains($0) },
+                   amountMinor: Int(sqlite3_column_int64(stmt, 2)), currency: opt(stmt, 3))
         if row.categoryId != nil || !row.tagIds.isEmpty { rows.append(row) }
       }
       sqlite3_finalize(stmt)
@@ -923,6 +1022,23 @@ enum KPStore {
       // How many ways this name was filed, so a caller can tell a decision from a coin toss — over
       // the same name that answered above, and with a trip's tag not making a way of its own.
       out.variants = Set(filed.rows.map { "\($0.categoryId ?? "")|\($0.tagIds.sorted().joined(separator: ","))" }).count
+      // One name filed more than one way — the rent and the service charges, both to the landlord —
+      // and a payment whose amount may say which this is. Rows under a retired category are no way
+      // to choose (core `filedWays`); an amount that settles it makes this payment one way.
+      if let amountMinor, out.variants > 1 {
+        let currency = accountId.flatMap { id in queryStrings(db, "SELECT currency FROM accounts WHERE id=?", [id]).first }
+        let gone = Set(queryStrings(db, "SELECT id FROM categories WHERE deleted=0 AND (archived=1 OR parent_id IN (SELECT id FROM categories WHERE deleted=0 AND archived=1))", []))
+        let ways = filed.rows.filter { $0.categoryId.map { !gone.contains($0) } ?? true }
+        let key = { (r: (categoryId: String?, tagIds: [String], amountMinor: Int, currency: String?)) in
+          "\(r.categoryId ?? "")|\(r.tagIds.sorted().joined(separator: ","))" }
+        let rows = ways.map { (key: key($0), amountMinor: $0.amountMinor, sameCurrency: currency != nil && $0.currency == currency) }
+        if let pick = pickByAmount(rows, amountMinor), let way = ways.first(where: { key($0) == pick.key }) {
+          out.categoryId = way.categoryId
+          out.tagIds = way.tagIds
+          out.byAmount = pick.sure ? "sure" : "near"
+          if pick.sure { out.variants = 1 }
+        }
+      }
     }
     // Where the shop is, though, is a fact of its own — the newest entry that recorded a location,
     // whether or not that is the entry the category came from.
@@ -955,7 +1071,7 @@ enum KPStore {
   }
 
   private static func paymentContext(_ db: OpaquePointer, accountId: String, amountMinor: Int, payee: String?, note: String?, withinMinutes: Int) -> PaymentContext {
-    var out = PaymentContext(history: payeeHistory(db, payee: payee, note: note))
+    var out = PaymentContext(history: payeeHistory(db, payee: payee, note: note, amountMinor: amountMinor, accountId: accountId))
     let since = isoFormatter.string(from: Date(timeIntervalSinceNow: -Double(withinMinutes) * 60))
     var stmt: OpaquePointer?
     let sql = "SELECT id, payee, place, category_id, pending FROM transactions WHERE deleted=0 AND account_id=? AND amount_minor=? AND date>=? ORDER BY date DESC LIMIT 1"

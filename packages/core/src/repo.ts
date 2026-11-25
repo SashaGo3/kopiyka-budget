@@ -3,21 +3,23 @@ import { nowMs } from "./db";
 import { newId } from "./ids";
 import { getMeta, setMeta } from "./schema";
 import { DEFAULT_ACCOUNT_GROUP, DEFAULT_DEBT_NOTIFY_TIME } from "./models";
-import type { Account, Budget, Category, Debt, Insight, RecurringRule, RowByTable, Synced, SyncedTable, Tag, Transaction } from "./models";
+import type { Account, Budget, Category, Debt, Insight, Person, RecurringRule, RowByTable, Synced, SyncedTable, Tag, Transaction } from "./models";
 import { SYNCED_TABLES } from "./models";
+import { isPlaceless } from "./categoryTypes";
 
 /** Column lists per table, excluding the shared sync columns. Order matters for upsert SQL. */
 export const TABLE_COLUMNS: Record<SyncedTable, string[]> = {
   accounts: ["name", "currency", "type", "group_name", "icon", "color", "sort", "archived", "include_in_net_worth", "opening_balance_minor", "numbers"],
-  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset"],
+  categories: ["name", "parent_id", "icon", "color", "sort", "kind", "description", "archived", "importance", "preset", "type", "names"],
   tags: ["name", "color", "category_ids", "archived"],
   transactions: ["account_id", "date", "amount_minor", "category_id", "payee", "notes", "tag_ids", "pending", "transfer_id",
-    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref", "debt_id", "bank_note"],
+    "entered_amount_minor", "entered_currency", "exchange_rate", "recurring_id", "lat", "lon", "place", "photo", "source", "refunded_minor", "bank_ref", "debt_id", "bank_note", "person_id", "share_of", "items", "to_split"],
   recurring_rules: ["account_id", "amount_minor", "category_id", "payee", "notes", "tag_ids", "frequency", "interval",
     "start_date", "end_date", "next_date", "notify", "notify_days_before", "auto_post", "active", "time_of_day", "wait_days", "match_payee", "icon"],
-  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids", "kind"],
+  budgets: ["category_id", "category_ids", "currency", "amount_minor", "period", "starts", "start_day", "account_id", "tag_id", "ends", "ended", "name", "sort", "in_planned", "outside_ids", "kind", "people"],
   insights: ["kind", "params", "sort"],
-  debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id"],
+  debts: ["person", "direction", "amount_minor", "currency", "account_id", "opened_date", "due_date", "notes", "settled_date", "notify", "notify_time", "transaction_id", "person_id"],
+  people: ["name", "contact_id", "color", "sort", "archived", "group_id"],
 };
 
 export function isSyncedTable(t: string): t is SyncedTable {
@@ -98,7 +100,9 @@ export function createAccount(db: SqlDriver, a: Partial<Account> & Pick<Account,
 }
 
 export function createCategory(db: SqlDriver, c: Partial<Category> & Pick<Category, "name">): Category {
-  return save(db, "categories", { parent_id: null, icon: null, color: null, sort: 0, kind: "expense", description: null, archived: 0, importance: 0, preset: null, ...c } as Category);
+  // A new category goes at the end of the custom order (categoryOrder.ts), not in front of everything.
+  const sort = c.sort ?? (db.get<{ n: number | null }>(`SELECT MAX(sort) AS n FROM categories`)?.n ?? -1) + 1;
+  return save(db, "categories", { parent_id: null, icon: null, color: null, kind: "expense", description: null, archived: 0, importance: 0, preset: null, type: null, ...c, sort } as Category);
 }
 
 export function createTag(db: SqlDriver, t: Partial<Tag> & Pick<Tag, "name">): Tag {
@@ -109,7 +113,7 @@ export function createTransaction(db: SqlDriver, t: Partial<Transaction> & Pick<
   return save(db, "transactions", {
     category_id: null, payee: null, notes: null, tag_ids: "[]", pending: 0, transfer_id: null,
     entered_amount_minor: null, entered_currency: null, exchange_rate: null, recurring_id: null, lat: null, lon: null, place: null, photo: null,
-    source: null, refunded_minor: 0, bank_ref: null, debt_id: null, bank_note: null, ...t,
+    source: null, refunded_minor: 0, bank_ref: null, debt_id: null, bank_note: null, person_id: null, share_of: null, items: null, to_split: 0, ...t,
   } as Transaction);
 }
 
@@ -165,6 +169,12 @@ export function inBudgetScope(ids: string[], cats: Map<string, { parent_id: stri
 
 export function createInsight(db: SqlDriver, i: Partial<Insight> & Pick<Insight, "kind">): Insight {
   return save(db, "insights", { params: "{}", sort: 0, ...i } as Insight);
+}
+
+/** A friend, at the end of the custom order. */
+export function createPerson(db: SqlDriver, p: Partial<Person> & Pick<Person, "name">): Person {
+  const sort = p.sort ?? (db.get<{ n: number | null }>(`SELECT MAX(sort) AS n FROM people`)?.n ?? -1) + 1;
+  return save(db, "people", { contact_id: null, color: null, archived: 0, ...p, name: p.name.trim(), sort } as Person);
 }
 
 export function createDebt(db: SqlDriver, d: Partial<Debt> & Pick<Debt, "person" | "amount_minor" | "currency" | "opened_date">): Debt {
@@ -278,7 +288,7 @@ export function categorySpend(db: SqlDriver, fromIso: string, toIso: string, acc
   return db.all<Row>(
     `SELECT t.category_id, a.currency, SUM(t.amount_minor) AS spent_minor
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}${except}
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.date>=? AND t.date<? AND t.amount_minor<0${scope}${except}
      GROUP BY t.category_id, a.currency`,
     [fromIso, toIso, ...(accountIds?.length ? accountIds : []), ...(o.exceptTags ?? []).map((x) => `%"${x}"%`)],
   ) as unknown as CategorySpend[];
@@ -296,7 +306,7 @@ export function recurringSpend(db: SqlDriver, fromIso: string, toIso: string, ac
   return db.all<Row>(
     `SELECT t.recurring_id, a.currency, SUM(t.amount_minor) AS spent_minor, COUNT(*) AS n
      FROM transactions t JOIN accounts a ON a.id=t.account_id
-     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.recurring_id IS NOT NULL AND t.date>=? AND t.date<?${scope}
+     WHERE t.deleted=0 AND t.transfer_id IS NULL AND t.person_id IS NULL AND t.recurring_id IS NOT NULL AND t.date>=? AND t.date<?${scope}
      GROUP BY t.recurring_id, a.currency`,
     [fromIso, toIso, ...(accountIds?.length ? accountIds : [])],
   ) as unknown as RecurringSpend[];
@@ -311,7 +321,7 @@ export interface TagSpend { category_id: string | null; currency: string; spent_
  * `oneOff` leaves out what a recurring rule posted or claimed — both for trips (trips.ts).
  */
 export function tagSpend(db: SqlDriver, tagId: string, o: { fromIso?: string; toIso?: string; accountIds?: string[]; exceptTags?: string[]; oneOff?: boolean } = {}): TagSpend[] {
-  const conds = ["t.deleted=0", "t.transfer_id IS NULL", "t.amount_minor<0", "t.tag_ids LIKE ?"];
+  const conds = ["t.deleted=0", "t.transfer_id IS NULL", "t.person_id IS NULL", "t.amount_minor<0", "t.tag_ids LIKE ?"];
   const params: SqlParam[] = [`%"${tagId}"%`];
   for (const x of o.exceptTags ?? []) { if (x === tagId) continue; conds.push("(t.recurring_id IS NOT NULL OR t.tag_ids NOT LIKE ?)"); params.push(`%"${x}"%`); }
   if (o.oneOff) conds.push("t.recurring_id IS NULL");
@@ -375,6 +385,71 @@ export function setHome(db: SqlDriver, home: { lat: number; lon: number; place: 
 }
 
 /**
+ * Categories whose payments say nothing about the place they were paid at (Settings → Location →
+ * Never suggest, and each category's own "Suggest by location"). Parking, a taxi, a ticket: paid in
+ * the car park beside the supermarket, and after one of them every coffee bought there was offered
+ * as Parking. Rows filed under one are left out of the location history altogether — still there,
+ * still counted, only never evidence of what "here" is.
+ *
+ * Three inputs. A category whose every type is placeless (`PLACELESS_TYPES`, categoryTypes.ts) is out
+ * by default, so a new "Parking" needs no setting at all. Meta `location_ignore` (JSON ids) adds
+ * more — a folder there stands for every category inside it, later ones included. Meta
+ * `location_allow` (JSON ids) lets one back in, default or not. Both travel with backups.
+ */
+export function getLocationIgnore(db: SqlDriver): string[] { return jsonIds(getMeta(db, "location_ignore")); }
+export function getLocationAllow(db: SqlDriver): string[] { return jsonIds(getMeta(db, "location_allow")); }
+function writeIds(db: SqlDriver, key: string, ids: Iterable<string>): void {
+  const list = [...new Set(ids)];
+  if (list.length) setMeta(db, key, JSON.stringify(list)); else db.run(`DELETE FROM meta WHERE key=?`, [key]);
+}
+export function setLocationIgnore(db: SqlDriver, ids: string[]): void { writeIds(db, "location_ignore", ids); }
+
+type IgnoreCat = { id: string; parent_id: string | null; type?: string | null; preset?: string | null };
+
+/** The ids `location_ignore` names, each folder opened up into the categories inside it. */
+function namedIgnored(db: SqlDriver, cats: IgnoreCat[]): Set<string> {
+  const out = new Set(getLocationIgnore(db));
+  for (let changed = out.size > 0; changed;) {
+    changed = false;
+    for (const c of cats) if (c.parent_id && out.has(c.parent_id) && !out.has(c.id)) { out.add(c.id); changed = true; }
+  }
+  return out;
+}
+
+/** Every category left out of location suggestions right now (see above). */
+export function locationIgnoredIds(db: SqlDriver, cats: IgnoreCat[] = listRows(db, "categories", "deleted=0")): Set<string> {
+  const out = namedIgnored(db, cats);
+  for (const c of cats) if (isPlaceless(c)) out.add(c.id);
+  for (const id of getLocationAllow(db)) out.delete(id);
+  return out;
+}
+
+/** One category in or out of location suggestions, writing only the exception to its default. */
+export function setLocationSuggest(db: SqlDriver, categoryId: string, on: boolean): void {
+  const cats = listRows(db, "categories", "deleted=0");
+  const ignore = new Set(getLocationIgnore(db)), allow = new Set(getLocationAllow(db));
+  ignore.delete(categoryId); allow.delete(categoryId);
+  const c = cats.find((x) => x.id === categoryId);
+  // Out without a word from this category: all its types are placeless, or its folder is on the list.
+  const outByDefault = !!c && (isPlaceless(c) || (!!c.parent_id && ignore.has(c.parent_id)));
+  if (on && outByDefault) allow.add(categoryId);
+  if (!on && !outByDefault) ignore.add(categoryId);
+  writeIds(db, "location_ignore", ignore); writeIds(db, "location_allow", allow);
+}
+
+/**
+ * The Never suggest list as a whole, from the multi-picker: what is ticked is out (a fully ticked
+ * folder arrives as the folder, and keeps meaning "and whatever is added to it"), and a category out
+ * by default that was unticked is let back in.
+ */
+export function setLocationIgnoreChoice(db: SqlDriver, chosen: string[]): void {
+  const cats = listRows(db, "categories", "deleted=0");
+  writeIds(db, "location_ignore", chosen);
+  const covered = namedIgnored(db, cats);
+  writeIds(db, "location_allow", cats.filter((c) => isPlaceless(c) && !covered.has(c.id)).map((c) => c.id));
+}
+
+/**
  * Most common category among earlier transactions logged within `radiusM` of a point.
  * Cheap: a bounding-box query on the indexed columns, then an exact distance check.
  */
@@ -435,7 +510,9 @@ export function suggestCategoryAt(db: SqlDriver, at: { lat: number; lon: number;
  * it would put a new entry somewhere the picker will not even offer.
  */
 function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, keep: (r: { place: string | null }) => boolean): PlaceSuggestion | null {
-  const gone = archivedCategoryIds(listRows(db, "categories", "deleted=0"));
+  const cats = listRows(db, "categories", "deleted=0");
+  const gone = archivedCategoryIds(cats);
+  const ignored = locationIgnoredIds(db, cats);
   const dLat = radiusM / 111_000, dLon = radiusM / (111_000 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
   const rows = db.all<{ category_id: string; lat: number; lon: number; place: string | null }>(
     `SELECT category_id, lat, lon, place FROM transactions WHERE deleted=0 AND transfer_id IS NULL AND category_id IS NOT NULL
@@ -443,7 +520,7 @@ function pickNearby(db: SqlDriver, lat: number, lon: number, radiusM: number, ke
     [lat - dLat, lat + dLat, lon - dLon, lon + dLon]);
   const counts = new Map<string, PlaceSuggestion>();
   for (const r of rows) {
-    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r) || gone.has(r.category_id)) continue;
+    if (distanceMeters(lat, lon, r.lat, r.lon) > radiusM || !keep(r) || gone.has(r.category_id) || ignored.has(r.category_id)) continue;
     const e = counts.get(r.category_id) ?? { category_id: r.category_id, count: 0, place: null };
     e.count++; e.place ??= r.place; counts.set(r.category_id, e);
   }

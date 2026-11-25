@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Tap } from "@/components/ui";
 import { SymbolView } from "expo-symbols";
 import { router } from "expo-router";
 import { createAccount, formatMinor, listRows, save, toMinor, type Account, type AccountType } from "@kopiyka/core";
@@ -7,7 +8,7 @@ import { db } from "@/db";
 import { mutate } from "@/store";
 import { OnboardingFrame } from "@/components/Onboarding";
 import { Keypad, CalcLine, evalPartial } from "@/components/Keypad";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { currencyName, isKnownCurrency, suggestedCurrency } from "@/lib/currencies";
 import { countryCode, locationStatus, quickLocation } from "@/lib/location";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -76,23 +77,26 @@ export default function OnboardingAccount() {
     } catch (e) { Alert.alert(t("onboarding.restore.failed"), errorText(e)); }
     finally { setBusy(false); }
   };
+  // A short screen (the folded iPhone Duo, 678 pt) still shows the whole step without scrolling:
+  // the frame goes compact, and the keypad takes what is left, its keys never under 36 pt.
+  const short = useWindowDimensions().height < 760;
   return (
-    <OnboardingFrame step={4} scroll={false} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
+    <OnboardingFrame step={4} scroll={false} compact={short} title={t("onboarding.account.title")} subtitle={t("onboarding.account.subtitle")}
       primary={{ label: expr ? t("onboarding.account.continueWith", { amount: shown, currency }) : t("onboarding.account.continueZero"), onPress: next, disabled: !valid }}
       secondary={{ label: busy ? t("onboarding.restore.busy") : t("onboarding.account.restore"), onPress: () => void restore() }}>
       <View style={styles.form}>
         <TextInput value={name} onChangeText={setName} placeholder={t("onboarding.account.namePlaceholder")} placeholderTextColor={C.tertiary} style={styles.input} returnKeyType="done" accessibilityLabel={t("onboarding.account.namePlaceholder")} />
         <View style={styles.balance}>
-          <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency } })} style={styles.currencyRow} accessibilityRole="button" accessibilityLabel={t("onboarding.account.currencyA11y", { currency })}>
+          <Tap onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency } })} style={styles.currencyRow} accessibilityRole="button" accessibilityLabel={t("onboarding.account.currencyA11y", { currency })}>
             <Text style={styles.balanceLabel}>{t("onboarding.account.balanceIn")}</Text>
             <Text style={styles.currencyText}>{currency} · {currencyName(currency)}</Text>
             <SymbolView name="chevron.down" size={12} tintColor={C.tertiary} />
-          </Pressable>
-          <Text style={styles.balanceValue} numberOfLines={1} adjustsFontSizeToFit>{shown} <Text style={styles.balanceCur}>{currency}</Text></Text>
+          </Tap>
+          <Text style={[styles.balanceValue, short && { fontSize: 30 }]} numberOfLines={1} adjustsFontSizeToFit>{shown} <Text style={styles.balanceCur}>{currency}</Text></Text>
           <CalcLine expr={expr} style={{ textAlign: "left" }} />
         </View>
       </View>
-      <View style={{ height: S.md }} />
+      <View style={{ height: short ? S.xs : S.md }} />
       {/* What is on the first account is money you have; a card in debt can be added later, where ± is.
           The keypad fills what is left rather than scrolling: a last row hidden under Continue is a 0
           nobody can find. */}
@@ -105,9 +109,9 @@ const styles = themed(() => StyleSheet.create({
   form: { gap: S.sm, marginHorizontal: -S.xl },
   currencyRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   currencyText: { fontSize: 15, fontWeight: "600", color: C.tint },
-  input: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: 14, paddingHorizontal: S.md, height: 50, fontSize: 18, color: C.label },
-  balance: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: 14, padding: S.md, gap: 2 },
+  input: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: R.card, paddingHorizontal: S.md, minHeight: 50, fontSize: 17, color: C.label },
+  balance: { marginHorizontal: S.xl, backgroundColor: C.card, borderRadius: R.card, padding: S.md, gap: 2 },
   balanceLabel: { fontSize: 13, color: C.secondary },
   balanceValue: { fontSize: 36, fontWeight: "700", color: C.label },
-  balanceCur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
+  balanceCur: { fontSize: 17, color: C.secondary, fontWeight: "600" },
 }));

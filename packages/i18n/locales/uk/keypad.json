@@ -19,6 +19,8 @@
     "title": "Сума",
     "tooMuch": "Це більше, ніж є",
     "available": "Доступно {amount} {currency}",
+    "othersEach": "Решті — по {amount} {currency}",
+    "yoursLeft": "Тобі: {amount} {currency}",
     "tooMuchShort": "Більше, ніж є",
     "use": "Використати цю суму"
   }

@@ -1,9 +1,10 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Tap, ButtonText } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { COLORS } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { t } from "@/i18n";
 
 const COLS = 6;
@@ -35,18 +36,18 @@ export default function PickColor() {
       contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 60 }}
       columnWrapperStyle={{ gap: S.sm }}
       ListHeaderComponent={
-        <Pressable onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
+        <Tap onPress={() => choose(null)} style={styles.autoRow} accessibilityRole="button" accessibilityLabel={t("pick.automatic")}>
           <View style={styles.autoIcon}><SymbolView name="wand.and.stars" size={16} tintColor={C.tertiary} /></View>
-          <Text style={styles.autoText}>{t("pick.automatic")}</Text>
+          <ButtonText style={styles.autoText}>{t("pick.automatic")}</ButtonText>
           {!selected ? <SymbolView name="checkmark" size={16} tintColor={C.tint} /> : null}
-        </Pressable>
+        </Tap>
       }
       renderItem={({ item }) => {
         const on = selected === item.hex;
         return (
-          <Pressable onPress={() => choose(item.hex)} style={[styles.cell, { backgroundColor: item.hex }, on && styles.cellOn]} accessibilityRole="button" accessibilityLabel={t("pick.color.a11y", { name: colorLabel(item.name) })} accessibilityState={{ selected: on }}>
+          <Tap onPress={() => choose(item.hex)} style={[styles.cell, { backgroundColor: item.hex }, on && styles.cellOn]} accessibilityRole="button" accessibilityLabel={t("pick.color.a11y", { name: colorLabel(item.name) })} accessibilityState={{ selected: on }}>
             {on ? <SymbolView name="checkmark" size={17} weight="bold" tintColor={C.onTint} /> : null}
-          </Pressable>
+          </Tap>
         );
       }}
     />
@@ -57,6 +58,6 @@ const styles = themed(() => StyleSheet.create({
   autoRow: { flexDirection: "row", alignItems: "center", gap: S.md, minHeight: 44, marginTop: S.lg, marginBottom: S.lg },
   autoIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   autoText: { flex: 1, fontSize: 17, color: C.label },
-  cell: { flex: 1, aspectRatio: 1, maxWidth: 44, minHeight: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "transparent", marginBottom: S.sm },
+  cell: { flex: 1, aspectRatio: 1, maxWidth: 44, minHeight: 44, borderRadius: R.pill, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "transparent", marginBottom: S.sm },
   cellOn: { borderColor: C.label },
 }));

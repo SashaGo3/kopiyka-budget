@@ -71,6 +71,8 @@ final class KPBridgeModule: Module {
     Function("claimDatabase") { [weak self] in
       KPWrites.claim { m in self?.sendEvent("nativeWrite", m) }
     }
+    /// Bank notifications the automation is reading right now: token → start, ms (KPIncoming).
+    Function("incomingReadings") { () -> [String: Double] in KPIncoming.current() }
     /// Outcome of a forwarded write (src/lib/nativeWrites.ts).
     Function("finishNativeWrite") { (request: String, ok: Bool, error: String?, reply: [String: Any]) in
       KPWrites.finish(request: request, ok: ok, error: error, reply: reply)
@@ -100,6 +102,36 @@ final class KPBridgeModule: Module {
     AsyncFunction("scanReceipt") { (uri: String) async throws -> [String: Any] in
       guard let url = URL(string: uri), let image = UIImage(contentsOfFile: url.path) else { throw KPReceipt.Failure.noImage }
       return KPReceipt.dictionary(try await KPReceipt.analyze(image: image))
+    }
+    /// The photo viewer's three steps, each shown as soon as it lands: the text (Vision only, quick),
+    /// what it means (merchant, total, items) and a category per item. None of them saves anything.
+    AsyncFunction("readPhotoText") { (uri: String) async throws -> [String] in
+      guard let url = URL(string: uri), let image = UIImage(contentsOfFile: url.path) else { throw KPReceipt.Failure.noImage }
+      return try await KPReceipt.readText(image: image)
+    }
+    /// The system document camera (KPDocScan): finds the receipt, shoots it on its own, flattens it.
+    /// Resolves a temporary file URI, or nil when cancelled.
+    Function("canScanDocument") { () -> Bool in KPDocScan.isSupported }
+    AsyncFunction("scanDocument") { (promise: Promise) in
+      DispatchQueue.main.async {
+        guard KPDocScan.isSupported, let top = KPDocScan.topViewController(in: KPThemeTransition.keyWindow()) else {
+          promise.reject("ERR_SCAN_UNSUPPORTED", "The document camera is not available on this device"); return
+        }
+        KPDocScan.present(from: top) { r in
+          switch r {
+          case .success(let uri): promise.resolve(uri)
+          case .failure(let e): promise.reject("ERR_SCAN", e.localizedDescription)
+          }
+        }
+      }
+    }
+    AsyncFunction("understandReceipt") { (lines: [String]) async -> [String: Any] in
+      KPReceipt.dictionary(await KPReceipt.analyze(lines: lines))
+    }
+    AsyncFunction("sortReceiptItems") { (names: [String], prices: [Double], merchant: String) async -> [String] in
+      // "" for an item nothing fitted: a plain string list crosses the bridge without optionals.
+      let items = zip(names, prices).map { KPReceipt.Item(name: $0, price: $1) }
+      return await KPReceipt.categorize(items: items, merchant: merchant).map { $0 ?? "" }
     }
 
     /// The home-screen icon for a colour theme: "AppIcon-<id>" (an alternate set plugins/withAppIcons.js

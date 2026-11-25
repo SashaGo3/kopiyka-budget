@@ -1,9 +1,10 @@
+import { offerUndo } from "@/lib/undo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Stack, router, useLocalSearchParams, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { dueManualRules, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
+import { dueManualRules, emptyListAction, latestDayBefore, formatMinor, getRow, waitingRules, jsonIds, listRows, listTrips, numberFormat, oneCurrency, remove, save, toSplitQueue, trimNumber, withTransferLegs, type BulkChange } from "@kopiyka/core";
 import type { SearchBarCommands } from "react-native-screens";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
@@ -13,11 +14,12 @@ import { BarButton, BottomBar, LogButton, useScrollHide } from "@/components/Bot
 import { PeriodPill } from "@/components/PeriodPill";
 import { TripCard } from "@/components/TripCard";
 import { ScopePill } from "@/components/ScopePill";
-import { ButtonText, Empty, Money, StatPair } from "@/components/ui";
+import { ButtonText, Empty, Money, StatPair, Tap } from "@/components/ui";
 import { C, R, S, themed } from "@/constants/theme";
 import { ALL_TIME, EMPTY_FILTER, activeCount, buildWhere, rangeLabel, type TxFilter, type TxType } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
-import { currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
+import { currentPeriod, getPeriodStartDay, getSelectedPeriod, periodContaining, shiftPeriod, usePeriod, type Period } from "@/lib/period";
+import { ENTER_WINDOW_MS, listKey, slideDirection } from "@/lib/listMotion";
 import { getBaseCurrency, useRates } from "@/lib/rates";
 import { getBudgetScope, getHideIncome, setBudgetScope, waitDefaultDays } from "@/lib/settings";
 import { scopeAccountIds, scopeLabel, scopeOptions } from "@/lib/scope";
@@ -66,7 +68,24 @@ export default function TransactionsTab() {
  */
 export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const p = useLocalSearchParams<Params>();
-  const [period, setPeriod] = usePeriod();   // the same month Budgets is showing
+  const [period, setSharedPeriod] = usePeriod();   // the same month Budgets is showing
+  /**
+   * Every month switch on this screen goes through here, so the rows can slide in from the side the
+   * month lies on — a later one from the right, an earlier one from the left — for a moment after the
+   * switch (lib/listMotion.ts), and only then: rows mounted later by scrolling just appear.
+   */
+  const [enterFrom, setEnterFrom] = useState<"left" | "right" | null>(null);
+  const enterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (enterTimer.current) clearTimeout(enterTimer.current); }, []);
+  const setPeriod = useCallback((next: Period) => {
+    const dir = slideDirection(getSelectedPeriod().start, next.start);
+    if (dir) {
+      setEnterFrom(dir > 0 ? "right" : "left");
+      if (enterTimer.current) clearTimeout(enterTimer.current);
+      enterTimer.current = setTimeout(() => setEnterFrom(null), ENTER_WINDOW_MS);
+    }
+    setSharedPeriod(next);
+  }, [setSharedPeriod]);
   useEffect(() => { markBooted(); }, []); // the landing tab's first content frame: the native launch screen fades off it (lib/boot.ts)
   // The account scope is the same one Budgets shows, switched from the pill here as well.
   const scope = useQuery(() => getBudgetScope());
@@ -76,16 +95,23 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const inScope = isSearch ? NO_ACCOUNTS : scopeAccounts;
   const fromParams = useCallback((): TxFilter => ({ ...EMPTY_FILTER, categories: p.category ? [p.category] : [], tags: p.tag ? [p.tag] : [], accounts: p.accounts ? p.accounts.split(",").filter(Boolean) : p.tag ? [] : inScope, type: p.type ?? null, from: p.from ?? null, to: p.to ?? null }), [p.category, p.tag, p.accounts, p.type, p.from, p.to, inScope]);
   const [filter, setFilter] = useState<TxFilter>(fromParams);
-  useEffect(() => { setFilter((f) => ({ ...f, accounts: inScope })); }, [inScope.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sort, setSort] = useState<"date" | "amount">("date");
   const [sortGen, setSortGen] = useState(0);
-  useEffect(() => { if (p.nonce) { setFilter(fromParams()); setSort("date"); setSortGen((g) => g + 1); } }, [p.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Adjusted during render when the scope or the link changes (React's pattern for state that follows
+  // a value): an effect showed the old filter for a frame first. A link (`nonce`) wins over the scope.
+  const scopeKey = inScope.join(",");
+  const [seen, setSeen] = useState({ scope: scopeKey, nonce: p.nonce });
+  if (seen.nonce !== p.nonce || seen.scope !== scopeKey) {
+    setSeen({ scope: scopeKey, nonce: p.nonce });
+    if (seen.nonce !== p.nonce && p.nonce) { setFilter(fromParams()); setSort("date"); setSortGen((g) => g + 1); }
+    else setFilter((f) => ({ ...f, accounts: inScope }));
+  }
   const navigation = useNavigation();
   const lastTabPress = useRef(0);
   // What the tab-press handler needs to read without being re-subscribed on every keystroke — and
   // written in an effect, not during render, because the React Compiler is on.
-  const shown = useRef({ filter, period });
-  useEffect(() => { shown.current = { filter, period }; }, [filter, period]);
+  const shown = useRef({ filter, period, sort: "date" as "date" | "amount" });
+  useEffect(() => { shown.current = { filter, period, sort }; }, [filter, period, sort]);
   /** Everything back to the defaults: no filters, no account scope, this month, by date. */
   const showEverything = useCallback(() => {
     setBudgetScope("");
@@ -99,33 +125,38 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
     setSort("date"); setSortGen((g) => g + 1);
   }, []);
   /**
-   * Clearing the screen asks first, and says what it is about to clear.
+   * Clearing the screen happens at once, and the toast it leaves is the way back.
    *
    * Three things narrow this list and only one of them is the filter sheet — the account scope and
-   * the month are shared with Budgets and have pills of their own — so "reset" is two different
-   * answers and the alert offers whichever apply. It used to just happen, silently, on a gesture
-   * nobody could see: a double tap that threw away a filter set up a minute ago and said nothing
-   * about it. Returns false when there is nothing on, so a caller can stay quiet rather than
-   * buzzing and opening an alert about nothing.
+   * the month are shared with Budgets and have pills of their own. With filters on, it is the
+   * filters that go (the month and the scope stay); with none, the screen goes back to this month
+   * across every account. Either way Undo puts back exactly what was there, sort included: an alert
+   * asked first here once, and a question before every reset is a tap trained through, where a way
+   * back costs nothing when the reset was meant (lib/undo.ts). Returns false when there is nothing
+   * on, so a caller can stay quiet rather than buzzing about nothing.
    *
    * Read through `shown` rather than the render's own values: the tab listener below is subscribed
    * once and would otherwise be asking about the screen as it was when the tab was first opened.
    */
-  const askReset = useCallback(() => {
+  const resetNow = useCallback(() => {
     const inScope = isSearch ? NO_ACCOUNTS : scopeAccountIds(getBudgetScope(), listRows(db, "accounts", "deleted=0"));
-    const { filter: f, period: per } = shown.current;
+    const { filter: f, period: per, sort: sortWas } = shown.current;
     const count = activeCount(f, { accounts: inScope, period: isSearch ? null : per });
     // Search has no month or scope to reset: it looks through all of them.
-    const scoped = !isSearch && !!getBudgetScope(), month = !isSearch && per.start !== currentPeriod().start;
+    const scopeWas = getBudgetScope();
+    const scoped = !isSearch && !!scopeWas, month = !isSearch && per.start !== currentPeriod().start;
     if (!count && !scoped && !month) return false;
-    const on = [count ? t("transactions.reset.filters", { count }) : "", scoped ? t("transactions.reset.scope") : "", month ? (per.subtitle ?? per.title) : ""].filter(Boolean);
-    Alert.alert(t("transactions.reset.title"), t("transactions.reset.body", { what: on.join(", ") }), [
-      { text: t("common.cancel"), style: "cancel" },
-      ...(count ? [{ text: t("transactions.reset.clear", { count }), onPress: () => clearFilters(inScope) }] : []),
-      ...(scoped || month ? [{ text: t("transactions.reset.defaults"), onPress: showEverything }] : []),
-    ]);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (count) clearFilters(inScope); else showEverything();
+    offerUndo({
+      label: count ? t("transactions.reset.cleared", { count }) : t("transactions.reset.defaults"),
+      undo: () => {
+        if (!count) { setBudgetScope(scopeWas); setPeriod(per); }
+        setFilter(f); setSort(sortWas); setSortGen((g) => g + 1);
+      },
+    });
     return true;
-  }, [clearFilters, showEverything, isSearch]);
+  }, [clearFilters, showEverything, isSearch, setPeriod]);
   useEffect(() => {
     const tabs = navigation.getParent();
     if (!tabs || isSearch) return;   // the root copy answers for the tab; a press while Search is open pops back to it
@@ -139,24 +170,24 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
       if (navigation.isFocused()) {
         // Re-tap of the tab already on screen: iOS scrolls to the top, and a single press means
         // nothing else. A second one straight after it offers the way back to the whole month from
-        // wherever Budgets or a category editor sent you — the same question the Filter button
-        // asks when it is held, because a native tab bar reports nothing but a press and a hidden
+        // wherever Budgets or a category editor sent you — the same reset the Filter button
+        // does when it is held, because a native tab bar reports nothing but a press and a hidden
         // gesture cannot be the only way to reach something.
         const now = Date.now();
         const twice = now - lastTabPress.current < DOUBLE_PRESS_MS;
         lastTabPress.current = twice ? 0 : now;
         if (!twice) return;
-        if (askReset()) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);   // nothing on: no jolt, no alert
+        resetNow();   // nothing on: no jolt, no toast
         return;
       }
       setFilter({ ...EMPTY_FILTER, accounts: scoped() });
       setSort("date"); setSortGen((g) => g + 1);   // the period is shared with Budgets: whatever month is open stays open
     });
-  }, [navigation, askReset, isSearch]);
+  }, [navigation, resetNow, isSearch]);
   const keys = useMemo(() => ({ filter: newPickKey("filter"), month: newPickKey("month"), scope: newPickKey("scope"), cat: newPickKey("mcat"), tags: newPickKey("mtags"), date: newPickKey("mdate"), note: newPickKey("mnote"), bulk: newPickKey("mbulk") }), []);
   usePickResult<TxFilter>(keys.filter, useCallback((f: TxFilter) => setFilter(f), []));
   usePickResult<string>(keys.scope, useCallback((v: string) => setBudgetScope(v === "all" ? "" : v), []));
-  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), []));
+  usePickResult<string>(keys.month, useCallback((d: string) => setPeriod(periodContaining(`${d.slice(0, 8)}${String(Math.min(getPeriodStartDay(), 28)).padStart(2, "0")}`)), [setPeriod]));
   const { visible, onScroll } = useScrollHide();
 
   const trips = useQuery((d) => listTrips(d));
@@ -209,6 +240,9 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
        FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.deleted=0 AND t.pending=1 GROUP BY a.currency`);
     return { n: groups.reduce((a, g) => a + g.n, 0), per: groups.map((g) => ({ currency: g.currency, minor: g.minor })) };
   }, []);
+  // Payments marked "Split later" (core/people.ts). Like Pending, outside the filter and the period:
+  // the dinner from last month still has to be split, and this is where entries are dealt with.
+  const toSplit = useQuery((d) => toSplitQueue(d).length, []);
   const perCurrency = useMemo(() => {
     const inc = new Map<string, number>(), exp = new Map<string, number>();
     for (const t of rows) {
@@ -269,10 +303,23 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
     isSearch && filter.q.trim() ? t("transactions.empty.search", { q: filter.q.trim() }) : null,
     n ? t("transactions.empty.filters", { count: n }) : null,
   ].filter(Boolean);
+  // What the empty list can do about it (core emptyList.ts): clear what narrows it, go back to this
+  // month, or — this month having nothing yet — open the latest month that has something. Never a
+  // button that changes nothing, which is what "Show everything" was on an unfiltered current month.
+  const onlyMonth = !isSearch && !custom && !n && !scope;
+  const isCurrent = period.start === currentPeriod().start;
+  const earlierDay = useQuery((d) => (rows.length || !onlyMonth || !isCurrent ? null : latestDayBefore(d, period.start)), [rows.length, onlyMonth, isCurrent, period.start]);
+  const emptyAction = emptyListAction({ filters: isSearch ? n + (filter.q.trim() ? 1 : 0) : n, scoped: !isSearch && !!scope, isCurrent: isSearch || custom || isCurrent, earlierDay });
+  const earlier = emptyAction.kind === "earlier" ? periodContaining(emptyAction.day) : null;
   const emptyList = (
     <Empty title={t("transactions.empty.title")}
-      hint={narrowing.length ? t("transactions.empty.hint", { parts: narrowing.join(", ") }) : t("transactions.list.emptyHint")}
-      action={{ label: t("transactions.empty.action"), onPress: showEverything }} />
+      // The month alone is said plainly; anything else that narrows the list is named, so it can be undone.
+      hint={onlyMonth ? (isCurrent ? t("transactions.empty.monthNow") : t("transactions.empty.month", { period: period.subtitle ?? period.title }))
+        : narrowing.length ? t("transactions.empty.hint", { parts: narrowing.join(", ").replace(/\.$/, "") }) : t("transactions.list.emptyHint")}
+      action={emptyAction.kind === "reset" ? { label: t("transactions.empty.action"), onPress: showEverything }
+        : emptyAction.kind === "current" ? { label: t("transactions.empty.toCurrent"), onPress: () => setPeriod(currentPeriod()) }
+        : earlier ? { label: t("transactions.empty.toEarlier", { period: earlier.title }), onPress: () => setPeriod(earlier) }
+        : undefined} />
   );
   const pickScope = () => router.push({ pathname: "/pick/option", params: { key: keys.scope, title: t("transactions.scopeTitle"), options: JSON.stringify(scopeOptions(accounts)), selected: scope || "all" } });
 
@@ -350,10 +397,13 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   const deleteChosen = () => {
     if (!chosen.length) return;
     const transfers = chosen.filter((x) => x.transfer_id).length;
-    Alert.alert(t("transactions.deleteTitle", { count: chosen.length }), transfers ? t("transactions.deleteTransfers") : undefined, [
-      { text: t("common.cancel"), style: "cancel" },
-      { text: t("common.delete"), style: "destructive", onPress: () => { const ids = chosenIds(); mutate((d) => { for (const id of ids) remove(d, "transactions", id); }); setSelected(null); } },
-    ]);
+    // Deleting asks nothing and offers the way back instead (lib/undo.ts): the rows become tombstones,
+    // and Undo writes them back exactly as they were.
+    void transfers;
+    const ids = chosenIds();
+    const rows = mutate((d) => { const was = ids.map((id) => getRow(d, "transactions", id)).filter((r) => !!r && !r.deleted); for (const id of ids) remove(d, "transactions", id); return was; });
+    setSelected(null);
+    offerUndo({ label: t("misc.deleted", { count: rows.length }), undo: () => mutate((d) => { for (const r of rows) save(d, "transactions", { ...r!, deleted: 0 }); }) });
   };
   const pickCategory = () => {
     if (!chosen.length) return;
@@ -385,7 +435,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
   };
   usePickResult<string>(keys.note, useCallback((text: string) => reviewAfterPick({ kind: "note", text, mode: "replace" }), [chosen])); // eslint-disable-line react-hooks/exhaustive-deps
   const headerButton = (label: string, onPress: () => void, bold = false) => (
-    <Pressable onPress={onPress} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={label}><ButtonText style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</ButtonText></Pressable>
+    <Tap onPress={onPress} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={label}><ButtonText style={[styles.headerLink, bold && { fontWeight: "700" }]} maxFontSizeMultiplier={1.3}>{label}</ButtonText></Tap>
   );
   const range = tripTag && filter.from === ALL_TIME && !filter.to ? "" : filter.from || filter.to ? rangeLabel(filter.from, filter.to) : filter.upcoming ? t("transactions.upcoming") : "";
   // What the screen was opened *about* — a category from Budgets, a tag or a category from its
@@ -425,7 +475,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
         headerSearchBarOptions: isSearch ? { ref: searchRef, placeholder: t("transactions.searchPlaceholder"), hideWhenScrolling: false, autoFocus: typing,
           onChangeText: (e) => { const text = e?.nativeEvent?.text ?? ""; setFilter((f) => (f.q === text ? f : { ...f, q: text })); },
           onCancelButtonPress: () => setFilter((f) => (f.q ? { ...f, q: "" } : f)) } : undefined }} />
-      <TransactionList rows={sorted} flat={sort === "amount"} resetKey={`sort-${sortGen}`} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} onSelect={startSelect} keyboardDismissMode={isSearch ? "on-drag" : undefined} empty={emptyList} header={
+      <TransactionList rows={sorted} flat={sort === "amount"} incoming={!isSearch && !custom} resetKey={listKey(sortGen, listPeriod?.start ?? null)} enterFrom={enterFrom} onScroll={onScroll} selected={selected ?? undefined} onToggle={toggleRow} onSelect={startSelect} keyboardDismissMode={isSearch ? "on-drag" : undefined} empty={emptyList} header={
         <>
           {/* Same place as on Budgets: under the large title, so they scroll away with it instead of crowding the compact bar.
               Kept while selecting, only inert: taking them out moved every row under the finger up by their height. */}
@@ -472,6 +522,17 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
               <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
             </Pressable>
           ) : null}
+          {toSplit > 0 && !isSearch ? (
+            <Pressable onPress={() => router.push("/tosplit")} accessibilityRole="button" accessibilityLabel={`${t("people.card.toSplit", { count: toSplit })}. ${t("transactions.toSplitSub")}`}
+              style={({ pressed }) => [styles.toSplit, pressed && { opacity: 0.7 }]}>
+              <SymbolView name="square.split.2x1.fill" size={20} tintColor={C.tint} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.pendingTitle}>{t("people.card.toSplit", { count: toSplit })}</Text>
+                <Text style={styles.pendingSub}>{t("transactions.toSplitSub")}</Text>
+              </View>
+              <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
+            </Pressable>
+          ) : null}
         </>
       } />
       {/* Nothing chosen yet: no bar at all. A `BarButton` that is merely inactive looks exactly like
@@ -493,7 +554,7 @@ export function TransactionsScreen({ isSearch }: { isSearch: boolean }) {
                 puzzle; on a phone the bar is in the thumb zone and the count is all that fits. */}
             <BarButton icon="line.3.horizontal.decrease" label={isPad ? (n ? t("transactions.bar.filters", { count: n }) : t("transactions.bar.filter")) : n ? String(n) : undefined}
               active={n > 0} onPress={openFilter}
-              onLongPress={askReset} a11y={n ? t("transactions.bar.filtersActiveA11y", { count: n }) : t("transactions.bar.filtersA11y")} a11yHint={t("transactions.bar.filtersHint")} />
+              onLongPress={resetNow} a11y={n ? t("transactions.bar.filtersActiveA11y", { count: n }) : t("transactions.bar.filtersA11y")} a11yHint={t("transactions.bar.filtersHint")} />
             <BarButton icon={sort === "date" ? "arrow.up.arrow.down" : "arrow.down.to.line"} label={isPad ? (sort === "date" ? t("transactions.bar.byDate") : t("transactions.bar.byAmount")) : undefined}
               active={sort === "amount"} onPress={toggleSort} a11y={sort === "date" ? t("transactions.bar.sortByAmount") : t("transactions.bar.sortByDate")} />
             <LogButton />
@@ -510,10 +571,11 @@ const styles = themed(() => StyleSheet.create({
   trip: { paddingTop: S.sm },
   pending: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.orangeSoft },
   due: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.redSoft },
-  dueSum: { fontSize: 16, fontWeight: "700", color: C.red },
-  pendingTitle: { fontSize: 16, fontWeight: "600", color: C.label },
+  dueSum: { fontSize: 17, fontWeight: "700", color: C.red },
+  toSplit: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.card, backgroundColor: C.card },
+  pendingTitle: { fontSize: 17, fontWeight: "600", color: C.label },
   pendingSub: { fontSize: 13, color: C.secondary },
-  pendingSum: { fontSize: 16, fontWeight: "700", color: C.orange },
+  pendingSum: { fontSize: 17, fontWeight: "700", color: C.orange },
   headerLink: { color: C.tint, fontSize: 17 },
   // Room inside the glass capsule iOS draws around a header item: flush, the words touched its edges.
   headerText: { paddingHorizontal: 12, paddingVertical: 6 },

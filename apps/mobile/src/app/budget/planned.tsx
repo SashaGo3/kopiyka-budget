@@ -76,7 +76,7 @@ export default function BudgetPlanned() {
 }
 
 const styles = themed(() => StyleSheet.create({
-  intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
+  intro: { color: C.secondary, fontSize: 15, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
   sh: { color: C.secondary, fontSize: 13, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: S.xl, paddingTop: S.md, paddingBottom: S.xs },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
 }));

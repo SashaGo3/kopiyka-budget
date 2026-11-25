@@ -13,8 +13,15 @@
     "extras[] uses the same schema but renders to appstore/<lang>/extras/ instead: unnumbered spares,",
     "kept out of the contact sheet unless you pass --contact-sheet=all. Promote one by moving it",
     "into iphone[] (and dropping one of the ten).",
-    "creative = the product page header and search results art (appstore/<lang>/creative/, every size from frame.mjs CREATIVE_SIZES):",
-    "features = three phones side by side, left to right: {id, title, palette, theme, watch?} — title a store.creative.* key; palette a colour theme id from packages/core/src/themes.ts and theme light|dark, which pick both the capture (raw/<lang>/iphone/<palette>-<theme>/, from capture.sh --palette) and the band behind it; watch = a watch shot in front of that phone."
+    "features = three phones side by side, left to right: {id, title, palette, theme, watch?} — title a store.creative.* key; palette a colour theme id from packages/core/src/themes.ts and theme light|dark, which pick both the capture (raw/<lang>/iphone/<palette>-<theme>/, from capture.sh --palette) and the band behind it; watch = a watch shot in front of that phone.",
+    "style = \"story\" (the look since 1.1.2): the numbered iPhone set is drawn as ONE wide canvas, cut into slides, so a phone may run from one slide into the next.",
+    "Cream background, serif headline (*word* in the accent), tilted phones, cards lifted out of the capture, the cat. Per shot, `story` (all positions are fractions: x and widths of the slide's width, y of its height):",
+    "text: top|bottom, align: start|end; phone: [centre x, centre y, width, degrees]; watch: the same, for a phone-watch slide;",
+    "cards: [{crop: [x, y, w, h] in capture pixels, or {en: [...], uk: [...]} where the languages lay out differently, at: [centre x, centre y, width, degrees]}];",
+    "cat: {name (assets/siriusia/<name>.png), x (left edge), w, bottom (share of the cat's height left on the canvas) | onCard (index: sits on that card's top edge) + sink, front (drawn over the phone)}.",
+    "A cat is clipped to its own slide, so its cut-off side never shows on the next one; its outline is cleaned of the cut-out halo when framed.",
+    "A shot without `story` (the extras) gets the headline on top and the phone below it. The iPad set uses the words and the cat, not the cards (their crops are phone pixels).",
+    "creative = the header and search results art: the slogan (store.creative.slogan / line), two phones (left/right: {id, crop}) and the cat."
   ],
   "iphone": [
     {
@@ -23,15 +30,37 @@
       "subtitle": "store.shots.log.subtitle",
       "theme": "light",
       "layout": "phone-bottom",
-      "bg": "#F4F4F1"
-    },
-    {
-      "id": "transactions",
-      "title": "store.shots.transactions.title",
-      "subtitle": "store.shots.transactions.subtitle",
-      "theme": "light",
-      "layout": "phone-bottom",
-      "bg": "#ECEAE3"
+      "story": {
+        "text": "top",
+        "phone": [
+          0.86,
+          0.78,
+          0.68,
+          11
+        ],
+        "cards": [
+          {
+            "crop": [
+              40,
+              560,
+              1240,
+              250
+            ],
+            "at": [
+              0.6,
+              0.555,
+              0.59,
+              -5
+            ]
+          }
+        ],
+        "cat": {
+          "name": "seer",
+          "x": -0.06,
+          "w": 0.5,
+          "bottom": 0.93
+        }
+      }
     },
     {
       "id": "recurring",
@@ -39,7 +68,40 @@
       "subtitle": "store.shots.recurring.subtitle",
       "theme": "light",
       "layout": "phone",
-      "bg": "#F4F4F1"
+      "story": {
+        "text": "top",
+        "align": "end",
+        "phone": [
+          0.7,
+          0.86,
+          0.62,
+          -7
+        ],
+        "cards": [
+          {
+            "crop": {
+              "en": [
+                48,
+                1632,
+                1224,
+                352
+              ],
+              "uk": [
+                48,
+                1624,
+                1224,
+                408
+              ]
+            },
+            "at": [
+              0.6,
+              0.53,
+              0.8,
+              4
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "trip",
@@ -47,8 +109,39 @@
       "subtitle": "store.shots.trip.subtitle",
       "theme": "light",
       "layout": "phone-bottom",
-      "bg": "#ECEAE3",
-      "accent": "#C8A96A"
+      "story": {
+        "text": "bottom",
+        "phone": [
+          0.5,
+          0.235,
+          0.7,
+          0
+        ],
+        "cards": [
+          {
+            "crop": {
+              "en": [
+                48,
+                380,
+                1224,
+                540
+              ],
+              "uk": [
+                48,
+                372,
+                1224,
+                548
+              ]
+            },
+            "at": [
+              0.5,
+              0.2,
+              0.86,
+              -4
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "insights",
@@ -56,7 +149,109 @@
       "subtitle": "store.shots.insights.subtitle",
       "theme": "light",
       "layout": "phone",
-      "bg": "#2B2B2E"
+      "story": {
+        "text": "top",
+        "phone": [
+          0.53,
+          0.85,
+          0.68,
+          6
+        ],
+        "cards": [
+          {
+            "crop": {
+              "en": [
+                48,
+                2224,
+                1224,
+                370
+              ],
+              "uk": [
+                48,
+                2316,
+                1224,
+                306
+              ]
+            },
+            "at": [
+              0.48,
+              0.5,
+              0.82,
+              -4
+            ]
+          },
+          {
+            "crop": {
+              "en": [
+                48,
+                1488,
+                1224,
+                330
+              ],
+              "uk": [
+                48,
+                1592,
+                1224,
+                320
+              ]
+            },
+            "at": [
+              0.55,
+              0.665,
+              0.74,
+              3
+            ]
+          }
+        ],
+        "cat": {
+          "name": "seer-3",
+          "onCard": 0,
+          "x": 0.74,
+          "w": 0.17,
+          "sink": 0.8,
+          "front": true
+        }
+      }
+    },
+    {
+      "id": "transactions",
+      "title": "store.shots.transactions.title",
+      "subtitle": "store.shots.transactions.subtitle",
+      "theme": "light",
+      "layout": "phone-bottom",
+      "story": {
+        "text": "top",
+        "phone": [
+          0.5,
+          0.86,
+          0.7,
+          -5
+        ],
+        "cards": [
+          {
+            "crop": {
+              "en": [
+                48,
+                1792,
+                1224,
+                400
+              ],
+              "uk": [
+                48,
+                1896,
+                1224,
+                488
+              ]
+            },
+            "at": [
+              0.5,
+              0.585,
+              0.84,
+              3
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "watch",
@@ -65,7 +260,21 @@
       "theme": "dark",
       "layout": "phone-watch",
       "watch": "keypad",
-      "bg": "#141413"
+      "story": {
+        "text": "top",
+        "phone": [
+          0.37,
+          0.76,
+          0.6,
+          -6
+        ],
+        "watch": [
+          0.76,
+          0.66,
+          0.42,
+          6
+        ]
+      }
     },
     {
       "id": "budgets",
@@ -73,7 +282,31 @@
       "subtitle": "store.shots.budgets.subtitle",
       "theme": "light",
       "layout": "phone",
-      "bg": "#F4F4F1"
+      "story": {
+        "text": "top",
+        "phone": [
+          0.5,
+          0.85,
+          0.72,
+          5
+        ],
+        "cards": [
+          {
+            "crop": [
+              48,
+              1104,
+              1224,
+              186
+            ],
+            "at": [
+              0.5,
+              0.53,
+              0.86,
+              -3
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "themes",
@@ -81,8 +314,21 @@
       "subtitle": "store.shots.themes.subtitle",
       "theme": "dark",
       "layout": "phone",
-      "bg": "#1E1E2E",
-      "accent": "#CBA6F7"
+      "story": {
+        "text": "top",
+        "phone": [
+          0.64,
+          0.84,
+          0.68,
+          7
+        ],
+        "cat": {
+          "name": "proud-3",
+          "x": -0.05,
+          "w": 0.6,
+          "bottom": 0.95
+        }
+      }
     },
     {
       "id": "shortcut",
@@ -91,8 +337,15 @@
       "note": "store.shots.shortcut.note",
       "theme": "light",
       "layout": "phone",
-      "bg": "#ECEAE3",
-      "accent": "#C8A96A"
+      "story": {
+        "text": "top",
+        "phone": [
+          0.5,
+          0.84,
+          0.74,
+          -4
+        ]
+      }
     },
     {
       "id": "data",
@@ -101,7 +354,45 @@
       "note": "store.shots.data.note",
       "theme": "light",
       "layout": "phone",
-      "bg": "#ECEAE3"
+      "story": {
+        "text": "top",
+        "phone": [
+          0.66,
+          0.86,
+          0.65,
+          8
+        ],
+        "cards": [
+          {
+            "crop": {
+              "en": [
+                56,
+                496,
+                1216,
+                244
+              ],
+              "uk": [
+                56,
+                496,
+                1216,
+                280
+              ]
+            },
+            "at": [
+              0.6,
+              0.605,
+              0.76,
+              -4
+            ]
+          }
+        ],
+        "cat": {
+          "name": "behind",
+          "x": -0.06,
+          "w": 0.56,
+          "bottom": 0.9
+        }
+      }
     }
   ],
   "extras": [
@@ -109,33 +400,25 @@
       "id": "debts",
       "title": "store.shots.debts.title",
       "subtitle": "store.shots.debts.subtitle",
-      "theme": "light",
-      "layout": "phone-bottom",
-      "bg": "#ECEAE3"
+      "theme": "light"
     },
     {
       "id": "accounts",
       "title": "store.shots.accounts.title",
       "subtitle": "store.shots.accounts.subtitle",
-      "theme": "light",
-      "layout": "phone",
-      "bg": "#F4F4F1"
+      "theme": "light"
     },
     {
       "id": "categories",
       "title": "store.shots.categories.title",
       "subtitle": "store.shots.categories.subtitle",
-      "theme": "light",
-      "layout": "phone-bottom",
-      "bg": "#ECEAE3"
+      "theme": "light"
     },
     {
       "id": "welcome",
       "title": "store.shots.welcome.title",
       "subtitle": "store.shots.welcome.subtitle",
-      "theme": "light",
-      "layout": "phone",
-      "bg": "#F4F4F1"
+      "theme": "light"
     }
   ],
   "watch": [
@@ -161,10 +444,35 @@
     }
   ],
   "creative": {
-    "features": [
-      { "id": "log", "title": "store.creative.log", "palette": "tadeusz", "theme": "light", "watch": "keypad" },
-      { "id": "transactions", "title": "store.creative.categories", "palette": "siri", "theme": "light" },
-      { "id": "insights", "title": "store.creative.insights", "palette": "catppuccin", "theme": "dark" }
-    ]
-  }
+    "slogan": "store.creative.slogan",
+    "line": "store.creative.line",
+    "left": {
+      "id": "log",
+      "crop": [
+        40,
+        560,
+        1240,
+        250
+      ]
+    },
+    "right": {
+      "id": "insights",
+      "crop": {
+        "en": [
+          48,
+          2224,
+          1224,
+          370
+        ],
+        "uk": [
+          48,
+          2316,
+          1224,
+          306
+        ]
+      }
+    },
+    "cat": "seer"
+  },
+  "style": "story"
 }

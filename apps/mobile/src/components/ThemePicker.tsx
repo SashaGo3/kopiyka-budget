@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { THEMES, THEME_IDS, type ThemeId, type ThemeSide } from "@kopiyka/core";
 import { Image } from "expo-image";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { ButtonText, Card, Segmented } from "@/components/ui";
+import { ButtonText, Card, Segmented, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { getAppIcon, setAppIcon } from "@/lib/bridge";
 import { getTheme, switchAppearance, switchTheme, useAppearance, type AppearanceChoice, type TapPoint } from "@/lib/theme";
@@ -65,13 +65,13 @@ export function AppIconPicker() {
       {THEME_IDS.map((id) => {
         const on = id === icon;
         return (
-          <Pressable key={id} onPress={() => pick(id)} accessibilityRole="button" accessibilityState={{ selected: on }}
+          <Tap key={id} onPress={() => pick(id)} accessibilityRole="button" accessibilityState={{ selected: on }}
             accessibilityLabel={t("theme.icon.a11y", { name: themeName(id) })} style={styles.iconCell}>
             <View style={[styles.iconRing, on && styles.iconRingOn]}>
               <Image source={ICON_PREVIEW[id]} style={styles.icon} />
             </View>
             <ButtonText fit={2} style={[styles.iconName, on && styles.nameOn]}>{themeName(id)}</ButtonText>
-          </Pressable>
+          </Tap>
         );
       })}
     </ScrollView>

@@ -8,7 +8,7 @@ import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { BusyOverlay, Card, DeleteRow, ModalHeader, Row, SectionHeader, TagPill, runBusy } from "@/components/ui";
 import { dismissTo } from "@/lib/nav";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { catName, catNameById } from "@/lib/names";
 import { colorLabel } from "@/app/pick/color";
@@ -55,7 +55,7 @@ export default function TagEdit() {
   };
   const convert = () => {
     const folders = [...cats.values()].filter((c) => !c.parent_id);
-    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("tag.convert.whichFolder"), options: JSON.stringify([...folders.map((f) => ({ value: f.id, label: catName(f), subtitle: t("tag.convert.inFolder") })), { value: "top", label: t("tag.convert.top"), subtitle: t("tag.convert.topSubtitle") }]) } });
+    router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("tag.convert.whichFolder"), options: JSON.stringify([...folders.map((f) => ({ value: f.id, label: catName(f), icon: f.icon, color: f.color, subtitle: t("tag.convert.inFolder") })), { value: "top", label: t("tag.convert.top"), icon: "tray", color: null, subtitle: t("tag.convert.topSubtitle") }]) } });
   };
   const valid = name.trim().length > 0;
   const scopeLabel = scope.length ? scope.map((id) => { const c = cats.get(id); return c ? catName(c) : "?"; }).join(", ") : t("tag.anyCategory");
@@ -156,8 +156,8 @@ export default function TagEdit() {
 const styles = themed(() => StyleSheet.create({
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
   nameBlock: { gap: S.sm, padding: S.lg },
-  input: { backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 18, color: C.label },
+  input: { backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 17, color: C.label },
   preview: { flexDirection: "row", paddingHorizontal: S.xs },
   right: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  swatch: { width: 24, height: 24, borderRadius: 12 },
+  swatch: { width: 24, height: 24, borderRadius: R.pill },
 }));

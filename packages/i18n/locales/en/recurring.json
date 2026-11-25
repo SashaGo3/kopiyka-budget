@@ -8,7 +8,7 @@
       "monthly": { "message": "{count, plural, =1 {Every month} one {Every # month} other {Every # months}}", "note": "Cadence label." },
       "yearly": { "message": "{count, plural, =1 {Every year} one {Every # year} other {Every # years}}", "note": "Cadence label." }
     },
-    "custom": "Custom…",
+    "custom": "Custom",
     "customSubtitle": "Any number of days, weeks, months or years",
     "unit": { "daily": "Days", "weekly": "Weeks", "monthly": "Months", "yearly": "Years" },
     "howMany": { "daily": "How many days?", "weekly": "How many weeks?", "monthly": "How many months?", "yearly": "How many years?" }

@@ -1,4 +1,6 @@
+import { createContext, useContext, useMemo } from "react";
 import { Platform, type ViewStyle } from "react-native";
+import type { EdgeInsets } from "react-native-safe-area-context";
 
 /**
  * iPad. The app is one column of cards and lists designed for a thumb, and a thumb does not get
@@ -15,14 +17,51 @@ export const isPad = Platform.OS === "ios" && Platform.isPad;
 /** As wide as the column is ever allowed to get. Roughly two phones side by side. */
 export const CONTENT_MAX_WIDTH = 780;
 
-/** Stack `contentStyle` for every screen; inert on a phone, where the window is narrower than the cap. */
-export const screenContentStyle: ViewStyle | undefined = isPad
-  ? { width: "100%", maxWidth: CONTENT_MAX_WIDTH, alignSelf: "center" }
-  : undefined;
+/**
+ * Stack `contentStyle` for every screen, on every device: what decides it is the window, not the
+ * device. A phone's window is always narrower than the cap, so it is inert there; an unfolded
+ * iPhone Duo is an iPhone with a tablet's width, and gets the centred column like an iPad does.
+ */
+export const screenContentStyle: ViewStyle = { width: "100%", maxWidth: CONTENT_MAX_WIDTH, alignSelf: "center" };
+
+/**
+ * `screenContentStyle` inside the window's side safe area. Every iPhone and iPad in portrait has none,
+ * but the folded iPhone Duo keeps the status bar, the header's buttons and the tab bar in a column
+ * down one side, and content laid out to the window's edge ran underneath it.
+ */
+/**
+ * The window's safe area, read once by the root layout and handed down. Inside a tab the provider is
+ * a nested one that starts at 0 and measures, so a tab read through `useSafeAreaInsets()` mounted
+ * unpadded and jumped into place: a flicker on every tab switch. The root's is the window's, does not
+ * reset when a tab mounts, and still follows the device folding.
+ */
+export const WindowInsets = createContext<EdgeInsets>({ top: 0, right: 0, bottom: 0, left: 0 });
+export function useWindowInsets(): EdgeInsets {
+  return useContext(WindowInsets);
+}
+
+export function useScreenContentStyle(): ViewStyle {
+  const { left, right } = useWindowInsets();
+  return useMemo(() => contentStyleFor({ left, right }), [left, right]);
+}
+
+/** The same, from insets in hand: for the root layout, which provides `WindowInsets` and so cannot read it. */
+export function contentStyleFor({ left, right }: { left: number; right: number }): ViewStyle {
+  return left || right ? { ...screenContentStyle, paddingLeft: sidePad(left), paddingRight: sidePad(right) } : screenContentStyle;
+}
+
+/**
+ * How far a screen's content steps in from a side inset. Cards and rows already keep `S.lg` from the
+ * content's edge, so the inset less that puts a card's edge at the strip's (the system keeps its own
+ * margin inside the strip) instead of `S.lg` short of it.
+ */
+export function sidePad(inset: number): number {
+  return Math.max(0, inset - 16);
+}
 
 /** Caps anything sized off the window rather than its container (the Log button, mostly). */
 export function contentWidth(windowWidth: number): number {
-  return isPad ? Math.min(windowWidth, CONTENT_MAX_WIDTH) : windowWidth;
+  return Math.min(windowWidth, CONTENT_MAX_WIDTH);
 }
 
 /**
@@ -31,7 +70,7 @@ export function contentWidth(windowWidth: number): number {
  * iPad in Split View — there the window is narrower than the cap and the column is the whole of it.
  */
 export function columnOverhang(windowWidth: number): number {
-  return isPad ? Math.max(0, (windowWidth - CONTENT_MAX_WIDTH) / 2) : 0;
+  return Math.max(0, (windowWidth - CONTENT_MAX_WIDTH) / 2);
 }
 
 /** Width of a floating action button in the iPad column: one measure, so the stack has a straight edge. */

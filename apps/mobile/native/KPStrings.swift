@@ -216,9 +216,6 @@ enum L10n {
       /// Shortcuts action name. Key used as a literal (phone's language).
       /// "Log payment from an app notification"
       static var title: String { KPL.string("native.intents.payment.title") }
-      /// Shortcuts error: the notification names money but no amount could be read. The screen names must match the app's Settings.
-      /// "Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects."
-      static var unreadable: String { KPL.string("native.intents.payment.unreadable") }
     }
     enum Scan {
       /// Shortcuts action description. Key used as a literal (phone's language).
@@ -243,6 +240,12 @@ enum L10n {
     /// Second line of the notification: the category comes from an earlier entry, but the entry still waits for approval (converted currency, a shop filed several ways).
     /// "Recognised as {category} — tap to check."
     static func check(category: String) -> String { KPL.string("native.notify.check", category) }
+    /// Body of the evening reminder; count is how many entries wait in the Pending queue.
+    /// "{count, plural, one {# payment is} other {# payments are}} waiting for a category. Tap to go through them."
+    static func eveningBody(count: Int) -> String { KPL.string("native.notify.eveningBody", count) }
+    /// Title of the evening reminder (default 22:00) posted while entries wait in the Pending queue.
+    /// "Payments to check"
+    static var eveningTitle: String { KPL.string("native.notify.eveningTitle") }
     /// Second line of the notification: the shop was filed under this category before, and the entry is saved as it is.
     /// "Recognised: {category}."
     static func filed(category: String) -> String { KPL.string("native.notify.filed", category) }
@@ -291,6 +294,20 @@ enum L10n {
     /// The shop's name when none could be read off the receipt; saved as the payee.
     /// "Receipt"
     static var untitled: String { KPL.string("native.receipt.untitled") }
+    enum Scan {
+      /// When the receipt camera is opened without camera access.
+      /// "Camera access is off. Enable it in the Settings app."
+      static var cameraOff: String { KPL.string("native.receipt.scan.cameraOff") }
+      /// VoiceOver label of the receipt camera's close button.
+      /// "Close"
+      static var close: String { KPL.string("native.receipt.scan.close") }
+      /// VoiceOver label of the receipt camera's library button.
+      /// "Choose from library"
+      static var library: String { KPL.string("native.receipt.scan.library") }
+      /// VoiceOver label of the receipt camera's shutter.
+      /// "Take photo"
+      static var take: String { KPL.string("native.receipt.scan.take") }
+    }
   }
   enum Sample {
     /// "Account"
@@ -456,7 +473,7 @@ enum L10n {
       /// VoiceOver hint.
       /// "Asks the iPhone for the latest accounts, categories and history"
       static var refreshHint: String { KPL.string("native.watch.status.refreshHint") }
-      /// "Refreshing…"
+      /// "Refreshing"
       static var refreshing: String { KPL.string("native.watch.status.refreshing") }
       /// "Status"
       static var title: String { KPL.string("native.watch.status.title") }

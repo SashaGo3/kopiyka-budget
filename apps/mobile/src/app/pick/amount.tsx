@@ -6,14 +6,15 @@ import { formatMinor, getRow, iconFor, listRows, toMinor } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { SheetFrame, TagPill } from "@/components/ui";
+import { SheetFrame, TagPill, Tap } from "@/components/ui";
 import { C, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { t } from "@/i18n";
 import { catName } from "@/lib/names";
+import { useSheetFit } from "@/lib/sheetFit";
 
 /** What comes back when the screen was opened with `kind`, i.e. with the Category and Tags keys on. */
-export interface AmountPick { minor: number; category_id: string | null; tag_ids: string[] }
+export interface AmountPick { minor: number; category_id: string | null; tag_ids: string[]; note?: string | null }
 
 /**
  * Amount entry with the app keypad. Resolves minor units (a number).
@@ -26,6 +27,11 @@ export interface AmountPick { minor: number; category_id: string | null; tag_ids
  * minor unit, so the ceiling is a kopiyka under the amount on the entry and printing the ceiling
  * would put an odd 99.99 under a round 100.00. The round number is the one that means something.
  *
+ * `pool` and `ways` are for a friend's share: what is left to divide equally once this share is
+ * taken out, and between how many (you, and the friends not given an amount of their own). While a
+ * number is typed the line under it says what everyone else comes to, so changing one person's share
+ * shows at once what it does to the others — nobody else has to be opened to check.
+ *
  * With `kind` the keypad grows the two keys the Log sheet has — Category and Tags, in the same
  * corner — and the answer becomes an `AmountPick` instead of a number. A part of a split is a whole
  * small entry, and asking "how much" and "what of" on one screen is one screen instead of three.
@@ -36,14 +42,17 @@ export interface AmountPick { minor: number; category_id: string | null; tag_ids
  * caller's, never the answer's.
  */
 export default function PickAmount() {
-  const p = useLocalSearchParams<{ key: string; title?: string; currency?: string; value?: string; max?: string; available?: string; kind?: string; category?: string; tags?: string }>();
+  const p = useLocalSearchParams<{ key: string; title?: string; currency?: string; value?: string; max?: string; available?: string; pool?: string; ways?: string; kind?: string; category?: string; tags?: string; note?: string }>();
   const cur = p.currency ?? "EUR";
   const [expr, setExpr] = useState(p.value && Number(p.value) ? String(Math.abs(Number(p.value)) / 100) : "");
   const [categoryId, setCategoryId] = useState<string | null>(p.category || null);
   const [tagIds, setTagIds] = useState<string[]>(p.tags ? p.tags.split(",").filter(Boolean) : []);
-  const exit = useDiscardGuard(useDirty([expr, categoryId, tagIds]));
+  // A split part's own note ("the lamp"): offered only where the part is asked about, with `kind`.
+  const [note, setNote] = useState(p.note ?? "");
+  const exit = useDiscardGuard(useDirty([expr, categoryId, tagIds, note]));
 
-  const keys = useMemo(() => ({ cat: newPickKey("amtcat"), tags: newPickKey("amttags") }), []);
+  const keys = useMemo(() => ({ cat: newPickKey("amtcat"), tags: newPickKey("amttags"), note: newPickKey("amtnote") }), []);
+  usePickResult<string>(keys.note, useCallback((v: string) => setNote(v), []));
   usePickResult<string | null>(keys.cat, useCallback((v: string | null) => setCategoryId(v), []));
   usePickResult<string[]>(keys.tags, useCallback((v: string[]) => setTagIds(v), []));
   const category = useQuery((d) => (categoryId ? getRow(d, "categories", categoryId) : null), [categoryId]);
@@ -57,14 +66,20 @@ export default function PickAmount() {
   const shown = p.available ? Math.abs(Number(p.available)) : ceiling;
   const minor = abs !== null ? toMinor(abs, cur) : null;
   const tooMuch = ceiling !== null && minor !== null && minor > ceiling;
+  const ways = Number(p.ways) || 0;
+  // The equal share the rest come to with this number taken out — the first of them (you) takes
+  // the odd cent, so this is the share everyone after you gets.
+  const each = p.pool && ways > 0 ? Math.floor(Math.max(Number(p.pool) - (minor ?? 0), 0) / ways) : null;
   const use = () => {
-    resolvePick(p.key, p.kind ? ({ minor: minor!, category_id: categoryId, tag_ids: tagIds } satisfies AmountPick) : minor!);
+    resolvePick(p.key, p.kind ? ({ minor: minor!, category_id: categoryId, tag_ids: tagIds, note: note.trim() || null } satisfies AmountPick) : minor!);
     exit(() => router.back());
   };
   const amountText = abs !== null ? formatMinor(toMinor(abs, cur), cur) : "0";
 
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <Text style={styles.title}>{p.title ?? t("keypad.amount.title")}</Text>
@@ -73,18 +88,30 @@ export default function PickAmount() {
             <Text style={styles.cur}>{cur}</Text>
           </View>
           <CalcLine expr={expr} />
-          {shown !== null ? <Text style={[styles.limit, tooMuch && { color: C.red }]}>{tooMuch ? t("keypad.amount.tooMuch") : t("keypad.amount.available", { amount: formatMinor(shown, cur), currency: cur })}</Text> : null}
+          {shown !== null || each !== null ? (
+            <Text style={[styles.limit, tooMuch && { color: C.red }]}>
+              {tooMuch ? t("keypad.amount.tooMuch")
+                : each !== null ? t(ways > 1 ? "keypad.amount.othersEach" : "keypad.amount.yoursLeft", { amount: formatMinor(each, cur), currency: cur })
+                : t("keypad.amount.available", { amount: formatMinor(shown!, cur), currency: cur })}
+            </Text>
+          ) : null}
           {tags.length ? (
             <View style={styles.tagLine}>
               <SymbolView name="number" size={14} tintColor={C.secondary} />
               {tags.map((tag) => <TagPill key={tag.id} name={tag.name} color={tag.color} onPress={() => setTagIds((ids) => ids.filter((x) => x !== tag.id))} />)}
             </View>
           ) : null}
+          {p.kind ? (
+            <Tap onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.note, title: t("transaction.split.note"), value: note, multiline: "1" } })} hitSlop={6} style={styles.tagLine} accessibilityRole="button" accessibilityLabel={note || t("transaction.split.addNote")}>
+              <SymbolView name="text.alignleft" size={14} tintColor={note ? C.secondary : C.tint} />
+              <Text style={note ? styles.noteText : styles.noteAdd} numberOfLines={2}>{note || t("transaction.split.addNote")}</Text>
+            </Tap>
+          ) : null}
         </View>
       }
       bottom={
         <>
-          <Keypad value={expr} onChange={setExpr} allowSign={false}
+          <Keypad keyHeight={sheetFit.keyHeight} value={expr} onChange={setExpr} allowSign={false}
             extra={p.kind ? { label: category ? catName(category) : t("keypad.category"), a11y: category ? t("keypad.categoryA11y", { name: catName(category) }) : t("keypad.categoryNone"), icon: catIcon ? (catIcon.icon as SFSymbol) : "folder.badge.plus", color: catIcon?.color, active: !!category, onPress: () => router.push({ pathname: "/pick/category", params: { key: keys.cat, kind: p.kind === "income" ? "income" : "expense", selected: categoryId ?? "" } }) } : undefined}
             extra2={p.kind ? { a11y: tags.length ? t("keypad.tagsA11y", { names: tags.map((tag) => tag.name).join(", ") }) : t("keypad.tags"), icon: "number", badge: tags.length || undefined, active: tags.length > 0, onPress: () => router.push({ pathname: "/pick/tags", params: { key: keys.tags, selected: tagIds.join(","), category: categoryId ?? "" } }) } : undefined} />
           <ConfirmBar amount={`${amountText} ${cur}`} label={tooMuch ? t("keypad.amount.tooMuchShort") : t("keypad.amount.use")}
@@ -102,5 +129,7 @@ const styles = themed(() => StyleSheet.create({
   amount: { fontSize: 54, fontWeight: "700", fontVariant: ["tabular-nums"], flexShrink: 1 },
   cur: { fontSize: 22, color: C.secondary, fontWeight: "600" },
   limit: { textAlign: "center", fontSize: 13, color: C.secondary },
+  noteText: { flexShrink: 1, fontSize: 15, color: C.secondary },
+  noteAdd: { fontSize: 15, color: C.tint, fontWeight: "600" },
   tagLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: S.xs },
 }));

@@ -5,11 +5,11 @@ import { Host, DatePicker } from "@expo/ui/swift-ui";
 import { environment } from "@expo/ui/swift-ui/modifiers";
 import { resolvePick } from "@/store/pick";
 import { BigButton, Chip, ChipRow } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getLocale, t } from "@/i18n";
 
-/** Time of day picker (HH:MM) for recurring rules and debt reminders. */
+/** Time of day picker (HH:MM) for recurring rules, debt reminders and the evening Pending reminder. */
 export default function PickTime() {
   const { key, selected } = useLocalSearchParams<{ key: string; selected?: string }>();
   const [time, setTime] = useState(selected && /^\d{2}:\d{2}$/.test(selected) ? selected : "09:00");
@@ -24,11 +24,11 @@ export default function PickTime() {
       </Host>
       <ChipRow>
         <Chip label={t("pick.time.now")} onPress={() => pick(now())} />
-        {["08:00", "09:00", "12:00", "18:00", "20:00"].map((h) => <Chip key={h} label={h} active={h === time} onPress={() => pick(h)} />)}
+        {["08:00", "09:00", "12:00", "18:00", "20:00", "22:00"].map((h) => <Chip key={h} label={h} active={h === time} onPress={() => pick(h)} />)}
       </ChipRow>
       <BigButton label={t("pick.time.use", { time })} onPress={() => pick(time)} />
     </View>
   );
 }
 
-const styles = themed(() => StyleSheet.create({ host: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: 14, padding: S.sm } }));
+const styles = themed(() => StyleSheet.create({ host: { marginHorizontal: S.md, backgroundColor: C.card, borderRadius: R.card, padding: S.sm } }));

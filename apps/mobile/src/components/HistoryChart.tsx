@@ -42,7 +42,7 @@ export function HistoryChart({ series, color, weekly, kind = "spend", limit }: {
   return (
     <Card>
       <View style={styles.chartBox}>
-        <Text style={styles.pickLine} numberOfLines={1}>
+        <Text style={styles.pickLine} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {pick ? `${periodLabel(pick.start, pick.end)} · ${fmt(pick.minor)}${pick.current ? ` · ${t("insights.history.soFar")}` : ""}` : " "}
         </Text>
         <View style={styles.bars} accessible accessibilityLabel={t("insights.history.chartA11y", { count: pts.length, average: fmt(series.average_minor) })}>
@@ -83,6 +83,6 @@ const styles = themed(() => StyleSheet.create({
   avg: { position: "absolute", left: 0, right: 0, height: 0, borderTopWidth: 1, borderStyle: "dashed", borderColor: C.secondary },
   axis: { flexDirection: "row", justifyContent: "space-between" },
   axisText: { fontSize: 11, color: C.secondary },
-  amount: { fontSize: 16, fontWeight: "600", color: C.label },
+  amount: { fontSize: 17, fontWeight: "600", color: C.label },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
 }));

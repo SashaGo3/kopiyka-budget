@@ -1,11 +1,24 @@
-Made a tyre change a recurring payment? Kopiyka used to think the next one was due… today. Again. Now six months means six months, counted from the payment you picked; changing how often it repeats moves the date too; and that payment counts as already paid, instead of the app waiting for the bank to charge you a second time.
+Thank you Maks for reading this, you're awesome! Hope everything fine with your spine, let's go get some sandwich nearby!
 
-Dismissed a suggested regular payment? It now stays gone. No more “Show 3 dismissed suggestions” lurking at the bottom like an ex.
+Siriusia (my cutie cat) sees the future, like your drunk, yet perspective, friend. A new insight takes your own pace, adds every currency into one, and carries it forward: when the savings goal lands, what a home would take, how much a daily coffee costs over ten years. Siriusia is a cat. It is a forecast of a very optimistic cat, not a promise, not advice. Tap her and she spins for free too.
 
-Tags got tidier: trips and events have a page of their own (a plane for trips, a party popper for events), and archived tags moved into their own quiet room at the bottom of Settings → Tags.
+Receipts read themselves. Hold + and the receipt camera finds the paper, takes the picture by itself, and reads the total, the shop, the address and every line. One receipt with dinner and a lamp on it becomes two entries, each in its own category. Receipts in another currency ask which account paid.
+I personally don't use it often, but I love the way it works (I wish I had that 10 years ago)
 
-A trip ends by itself the day after its last day, so the coffee back home stops being filed under the holiday.
+Split with friends. You paid 120 for dinner for three, but only 40 was your dinner, for a wonderful math. Each friend’s share is theirs, not your spending, and their page says what they owe, with Remind for the forgetful and Let it go for the very forgetful.
 
-A new launch screen: the Kopiyka К in your theme’s colours, taking a small bow on the way out. Still quick. It doesn’t wait for applause.
+Biedronka, Lidl, Сільпо, АТБ, Orlen, Uber and hundreds more shops are recognised the first time you pay there, and filed into your category of that kind, whatever you called it. The payment still waits in Pending for your "Yes, sir/madam".
 
-Plus small fixes, swept under a very small rug.
+One landlord, two bills: the amount now tells the rent from the service charge.
+
+Recurring payments on a calendar: paid, late and still to come.
+
+Also new: a spending map, three new insights, cards suggested from how you use the app, categories ordered by use or dragged into place, trips and events you can rename, and Undo instead of “Are you sure?”. You were sure, and you're sure, don't disappoint me.
+
+Ready for iPhone Duo: folded or open, everything fits, and Save is always on screen. Why? Who knows, maybe I prepare for the 3rd generation.
+
+Smoother all round: pickers open with the keyboard ready and a shop’s usual categories first, dragging to reorder glides, and a payment in a currency with no exchange rate, like the hryvnia, is converted as soon as a rate turns up.
+
+Every button now answers a tap the moment your finger lands. Even the ones that used to pretend they hadn’t noticed.
+
+I fixed numerous bugs which pissed me off. Hope you've never seen those.

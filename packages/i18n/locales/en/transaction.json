@@ -15,12 +15,14 @@
     "splitA11y": "Split into {count, plural, one {# entry} other {# entries}}. Tap to edit.",
     "splitThisEntry": { "message": "this entry", "note": "Split summary line: the part that stays on the entry being edited when it has no category." },
     "splitNoCategory": { "message": "no category", "note": "Split summary line: a part without a category. Lowercase, it follows an amount." },
+    "splitLaterHint": { "message": "Touch and hold to save it marked to split later.", "note": "VoiceOver hint on the Split chip: holding it saves the entry into the To split queue." },
     "returnedLine": { "message": "{back} came back · paid {paid}", "note": "An entry part of which was paid back; both are formatted amounts." },
     "returnedA11y": "{back} {currency} came back; paid {paid}. Tap to forget the returns.",
     "photoA11y": "Photo attached",
     "photo": "Photo",
     "photoUnsaved": { "message": "Photo · not saved yet", "note": "A photo was just taken and is kept only when the entry is saved." },
     "accountA11y": { "message": "Account: {name}", "note": "VoiceOver label of the account pill." },
+    "kindA11y": { "message": "Type: {kind}", "note": "VoiceOver label of the pill that switches between expense, income and transfer; kind is one of transaction.entry.kind.*." },
     "accountNone": { "message": "none", "note": "Fills {name} in \"Account: {name}\" when there is no account." },
     "chooseAccount": "Choose account",
     "showBalance": "Show balance",
@@ -40,8 +42,7 @@
       "photo": { "message": "Photo", "max": 12 },
       "split": { "message": "Split", "note": "Chip that splits the entry into parts with their own categories.", "max": 12 },
       "return": { "message": "Return", "note": "Chip: the amount typed is money that came back on an earlier expense.", "max": 14 },
-      "duplicate": { "message": "Duplicate", "note": "Chip on a saved entry: open a copy of it to add again.", "max": 12 },
-      "receipt": { "message": "Receipt", "note": "Chip that opens the receipt scanner.", "max": 12 }
+      "duplicate": { "message": "Duplicate", "note": "Chip on a saved entry: open a copy of it to add again.", "max": 12 }
     },
     "tapToSave": "Tap to save",
     "tapToAdd": "Tap to add",
@@ -84,6 +85,19 @@
       "incomplete": "The amount is not complete yet.",
       "discard": "Discard",
       "keep": "Keep editing"
+    },
+    "unsavedPhoto": {
+      "added": "Keep the photo?",
+      "removed": "Remove the photo?",
+      "body": { "message": "The change to the photo is kept only when the entry is saved.", "note": "Closing an existing entry after adding or removing its photo without saving." }
+    },
+    "fromReceipt": {
+      "update": { "message": "Update", "note": "Button: fill the entry in from the receipt on its photo. Short." },
+      "amount": "amount",
+      "date": "date",
+      "shop": "shop",
+      "category": "category",
+      "note": "notes"
     },
     "duplicate": {
       "title": "Duplicate this transaction?",
@@ -130,6 +144,11 @@
   },
   "split": {
     "title": "Split the entry",
+    "note": { "message": "Note", "note": "Title of the text sheet for one part's note on the split screen." },
+    "addNote": { "message": "Add note", "note": "Under a part on the split screen; without one, the part shares the entry's note." },
+    "noteA11y": "Note: {note}",
+    "changeTotal": { "message": "Tap to change the total", "note": "VoiceOver hint on the split screen's total." },
+    "wasTotal": { "message": "Was {amount} {currency}", "note": "Under a changed total on the split screen: the entry's amount before." },
     "intro": "One shop, several things. Give each part its own category — what is left stays on the entry itself.",
     "restCategoryA11y": "Category of the rest: {name}",
     "chooseRestCategory": "Choose a category for the rest",
@@ -142,10 +161,13 @@
     "noCategory": "no category",
     "removePart": "Remove part {n}",
     "addPart": "Add a part",
-    "ready": "{count, plural, one {# entry will be added} other {# entries will be added}}, all with the same date, note, place and photo.",
     "entries": "{count, plural, one {# entry} other {# entries}}",
     "notYet": "Not a split yet",
-    "save": "Tap to save the split",
+    "addTip": { "message": "Add a tip", "note": "Link under the total on the split screen: adds a tip on top, shared like the rest.", "max": 20 },
+    "tip": { "message": "Tip", "note": "Title over the calculator that types the tip.", "max": 20 },
+    "withTip": { "message": "incl. {amount} {currency} tip", "note": "Under the total once a tip is added; tap to change it." },
+    "total": { "message": "Total", "note": "Label beside the whole amount being split, at the top of the split screen.", "max": 16 },
+    "save": "Save the split",
     "howMuch": { "message": "How much of it?", "note": "Title over the calculator that sets one part's amount." },
     "hint": {
       "addPart": "Add a part to split this entry",

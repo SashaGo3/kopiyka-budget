@@ -1,4 +1,6 @@
 {
+  "undo": { "message": "Undo", "note": "Button on the toast after a delete.", "max": 10 },
+  "deleted": "{count, plural, one {Entry deleted} other {# entries deleted}}",
   "$comment": "Strings from src/lib: unsaved-changes prompts, and the text the JS side writes for the watch and widgets.",
   "discard": {
     "flowTitle": { "message": "Discard what you have entered?", "note": "Alert when cancelling a multi-step flow (adding a recurring payment) before saving." },

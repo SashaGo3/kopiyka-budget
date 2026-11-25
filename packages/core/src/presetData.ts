@@ -36,6 +36,7 @@ export const CATEGORY_PRESET: PresetFolder[] = [
     { key: "fuel", icon: "fuelpump.fill" },
     { key: "publicTransport", icon: "bus.fill" },
     { key: "taxi", icon: "car.fill" },
+    { key: "parking", icon: "parkingsign.circle.fill" },
   ] },
   { key: "health", icon: "cross.case.fill", color: "#FF2D55", kind: "expense", categories: [
     { key: "pharmacy", icon: "cross.case.fill" },
@@ -47,11 +48,14 @@ export const CATEGORY_PRESET: PresetFolder[] = [
     { key: "beauty", icon: "scissors" },
     { key: "education", icon: "book.fill" },
     { key: "hobbies", icon: "sparkles" },
+    { key: "charity", icon: "hand.raised.fingers.spread.fill" },
   ] },
   { key: "bills", icon: "doc.text.fill", color: "#FFD60A", kind: "expense", categories: [
     { key: "subscriptions", icon: "repeat" },
     { key: "insurance", icon: "shield.fill" },
     { key: "taxes", icon: "percent" },
+    { key: "fees", icon: "creditcard.fill" },
+    { key: "services", icon: "briefcase.fill" },
   ] },
   { key: "fun", icon: "airplane", color: "#0A84FF", kind: "expense", categories: [
     { key: "entertainment", icon: "film.fill" },
@@ -96,6 +100,8 @@ export function presetDescription(preset: string, lang: string): string | null {
 export const FORMER_PRESET_NAMES: Record<string, readonly string[]> = {
   "home.utilities": ["Комунальні"],
   bills: ["Платежі"],
+  // 1.1.2 split bank fees out of taxes into a type of their own (bills.fees).
+  "bills.taxes": ["Taxes & fees", "Податки й комісії"],
 };
 
 /**

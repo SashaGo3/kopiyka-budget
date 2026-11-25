@@ -8,7 +8,8 @@ export type KopiykaErrorCode =
   | "not_a_backup"          // importBackup: not JSON, or not a file this app wrote
   | "bundle_without_backup" // unpackBundle: a ZIP with no backup.json in it
   | "trip_running"          // startTrip: travel mode is already on
-  | "trip_name_required"    // startTrip / addPastTrip: an empty name
+  | "trip_name_required"    // startTrip / addPastTrip / renameTrip: an empty name
+  | "trip_name_taken"       // renameTrip: another tag already has that name
   | "trip_not_found"        // endTrip: the trip's budget is gone
   | "return_not_possible";  // applyReturn: `detail` is checkReturn's reason
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { addPeriod, advanceRule, budgetPeriod, dueManualRules, dueOccurrences, occurrenceTimestamp, occurrencesPerYear, plannedNotifications, postDueRecurring, upcomingOccurrences, yearlyAmountMinor } from "../src/recurring";
+import { addPeriod, advanceRule, budgetPeriod, dueManualRules, postOccurrence, recurringCalendar, dueOccurrences, occurrenceTimestamp, occurrencesPerYear, plannedNotifications, postDueRecurring, upcomingOccurrences, yearlyAmountMinor } from "../src/recurring";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createRecurring, createTransaction, listRows, getRow, recurringSpend } from "../src/repo";
@@ -111,5 +111,35 @@ describe("auto posting and periods", () => {
     expect(budgetPeriod("2026-09-20", 15)).toEqual({ start: "2026-09-15", end: "2026-10-15" });
     expect(budgetPeriod("2026-09-07", 1)).toEqual({ start: "2026-09-01", end: "2026-10-01" });
     expect(budgetPeriod("2026-02-10", 31)).toEqual({ start: "2026-01-31", end: "2026-02-28" });
+  });
+});
+
+describe("recurringCalendar", () => {
+  test("what left, what is late, what is to come — never the same occurrence twice", () => {
+    const db = openBunDb(); migrate(db);
+    const acc = createAccount(db, { name: "Main", currency: "PLN" });
+    const rent = createRecurring(db, { account_id: acc.id, amount_minor: -2000_00, frequency: "monthly", start_date: "2026-10-01", next_date: "2026-10-01", payee: "Rent" });
+    const gym = createRecurring(db, { account_id: acc.id, amount_minor: -100_00, frequency: "weekly", start_date: "2026-11-02", next_date: "2026-11-02", payee: "Gym" });
+    // Rent for November was paid (posted, so the rule moved on to December); October's row too.
+    for (const d of ["2026-10-01", "2026-11-01"]) postOccurrence(db, rent, d);
+    advanceRule(db, rent, "2026-11-01");
+    const cal = recurringCalendar(db, { from: "2026-11-01", to: "2026-12-01", today: "2026-11-10" });
+    expect(cal.map((c) => [c.day, c.rule.payee, c.status])).toEqual([
+      ["2026-11-01", "Rent", "paid"],
+      ["2026-11-02", "Gym", "late"],
+      ["2026-11-09", "Gym", "late"],
+      ["2026-11-16", "Gym", "expected"],
+      ["2026-11-23", "Gym", "expected"],
+      ["2026-11-30", "Gym", "expected"],
+    ]);
+    expect(cal[0]).toMatchObject({ currency: "PLN", amount_minor: -2000_00 });
+    void gym;
+  });
+  test("a paused rule expects nothing, but what it paid stays", () => {
+    const db = openBunDb(); migrate(db);
+    const acc = createAccount(db, { name: "Main", currency: "PLN" });
+    const r = createRecurring(db, { account_id: acc.id, amount_minor: -50_00, frequency: "monthly", start_date: "2026-11-05", next_date: "2026-11-05", active: 0 });
+    postOccurrence(db, r, "2026-11-01");
+    expect(recurringCalendar(db, { from: "2026-11-01", to: "2026-12-01", today: "2026-11-10" }).map((c) => c.status)).toEqual(["paid"]);
   });
 });

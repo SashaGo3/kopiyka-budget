@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { formatMinor, fromMinor, getRow, jsonIds, rateOrFallback, remove, save, toMinor, tripKind, tripStats, type Budget } from "@kopiyka/core";
+import { budgetPeople, formatMinor, fromMinor, getRow, jsonIds, listPeople, rateOrFallback, remove, renameTrip, save, toMinor, tripKind, tripStats, type Budget } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
@@ -9,12 +9,13 @@ import { Card, DeleteRow, Row, SectionHeader } from "@/components/ui";
 import { TripCard } from "@/components/TripCard";
 import { C, S, themed } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
-import { endTravel, tripLine, tripName } from "@/lib/travel";
+import { endTravel, nameDay, tripLine, tripName } from "@/lib/travel";
 import { nextDay } from "@/lib/filters";
+import { errorText } from "@/lib/errors";
 import { t } from "@/i18n";
 
 /**
- * One trip, and everything that can be changed about it: its budget (a trip rarely costs what was
+ * One trip, and everything that can be changed about it: its name (its tag's, core `renameTrip`), its budget (a trip rarely costs what was
  * guessed on the way to the airport, and some only want counting — no limit at all), its currency, its dates, which of its payments stay outside
  * the budget, the purchases that belong to it — and ending it, or, once it is
  * history, removing it. The card at the top is the same one Transactions shows.
@@ -23,12 +24,18 @@ export default function TripSettings() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const trip = useQuery((d) => getRow(d, "budgets", id) ?? null, [id]);
   const s = useQuery((d) => (trip ? tripStats(d, trip) : null), [trip?.id, trip?.updated_at]);
-  const keys = useMemo(() => ({ amount: newPickKey("tripamt"), currency: newPickKey("tripcur") }), []);
+  const keys = useMemo(() => ({ amount: newPickKey("tripamt"), currency: newPickKey("tripcur"), people: newPickKey("trippeople"), name: newPickKey("tripname") }), []);
+  const peopleNames = useQuery((d) => { const all = new Map(listPeople(d).map((x) => [x.id, x.name])); return budgetPeople(trip?.people).map((x) => all.get(x)).filter(Boolean).join(", "); }, [trip?.people]);
   const change = useCallback((patch: Partial<Budget>) => {
     const b = getRow(db, "budgets", id);
     if (b) mutate((d) => save(d, "budgets", { ...b, ...patch }));
   }, [id]);
   usePickResult<number>(keys.amount, useCallback((minor: number) => change({ amount_minor: minor }), [change]));
+  usePickResult<string>(keys.name, useCallback((name: string) => {
+    if (!name) return;
+    try { mutate((d) => renameTrip(d, id, name)); } catch (e) { Alert.alert(errorText(e)); }
+  }, [id]));
+  usePickResult<string[]>(keys.people, useCallback((ids: string[]) => change({ people: ids.length ? JSON.stringify(ids) : null }), [change]));
   // Another currency keeps the same budget, converted at today's rate; with no rate there is
   // nothing honest to convert it with, so it is refused rather than guessed.
   usePickResult<string>(keys.currency, useCallback((next: string) => {
@@ -75,11 +82,16 @@ export default function TripSettings() {
         <TripCard budget={trip} />
         <SectionHeader>{t("travel.trip.budget")}</SectionHeader>
         <Card>
-          <Row icon="banknote" iconColor="#34C759" title={t("travel.trip.amount")} subtitle={s.limited ? fmt(trip.amount_minor) : t("travel.trip.noLimit")} onPress={amount} />
+          <Row icon="pencil" iconColor="#8E8E93" title={t("travel.trip.name")} subtitle={tripTitle}
+            onPress={() => router.push({ pathname: "/pick/text", params: { key: keys.name, title: t("travel.trip.name"), value: s.name ?? "",
+              suffix: nameDay(trip.starts), suffixLabel: t("travel.start.addDateLabel", { day: nameDay(trip.starts) }) } })} />
+          <Row icon="banknote" iconColor="#34C759" title={t("travel.trip.amount")} subtitle={s.limited ? fmt(trip.amount_minor) : t("travel.trip.noLimit")} style={styles.divider} onPress={amount} />
           <Row icon="dollarsign.circle" iconColor="#0A84FF" title={t("travel.trip.currency")} subtitle={t("travel.trip.currencyHint", { currency: trip.currency })} style={styles.divider}
             onPress={() => router.push({ pathname: "/pick/currency", params: { key: keys.currency, selected: trip.currency, title: t("travel.start.currency") } })} />
           <Row icon="calendar" iconColor="#FF9F0A" title={t("travel.trip.dates")} subtitle={`${humanDayTime(trip.starts, null, undefined, true)} → ${humanDayTime(last, null, undefined, true)}`} style={styles.divider}
             onPress={() => router.push({ pathname: "/travel/dates", params: { budget: trip.id } })} />
+          <Row icon="person.2.fill" iconColor="#AF52DE" title={t("people.event.people")} subtitle={peopleNames || t("people.event.nobody")} style={styles.divider}
+            onPress={() => router.push({ pathname: "/pick/people", params: { key: keys.people, selected: budgetPeople(trip.people).join(",") } })} />
         </Card>
         <SectionHeader>{t("travel.trip.transactions")}</SectionHeader>
         <Card>

@@ -1,14 +1,14 @@
 import { useCallback, useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { budgetCategoryIds, budgetRow, budgetSeries, daysUntil, formatMinor, getRow, listRows, type Budget, type Category, type Tag } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
-import { ButtonText, Card, CategoryIcon, CategoryIconStack, Empty, Money, ProgressBar, Row, SectionHeader } from "@/components/ui";
+import { ButtonText, Card, CategoryIcon, CategoryIconStack, Empty, Money, ProgressBar, Row, SectionHeader, Tap } from "@/components/ui";
 import { HistoryChart } from "@/components/HistoryChart";
 import { PeriodPill } from "@/components/PeriodPill";
-import { C, S, themed } from "@/constants/theme";
+import { R, C, S, themed } from "@/constants/theme";
 import { todayLocal } from "@/lib/dates";
 import { anchorDay, currentPeriod, getPeriodStartDay, periodContaining, shiftPeriod, usePeriod } from "@/lib/period";
 import { getBudgetScope } from "@/lib/settings";
@@ -16,6 +16,7 @@ import { scopeAccountIds } from "@/lib/scope";
 import { budgetLook } from "@/lib/budgetName";
 import { catName } from "@/lib/names";
 import { t } from "@/i18n";
+import { freshNonce } from "@/lib/nav";
 
 type Line = { id: string | null; name: string; spent: number; icon: string | null; color: string | null };
 
@@ -98,15 +99,15 @@ export default function BudgetDetail() {
   const kept = done.filter((p) => p.minor <= limit).length;
   /** The transactions a line is made of; a tag budget's line is that category *while carrying the tag*. */
   const open = (line: Line) => router.push({ pathname: "/transactions", params: { category: line.id ?? "none", name: budget.tag_id ? `${look.name} · ${line.name}` : line.name,
-    ...(budget.tag_id ? { tag: budget.tag_id } : {}), from: period.start, to: period.end, accounts: accountIds.join(","), nonce: String(Date.now()) } });
+    ...(budget.tag_id ? { tag: budget.tag_id } : {}), from: period.start, to: period.end, accounts: accountIds.join(","), nonce: freshNonce() } });
 
   return (
     <>
       <Stack.Screen options={{ title: look.name, headerLargeTitle: false,
         headerRight: () => (
-          <Pressable onPress={() => router.push({ pathname: "/budget/edit", params: { id: budget.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("common.edit")}>
+          <Tap onPress={() => router.push({ pathname: "/budget/edit", params: { id: budget.id } })} hitSlop={10} style={styles.headerText} accessibilityRole="button" accessibilityLabel={t("common.edit")}>
             <ButtonText style={styles.headerLink} maxFontSizeMultiplier={1.3}>{t("common.edit")}</ButtonText>
-          </Pressable>
+          </Tap>
         ) }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: 120, paddingTop: S.sm, gap: S.md }}>
         <View style={styles.pills}>
@@ -117,7 +118,7 @@ export default function BudgetDetail() {
           <View style={styles.head}>
             {look.icons.length > 1 ? <CategoryIconStack items={look.icons} size={34} /> : <CategoryIcon name={look.name} icon={look.icon} color={look.color} size={34} />}
             <View style={{ flex: 1 }}>
-              <Text style={styles.name} numberOfLines={2}>{look.parent ? `${look.parent} › ` : ""}{look.name}</Text>
+              <Text style={styles.name}>{look.parent ? `${look.parent} › ` : ""}{look.name}</Text>
               <Text style={styles.sub}>{t("budgets.spentOf", { spent: formatMinor(spent, currency), limit: formatMinor(limit, currency), currency })}{budget.in_planned ? "" : ` · ${t("budgets.notInPlanned")}`}</Text>
             </View>
           </View>
@@ -166,13 +167,13 @@ export default function BudgetDetail() {
 
 const styles = themed(() => StyleSheet.create({
   pills: { flexDirection: "row", paddingHorizontal: S.lg },
-  card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 16, padding: S.lg, gap: 6 },
+  card: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: R.card, padding: S.lg, gap: 6 },
   head: { flexDirection: "row", alignItems: "center", gap: S.sm, marginBottom: S.xs },
-  name: { fontSize: 17, fontWeight: "600", color: C.label },
+  name: { flexShrink: 1, fontSize: 17, fontWeight: "600", color: C.label },
   big: { fontSize: 30, fontWeight: "700", color: C.label },
   sub: { fontSize: 13, color: C.secondary },
   line: { fontSize: 15, color: C.label, marginTop: 2 },
-  amount: { fontSize: 16, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
+  amount: { fontSize: 17, fontWeight: "600", color: C.label, fontVariant: ["tabular-nums"] },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   hint: { color: C.secondary, fontSize: 13, paddingHorizontal: S.xl, marginTop: S.sm },
   empty: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.xl },

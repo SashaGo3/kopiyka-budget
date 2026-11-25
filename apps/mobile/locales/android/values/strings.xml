@@ -67,7 +67,6 @@
   <string name="native_intents_payment_saveFailed">Kopiyka could not save that payment. Open the app and add it by hand.</string>
   <string name="native_intents_payment_saveFailedWhy">Kopiyka could not save that payment: %1$s. Open the app and add it by hand.</string>
   <string name="native_intents_payment_title">Log payment from an app notification</string>
-  <string name="native_intents_payment_unreadable">Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.</string>
   <string name="native_intents_saveFailed">Could not save. Open Kopiyka and try again.</string>
   <string name="native_intents_saveFailedWhy">Could not save: %1$s. Open Kopiyka and try again.</string>
   <string name="native_intents_scan_description">Photograph a receipt: the amount, shop, items and category are read on the device and saved as a pending expense.</string>
@@ -82,6 +81,11 @@
   <string name="native_intents_shortcut_scanReceipt">Scan receipt</string>
   <string name="native_intents_whichCategory">Which category?</string>
   <string name="native_notify_check">Recognised as %1$s — tap to check.</string>
+  <plurals name="native_notify_eveningBody">
+    <item quantity="one">%1$d payment is waiting for a category. Tap to go through them.</item>
+    <item quantity="other">%1$d payments are waiting for a category. Tap to go through them.</item>
+  </plurals>
+  <string name="native_notify_eveningTitle">Payments to check</string>
   <string name="native_notify_filed">Recognised: %1$s.</string>
   <string name="native_notify_guess">Guessed %1$s — tap to confirm or change.</string>
   <string name="native_notify_logged">Payment logged</string>
@@ -99,6 +103,10 @@
   <string name="native_receipt_noRate">%1$s (in %2$s, no exchange rate)</string>
   <string name="native_receipt_noText">No text found. Hold the phone flat over the receipt with good light.</string>
   <string name="native_receipt_paid">paid %1$s</string>
+  <string name="native_receipt_scan_cameraOff">Camera access is off. Enable it in the Settings app.</string>
+  <string name="native_receipt_scan_close">Close</string>
+  <string name="native_receipt_scan_library">Choose from library</string>
+  <string name="native_receipt_scan_take">Take photo</string>
   <string name="native_receipt_total">total %1$s</string>
   <string name="native_receipt_untitled">Receipt</string>
   <string name="native_sample_account">Account</string>
@@ -156,7 +164,7 @@
   <string name="native_watch_status_nothingWaitingDetail">All watch entries delivered</string>
   <string name="native_watch_status_refresh">Refresh</string>
   <string name="native_watch_status_refreshHint">Asks the iPhone for the latest accounts, categories and history</string>
-  <string name="native_watch_status_refreshing">Refreshing…</string>
+  <string name="native_watch_status_refreshing">Refreshing</string>
   <string name="native_watch_status_title">Status</string>
   <string name="native_watch_status_unreachable">iPhone not reachable</string>
   <string name="native_watch_status_unreachableDetail">Entries wait on the watch until it is back</string>

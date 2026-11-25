@@ -420,6 +420,18 @@ struct LogPaymentIntent: AppIntent {
   }
 
   func perform() async throws -> some IntentResult {
+    // The app shows a placeholder row while this runs (src/lib/incoming.ts), and drops it on the
+    // way out whatever happened: a notification that was no payment, a failure, a twin filled in. A
+    // row that was written replaced it already, the moment JS wrote it.
+    // Kept in the app group too (KPIncoming), so an app opened mid-read still finds it; the signal
+    // is for an app that is already open.
+    let incoming = UUID().uuidString
+    KPIncoming.begin(incoming)
+    KPWrites.signal(["op": "incoming", "state": "start", "token": incoming, "started": Date().timeIntervalSince1970 * 1000])
+    defer {
+      KPIncoming.end(incoming)
+      KPWrites.signal(["op": "incoming", "state": "end", "token": incoming])
+    }
     // The whole notification when the automation passes it (the way the guide describes), the three
     // separate fields when it was built before that existed.
     let outcome = trimmed(notification).map { KPPaymentText.read(notification: $0) }
@@ -430,15 +442,16 @@ struct LogPaymentIntent: AppIntent {
     var parsed: KPPaymentText.Parse? = nil
     if case .payment(let p) = outcome { parsed = p }
     // A mapped Amount (the old Transaction automation) beats the text; without either there is
-    // nothing to log, and whether that is worth a word depends on what the text was.
+    // nothing to log. Either way it says nothing: a notification it could not read goes to the log
+    // (Settings → Automate with Shortcut → log), not to a push of its own on top of the bank's.
     let value = amount.map(abs).flatMap { $0 > 0 ? $0 : nil } ?? parsed?.amount
     guard let value else {
       if case .unreadable = outcome {
         KPParseLog.record(.unreadable, text: raw, note: "money named, no amount read")
-        throw KPIntentError(L10n.Intents.Payment.unreadable)
+      } else {
+        KPParseLog.record(.ignored, text: raw, note: "no amount, or money the bank is not charging")
       }
-      KPParseLog.record(.ignored, text: raw, note: "no amount, or money the bank is not charging")
-      return .result()   // not a payment: the ordinary outcome, and it says nothing
+      return .result()
     }
 
     // Just the accounts, not `buildState()`: that also scans every transaction for tags, categories
@@ -503,7 +516,17 @@ struct LogPaymentIntent: AppIntent {
     // rule ("ZABKA ZE212 K.5" finding "ZABKA NANO 3087") also makes "BLIK INTERNET: FLYSTORE.PL"
     // look like every other online BLIK payment, so what it offers is worth a category and not the
     // right to skip the queue.
-    var guessed = categoryId != nil && !history.trusted
+    // Nor is it a decision when this shop has been filed more than one way: the last of them is only
+    // a starting point, so the row is marked a guess and Pending says so, rather than looking filed.
+    var guessed = categoryId != nil && (!history.trusted || history.ambiguous)
+    // A shop everybody knows (KPShops, generated from core shops.ts): Biedronka is groceries, WOG
+    // fuel — filed into whichever category of yours has that type, whatever you called it. Still a
+    // guess: the first payment there waits in Pending for a yes, and after that it is history.
+    if categoryId == nil, let type = KPShops.type(shop, noteKey) {
+      // The most specific of yours first ("Groceries" over "Food & coffee"), then the most used.
+      let refs = KPStore.categoryRefs().filter { $0.types.contains(type) }
+      if let hit = refs.min(by: { ($0.types.count, -$0.uses) < ($1.types.count, -$1.uses) }) { categoryId = hit.id; guessed = true }
+    }
     if categoryId == nil, let s = shop, let hit = LogPaymentIntent.matchCategory(s, KPStore.categoryRefs()) {
       categoryId = hit.id
       guessed = true
@@ -590,7 +613,7 @@ struct LogPaymentIntent: AppIntent {
     // transfer between your own accounts find each other once the app reads them.
     let bank = KPBankRef(own: parsed?.ownAccount, other: parsed?.otherAccount,
                          balanceMinor: parsed?.balance.map { KPFormat.minor($0, parsed?.currency ?? acc.currency) })
-    let saved = await KPWrites.addTransaction(id: rowId, accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
+    let saved = await KPWrites.addTransaction(id: rowId, incoming: incoming, accountId: acc.id, amountMinor: income ? minor : -minor, categoryId: categoryId, tagIds: history.tagIds,
                                               note: nil, payee: shop, lat: lat, lon: lon,
                                               place: place, pending: pending && !known, date: date,
                                               source: guessed ? "shortcut-guess" : "shortcut",
@@ -638,6 +661,13 @@ struct LogPaymentIntent: AppIntent {
       }
       await KPNotify.payment(id: rowId, link: link, title: title, body: body,
                              badge: saved.reply["pending"] as? Int ?? KPStore.pendingCount())
+    } else if let count = saved.reply["pending"] as? Int ?? KPStore.pendingCount() {
+      // Silent, but the badge still counts what waits — it is the one sign left that anything did.
+      await KPNotify.badge(count)
+    }
+    // And the evening reminder about it, in case the app does not run again before then.
+    if let count = saved.reply["pending"] as? Int ?? KPStore.pendingCount() {
+      await KPNotify.pendingEvenings(count: count, time: KPStore.meta("pending_reminder"))
     }
     WidgetCenter.shared.reloadAllTimelines()
     NotificationCenter.default.post(name: KP.externalChange, object: nil)

@@ -22,9 +22,20 @@ WATCH_TYPE="${SHOTS_WATCH_TYPE:-com.apple.CoreSimulator.SimDeviceType.Apple-Watc
 # Any 13" iPad gives the same 2064×2752: Pro M4/M5 and Air 13" M2/M3/M4 all share that screen.
 IPAD_TYPE="${SHOTS_IPAD_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB}"   # 13" → 2064×2752
 
+# The foldable iPhone (needs an iOS 27.1+ simulator runtime). Opt-in: capture.sh --duo, or duo.sh.
+DUO_NAME="${SHOTS_DUO_NAME:-Kopiyka Shots Duo}"
+DUO_TYPE="${SHOTS_DUO_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPhone-Duo}"
+
 # The raw capture sizes the framer lays its slides out against.
 PHONE_SIZE="1320x2868"
 IPAD_SIZE="2064x2752"
+# The Duo has two screens, and `simctl io screenshot` refuses to guess between them: display 1 is the
+# outer one (1398×2034, 466×678 pt), the one the simulator boots on, folded; 3 is the inner one
+# (2007×2853), black until the device is unfolded in Simulator.app. Switching screens with
+# `simctl io screenConfig power` crashes SpringBoard on the 27.2 runtime, so the script never does.
+# The framer has no Duo slides yet, so its shots stay raw.
+DUO_DISPLAY="${SHOTS_DUO_DISPLAY:-1}"
+DUO_SIZE="${SHOTS_DUO_SIZE:-1398x2034}"
 
 # Release simulator build (no Metro, no dev-client launcher, cold-start deep links work).
 DERIVED="${SHOTS_DERIVED:-$MOBILE_DIR/build/ddr}"
@@ -35,9 +46,26 @@ log()  { printf '\033[1;34m▸\033[0m %s\n' "$*" >&2; }
 warn() { printf '\033[1;33m!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 
-# Newest runtime identifier for a platform ("iOS" / "watchOS").
-latest_runtime() {
-  xcrun simctl list runtimes | awk -v p="$1" '$1 == p && /\(available\)|com.apple.CoreSimulator.SimRuntime/ { id = $NF } END { print id }'
+# Newest runtime identifier for a platform ("iOS" / "watchOS"). A new device can ship on a runtime
+# of its own (iOS 27.2 for the iPhone Duo is com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4,
+# which nothing else boots): with a model identifier, the newest one made for it, else any general
+# one; without, general runtimes only.
+latest_runtime() { # <platform> [model identifier, "iPhone19,4"]
+  local model="${2:-}"; model="${model//,/-}"
+  xcrun simctl list runtimes | awk -v p="$1" -v m="$model" '
+    $1 != p || !/com.apple.CoreSimulator.SimRuntime/ { next }
+    { special = ($NF ~ /-(iPhone|iPad|Watch)[0-9]+-[0-9]+$/) }
+    m != "" && special && $NF ~ ("-" m "$") { own = $NF }
+    !special { id = $NF }
+    END { print (own != "" ? own : id) }'
+}
+
+# The model identifier of a simulator device type ("iPhone19,4"), for latest_runtime.
+device_model() {
+  xcrun simctl list devicetypes -j | python3 -c '
+import json, sys
+print(next((d.get("modelIdentifier", "") for d in json.load(sys.stdin)["devicetypes"] if d["identifier"] == sys.argv[1]), ""))
+' "$1"
 }
 
 # UDID of a simulator by exact name, or empty.
@@ -63,7 +91,7 @@ for runtime, devices in json.load(sys.stdin)["devices"].items():
 ensure_sim() {
   local name="$1" type="$2" platform="$3" udid runtime
   udid="$(sim_udid "$name")"
-  runtime="$(latest_runtime "$platform")"
+  runtime="$(latest_runtime "$platform" "$(device_model "$type")")"
   [[ -n "$runtime" ]] || die "No $platform simulator runtime installed (Xcode → Settings → Components)."
   if [[ -n "$udid" && "${SHOTS_KEEP_RUNTIME:-}" != 1 && "$(sim_runtime "$udid")" != "$runtime" ]]; then
     log "Replacing simulator \"$name\" ($(sim_runtime "$udid") → $runtime)"

@@ -95,6 +95,22 @@
     "data": {
       "title": "Your data",
       "text": "On your phone, copied to your iCloud, exportable any time."
+    },
+    "forecast": {
+      "title": "Siriusia sees the future",
+      "text": "Your own pace, carried forward: when the savings goal lands. She is a cat, so it is a forecast, not a promise."
+    },
+    "friends": {
+      "title": "Split with friends",
+      "text": "Their share is theirs, not your spending. Remind for the forgetful, Let it go for the very forgetful."
+    },
+    "receipts": {
+      "title": "Receipts read themselves",
+      "text": "Hold + and the camera finds the paper, takes it and reads every line, right on the phone."
+    },
+    "shops": {
+      "title": "Shops it already knows",
+      "text": "Biedronka, Lidl, Сільпо, АТБ, Uber and hundreds more, filed into your category the first time."
     }
   },
   "why": {
@@ -178,9 +194,18 @@
         "message": "Pusik",
         "note": "The app's own default theme, graphite grey on off-white, named after a cat. Every theme is named after a cat; write the names as they sound"
       },
-      "siri": { "message": "Siri", "note": "A theme named after a grey-fawn tabby cat called Siri (not Apple's assistant)." },
-      "tadeusz": { "message": "Tadeusz & Kastuś", "note": "A theme named after two ginger cats, Tadeusz and Kastuś." },
-      "catppuccin": { "message": "Una", "note": "A theme named after a cat called Una (the Catppuccin palette)." }
+      "siri": {
+        "message": "Siri",
+        "note": "A theme named after a grey-fawn tabby cat called Siri (not Apple's assistant)."
+      },
+      "tadeusz": {
+        "message": "Tadeusz & Kastuś",
+        "note": "A theme named after two ginger cats, Tadeusz and Kastuś."
+      },
+      "catppuccin": {
+        "message": "Una",
+        "note": "A theme named after a cat called Una (the Catppuccin palette)."
+      }
     }
   },
   "privacy": {

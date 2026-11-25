@@ -67,6 +67,15 @@ export async function placeName(c: Coords, timeoutMs = 3000): Promise<string | n
   } catch { return null; }
 }
 
+/** Where a printed address is (a receipt's "ul. Oleska 7, 45-052 Opole"); null when it cannot be found quickly. */
+export async function addressCoords(address: string, timeoutMs = 4000): Promise<Coords | null> {
+  try {
+    const r = await Promise.race([Location.geocodeAsync(address), new Promise<null>((res) => setTimeout(() => res(null), timeoutMs))]);
+    const p = r?.[0];
+    return p ? { lat: p.latitude, lon: p.longitude } : null;
+  } catch { return null; }
+}
+
 /** City (or region / country) for a fix; the default name offered for a trip. */
 export async function cityName(c: Coords, timeoutMs = 3000): Promise<string | null> {
   try {

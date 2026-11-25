@@ -1,4 +1,4 @@
-import { DynamicColorIOS, Platform, PlatformColor, type ColorValue, type ViewStyle } from "react-native";
+import { DynamicColorIOS, Platform, PlatformColor, type ColorValue, type TextStyle, type ViewStyle } from "react-native";
 import { DEFAULT_THEME, SYSTEM_FALLBACK, THEMES, THEME_IDS, isHexColor, themeColors, themeOf, toneColors, type ColorPair, type ColorRole, type Theme, type ThemeId } from "@kopiyka/core";
 import { defineThemeColors, type ThemeColorTable } from "@/lib/bridge";
 import { t } from "@/i18n";
@@ -221,6 +221,32 @@ export const Elevation = Platform.select({
   ios: { shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
   default: { elevation: 4 },
 }) as ViewStyle;
+
+/**
+ * The type scale: iOS's own text styles, so the app reads like the system around it. A role is size
+ * and weight together — pick the role, never a bare `fontSize` (DESIGN.md). Colour is not part of it;
+ * add `color: C.label` / `C.secondary` / `C.tertiary` beside it.
+ */
+export const Type = {
+  /** A screen's hero number (a total, the keypad amount). */
+  largeTitle: { fontSize: 34, fontWeight: "700" },
+  /** A sheet or card's own title. */
+  title: { fontSize: 22, fontWeight: "700" },
+  /** A day or group heading inside a list; a stat's value. */
+  title3: { fontSize: 20, fontWeight: "700" },
+  /** A header bar's title, an emphasised row. */
+  headline: { fontSize: 17, fontWeight: "600" },
+  /** Row titles, inputs, header actions. */
+  body: { fontSize: 17, fontWeight: "400" },
+  /** Buttons, chips, segment labels, links inside content. */
+  callout: { fontSize: 15, fontWeight: "500" },
+  /** Secondary lines under a row title, notes, captions under a group. */
+  footnote: { fontSize: 13, fontWeight: "400" },
+  /** Uppercase section and stat labels (add `textTransform: "uppercase"`, `letterSpacing: 0.5`). */
+  caption: { fontSize: 12, fontWeight: "600" },
+  /** Badges only. */
+  caption2: { fontSize: 11, fontWeight: "700" },
+} as const satisfies Record<string, TextStyle>;
 
 export const Fonts = {
   mono: Platform.select({ ios: "ui-monospace", default: "monospace" }),

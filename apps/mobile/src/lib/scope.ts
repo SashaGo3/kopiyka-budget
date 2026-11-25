@@ -4,17 +4,15 @@
  * ("currency:<code>" is still understood for scopes saved earlier, but no longer offered.)
  */
 import type { Option } from "@/app/pick/option";
+import { scopeAccountIds as coreScopeAccountIds } from "@kopiyka/core";
 import { t } from "@/i18n";
 import { acctName, groupName } from "@/lib/names";
+import { accountIcon } from "@/components/ui";
 
-export interface ScopedAccount { id: string; name: string; group_name: string; currency: string }
+export interface ScopedAccount { id: string; name: string; group_name: string; currency: string; archived?: number; type?: string; color?: string | null }
 
-export function scopeAccountIds(scope: string, accounts: ScopedAccount[]): string[] {
-  if (!scope) return [];
-  if (scope.startsWith("group:")) return accounts.filter((a) => a.group_name === scope.slice(6)).map((a) => a.id);
-  if (scope.startsWith("currency:")) return accounts.filter((a) => a.currency === scope.slice(9)).map((a) => a.id);
-  return [scope];
-}
+/** The accounts a scope covers ([] = all): core's `scopeAccountIds`, tested there. */
+export const scopeAccountIds = coreScopeAccountIds;
 
 /** The single account id when the scope is one account, else null. */
 export function scopeAccount(scope: string): string | null {
@@ -26,7 +24,7 @@ export function scopeLabel(scope: string, accounts: ScopedAccount[]): string {
   if (scope.startsWith("group:")) return groupName(scope.slice(6));
   if (scope.startsWith("currency:")) return t("period.scope.allCurrency", { currency: scope.slice(9) });
   const a = accounts.find((a) => a.id === scope);
-  return a ? acctName(a) : t("period.scope.all");
+  return a && !a.archived ? acctName(a) : t("period.scope.all");
 }
 
 /**
@@ -40,13 +38,15 @@ export function scopeOptions(accounts: ScopedAccount[]): Option[] {
   const allGroups = [...new Set(accounts.map((a) => a.group_name))];
   const single = allGroups.length === 1;
   const groups = single ? [] : allGroups.filter(Boolean);
-  const account = (a: ScopedAccount, indent: boolean): Option => ({ value: a.id, label: acctName(a), subtitle: a.currency, indent });
+  // Each account wears its own icon and colour, as on the account picker; "All" and a group get a
+  // tile too, so the names line up down the list.
+  const account = (a: ScopedAccount, indent: boolean): Option => ({ value: a.id, label: acctName(a), subtitle: a.currency, indent, icon: accountIcon(a.type ?? ""), color: a.color ?? null });
   return [
-    { value: "all", label: t("period.scope.all"), subtitle: single && allGroups[0] ? `${groupName(allGroups[0])} · ${n(accounts.length)}` : n(accounts.length) },
+    { value: "all", icon: "square.stack.3d.up", color: null, label: t("period.scope.all"), subtitle: single && allGroups[0] ? `${groupName(allGroups[0])} · ${n(accounts.length)}` : n(accounts.length) },
     ...(single ? accounts.map((a) => account(a, true)) : []),
     ...groups.flatMap((g) => {
       const members = accounts.filter((a) => a.group_name === g);
-      return [{ value: `group:${g}`, label: groupName(g), subtitle: t("period.scope.group", { count: members.length }) }, ...members.map((a) => account(a, true))];
+      return [{ value: `group:${g}`, icon: "folder", color: null, label: groupName(g), subtitle: t("period.scope.group", { count: members.length }) }, ...members.map((a) => account(a, true))];
     }),
     ...(single ? [] : accounts.filter((a) => !a.group_name).map((a) => account(a, false))),
   ];

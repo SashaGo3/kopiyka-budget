@@ -7,12 +7,13 @@ import { mutate } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { groupByDay, rowCategory, useTransactions, type TxRow } from "@/components/TransactionList";
 import { BarButton, BottomBar } from "@/components/BottomBar";
-import { AmountPill, ButtonText, CategoryIcon, Empty, Money } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { AmountPill, ButtonText, CategoryIcon, Empty, Money, Tap } from "@/components/ui";
+import { C, R, S, themed } from "@/constants/theme";
 import { timeLabel } from "@/lib/dates";
 import { Trans, t } from "@/i18n";
 import { acctName } from "@/lib/names";
 import { rowText } from "@/lib/rowText";
+import { shopParams } from "@/lib/shopPick";
 
 /**
  * The queue behind the Pending row on Transactions: everything a Shortcut automation or a receipt
@@ -20,7 +21,8 @@ import { rowText } from "@/lib/rowText";
  * nothing here is final until it is approved.
  *
  * Approving is one tap per row and the only thing the row's own buttons do besides setting the
- * category and deleting. The category is the field these rows arrive without: a notification names
+ * category and deleting — and setting the category approves it as well, since that is the answer
+ * the row was waiting for. The category is the field these rows arrive without: a notification names
  * a shop, not a category, and since 2026-09 nothing guesses one from the shop's name — a wrong
  * category hides a row, a blank one asks for exactly this screen. Anything else — the amount,
  * the account, tags, the date — is a tap on the row itself, which opens the normal entry sheet;
@@ -61,7 +63,15 @@ export default function PendingScreen() {
   usePickResult<string | null>(catKey, useCallback((id: string | null) => {
     const rowId = editing.current;
     editing.current = null;
-    if (rowId) mutate((d) => { const tx = getRow(d, "transactions", rowId); if (tx) save(d, "transactions", { ...tx, category_id: id }); });
+    // Picking the category is the decision this queue is waiting for, so it approves the row too —
+    // a second tap on Approve after it only repeated what the pick had already said. Clearing the
+    // category (picking none) leaves the row waiting.
+    if (rowId) mutate((d) => {
+      const tx = getRow(d, "transactions", rowId);
+      if (!tx) return;
+      save(d, "transactions", { ...tx, category_id: id });
+      if (id) approvePending(d, [rowId]);
+    });
   }, []));
 
   // Both legs of a transfer at once, and each approval teaches the accounts the digits their bank
@@ -70,7 +80,7 @@ export default function PendingScreen() {
   const approveAll = () => approve(rows.map((tx) => tx.id));
   const pickCategory = (tx: TxRow) => {
     editing.current = tx.id;
-    router.push({ pathname: "/pick/category", params: { key: catKey, kind: tx.amount_minor > 0 ? "income" : "expense", selected: tx.category_id ?? "" } });
+    router.push({ pathname: "/pick/category", params: { key: catKey, kind: tx.amount_minor > 0 ? "income" : "expense", selected: tx.category_id ?? "", ...shopParams(tx.payee, tx.notes || tx.bank_note, tx.id) } });
   };
   const del = (tx: TxRow) => Alert.alert(tx.transfer_id ? t("transfer.deleteTitle") : t("pending.deleteTitle"), tx.transfer_id ? undefined : tx.payee ?? undefined, [
     { text: t("common.cancel"), style: "cancel" },
@@ -109,7 +119,7 @@ export default function PendingScreen() {
       />
       {rows.length ? (
         <BottomBar>
-          <BarButton icon="checkmark.circle" label={t("pending.approveAll", { count: rows.length })} active onPress={approveAll} a11y={t("pending.approveAllA11y", { count: rows.length })} />
+          <BarButton icon="checkmark.circle" label={t("pending.approveAll", { count: rows.length })} active wide onPress={approveAll} a11y={t("pending.approveAllA11y", { count: rows.length })} />
         </BottomBar>
       ) : null}
     </>
@@ -148,16 +158,16 @@ function PendingItem({ tx, partner, first, last, onApprove, onCategory, onDelete
   const guessed = categorised && tx.source === GUESSED;
   return (
     <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.editA11y", { title })}
+      <Tap style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.editA11y", { title })}
         onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: tx.id } })}>
         <CategoryIcon name={tx.category_name ?? tx.parent_name ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={34} />
         <View style={styles.text}>
-          <Text style={styles.title} numberOfLines={2}>{title}</Text>
-          <Text style={styles.sub} numberOfLines={1}>{where}{where ? " · " : ""}{timeLabel(tx.date)}</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.sub}>{where}{where ? " · " : ""}{timeLabel(tx.date)}</Text>
         </View>
         <AmountPill minor={tx.amount_minor} currency={tx.currency} />
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
       <View style={styles.actions}>
         <Action icon="checkmark.circle.fill" label={t("pending.approve")} color={C.green} onPress={onApprove} grow />
         <Action icon={categorised ? "folder.fill" : "folder.badge.plus"} color={categorised && !guessed ? C.secondary : C.tint} onPress={onCategory}
@@ -185,18 +195,18 @@ function PendingTransfer({ tx, partner, first, last, onApprove, onDelete }: {
   const edit = () => router.push({ pathname: "/transfer/[id]", params: { id: tx.transfer_id! } });
   return (
     <View style={[styles.card, first && styles.first, last && styles.last, !first && styles.divider]}>
-      <Pressable style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.transfer.editA11y", { route })} onPress={edit}>
+      <Tap style={styles.head} accessibilityRole="button" accessibilityLabel={t("pending.transfer.editA11y", { route })} onPress={edit}>
         <View style={styles.transferIcon}><SymbolView name="arrow.left.arrow.right" size={15} tintColor={C.secondary} /></View>
         <View style={styles.text}>
-          <Text style={styles.title} numberOfLines={1}>{t("pending.transfer.title")}</Text>
-          <Text style={styles.sub} numberOfLines={2}>{route} · {timeLabel(tx.date)}</Text>
+          <Text style={styles.title}>{t("pending.transfer.title")}</Text>
+          <Text style={styles.sub}>{route} · {timeLabel(tx.date)}</Text>
         </View>
         <View style={styles.amounts}>
           <AmountPill minor={out.amount_minor} currency={out.currency} neutral />
           {inn && inn.currency !== out.currency ? <AmountPill minor={inn.amount_minor} currency={inn.currency} neutral /> : null}
         </View>
         <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
-      </Pressable>
+      </Tap>
       <View style={styles.actions}>
         {unknown
           ? <Action icon="pencil" label={t("pending.transfer.fill")} color={C.tint} onPress={edit} grow />
@@ -219,8 +229,8 @@ function Action({ icon, label, a11y, color, onPress, grow }: { icon: SFSymbol; l
 }
 
 const styles = themed(() => StyleSheet.create({
-  intro: { color: C.secondary, fontSize: 14, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
-  introSum: { color: C.label, fontSize: 14, fontWeight: "700" },
+  intro: { color: C.secondary, fontSize: 15, lineHeight: 20, paddingHorizontal: S.xl, paddingTop: S.sm, paddingBottom: S.md },
+  introSum: { color: C.label, fontSize: 15, fontWeight: "700" },
   sh: { fontSize: 20, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.sm },
   card: { marginHorizontal: S.lg, backgroundColor: C.card, overflow: "hidden" },
   first: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
@@ -232,7 +242,7 @@ const styles = themed(() => StyleSheet.create({
   sub: { fontSize: 13, color: C.secondary },
   actions: { flexDirection: "row", alignItems: "stretch", gap: 1, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   action: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: S.md },
-  actionText: { fontSize: 14, fontWeight: "600", flexShrink: 1 },
-  transferIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
+  actionText: { fontSize: 15, fontWeight: "600", flexShrink: 1 },
+  transferIcon: { width: 34, height: 34, borderRadius: R.pill, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   amounts: { alignItems: "flex-end", gap: 4 },
 }));

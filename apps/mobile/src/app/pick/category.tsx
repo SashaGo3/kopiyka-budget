@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { archivedCategoryIds, debtChoices, folderIds, formatMinor, listRows, type Category } from "@kopiyka/core";
+import { archivedCategoryIds, categorySearchNames, debtChoices, folderIds, formatMinor, listRows, payeeOptions, type Category } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { resolvePick } from "@/store/pick";
-import { CategoryIcon } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
-import { catName } from "@/lib/names";
+import { CategoryIcon, Tap, ButtonText } from "@/components/ui";
+import { C, R, S, themed } from "@/constants/theme";
+import { catName, orderedCategories } from "@/lib/names";
 import { t } from "@/i18n";
 
 /** How many recently used categories get a shortcut at the top before the full list starts. */
 const RECENT = 6;
 
 /** `label` and `folderLabel` are the names as shown (DATA.md rule 16); search matches them and the stored ones. */
-type Pickable = Category & { folder: Category | null; uses: number; isFolder: boolean; label: string; folderLabel: string | null };
+type Pickable = Category & { folder: Category | null; uses: number; isFolder: boolean; label: string; folderLabel: string | null; also: string[] };
 type Item =
   | { row: "header"; id: string; title: string; folder?: Category }
   | { row: "cat"; id: string; cat: Pickable; showFolder: boolean; indent?: boolean };
@@ -38,16 +38,21 @@ type Item =
  * that pays one off, or the money coming back on one. It is not a category, so it is not answered
  * here — choosing it turns the sheet into the list of debts, and the one picked comes back as
  * `debt:<id>` (`transactions.debt_id`, packages/core/src/debts.ts).
+ *
+ * With `payee` (and `note`, the bank's words), the categories this shop was filed under before come
+ * right after the assigned one: the same shop sells fuel and a hot dog, and "which of the usual
+ * ones?" is the question a pending payment from it is asking. `except` is that payment's own id,
+ * so the category it was only pre-filled with is not counted as a past answer (core `payeeOptions`).
  */
 export default function PickCategory() {
-  const { key, kind, selected, folders: withFolders, debts: withDebts } = useLocalSearchParams<{ key: string; kind?: string; selected?: string; folders?: string; debts?: string }>();
+  const { key, kind, selected, folders: withFolders, debts: withDebts, payee, note, except } = useLocalSearchParams<{ key: string; kind?: string; selected?: string; folders?: string; debts?: string; payee?: string; note?: string; except?: string }>();
   const allowFolders = withFolders === "1";
   const [q, setQ] = useState("");
   const chosenDebt = selected?.startsWith("debt:") ? selected.slice(5) : null;
   const debts = useQuery((db) => (withDebts === "1" ? debtChoices(db, chosenDebt) : []), [withDebts, chosenDebt]);
   const [debtStep, setDebtStep] = useState(false);
   const { pickable, sections } = useQuery((db) => {
-    const all = listRows(db, "categories", "deleted=0", [], "sort, name");
+    const all = orderedCategories(db, listRows(db, "categories", "deleted=0", [], "sort, name"));
     const byId = new Map(all.map((c) => [c.id, c]));
     const folders = folderIds(all);
     // Retired categories, and everything inside a retired folder, are not offered — but the one this
@@ -64,13 +69,17 @@ export default function PickCategory() {
       .filter((c) => c.id === selected || (!retired.has(c.id) && (allowFolders || !folders.has(c.id)) && (c.kind === wanted || (c.parent_id && byId.get(c.parent_id)?.kind === wanted))))
       .map((c) => {
         const folder = c.parent_id ? byId.get(c.parent_id) ?? null : null;
-        return { ...c, folder, uses: usage.get(c.id) ?? 0, isFolder: folders.has(c.id), label: catName(c), folderLabel: folder ? catName(folder) : null };
+        return { ...c, folder, uses: usage.get(c.id) ?? 0, isFolder: folders.has(c.id), label: catName(c), folderLabel: folder ? catName(folder) : null, also: [...categorySearchNames(c), ...(folder ? categorySearchNames(folder) : [])].map((n) => n.toLowerCase()) };
       });
 
     const out: Item[] = [];
     const current = list.find((c) => c.id === selected);
     if (current) { out.push({ row: "header", id: "h-assigned", title: t("pick.category.assigned") }, { row: "cat", id: `a-${current.id}`, cat: current, showFolder: true }); }
-    const recent = list.filter((c) => c.uses > 0 && c.id !== selected).sort((a, b) => b.uses - a.uses || a.label.localeCompare(b.label)).slice(0, RECENT);
+    // The shop's own past filings, most used first, before the app-wide recents (and not repeated in them).
+    const shopIds = payee || note ? [...new Set(payeeOptions(db, payee, note, 6, except).map((o) => o.category_id).filter((x): x is string => !!x))] : [];
+    const atShop = shopIds.filter((id) => id !== selected).map((id) => list.find((c) => c.id === id)).filter((c): c is Pickable => !!c && !c.isFolder);
+    if (atShop.length) { out.push({ row: "header", id: "h-shop", title: t("pick.category.thisShop") }); for (const c of atShop) out.push({ row: "cat", id: `p-${c.id}`, cat: c, showFolder: true }); }
+    const recent = list.filter((c) => c.uses > 0 && c.id !== selected && !atShop.includes(c)).sort((a, b) => b.uses - a.uses || a.label.localeCompare(b.label)).slice(0, RECENT);
     if (recent.length) { out.push({ row: "header", id: "h-recent", title: t("pick.category.recent") }); for (const c of recent) out.push({ row: "cat", id: `r-${c.id}`, cat: c, showFolder: true }); }
     // Then every category again, this time where it lives: one block per folder, in the folder
     // order of the Categories screen, with the loose ones last under a heading of their own. Where
@@ -88,10 +97,10 @@ export default function PickCategory() {
     const loose = list.filter((c) => !c.parent_id && !c.isFolder);
     if (loose.length) { out.push({ row: "header", id: "h-loose", title: t("pick.category.noFolder") }); for (const c of loose) out.push({ row: "cat", id: `l-${c.id}`, cat: c, showFolder: false }); }
     return { pickable: list, sections: out };
-  }, [kind, selected, allowFolders]);
+  }, [kind, selected, allowFolders, payee, note, except]);
 
   const ql = q.trim().toLowerCase();
-  const found = useMemo(() => pickable.filter((c) => [c.label, c.name, c.folderLabel, c.folder?.name].some((n) => n?.toLowerCase().includes(ql))), [pickable, ql]);
+  const found = useMemo(() => pickable.filter((c) => c.also.some((n) => n.includes(ql))), [pickable, ql]);
   const data: Item[] = ql ? found.map((c) => ({ row: "cat" as const, id: `s-${c.id}`, cat: c, showFolder: true })) : sections;
   const chosen = useRef(false);
   const choose = (id: string | null) => { if (chosen.current) return; chosen.current = true; resolvePick(key, id); router.back(); };
@@ -102,7 +111,7 @@ export default function PickCategory() {
     if (ql.length < 3) return;
     // Never a folder: "the whole of Food" is a deliberate choice, not something to be jumped to.
     const leaves = pickable.filter((c) => !c.isFolder);
-    const starts = leaves.filter((c) => c.label.toLowerCase().startsWith(ql) || c.name.toLowerCase().startsWith(ql));
+    const starts = leaves.filter((c) => categorySearchNames(c).some((n) => n.toLowerCase().startsWith(ql)));
     const inc = found.filter((c) => !c.isFolder);
     const hit = starts.length === 1 ? starts[0] : starts.length === 0 ? (inc.length === 1 ? inc[0] : undefined) : undefined;
     if (hit) choose(hit.id);
@@ -116,21 +125,21 @@ export default function PickCategory() {
       contentContainerStyle={{ paddingBottom: 60 }}
       ListHeaderComponent={
         <View>
-          <Pressable onPress={() => setDebtStep(false)} style={styles.back} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("pick.category.debtBack")}>
-            <SymbolView name="chevron.left" size={14} tintColor={C.tint} /><Text style={styles.backText}>{t("pick.category.debtBack")}</Text>
-          </Pressable>
+          <Tap onPress={() => setDebtStep(false)} style={styles.back} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("pick.category.debtBack")}>
+            <SymbolView name="chevron.left" size={14} tintColor={C.tint} /><ButtonText style={styles.backText}>{t("pick.category.debtBack")}</ButtonText>
+          </Tap>
           <Text style={styles.debtTitle}>{t("pick.category.whichDebt")}</Text>
         </View>
       }
       renderItem={({ item: d }) => (
-        <Pressable onPress={() => choose(`debt:${d.id}`)} style={styles.row} accessibilityRole="button" accessibilityLabel={d.person} accessibilityState={{ selected: chosenDebt === d.id }}>
+        <Tap onPress={() => choose(`debt:${d.id}`)} style={styles.row} accessibilityRole="button" accessibilityLabel={d.person} accessibilityState={{ selected: chosenDebt === d.id }}>
           <View style={styles.noIcon}><SymbolView name={d.direction === "i_owe" ? "arrow.up.right" : "arrow.down.left"} size={14} tintColor={C.secondary} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.name} numberOfLines={1}>{d.person}</Text>
+            <Text style={styles.name}>{d.person}</Text>
             <Text style={styles.folder}>{t(d.direction === "i_owe" ? "pick.category.debtYouOwe" : "pick.category.debtOwedToYou", { amount: `${formatMinor(d.amount_minor, d.currency)} ${d.currency}` })}</Text>
           </View>
           {chosenDebt === d.id ? <Check /> : null}
-        </Pressable>
+        </Tap>
       )}
     />
   );
@@ -148,18 +157,18 @@ export default function PickCategory() {
         <View>
           <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={16} tintColor={C.tertiary} />
-            <TextInput value={q} onChangeText={setQ} placeholder={t("pick.category.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.category.search")} />
+            <TextInput autoFocus value={q} onChangeText={setQ} placeholder={t("pick.category.search")} placeholderTextColor={C.tertiary} style={styles.input} autoCorrect={false} clearButtonMode="while-editing" accessibilityLabel={t("pick.category.search")} />
           </View>
-          {!ql ? <Pressable onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("common.noCategory")}><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>{t("common.noCategory")}</Text>{!selected ? <Check /> : null}</Pressable> : null}
+          {!ql ? <Tap onPress={() => choose(null)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("common.noCategory")}><View style={styles.noIcon}><SymbolView name="minus" size={14} tintColor={C.tertiary} /></View><Text style={[styles.name, { color: C.secondary }]}>{t("common.noCategory")}</Text>{!selected ? <Check /> : null}</Tap> : null}
           {!ql && debts.length ? (
-            <Pressable onPress={() => setDebtStep(true)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.category.debt")} accessibilityHint={t("pick.category.debtHint")}>
+            <Tap onPress={() => setDebtStep(true)} style={styles.row} accessibilityRole="button" accessibilityLabel={t("pick.category.debt")} accessibilityHint={t("pick.category.debtHint")}>
               <View style={styles.noIcon}><SymbolView name="creditcard.and.123" size={14} tintColor={C.secondary} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.name}>{t("pick.category.debt")}</Text>
-                <Text style={styles.folder} numberOfLines={1}>{chosenDebt ? debts.find((d) => d.id === chosenDebt)?.person ?? "" : t("pick.category.debtSub")}</Text>
+                <Text style={styles.folder}>{chosenDebt ? debts.find((d) => d.id === chosenDebt)?.person ?? "" : t("pick.category.debtSub")}</Text>
               </View>
               {chosenDebt ? <Check /> : <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />}
-            </Pressable>
+            </Tap>
           ) : null}
         </View>
       }
@@ -167,30 +176,30 @@ export default function PickCategory() {
         if (item.row === "header") return (
           <View style={styles.headerRow}>
             {item.folder ? <CategoryIcon name={catName(item.folder)} icon={item.folder.icon} color={item.folder.color} size={18} /> : null}
-            <Text style={styles.header} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.header}>{item.title}</Text>
           </View>
         );
         const c = item.cat;
         return (
-          <Pressable onPress={() => choose(c.id)} style={[styles.row, item.indent && styles.indent]} accessibilityRole="button" accessibilityLabel={c.isFolder ? t("pick.category.wholeA11y", { name: c.label }) : c.folderLabel ? t("pick.category.inA11y", { name: c.label, folder: c.folderLabel }) : c.label} accessibilityState={{ selected: selected === c.id }}>
+          <Tap onPress={() => choose(c.id)} style={[styles.row, item.indent && styles.indent]} accessibilityRole="button" accessibilityLabel={c.isFolder ? t("pick.category.wholeA11y", { name: c.label }) : c.folderLabel ? t("pick.category.inA11y", { name: c.label, folder: c.folderLabel }) : c.label} accessibilityState={{ selected: selected === c.id }}>
             <CategoryIcon name={c.label} icon={c.icon} color={c.color} size={32} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.name} numberOfLines={1}>{c.label}</Text>
+              <Text style={styles.name}>{c.label}</Text>
               {/* Only a budget may take a whole folder; elsewhere a folder can still appear as the
                   category an older row was filed under, and there it is just named for what it is. */}
               {c.isFolder ? <Text style={styles.folder}>{allowFolders ? t("pick.category.everything") : t("pick.category.folder")}</Text> : item.showFolder && c.folder ? (
                 <View style={styles.folderRow}>
                   <CategoryIcon name={c.folderLabel ?? c.folder.name} icon={c.folder.icon} color={c.folder.color} size={14} />
-                  <Text style={styles.folder} numberOfLines={1}>{c.folderLabel}</Text>
+                  <Text style={styles.folder}>{c.folderLabel}</Text>
                 </View>
               ) : null}
             </View>
             {selected === c.id ? <Check /> : null}
-          </Pressable>
+          </Tap>
         );
       }}
       ListEmptyComponent={ql ? <Text style={styles.empty}>{t("pick.nothingMatches", { query: q.trim() })}</Text> : null}
-      ListFooterComponent={<Pressable onPress={() => router.replace({ pathname: "/category/edit", params: { id: "new", pickKey: key, name: q.trim(), kind: kind === "income" ? "income" : "expense" } })} style={styles.row} accessibilityRole="button" accessibilityLabel={q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.new")}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.newEllipsis")}</Text></Pressable>}
+      ListFooterComponent={<Tap onPress={() => router.replace({ pathname: "/category/edit", params: { id: "new", pickKey: key, name: q.trim(), kind: kind === "income" ? "income" : "expense" } })} style={styles.row} accessibilityRole="button" accessibilityLabel={q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.new")}><SymbolView name="plus.circle" size={20} tintColor={C.tint} /><Text style={[styles.name, { color: C.tint }]}>{q.trim() ? t("pick.category.newNamed", { name: q.trim() }) : t("pick.category.newEllipsis")}</Text></Tap>}
     />
   );
 }
@@ -198,12 +207,12 @@ export default function PickCategory() {
 function Check() { return <SymbolView name="checkmark" size={16} tintColor={C.tint} />; }
 
 const styles = themed(() => StyleSheet.create({
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.lg, marginBottom: S.xs, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 52, paddingVertical: 6 },
   indent: { paddingLeft: S.xl + S.lg },
   headerRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xs },
-  header: { fontSize: 13, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
+  header: { flexShrink: 1, fontSize: 13, fontWeight: "600", color: C.secondary, textTransform: "uppercase", letterSpacing: 0.4 },
   noIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: C.fill, alignItems: "center", justifyContent: "center" },
   name: { fontSize: 17, color: C.label },
   folderRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },

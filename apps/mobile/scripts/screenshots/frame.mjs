@@ -131,6 +131,11 @@ const IPHONE_SIZES = [
  *  the capture, so nothing is resampled. A build offered on iPad cannot be submitted without it. */
 const IPAD_SIZES = [{ dir: "ipad-13", w: 2064, h: 2752, label: '13" (iPad Pro M4/M5, iPad Air 13")' }];
 
+/** The folded iPhone Duo's outer display, App Store Connect's APP_IPHONE_DUO slot (it also takes the
+ *  inner display's 2007 × 2853; the outer one is what the pipeline captures, scripts/screenshots/duo.sh).
+ *  fastlane deliver does not know the size, so upload-duo.mjs sends these. */
+const DUO_SIZES = [{ dir: "duo", w: 1398, h: 2034, label: 'iPhone Duo, folded (outer display)' }];
+
 /** Sizes App Store Connect accepts for Apple Watch, newest first. */
 const WATCH_SIZES = [
   { w: 422, h: 514, label: "Ultra 3 / 4 (49 mm)" },
@@ -328,7 +333,7 @@ function localize(shots, code, warnings) {
     for (const f of CAPTION_FIELDS) if (out[f] !== undefined) out[f] = text(out[f]);
     return out;
   });
-  const creative = shots.creative && { ...shots.creative, features: each(shots.creative.features) };
+  const creative = shots.creative && { ...shots.creative, slogan: text(shots.creative.slogan), line: text(shots.creative.line), features: each(shots.creative.features) };
   return { ...shots, iphone: each(shots.iphone), extras: each(shots.extras), watch: each(shots.watch), creative };
 }
 
@@ -661,11 +666,11 @@ function watchDrawn({ uid, x, y, w, href, imgW, imgH }) {
  * the device does not have: no notch, no Dynamic Island, no home button, no visible buttons in
  * portrait, which is exactly what a 13" iPad looks like face on.
  */
-function ipadDrawn({ uid, x, y, w, href, imgW, imgH, shadow = true }) {
-  const bezel = w * IPAD_BEZEL;
+function ipadDrawn({ uid, x, y, w, href, imgW, imgH, shadow = true, bezelFrac = IPAD_BEZEL, corner = 0.026, camera = true }) {
+  const bezel = w * bezelFrac;
   const sw = w - 2 * bezel;
   const sh = sw * (imgH / imgW);
-  const srx = sw * 0.026; // ~27 pt display corner
+  const srx = sw * corner; // the iPad's ~27 pt display corner by default
   const orx = srx + bezel;
   const h = sh + 2 * bezel;
   const sx = x + bezel;
@@ -687,11 +692,16 @@ function ipadDrawn({ uid, x, y, w, href, imgW, imgH, shadow = true }) {
       <rect x="${sx.toFixed(2)}" y="${sy.toFixed(2)}" width="${sw.toFixed(2)}" height="${sh.toFixed(2)}" fill="#000"/>
       <image x="${sx.toFixed(2)}" y="${sy.toFixed(2)}" width="${sw.toFixed(2)}" height="${sh.toFixed(2)}" preserveAspectRatio="xMidYMin slice" href="${href}" xlink:href="${href}"/>
     </g>
-    <circle cx="${(x + bezel * 0.5).toFixed(2)}" cy="${(y + h / 2).toFixed(2)}" r="${(bezel * 0.16).toFixed(2)}" fill="#0A0A0C"/>
+    ${camera ? `<circle cx="${(x + bezel * 0.5).toFixed(2)}" cy="${(y + h / 2).toFixed(2)}" r="${(bezel * 0.16).toFixed(2)}" fill="#0A0A0C"/>` : ""}
     <rect x="${sx.toFixed(2)}" y="${sy.toFixed(2)}" width="${sw.toFixed(2)}" height="${sh.toFixed(2)}" rx="${srx.toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="${(w * 0.0016).toFixed(2)}"/>
   </g>`,
   };
 }
+
+/** The folded iPhone Duo: no Dynamic Island (its clock and camera sit in the strip down one side,
+ *  which the capture already shows), so it is drawn like the iPad, with a phone's thinner bezel and
+ *  rounder corners and no camera on the frame. */
+const duoDrawn = (args) => ipadDrawn({ ...args, bezelFrac: 0.03, corner: 0.075, camera: false });
 
 /* ----------------------------------------------------------------- devices */
 
@@ -728,6 +738,18 @@ const PHONE_DEVICE = {
   heightFor: phoneHeightFor,
   maxFull: 0.735,
   maxBottom: 0.795,
+};
+const DUO_DEVICE = {
+  key: "duo",
+  raw: "duo",
+  screen: { w: 1398, h: 2034 },
+  frame: null,
+  render: duoDrawn,
+  type: IPAD_TYPE,
+  widthFor: (h) => h / (2034 / 1398),
+  heightFor: (w) => w * (2034 / 1398),
+  maxFull: 0.8,
+  maxBottom: 0.86,
 };
 const IPAD_DEVICE = {
   key: "ipad",
@@ -928,6 +950,290 @@ function buildSlide({ shot, W, H, device = PHONE_DEVICE, phoneImg, watchImg, dev
   };
 }
 
+/* -------------------------------------------------------------- story style */
+
+/**
+ * The look since 1.1.2 (shots.json `"style": "story"`): cream, a serif headline with one word in the
+ * accent, phones turned a few degrees, cards lifted out of the capture and enlarged, and the cat.
+ *
+ * The numbered iPhone set is drawn as ONE canvas as wide as all its slides together and then cut
+ * into slides, the way the App Store shows them side by side: a phone placed near a slide's edge
+ * runs on into the next one. Every position in a shot's `story` is a fraction of one slide (x and
+ * widths of its width, y of its height), so the four iPhone canvas sizes share one design.
+ *
+ * Cards are the capture's own pixels (`crop`, per language where the layout differs), so nothing
+ * on them is redrawn and nothing can disagree with the app. The cat is a photo cut-out with a
+ * slightly rough outline: `catHref` shaves the halo off, and a cat is clipped to its own slide so
+ * its cut-off side ends at the canvas edge rather than on the slide beside it.
+ */
+const SERIF = "'.New York', 'New York', Georgia, serif";
+const STORY = { bg: "#F6F1EA", ink: "#1E1A17", accent: "#B84A08", sub: "#6B5D52", shadow: "#5A3A20" };
+const CAT_DIR = path.resolve(SHOTS_DIR, "../assets/siriusia");
+const STORY_TYPE = { title: 0.128, sub: 0.04, note: 0.032, mx: 0.072, top: 0.07, bottom: 0.94 };
+
+const plainLine = (l) => l.replace(/\*/g, "");
+/** A headline line with `*word*` drawn in the accent. */
+const richLine = (l, accent) =>
+  l.split(/(\*[^*]+\*)/).filter(Boolean).map((p) => (p.startsWith("*") ? `<tspan fill="${accent}">${esc(p.slice(1, -1))}</tspan>` : esc(p))).join("");
+
+/** The largest headline size, at most `max`, at which every line of every title fits `width`. The
+ *  width table is Helvetica Bold's; New York Bold sets narrower, so this errs on the safe side. */
+function storyTitleSize(list, max, width) {
+  let size = max;
+  // Latin New York sets a little narrower than the Helvetica table, its Cyrillic a little wider.
+  const factor = (l) => (/[\u0400-\u04FF]/.test(l) ? 1.1 : 0.96);
+  const fits = (s) => list.every((shot) => String(shot.title ?? "").split("\n").every((l) => textWidth(plainLine(l), s, true, -s * 0.025) * factor(l) <= width));
+  while (!fits(size) && size > 10) size *= 0.97;
+  return size;
+}
+
+/** Headline, subtitle and note as one block; returns its svg and height. `y` is its top edge. */
+function storyText({ shot, x, y, W, size, align = "start", width }) {
+  const anchor = align === "end" ? "end" : align === "middle" ? "middle" : "start";
+  const parts = [];
+  const lead = size * 1.0;
+  const titleLines = String(shot.title ?? "").split("\n");
+  let by = y + size * 0.8;
+  for (const l of titleLines) {
+    parts.push(`<text x="${x.toFixed(1)}" y="${by.toFixed(1)}" text-anchor="${anchor}" font-family="${SERIF}" font-weight="700" font-size="${size.toFixed(1)}" letter-spacing="${(-size * 0.025).toFixed(2)}" fill="${STORY.ink}">${richLine(l, STORY.accent)}</text>`);
+    by += lead;
+  }
+  by -= lead;
+  for (const [field, frac, weight] of [["subtitle", STORY_TYPE.sub, 500], ["note", STORY_TYPE.note, 500]]) {
+    if (!shot[field]) continue;
+    const s = W * frac;
+    const lines = balancedWrap(String(shot[field]).replace(/\n/g, " "), width, s, false, 0);
+    by += field === "subtitle" ? size * 0.32 + s * 1.1 : s * 1.5;
+    for (const l of lines) {
+      parts.push(`<text x="${x.toFixed(1)}" y="${by.toFixed(1)}" text-anchor="${anchor}" font-family="${FONT}" font-weight="${weight}" font-size="${s.toFixed(1)}" fill="${STORY.sub}">${esc(l)}</text>`);
+      by += s * 1.3;
+    }
+    by -= s * 1.3;
+  }
+  return { svg: parts.join("\n  "), h: by - y + size * 0.25 };
+}
+
+/** A phone centred on (cx, cy), `w` wide, turned `rot` degrees. */
+function storyPhone({ uid, cx, cy, w, rot, img, frames }) {
+  const h = phoneHeightFor(w);
+  const p = phone({ uid, x: cx - w / 2, y: cy - h / 2, w, href: img.href, frameHref: frames.phone, imgW: img.w, imgH: img.h });
+  return `<g transform="rotate(${rot} ${cx.toFixed(1)} ${cy.toFixed(1)})">${p.svg}</g>`;
+}
+
+/** A piece of a capture, `w` wide and centred on (cx, cy), turned `rot`, with a soft shadow. */
+const cardCache = new Map();
+function storyCard({ uid, rawFile, crop, cx, cy, w, rot }) {
+  const key = `${rawFile}|${crop.join(",")}`;
+  if (!cardCache.has(key)) {
+    const out = path.join(TMP, `card-${cardCache.size}.png`);
+    execFileSync(MAGICK, [rawFile, "-crop", `${crop[2]}x${crop[3]}+${crop[0]}+${crop[1]}`, "+repage", out], { stdio: "pipe" });
+    cardCache.set(key, dataUri(out));
+  }
+  const href = cardCache.get(key);
+  const h = (w * crop[3]) / crop[2];
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  const r = w * 0.04;
+  return {
+    top: y,
+    svg: `<g transform="rotate(${rot} ${cx.toFixed(1)} ${cy.toFixed(1)})">
+    <g filter="url(#f-pop)"><rect x="${x.toFixed(1)}" y="${(y + h * 0.05).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${r.toFixed(1)}" fill="${STORY.shadow}" opacity="0.3"/></g>
+    <clipPath id="clip-${uid}"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${r.toFixed(1)}"/></clipPath>
+    <image clip-path="url(#clip-${uid})" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" preserveAspectRatio="none" href="${href}" xlink:href="${href}"/>
+  </g>`,
+  };
+}
+
+/** The cat's cut-out, enlarged once and with the halo of the old background shaved off. */
+const catCache = new Map();
+function catImage(name) {
+  if (catCache.has(name)) return catCache.get(name);
+  const src = path.join(CAT_DIR, `${name}.png`);
+  if (!fs.existsSync(src)) throw new Error(`no cat called "${name}" in ${short(CAT_DIR)}`);
+  const out = path.join(TMP, `cat-${name}.png`);
+  execFileSync(MAGICK, [src, "-filter", "Lanczos", "-resize", "300%", "(", "+clone", "-alpha", "extract", "-morphology", "Erode", "Disk:5", "-blur", "0x2.5", ")", "-alpha", "off", "-compose", "CopyOpacity", "-composite", out], { stdio: "pipe" });
+  const { w, h } = readPngSize(out);
+  const entry = { href: dataUri(out), ratio: h / w };
+  catCache.set(name, entry);
+  return entry;
+}
+function storyCat({ name, x, y, w }) {
+  const c = catImage(name);
+  return `<image x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${(w * c.ratio).toFixed(1)}" href="${c.href}" xlink:href="${c.href}"/>`;
+}
+
+const storyDefs = (W) => `<defs>
+    <filter id="f-shadow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="${(W * 0.021).toFixed(2)}"/></filter>
+    <filter id="f-pop" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="${(W * 0.015).toFixed(2)}"/></filter>
+  </defs>`;
+
+/** A crop given per language, or one for all. */
+const cropFor = (crop, lang) => (Array.isArray(crop) ? crop : crop[lang] ?? crop.en);
+
+/**
+ * One slide's drawing at horizontal offset `ox` of the panorama. `img` / `watchImg` are the
+ * captures; returns the svg pieces in drawing order.
+ */
+function storySlideBody({ shot, ox, W, H, titleSize, img, rawFile, watchImg, frames, lang }) {
+  const st = shot.story || {};
+  const uid = `${shot.id}-${W}`;
+  const at = ([x, y, w, rot = 0]) => ({ cx: ox + x * W, cy: y * H, w: w * W, rot });
+  const body = [];
+
+  const col = W * (1 - 2 * STORY_TYPE.mx);
+  const align = st.align === "end" ? "end" : "start";
+  const tx = ox + (align === "end" ? W * (1 - STORY_TYPE.mx) : W * STORY_TYPE.mx);
+  let text = storyText({ shot, x: tx, y: 0, W, size: titleSize, align, width: col });
+  const ty = st.text === "bottom" ? H * STORY_TYPE.bottom - text.h : H * STORY_TYPE.top;
+  text = storyText({ shot, x: tx, y: ty, W, size: titleSize, align, width: col });
+  body.push(text.svg);
+
+  // The cat lives inside its own slide: whatever of it hangs past the edge is cut by the canvas
+  // edge there, never drawn on the neighbour.
+  const clip = `cat-${uid}`;
+  const catSvg = (c, y) => `<clipPath id="${clip}"><rect x="${ox}" y="0" width="${W}" height="${H}"/></clipPath><g clip-path="url(#${clip})">${storyCat({ name: c.name, x: ox + c.x * W, y, w: c.w * W })}</g>`;
+  const cat = st.cat;
+  if (cat && cat.onCard === undefined && !cat.front) body.push(catSvg(cat, H - cat.w * W * catImage(cat.name).ratio * (cat.bottom ?? 0.9)));
+
+  const p = at(st.phone || [0.5, 0.84, 0.74, 0]);
+  body.push(storyPhone({ uid: `p-${uid}`, ...p, img, frames }));
+  if (st.watch && watchImg) {
+    const wa = at(st.watch);
+    const probe = watchDevice({ uid: `w-${uid}`, x: 0, y: 0, w: wa.w, href: watchImg.href, frameHref: frames.watch, imgW: watchImg.w, imgH: watchImg.h });
+    const wd = watchDevice({ uid: `w-${uid}`, x: wa.cx - wa.w / 2, y: wa.cy - probe.h / 2, w: wa.w, href: watchImg.href, frameHref: frames.watch, imgW: watchImg.w, imgH: watchImg.h });
+    body.push(`${wd.defs ? `<defs>${wd.defs}</defs>` : ""}<g transform="rotate(${wa.rot} ${wa.cx.toFixed(1)} ${wa.cy.toFixed(1)})">${wd.svg}</g>`);
+  }
+  const cards = (st.cards || []).map((c, i) => storyCard({ uid: `k${i}-${uid}`, rawFile, crop: cropFor(c.crop, lang), ...at(c.at) }));
+  for (const c of cards) body.push(c.svg);
+
+  if (cat && (cat.onCard !== undefined || cat.front)) {
+    const h = cat.w * W * catImage(cat.name).ratio;
+    const y = cat.onCard !== undefined ? cards[cat.onCard].top - h * (cat.sink ?? 0.85) : H - h * (cat.bottom ?? 0.9);
+    body.push(catSvg(cat, y));
+  }
+  return body.join("\n  ");
+}
+
+/**
+ * The numbered iPhone set as one panorama per canvas size, cut into slides. Returns the 6.9" files
+ * for the contact sheet.
+ */
+function renderStoryPhones(entries, { frames, lang, warnings, loadWatch }) {
+  const made = [];
+  for (const size of IPHONE_SIZES) {
+    const { w: W, h: H } = size;
+    const dir = path.join(OUT_DIR, size.dir);
+    fs.mkdirSync(dir, { recursive: true });
+    const keep = new Set(entries.map(({ shot, i }) => `${String(i + 1).padStart(2, "0")}-${shot.id}.png`));
+    for (const f of fs.readdirSync(dir)) if (f.endsWith(".png") && !keep.has(f)) fs.rmSync(path.join(dir, f));
+
+    const titleSize = storyTitleSize(entries.map((e) => e.shot), W * STORY_TYPE.title, W * (1 - 2 * STORY_TYPE.mx));
+    const bodies = [];
+    entries.forEach(({ shot }, n) => {
+      const rawFile = path.join(RAW_DIR, "iphone", shot.theme === "dark" ? "dark" : "light", `${shot.id}.png`);
+      if (!fs.existsSync(rawFile)) {
+        warnings.push(`story: missing raw ${short(rawFile)} — slide ${n + 1} drawn without its phone`);
+        return;
+      }
+      const { w, h } = readPngSize(rawFile);
+      const img = { href: dataUri(rawFile), w, h };
+      const watchImg = shot.layout === "phone-watch" ? loadWatch(shot.watch || shot.id) : null;
+      bodies.push(storySlideBody({ shot, ox: n * W, W, H, titleSize, img, rawFile, watchImg, frames, lang }));
+    });
+    const PW = W * entries.length;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${PW}" height="${H}" viewBox="0 0 ${PW} ${H}">${storyDefs(W)}
+  <rect width="${PW}" height="${H}" fill="${STORY.bg}"/>
+  ${bodies.join("\n  ")}
+</svg>`;
+    const pano = path.join(TMP, `panorama-${size.dir}.png`);
+    rasterize(svg, { W: PW, H, out: pano, bg: STORY.bg, tag: `pano-${size.dir}` });
+    entries.forEach(({ shot, i }, n) => {
+      const name = `${String(i + 1).padStart(2, "0")}-${shot.id}.png`;
+      const out = path.join(dir, name);
+      execFileSync(MAGICK, [pano, "-crop", `${W}x${H}+${n * W}+0`, "+repage", "-alpha", "off", "-strip", out], { stdio: "pipe" });
+      const v = verify(out, W, H);
+      console.log(`${v.ok ? "ok  " : "BAD "} ${path.join(size.dir, name)}  ${v.detail}`);
+      if (!v.ok) warnings.push(`${out} is ${v.detail}`);
+      if (size.dir === "iphone-6.9") made.push(out);
+    });
+    fs.rmSync(pano, { force: true });
+  }
+  return made;
+}
+
+/**
+ * One slide on its own: the extras (always), and the iPad. Words on top, the device below them,
+ * the cat if the shot has one; no cards on the iPad, whose captures are laid out differently.
+ */
+function buildStorySlide({ shot, W, H, device, phoneImg, rawFile, frames, titleSize, lang }) {
+  if (device.key === "phone") {
+    const body = storySlideBody({ shot: { ...shot, story: shot.story || {} }, ox: 0, W, H, titleSize, img: phoneImg, rawFile, watchImg: null, frames, lang });
+    return { bg: STORY.bg, svg: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${storyDefs(W)}<rect width="${W}" height="${H}" fill="${STORY.bg}"/>${body}</svg>` };
+  }
+  const uid = `${shot.id}-${W}`;
+  const col = W * 0.8;
+  const duo = device.key === "duo";
+  const text = storyText({ shot, x: W / 2, y: H * 0.06, W: W * (duo ? 0.8 : 0.62), size: titleSize, align: "middle", width: col });
+  const dw = W * (duo ? 0.74 : 0.78);
+  const top = H * 0.06 + text.h + H * 0.05;
+  const d = device.render({ uid, x: (W - dw) / 2, y: top, w: dw, href: phoneImg.href, imgW: phoneImg.w, imgH: phoneImg.h });
+  const body = [text.svg];
+  const cat = shot.story?.cat;
+  const catW = W * 0.24;
+  const catLayer = cat ? storyCat({ name: cat.name, x: -W * 0.02, y: H - catW * catImage(cat.name).ratio * 0.85, w: catW }) : "";
+  body.push(d.svg, catLayer);
+  return {
+    bg: STORY.bg,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${storyDefs(W)}
+  <defs><linearGradient id="g-frame-${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3A3A3E"/><stop offset="0.08" stop-color="${BRAND.bezel}"/><stop offset="0.9" stop-color="#101012"/><stop offset="1" stop-color="#2F2F33"/></linearGradient></defs>
+  <rect width="${W}" height="${H}" fill="${STORY.bg}"/>
+  ${body.join("\n  ")}
+</svg>`,
+  };
+}
+
+/**
+ * The header and search results art in the story style: the slogan in the middle of Apple's safe
+ * area (the only part every device shows), a phone turned in from each side with a card lifted out
+ * of it, and the cat looking up from the bottom edge.
+ */
+function buildStoryCreative({ size, slogan, line, left, right, catName, frames }) {
+  const { w: W, h: H, safe } = size;
+  const cx = safe.x + safe.w / 2;
+  const ts = Math.min(safe.h * 0.34, storyTitleSize([{ title: slogan }], safe.h * 0.34, safe.w * 0.96));
+  const lines = String(slogan).split("\n");
+  const blockH = ts * lines.length + ts * 0.5;
+  let y = safe.y + (safe.h - blockH) / 2 - ts * 0.15;
+  const body = [];
+  for (const l of lines) {
+    y += ts * 0.8;
+    body.push(`<text x="${cx}" y="${y.toFixed(1)}" text-anchor="middle" font-family="${SERIF}" font-weight="700" font-size="${ts.toFixed(1)}" letter-spacing="${(-ts * 0.025).toFixed(2)}" fill="${STORY.ink}">${richLine(l, STORY.accent)}</text>`);
+    y += ts * 0.2;
+  }
+  if (line) body.push(`<text x="${cx}" y="${(y + ts * 0.5).toFixed(1)}" text-anchor="middle" font-family="${FONT}" font-weight="500" font-size="${(ts * 0.3).toFixed(1)}" fill="${STORY.sub}">${esc(line)}</text>`);
+
+  // Phones outside the safe area on both sides, as large as the canvas lets them be.
+  const side = Math.min(safe.x, W - safe.x - safe.w);
+  const pw = Math.min(side * 0.82, W * 0.2);
+  const ph = phoneHeightFor(pw);
+  const cy = Math.max(H * 0.14, safe.y - ph * 0.12) + ph / 2;
+  const devices = [];
+  for (const [f, sgn] of [[left, -1], [right, 1]]) {
+    if (!f) continue;
+    const pcx = sgn < 0 ? safe.x - side / 2 - pw * 0.02 : safe.x + safe.w + side / 2 + pw * 0.02;
+    devices.push(storyPhone({ uid: `cr-${f.id}-${W}`, cx: pcx, cy, w: pw, rot: sgn * 8, img: f.img, frames }));
+    if (f.crop) devices.push(storyCard({ uid: `crk-${f.id}-${W}`, rawFile: f.rawFile, crop: f.crop, cx: pcx - sgn * pw * 0.12, cy: cy + ph * 0.06, w: pw * 0.98, rot: sgn * 4 }).svg);
+  }
+  const catW = safe.w * 0.32;
+  const catLayer = catName ? storyCat({ name: catName, x: cx - catW / 2, y: H - catW * catImage(catName).ratio * 0.78, w: catW }) : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${storyDefs(pw * 4)}
+  <rect width="${W}" height="${H}" fill="${STORY.bg}"/>
+  ${devices.join("\n  ")}
+  ${catLayer}
+  ${body.join("\n  ")}
+</svg>`;
+}
+
 /* ---------------------------------------------------------- creative assets */
 
 /**
@@ -1111,6 +1417,7 @@ function main() {
 function frameLanguage(shotList, lang) {
   const warnings = [];
   const shots = localize(shotList, lang.code, warnings);
+  const STYLE = shotList.style || "classic";
   const watchShots = CREATIVE_ONLY ? [] : (shots.watch || []).filter((s) => !ONLY_SET || ONLY_SET.has(s.id));
 
   console.log(`lang  ${lang.code} (App Store: ${lang.store})`);
@@ -1150,6 +1457,14 @@ function frameLanguage(shotList, lang) {
       .map((shot, i) => ({ shot, i }))
       .filter(({ shot }) => device.key === "phone" || shot.layout !== "phone-watch");
     if (!entries.length) return;
+    if (STYLE === "story" && device.key === "phone" && numbered) {
+      const made = renderStoryPhones(entries, { frames, lang: lang.code, warnings, loadWatch });
+      if (collect) collect.push(...made);
+      return;
+    }
+    const storySizes = new Map(sizes.map((s) => [s.dir, device.key !== "phone"
+      ? storyTitleSize(entries.map((e) => e.shot), s.w * (device.key === "duo" ? 0.095 : 0.062), s.w * 0.8)
+      : storyTitleSize(entries.map((e) => e.shot), s.w * STORY_TYPE.title, s.w * (1 - 2 * STORY_TYPE.mx))]));
     const tops = new Map(sizes.map((s) => [s.dir, deviceTopFor(entries.map((e) => e.shot), s.w, s.h, device.type)]));
     for (const size of sizes) fs.mkdirSync(path.join(OUT_DIR, subdir, size.dir), { recursive: true });
     // The numbered folders are the upload set, so they hold exactly this list: a slide left over
@@ -1191,7 +1506,9 @@ function frameLanguage(shotList, lang) {
       for (const size of sizes) {
         const rel = path.join(subdir, size.dir, `${name}.png`);
         const out = path.join(OUT_DIR, rel);
-        const { svg, bg } = buildSlide({ shot, W: size.w, H: size.h, device, phoneImg, watchImg, deviceTop: tops.get(size.dir), frames });
+        const { svg, bg } = STYLE === "story"
+          ? buildStorySlide({ shot, W: size.w, H: size.h, device, phoneImg, rawFile, frames, titleSize: storySizes.get(size.dir), lang: lang.code })
+          : buildSlide({ shot, W: size.w, H: size.h, device, phoneImg, watchImg, deviceTop: tops.get(size.dir), frames });
         rasterize(svg, { W: size.w, H: size.h, out, bg, tag: `${name}-${size.w}` });
         const v = verify(out, size.w, size.h);
         console.log(`${v.ok ? "ok  " : "BAD "} ${rel}  ${v.detail}`);
@@ -1220,6 +1537,18 @@ function frameLanguage(shotList, lang) {
       if ((shots.extras || []).length) {
         renderSet(shots.extras, { device: IPAD_DEVICE, sizes: IPAD_SIZES, subdir: "extras", numbered: false });
       }
+    }
+  }
+
+  /* -------------------------------------------------------------- Duo */
+  // The folded iPhone Duo, from its own captures (scripts/screenshots/duo.sh), in the story style only.
+  if (IPAD && shotList.style === "story") {
+    const duoRaw = path.join(RAW_DIR, DUO_DEVICE.raw);
+    if (!fs.existsSync(duoRaw)) {
+      warnings.push(`iPhone Duo set skipped: nothing in ${short(duoRaw)} — capture it with bun run screenshots:duo`);
+    } else {
+      console.log("");
+      renderSet(shots.iphone || [], { device: DUO_DEVICE, sizes: DUO_SIZES });
     }
   }
 
@@ -1332,7 +1661,31 @@ function frameLanguage(shotList, lang) {
   /* --------------------------------------------------- creative assets */
   // Unnumbered and never part of an --only run: they show several captures at once.
   const creative = shots.creative;
-  if (CREATIVE && creative && !ONLY_SET) {
+  if (CREATIVE && creative && !ONLY_SET && STYLE === "story") {
+    const side = (f) => {
+      if (!f) return null;
+      const rawFile = path.join(RAW_DIR, "iphone", "light", `${f.id}.png`);
+      if (!fs.existsSync(rawFile)) {
+        warnings.push(`creative: missing raw ${short(rawFile)}; that phone is left out`);
+        return null;
+      }
+      const { w, h } = readPngSize(rawFile);
+      return { id: f.id, rawFile, img: { href: dataUri(rawFile), w, h }, crop: f.crop ? cropFor(f.crop, lang.code) : null };
+    };
+    const left = side(creative.left);
+    const right = side(creative.right);
+    const outDir = path.join(OUT_DIR, "creative");
+    fs.mkdirSync(outDir, { recursive: true });
+    console.log("");
+    for (const size of CREATIVE_SIZES) {
+      const svg = buildStoryCreative({ size, slogan: creative.slogan, line: creative.line, left, right, catName: creative.cat, frames });
+      const out = path.join(outDir, `${size.file}.png`);
+      rasterize(svg, { W: size.w, H: size.h, out, bg: STORY.bg, tag: `creative-${size.file}` });
+      const v = verify(out, size.w, size.h);
+      console.log(`${v.ok ? "ok  " : "BAD "} creative/${size.file}.png  ${v.detail}  -> ${size.label}`);
+      if (!v.ok) warnings.push(`${out} is ${v.detail}`);
+    }
+  } else if (CREATIVE && creative && !ONLY_SET) {
     const features = [];
     for (const { id, title, palette = "graphite", theme = "light", watch } of creative.features || []) {
       const colors = THEMES[palette]?.[theme];

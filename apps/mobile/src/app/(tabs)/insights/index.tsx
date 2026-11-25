@@ -5,11 +5,13 @@ import { listRows, type Insight } from "@kopiyka/core";
 import { useQuery } from "@/store";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { Empty, FadeIn } from "@/components/ui";
+import { staggerDelay } from "@/lib/motion";
 import { InsightCard } from "@/components/InsightCard";
 import { PeriodPill } from "@/components/PeriodPill";
 import { S, themed } from "@/constants/theme";
 import { currentPeriod, getPeriodStartDay, periodContaining, usePeriod } from "@/lib/period";
 import { shownInsights } from "@/lib/insights";
+import { InsightHints } from "@/components/InsightHints";
 import { t } from "@/i18n";
 
 /**
@@ -20,6 +22,8 @@ import { t } from "@/i18n";
 export default function InsightsScreen() {
   const insights = shownInsights(useQuery((db) => listRows(db, "insights", "deleted=0", [], "sort, rowid") as Insight[]));
   const canReorder = insights.length > 1;
+  // Siriusia appears once a screen: on the first card that draws her.
+  const catOwner = insights.find((i) => i.kind === "forecast" || i.kind === "savings_goal")?.id;
   const reorder = () => router.push("/insight/reorder");
   const [period, setPeriod] = usePeriod();
   const monthKey = useMemo(() => newPickKey("imonth"), []);
@@ -46,8 +50,10 @@ export default function InsightsScreen() {
               onPick={() => router.push({ pathname: "/pick/month", params: { key: monthKey, selected: period.start, now: currentPeriod().start } })} />
           </View>
         ) : null}
+        {/* Cards worth adding, from how the app is used: the way in for someone new, and a nudge later. */}
+        <InsightHints insights={insights} />
         {insights.length === 0 ? <Empty title={t("insights.empty")} hint={t("insights.emptyHint")} /> : null}
-        {insights.map((i, n) => <FadeIn key={i.id} delay={n * 60}><InsightCard insight={i} /></FadeIn>)}
+        {insights.map((i, n) => <FadeIn key={i.id} delay={staggerDelay(n, 60)}><InsightCard insight={i} cat={i.id === catOwner} /></FadeIn>)}
       </ScrollView>
     </>
   );

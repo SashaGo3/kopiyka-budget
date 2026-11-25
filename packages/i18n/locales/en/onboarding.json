@@ -15,7 +15,7 @@
   },
   "continue": "Continue",
   "restore": {
-    "busy": "Restoring…",
+    "busy": "Restoring",
     "done": "Backup restored",
     "failed": "Could not restore",
     "continue": "Continue"
@@ -34,7 +34,7 @@
     "icloudTitle": "Backed up to iCloud",
     "icloudText": "A copy is saved to your iCloud Drive every day, up to seven times a day.",
     "start": "Get started",
-    "restoringCloud": "Restoring from iCloud…",
+    "restoringCloud": "Restoring from iCloud",
     "restore": "Restore from a backup",
     "cloudRestored": "Restored from iCloud",
     "cloudRestoredBody": {
@@ -55,7 +55,7 @@
       "message": "Anything gets bought at home, so nothing is suggested within {radius} m of it. Set it now if you are there, or later in Settings.",
       "note": "radius is a number of metres."
     },
-    "asking": "Asking…",
+    "asking": "Asking",
     "pickedTitle": "The category, already picked",
     "pickedText": "Log something where you logged something before and that category is waiting on the keypad.",
     "openTitle": "Only while the app is open",
@@ -67,7 +67,7 @@
     "homeNone": "Nothing is left out until you set it.",
     "useInsteadA11y": "Use current location as home instead",
     "useA11y": "Use my current location as home",
-    "reading": "Reading location…",
+    "reading": "Reading location",
     "useInstead": "Use current location instead",
     "use": "Use my current location",
     "noFixTitle": "No location yet",

@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { activeTrip, countryCurrency, formatMinor, rateOrFallback, toMinor, type TripKind } from "@kopiyka/core";
+import { activeTrip, countryCurrency, formatMinor, listPeople, rateOrFallback, toMinor, type TripKind } from "@kopiyka/core";
 import { SymbolView } from "expo-symbols";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { db } from "@/db";
 import { Keypad, CalcLine, ConfirmBar, evalPartial } from "@/components/Keypad";
-import { SheetFrame, Subtle, Title } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
-import { addPastTravel, startTravel, tripCurrency } from "@/lib/travel";
+import { SheetFrame, Subtle, Title, Tap } from "@/components/ui";
+import { C, R, S, Type, themed } from "@/constants/theme";
+import { addPastTravel, nameDay, startTravel, tripCurrency, withNameDay } from "@/lib/travel";
 import { errorText } from "@/lib/errors";
 import { nextDay } from "@/lib/filters";
 import { todayLocal } from "@/lib/dates";
@@ -17,6 +17,7 @@ import { DISMISS_MS } from "@/lib/nav";
 import { newPickKey, usePickResult } from "@/store/pick";
 import { cityName, countryCode, quickLocation } from "@/lib/location";
 import { t } from "@/i18n";
+import { useSheetFit } from "@/lib/sheetFit";
 
 /**
  * Start a trip or an event, first half — the two differ only in words and defaults (core
@@ -54,6 +55,11 @@ export default function TravelStart() {
   const chosenRef = useRef(false);               // the same, for the location lookup that lands later
   const curKey = useMemo(() => newPickKey("tripcur"), []);
   const [name, setName] = useState("");
+  // Who it is with: while it runs, the split screen offers to share with them in one tap.
+  const [people, setPeople] = useState<string[]>([]);
+  const peopleKey = useMemo(() => newPickKey("trippeople"), []);
+  usePickResult<string[]>(peopleKey, setPeople);
+  const names = useMemo(() => { const all = new Map(listPeople(db).map((x) => [x.id, x.name])); return people.map((id) => all.get(id)).filter(Boolean).join(", "); }, [people]);
   // The city the phone is in, when it could tell; it is both the placeholder and the name if none is typed.
   const [city, setCity] = useState<string | null>(null);
   const placeCity = kind === "trip" && !past ? city : null;
@@ -68,7 +74,7 @@ export default function TravelStart() {
     const id = setTimeout(() => { if (!nameRef.current?.isFocused()) setNaming(false); }, 600);
     return () => clearTimeout(id);
   }, []);
-  const exit = useDiscardGuard(useDirty([name, expr, chosen]));
+  const exit = useDiscardGuard(useDirty([name, expr, chosen, people]));
   // Where the phone is, asked once: it names a trip happening now and picks its currency. Not while
   // another one runs, since then this one is over and was somewhere else.
   useEffect(() => {
@@ -85,7 +91,7 @@ export default function TravelStart() {
   }, [past]);
   useEffect(() => {
     if (chosenRef.current || !localCur) return;
-    setCurrency(localCur); // eslint-disable-line react-hooks/set-state-in-effect
+    setCurrency(localCur);  
   }, [localCur]);
   // A currency picked by hand is checked against the rate source first: with no rate between it and
   // the accounts, every payment would sit in "not counted" and the budget would never move.
@@ -118,7 +124,7 @@ export default function TravelStart() {
   usePickResult<{ start: string; end: string }>(key, useCallback(({ start, end }: { start: string; end: string }) => {
     const over = end < todayLocal();
     try {
-      const trip = { name: finalName, kind, currency, amount_minor: limitless ? 0 : toMinor(value ?? 0, currency), starts: start, ends: end };
+      const trip = { name: finalName, kind, currency, amount_minor: limitless ? 0 : toMinor(value ?? 0, currency), starts: start, ends: end, people };
       const { tag } = over ? addPastTravel(trip) : startTravel(trip);
       // A finished trip's purchases are looked for in its own days; a running one's in the months before it.
       const range = over ? { from: start, to: nextDay(end) } : {};
@@ -129,9 +135,11 @@ export default function TravelStart() {
     } catch (e) {
       Alert.alert(over ? t("travel.start.addFailed") : t("travel.start.startFailed", { kind }), errorText(e));
     }
-  }, [finalName, currency, value, limitless, exit, past, kind]));
+  }, [finalName, currency, value, limitless, exit, kind, people]));
+  // Save stays on screen however short the screen: the keypad's rows shrink (lib/sheetFit.ts).
+  const sheetFit = useSheetFit();
   return (
-    <SheetFrame
+    <SheetFrame onLayout={sheetFit.onLayout}
       top={
         <View style={styles.top}>
           <Title>{past ? t("travel.start.pastTitle", { kind }) : t("travel.start.title", { kind })}</Title>
@@ -143,16 +151,32 @@ export default function TravelStart() {
             <TextInput ref={nameRef} autoFocus value={name} onChangeText={setName} placeholder={placeholder} placeholderTextColor={C.tertiary} style={styles.input}
               onFocus={() => setNaming(true)} onBlur={() => setNaming(false)}
               returnKeyType="done" blurOnSubmit onSubmitEditing={() => nameRef.current?.blur()} accessibilityLabel={past ? t("travel.start.nameLabelPast", { kind }) : t("travel.start.nameLabel", { kind })} />
+            {/* Today's day after the name ("Birthday 22 Nov 2026"). A past one's days are asked next,
+                so it is offered on its own screen afterwards (Name on Trips & Events). */}
+            {past || finalName.includes(nameDay(todayLocal())) ? null : (
+              <Tap onPress={() => setName(withNameDay(name || placeCity || "", todayLocal()))} hitSlop={8} style={styles.curPill}
+                accessibilityRole="button" accessibilityLabel={t("travel.start.addDateLabel", { day: nameDay(todayLocal()) })}>
+                <SymbolView name="calendar.badge.plus" size={13} tintColor={C.tint} />
+                <Text style={styles.addDate}>{t("travel.start.addDate")}</Text>
+              </Tap>
+            )}
           </View>
           <View style={styles.amountRow}>
             <Text onPress={naming ? () => nameRef.current?.blur() : undefined} style={[styles.amount, limitless && { color: C.tertiary }]} numberOfLines={1} adjustsFontSizeToFit maxFontSizeMultiplier={1.2}>{limitless ? t("travel.start.noLimit") : shown}</Text>
-            <Pressable onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency, title: t("travel.start.currency") } })} hitSlop={8}
+            <Tap onPress={() => router.push({ pathname: "/pick/currency", params: { key: curKey, selected: currency, title: t("travel.start.currency") } })} hitSlop={8}
               style={styles.curPill} accessibilityRole="button" accessibilityLabel={t("travel.start.currencyLabel", { currency })}>
               <Text style={styles.cur}>{currency}</Text>
               <SymbolView name="chevron.down" size={11} tintColor={C.secondary} />
-            </Pressable>
+            </Tap>
           </View>
           <CalcLine expr={expr} style={{ textAlign: "left" }} />
+          <Tap onPress={() => router.push({ pathname: "/pick/people", params: { key: peopleKey, selected: people.join(",") } })} style={styles.people} accessibilityRole="button"
+            accessibilityLabel={`${t("people.event.people")}: ${names || t("people.event.nobody")}`}>
+            <SymbolView name="person.2.fill" size={15} tintColor={C.tint} />
+            <Text style={styles.peopleLabel}>{t("people.event.people")}</Text>
+            <Text style={styles.peopleNames}>{names || t("people.event.nobody")}</Text>
+            <SymbolView name="chevron.right" size={12} tintColor={C.tertiary} />
+          </Tap>
         </View>
       }
       bottom={
@@ -160,7 +184,7 @@ export default function TravelStart() {
           {/* The keyboard and the keypad never share the sheet: one goes while the other is up. */}
           {naming ? null : (
             <Animated.View entering={FadeInDown.duration(220)} exiting={FadeOutDown.duration(160)} style={{ gap: S.md }}>
-              <Keypad value={expr} onChange={setExpr} allowSign={false} />
+              <Keypad keyHeight={sheetFit.keyHeight} value={expr} onChange={setExpr} allowSign={false} />
               <ConfirmBar amount={limitless ? t("travel.start.noLimitHint") : `${shown} ${currency}`} label={!finalName ? t("travel.start.nameFirst") : valid ? t("travel.start.toDates") : t("travel.start.enterBudget")} onPress={next} disabled={!valid} />
             </Animated.View>
           )}
@@ -171,11 +195,15 @@ export default function TravelStart() {
 }
 
 const styles = themed(() => StyleSheet.create({
+  people: { flexDirection: "row", alignItems: "center", gap: S.sm, minHeight: 44 },
+  peopleLabel: { fontSize: 15, fontWeight: "600", color: C.tint },
+  peopleNames: { flex: 1, fontSize: 15, color: C.secondary, textAlign: "right" },
   top: { paddingHorizontal: S.xl, paddingTop: S.xl, paddingBottom: S.xs, gap: 4 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
   input: { flex: 1, fontSize: 22, fontWeight: "600", color: C.label, paddingVertical: S.sm },
   amountRow: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: S.xs },
   amount: { fontSize: 44, fontWeight: "700", color: C.label, fontVariant: ["tabular-nums"], flexShrink: 1 },
-  cur: { fontSize: 18, color: C.secondary, fontWeight: "600" },
-  curPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.fill, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  addDate: { ...Type.callout, color: C.tint },
+  cur: { fontSize: 17, color: C.secondary, fontWeight: "600" },
+  curPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.fill, borderRadius: R.card, paddingHorizontal: 10, paddingVertical: 4 },
 }));

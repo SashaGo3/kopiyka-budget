@@ -1,4 +1,9 @@
 {
+  "retired": {
+    "upcoming": { "message": "Upcoming payments", "note": "Name of a card of a kind the app no longer offers (removed in 1.1.0), still shown in lists." },
+    "recurringSpend": { "message": "Recurring this period", "note": "Name of a card of a kind the app no longer offers (removed in 1.1.0)." },
+    "hint": { "message": "No longer shown on Insights. Delete it here.", "note": "Under a retired card's name in the reorder list." }
+  },
   "openLabel": { "message": "{title}, show details", "note": "VoiceOver label of a card's header; title is the card's name." },
   "detail": {
     "goneTitle": "This insight is gone",
@@ -91,7 +96,8 @@
     "summaryLeft": { "message": "≈ {amount} to go", "note": "Checklist summary part: roughly what the open lines will still cost." },
     "times": { "message": "{paid} of {total}", "note": "A weekly payment paid once of the four times it falls this period: \"1 of 4\"." },
     "timesLabel": { "message": "paid {paid} of {total} times", "note": "VoiceOver for the progress dots of a payment due several times this period." },
-    "allDone": { "message": "All paid · {period}" },
+    "allDone": { "message": "All paid", "note": "Big line on the payments checklist when every line of the period is paid.", "max": 24 },
+    "allDoneSub": { "message": "{count, plural, one {# payment} other {# payments}} · {period}", "note": "Under \"All paid\": how many lines, and the period; the amount paid follows after another ·." },
     "paidCount": { "message": "{count} paid", "note": "Under the checklist card: how many lines are already paid; they are listed on the details screen." },
     "choose": "Choose categories to watch."
   },
@@ -148,16 +154,42 @@
     "toGo": { "message": "{amount} to go" },
     "reached": "Goal reached 🎉"
   },
+  "hints": {
+    "title": "Suggested for you",
+    "titleFirst": "Start with these",
+    "add": { "message": "Add", "max": 12 },
+    "setUp": { "message": "Set up", "note": "A suggestion that needs one more answer (a goal's target) opens the editor.", "max": 12 },
+    "dismissA11y": "Don't suggest {title}",
+    "more": "More cards are under the + button.",
+    "why": {
+      "history": "{count, plural, one {A month of your money so far — see where it takes you in years} other {# months of your money — see where it takes you in years}}",
+      "savings": { "message": "{name}: set a goal and see when you get there", "note": "name is an account." },
+      "budgets": "{count, plural, one {# budget — what is left, and what is still to be charged} other {# budgets — what is left, and what is still to be charged}}",
+      "manual": "{count, plural, one {# payment you confirm yourself — tick it off each month} other {# payments you confirm yourself — tick them off each month}}",
+      "recurring": "{count, plural, one {# regular payment — what it costs a year} other {# regular payments — what they cost a year}}",
+      "habit": { "message": "{count, plural, one {{name} about once a week — your weekly average} other {{name} about # times a week — your weekly average}}", "note": "name is a category." },
+      "salary": "Income comes in every month — days to the next and what you can spend a day",
+      "usual": "{count, plural, one {A month of history — what is above or below your usual} other {# months of history — what is above or below your usual}}",
+      "shops": "{count, plural, one {# shop in three months — where the money goes} other {# shops in three months — where the money goes}}",
+      "places": "{count, plural, one {# payment with a place — on a map} other {# payments with a place — on a map}}",
+      "importance": "Categories marked by how much they matter — what this month went on"
+    }
+  },
   "kind": {
     "free_money": { "title": "Left in budgets", "hint": "What is left of your budgets this period, and what is still to be charged" },
     "days_to_salary": { "title": "Until salary", "hint": "Days left in the period and what you can spend per day" },
-    "savings_goal": { "title": "Savings goal", "hint": "Progress of an account towards a target" },
+    "forecast": { "title": "Siriusia sees the future", "hint": "Your money in years: growth, a home, freedom" },
+    "savings_goal": { "title": "Savings goal", "hint": "An account growing towards a target, and when it gets there" },
     "account_balance": { "title": "Account balance", "hint": "What is left on one account, and what moved this period" },
     "checklist": { "title": "Payments checklist", "hint": "Which of these categories still have no transaction this period" },
     "subscriptions": { "title": "Subscriptions per year", "hint": "What your recurring expenses cost yearly" },
     "regular": { "title": "Regular spending", "hint": "Weekly or monthly average for a category" },
     "values": { "title": "What it went on", "hint": "This period split by how much each category matters to you" },
-    "safety_buffer": { "title": "Safety buffer", "hint": "How many months you could live on your money" }
+    "safety_buffer": { "title": "Safety buffer", "hint": "How many months you could live on your money" },
+    "month_vs_usual": { "title": "Month vs usual", "hint": "What is above or below your usual spending this period" },
+    "one_offs": { "title": "Biggest one-offs", "hint": "The largest purchases this period that were not recurring" },
+    "top_shops": { "title": "Where you shop most", "hint": "The shops this period's money went to, and how that compares" },
+    "spending_map": { "title": "Spending map", "hint": "Where this period's money was spent, on a map" }
   },
   "edit": {
     "bufferAccounts": { "message": "Money you could live on", "note": "Safety buffer row: the accounts whose money counts." },
@@ -189,8 +221,9 @@
     "noRulesHint": "Add recurring rules first",
     "remove": "Remove",
     "group": {
+      "future": { "message": "The future", "note": "Section in the Add insight list: forecasts and goals." },
       "spending": { "message": "Spending and budgets", "note": "Section in the Add insight list." },
-      "accounts": { "message": "Accounts and goals", "note": "Section in the Add insight list." },
+      "accounts": { "message": "Accounts", "note": "Section in the Add insight list." },
       "payments": { "message": "Payments", "note": "Section in the Add insight list." }
     },
     "addNow": { "message": "Add", "note": "Right side of a card kind with nothing to set: tapping adds it at once.", "max": 10 },
@@ -216,5 +249,32 @@
     "hint": "Drag by the grip on the right. The order here is the order on Insights.",
     "emptyTitle": "No insights",
     "emptyHint": "Add one on the Insights tab first."
+  }
+,
+  "usual": {
+    "soFar": { "message": "{amount} so far · usually {usual} by now", "note": "Under the big percentage while the period is still running." },
+    "whole": { "message": "{amount} · usually {usual}", "note": "Under the big percentage for a finished period." },
+    "same": { "message": "As usual", "note": "Big text when spending is within a few percent of the usual." },
+    "new": { "message": "new", "note": "Instead of a percentage: nothing was spent here in the periods before.", "max": 12 },
+    "nothing": "Nothing to compare yet.",
+    "all": { "message": "Every folder", "note": "Section on the details screen listing every line." },
+    "lineA11y": { "message": "{name}: {amount}, {change} against usual", "note": "VoiceOver label of one line." }
+  },
+  "oneOffs": {
+    "nothing": "No one-off purchases this period.",
+    "openA11y": { "message": "{title}, {amount}, {day}", "note": "VoiceOver label of one purchase; opens it." },
+    "untitled": { "message": "Purchase", "note": "A purchase with no shop, note or bank text." }
+  },
+  "shops": {
+    "nothing": "No shops this period yet.",
+    "count": { "message": "{count, plural, one {# purchase} other {# purchases}}", "note": "Under a shop's name." },
+    "new": { "message": "new", "note": "Trend: nothing was spent at this shop in the period before.", "max": 12 },
+    "all": { "message": "Top shops", "note": "Section on the details screen." }
+  },
+  "map": {
+    "nothing": "Nothing with a location this period.",
+    "located": { "message": "{pct}% of spending has a place", "note": "Under the top places: how much of the period the map covers." },
+    "unnamed": { "message": "Unnamed spot", "note": "A place with coordinates but no name." },
+    "all": { "message": "Places", "note": "Section on the details screen listing every place." }
   }
 }

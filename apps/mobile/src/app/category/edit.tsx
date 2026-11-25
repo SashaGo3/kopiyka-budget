@@ -2,16 +2,17 @@ import { useCallback, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import { COLORS, autoIcon, convertCategoryToTag, createCategory, getRow, listRows, remove, save, type Category } from "@kopiyka/core";
+import { COLORS, autoIcon, categoryNames, nameLooksIn, namesToStore, wantsTranslation, categoryTypeName, categoryTypes, convertCategoryToTag, getLocationAllow, getLocationIgnore, isPlaceless, setLocationSuggest, suggestCategoryTypes, typeIsStated, typesToStore, createCategory, getRow, listRows, remove, save, type Category } from "@kopiyka/core";
 import { db } from "@/db";
 import { mutate, useQuery } from "@/store";
 import { newPickKey, resolvePick, usePickResult } from "@/store/pick";
-import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, ToggleRow, runBusy } from "@/components/ui";
+import { BusyOverlay, Card, CategoryIcon, DeleteRow, ModalHeader, Row, SectionHeader, Segmented, TILE_ALPHA, Tap, ToggleRow, runBusy, ButtonText } from "@/components/ui";
 import { dismissTo } from "@/lib/nav";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useDirty, useDiscardGuard } from "@/lib/discard";
 import { catDescription, catName, catNameById } from "@/lib/names";
-import { t } from "@/i18n";
+import { getLocationEnabled } from "@/lib/settings";
+import { getLanguage, LANGUAGES, t } from "@/i18n";
 import { colorLabel } from "@/app/pick/color";
 
 /**
@@ -29,26 +30,49 @@ export default function CategoryEdit() {
   const shownName = existing ? catName(existing) : null;
   const shownDescription = existing ? catDescription(existing) ?? "" : null;
   const [name, setName] = useState(shownName ?? presetName ?? "");
-  // For an EXISTING row use its own parent_id verbatim: null means folder, and `??` must not
-  // fall through to the "new item" default (a null parent_id would otherwise look "missing").
-  const [parentId, setParentId] = useState<string | null>(existing ? existing.parent_id : ((folder === "1" ? null : parent || parents[0]?.id) ?? null));
+  // A category named in another language than the app's ("Cats" on a Ukrainian phone — the app's
+  // language was changed after it was named) can have a name of its own in this one (`categories.names`,
+  // v27). Then the field above is that name, and the name it was given stays below as the original.
+  // Nothing about translation is shown for a category named in the language the app is in.
+  const here = getLanguage();
+  const stored = useMemo(() => categoryNames(existing?.names), [existing?.names]);
+  const translatable = !!existing && (!!stored[here] || wantsTranslation(existing, here));
+  const [original, setOriginal] = useState(existing?.name ?? "");
+  // Folder or category is its own answer, not read off `parentId`: a new category starts in no folder
+  // until one is picked — never silently in the first one — and is not a folder for that.
+  // An EXISTING top-level row reads as a folder, which is how the Categories list shows it too.
+  const [shape, setShape] = useState<"category" | "folder">(existing ? (existing.parent_id === null ? "folder" : "category") : folder === "1" ? "folder" : "category");
+  const [parentId, setParentId] = useState<string | null>(existing ? existing.parent_id : folder === "1" ? null : parent || null);
   const [kind, setKind] = useState<"expense" | "income">(existing?.kind ?? (presetKind === "income" ? "income" : "expense"));
   const [icon, setIcon] = useState<string | null>(existing?.icon ?? null);
   const [color, setColor] = useState<string | null>(existing?.color ?? null);
   const [description, setDescription] = useState(shownDescription ?? "");
-  const isFolder = parentId === null;
+  // What kind of thing this is (DATA.md rule 21), so a well-known shop can be filed here whatever it
+  // is called. `type` is only what this row states; a ready-made one answers with its preset, and a
+  // category of your own is offered what its name suggests — kept when you save.
+  const [types, setTypes] = useState<string[] | null>(() => (existing && typeIsStated(existing) ? categoryTypes(existing) : null));
+  // Whether this category's payments may suggest a category where you stand. Untouched (null) it
+  // follows the default: out when every type is placeless (parking, taxi), or as Settings has it.
+  const [placeOn, setPlaceOn] = useState<boolean | null>(null);
+  // How much it matters (DATA.md rule 15), answered here so a new category is set up in one go rather
+  // than waiting for the What matters flow. The same two questions, never Medium as a third: tick
+  // "could stop" or "could not live without", or neither — in between. Null is untouched: a new
+  // category saved without an answer stays unmarked, and the flow asks about it later.
+  const [level, setLevel] = useState<0 | 1 | 2 | 3 | null>(null);
+  const isFolder = shape === "folder";
   const children = useQuery((d) => (existing ? listRows(d, "categories", "deleted=0 AND parent_id=?", [existing.id], "sort, name") : []), [existing?.id]);
   const hasChildren = children.length;
   /** Folder colour → every category inside it, applied on Save so Cancel still undoes everything. */
   const [recolour, setRecolour] = useState(false);
   // Closing with changes asks first (lib/discard.ts); saving, deleting and converting leave through `leave`.
-  const exit = useDiscardGuard(useDirty([name, parentId, kind, icon, color, description, recolour]));
+  const exit = useDiscardGuard(useDirty([name, original, shape, parentId, types, placeOn, level, kind, icon, color, description, recolour]));
   const leave = useCallback(() => exit(() => router.back()), [exit]);
   const uses = useQuery((d) => (existing ? d.get<{ n: number }>(`SELECT COUNT(*) AS n FROM transactions t LEFT JOIN categories c ON c.id=t.category_id WHERE t.deleted=0 AND (t.category_id=? OR c.parent_id=?)`, [existing.id, existing.id])?.n ?? 0 : 0), [existing?.id]);
-  const keys = useMemo(() => ({ icon: newPickKey("cicon"), color: newPickKey("ccolor"), folder: newPickKey("cfolder"), where: newPickKey("cwhere"), moveTo: newPickKey("cmoveto") }), []);
+  const keys = useMemo(() => ({ icon: newPickKey("cicon"), color: newPickKey("ccolor"), folder: newPickKey("cfolder"), where: newPickKey("cwhere"), moveTo: newPickKey("cmoveto"), type: newPickKey("ctype") }), []);
   usePickResult<string | null>(keys.icon, useCallback((v) => setIcon(v), []));
   usePickResult<string | null>(keys.color, useCallback((v) => setColor(v), []));
-  usePickResult<string>(keys.folder, useCallback((v) => setParentId(v), []));
+  usePickResult<string>(keys.folder, useCallback((v) => setParentId(v || null), []));
+  usePickResult<string[]>(keys.type, useCallback((v) => setTypes(v), []));
   // Jump to this category's transactions: Search, filtered to it — every month and every account,
   // over the tab rather than in it, so the Transactions tab keeps its own month and filters, and
   // everything there (sorting, the filter sheet, multi-select) works on this list too. One
@@ -57,7 +81,7 @@ export default function CategoryEdit() {
     if (!existing) return;
     dismissTo({ pathname: "/search", params: { category: existing.id, name: catName(existing), nonce: String(Date.now()) } });
   };
-  const parentFolder = parentId ? parents.find((p) => p.id === parentId) ?? null : null;
+  const parentFolder = parentId && !isFolder ? parents.find((p) => p.id === parentId) ?? null : null;
 
   // ---- Turn this category into a tag -------------------------------------------------------------
   // The mirror of the tag editor's "Turn into a category", for a category that turned out to be a
@@ -105,17 +129,44 @@ export default function CategoryEdit() {
   const shownColor = color ?? inherited ?? auto?.color ?? "#8E8E93";
   const colorName = COLORS.find((c) => c.hex === shownColor)?.name;
   // Untouched fields write back what was stored, so a preset stays one (DATA.md rule 16).
-  const nameToSave = () => (existing && name.trim() === shownName?.trim() ? existing.name : name.trim());
+  // Translatable, the field above is this language's name and `original` is the stored one; the same
+  // as the original (or empty) means "no name of its own here".
+  const nameToSave = () => (translatable ? original.trim() || existing!.name : existing && name.trim() === shownName?.trim() ? existing.name : name.trim());
+  const namesToSave = (base: string) => namesToStore(translatable ? { ...stored, [here]: name.trim() } : stored, { name: base, preset: existing?.preset });
+  const languageName = (code: string) => LANGUAGES.find((l) => l.code === code)?.name ?? code;
+  const originalLang = LANGUAGES.find((l) => l.code !== here && nameLooksIn(original, l.code))?.code ?? null;
   const descriptionToSave = () => (existing && description.trim() === shownDescription?.trim() ? existing.description : description.trim() || null);
-  const valid = name.trim().length > 0;
+  const valid = name.trim().length > 0 && (!translatable || original.trim().length > 0);
+  const parentToSave = isFolder ? null : parentId;
+  const presetTypes = categoryTypes({ preset: existing?.preset ?? null });
+  const suggested = types === null && !presetTypes.length ? suggestCategoryTypes(name, kind, parentFolder ? catName(parentFolder) : null) : [];
+  const shownTypes = types ?? (presetTypes.length ? presetTypes : suggested);
+  // A folder has no type; a ready-made category left alone keeps following its preset (NULL).
+  // `types` is null until the picker hands something back: then an empty list is None, chosen.
+  const typeToSave = isFolder ? null : typesToStore(shownTypes, existing?.preset, types !== null);
+  const lang = getLanguage();
+  const typesLine = shownTypes.map((x) => categoryTypeName(x, lang)).join(", ");
+  const locationOn = getLocationEnabled();
+  const allowed = getLocationAllow(db), ignored = getLocationIgnore(db);
+  const placeDefault = existing && allowed.includes(existing.id) ? true
+    : (existing && ignored.includes(existing.id)) || (!!parentId && ignored.includes(parentId)) ? false
+    : !isPlaceless({ type: JSON.stringify(shownTypes) });
+  const placeShown = placeOn ?? placeDefault;
+  // A folder that is marked answers for what is in it; then there is nothing to ask here.
+  const folderLevel = parentFolder?.importance ?? 0;
+  const asksLevel = !isFolder && kind === "expense" && !folderLevel;
+  const levelShown = level ?? existing?.importance ?? 0;
+  const tickLevel = (v: 1 | 3) => setLevel(levelShown === v ? 2 : v);
+  const levelToSave = asksLevel && level !== null ? level : undefined;
   const commit = () => {
     if (!valid) return;
     const c = mutate((d) => {
       const row = existing
-        ? save(d, "categories", { ...existing, name: nameToSave(), parent_id: parentId, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: descriptionToSave() } as Category)
-        : createCategory(d, { name: name.trim(), parent_id: parentId, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null });
+        ? save(d, "categories", { ...existing, name: nameToSave(), names: namesToSave(nameToSave()), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: descriptionToSave(), ...(levelToSave !== undefined ? { importance: levelToSave } : null) } as Category)
+        : createCategory(d, { name: name.trim(), names: namesToSave(name.trim()), parent_id: parentToSave, type: typeToSave, kind, icon: icon ?? auto?.icon ?? null, color: color ?? inherited ?? auto?.color ?? null, description: description.trim() || null, ...(levelToSave !== undefined ? { importance: levelToSave } : null) });
       // Same batch as the folder itself: one refresh, and a half-recoloured folder is impossible.
       if (recolour && isFolder) for (const child of children) save(d, "categories", { ...child, color: shownColor });
+      if (!isFolder && placeOn !== null) setLocationSuggest(d, row.id, placeOn);
       return row;
     });
     if (pickKey) resolvePick(pickKey, c.id);
@@ -148,10 +199,14 @@ export default function CategoryEdit() {
     { text: t("common.delete"), style: "destructive", onPress: () => { mutate((d) => remove(d, "categories", existing.id)); leave(); } },
   ]);
   const pickFolder = () => {
-    const options = parents.filter((p) => p.id !== existing?.id).map((p) => ({ value: p.id, label: catName(p), icon: p.icon, color: p.color, subtitle: p.kind === "income" ? t("category.income") : undefined }));
+    const options = [
+      { value: "", label: t("category.noFolder"), icon: "tray", color: "#8E8E93" },
+      ...parents.filter((p) => p.id !== existing?.id).map((p) => ({ value: p.id, label: catName(p), icon: p.icon, color: p.color, subtitle: p.kind === "income" ? t("category.income") : undefined })),
+    ];
     router.push({ pathname: "/pick/option", params: { key: keys.folder, title: t("category.whichFolder"), selected: parentId ?? "", options: JSON.stringify(options) } });
   };
   const folderName = parentFolder ? catName(parentFolder) : null;
+  const pickType = () => router.push({ pathname: "/pick/types", params: { key: keys.type, title: t("category.type.title"), selected: shownTypes.join(","), kind, exclude: existing?.id ?? "" } });
   return (
     <View style={{ flex: 1, backgroundColor: C.bgGrouped }}>
       <ModalHeader title={existing ? (isFolder ? t("category.title.editFolder") : t("category.title.editCategory")) : isFolder ? t("category.title.newFolder") : t("category.title.newCategory")} left={{ label: t("common.cancel"), onPress: () => router.back() }} right={{ label: t("common.save"), onPress: commit, disabled: !valid }} />
@@ -162,11 +217,21 @@ export default function CategoryEdit() {
             multiline submitBehavior="blurAndSubmit" returnKeyType="done" onSubmitEditing={commit} accessibilityLabel={isFolder ? t("category.folderName") : t("category.categoryName")} />
         </View>
         <View style={{ paddingHorizontal: S.md, gap: S.sm }}>
-          <Segmented<"category" | "folder"> value={isFolder ? "folder" : "category"} onChange={(v) => setParentId(v === "folder" ? null : parents.find((p) => p.id !== existing?.id)?.id ?? null)}
+          <Segmented<"category" | "folder"> value={isFolder ? "folder" : "category"} onChange={setShape}
             options={[{ value: "category", label: t("category.shape.category") }, { value: "folder", label: t("category.shape.folder") }]} />
           <Segmented value={kind} onChange={setKind} options={[{ value: "expense", label: t("category.expense") }, { value: "income", label: t("category.income") }]} />
         </View>
         {isFolder && hasChildren ? <Text style={styles.hint}>{t("category.contains", { count: hasChildren })}</Text> : null}
+        {translatable ? (
+          <>
+            <SectionHeader right={name.trim() !== original.trim() ? <Tap onPress={() => setName(original)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("category.translations.useOriginal")}><ButtonText style={styles.useOriginal}>{t("category.translations.useOriginal")}</ButtonText></Tap> : undefined}>
+              {originalLang ? t("category.translations.originalIn", { language: languageName(originalLang) }) : t("category.translations.original")}
+            </SectionHeader>
+            <TextInput value={original} onChangeText={setOriginal} style={styles.original} placeholderTextColor={C.tertiary} returnKeyType="done"
+              accessibilityLabel={t("category.translations.original")} />
+            <Text style={styles.hint}>{t("category.translations.hint", { language: languageName(here) })}</Text>
+          </>
+        ) : null}
         {!isFolder ? (
           <>
             <SectionHeader>{t("category.description.header")}</SectionHeader>
@@ -187,11 +252,30 @@ export default function CategoryEdit() {
           ) : null}
           {/* The folder's own icon, like the Icon and Colour rows above it: the row is about which
               folder this is, and the folder is a thing with a face everywhere else in the app. */}
-          {!isFolder ? <Row icon="folder.fill" iconColor="#8E8E93" title={t("category.folder")} subtitle={folderName ?? t("common.none")} onPress={pickFolder}
+          {!isFolder ? <Row icon="folder.fill" iconColor="#8E8E93" title={t("category.folder")} subtitle={folderName ?? t("category.noFolder")} onPress={pickFolder}
             right={parentFolder ? <View style={styles.right}><CategoryIcon name={catName(parentFolder)} icon={parentFolder.icon} color={parentFolder.color} size={30} /><SymbolView name="chevron.right" size={13} tintColor={C.tertiary} /></View> : undefined} /> : null}
+          {!isFolder ? <Row icon="storefront.fill" iconColor="#8E8E93" title={t("category.type.title")} onPress={pickType} style={styles.divider}
+            subtitle={shownTypes.length ? (suggested.length ? t("category.type.suggested", { type: typesLine }) : typesLine) : t("category.type.none")} /> : null}
+          {!isFolder && locationOn ? <ToggleRow icon="location" iconColor="#34C759" title={t("category.suggestHere")} value={placeShown} onChange={(v) => setPlaceOn(v)} style={styles.divider} /> : null}
         </Card>
         {!isFolder && inherited && !color ? <Text style={styles.hint}>{t("category.inheritedColour", { folder: folderName ?? "" })}</Text> : null}
         {isFolder ? <Text style={styles.hint}>{t("category.folderHint")}</Text> : null}
+        {!isFolder && kind === "expense" ? (
+          <>
+            <SectionHeader>{t("category.matters.header")}</SectionHeader>
+            {asksLevel ? (
+              <Card>
+                <Row icon="moon.zzz" iconColor="#8E8E93" title={t("ui.value.low")} onPress={() => tickLevel(1)}
+                  right={<SymbolView name={levelShown === 1 ? "checkmark.circle.fill" : "circle"} size={22} tintColor={levelShown === 1 ? C.tint : C.tertiary} />} />
+                <Row icon="heart.fill" iconColor="#FF2D55" title={t("ui.value.high")} onPress={() => tickLevel(3)} style={styles.divider}
+                  right={<SymbolView name={levelShown === 3 ? "checkmark.circle.fill" : "circle"} size={22} tintColor={levelShown === 3 ? C.tint : C.tertiary} />} />
+              </Card>
+            ) : (
+              <Card><Row icon="folder.fill" iconColor="#8E8E93" title={t(folderLevel === 3 ? "ui.value.high" : folderLevel === 1 ? "ui.value.low" : "ui.value.medium")} subtitle={t("category.matters.fromFolder", { folder: folderName ?? "" })} /></Card>
+            )}
+            {asksLevel ? <Text style={styles.hint}>{levelShown === 2 ? t("category.matters.between") : levelShown ? t("category.matters.tapAgain") : t("category.matters.unmarked")}</Text> : null}
+          </>
+        ) : null}
         {existing ? (
           <>
             <SectionHeader>{t("category.transactions.header")}</SectionHeader>
@@ -226,13 +310,15 @@ export default function CategoryEdit() {
 
 const styles = themed(() => StyleSheet.create({
   hint: { color: C.tertiary, fontSize: 13, paddingHorizontal: S.xl, paddingTop: S.sm },
+  original: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md, fontSize: 17, color: C.label },
+  useOriginal: { color: C.tint, fontSize: 13, fontWeight: "600" },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.separator },
   nameRow: { flexDirection: "row", alignItems: "center", gap: S.md, padding: S.lg },
-  preview: { width: 50, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  preview: { width: 50, height: 50, borderRadius: R.card, alignItems: "center", justifyContent: "center" },
   // Multiline so a long name wraps whole and can be read and selected; Return still saves.
-  input: { flex: 1, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 18, color: C.label },
-  desc: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: 12, paddingHorizontal: S.md, paddingVertical: S.sm, minHeight: 60, fontSize: 16, color: C.label },
+  input: { flex: 1, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: S.md, paddingTop: 13, paddingBottom: 13, minHeight: 50, fontSize: 17, color: C.label },
+  desc: { marginHorizontal: S.lg, backgroundColor: C.card, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, minHeight: 60, fontSize: 17, color: C.label },
   right: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  rowIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  swatch: { width: 24, height: 24, borderRadius: 12 },
+  rowIcon: { width: 30, height: 30, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
+  swatch: { width: 24, height: 24, borderRadius: R.pill },
 }));

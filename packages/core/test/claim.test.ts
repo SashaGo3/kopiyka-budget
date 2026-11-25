@@ -3,7 +3,7 @@ import { claimRecurring, matchRecurring } from "../src/claim";
 import { openBunDb } from "../src/drivers/bun";
 import { migrate } from "../src/schema";
 import { createAccount, createCategory, createRecurring, createTransaction, getRow, listRows } from "../src/repo";
-import { dueManualRules, plannedNotifications, postDueRecurring, ruleWaitDays, waitingRules } from "../src/recurring";
+import { dueManualRules, plannedNotifications, postDueRecurring, recurringCalendar, ruleWaitDays, waitingRules } from "../src/recurring";
 import type { RecurringRule, Transaction } from "../src/models";
 
 const TODAY = "2026-09-21";
@@ -157,5 +157,58 @@ describe("what a waiting rule does while it waits", () => {
     // 0 is not a way to opt one rule out: the setting is the switch, and 0 there turns it off for all.
     expect(ruleWaitDays({ wait_days: 0 }, 7)).toBe(7);
     expect(ruleWaitDays({ wait_days: 14 }, 0)).toBe(0);
+  });
+});
+
+// Two gym passes bought at the same shop, for the same amount, on the same day — one each for two
+// people. Two rules, two bank charges minutes apart: each charge must settle one rule, neither rule
+// may take both, and the month must show two payments, not four (both posted and claimed) or two
+// still "expected" beside the two charges.
+describe("two rules for the same shop and amount (two people's gym passes)", () => {
+  const GYM = "medicoversport.pl/paki, Warszawa";
+  function gyms() {
+    const db = openBunDb();
+    migrate(db);
+    const acc = createAccount(db, { name: "Account (PLN)", currency: "PLN" });
+    const sport = createCategory(db, { name: "Sport" });
+    const base = { account_id: acc.id, amount_minor: -13800, category_id: sport.id, frequency: "monthly" as const, interval: 1, start_date: "2026-10-01", next_date: "2026-10-01" };
+    const oleks = createRecurring(db, { ...base, payee: "medicoversport.pl/paki (Oleks)", auto_post: 1 });
+    const daryna = createRecurring(db, { ...base, payee: "medicoversport.pl/paki (Daryna)", match_payee: GYM, auto_post: 0 });
+    return { db, acc, oleks, daryna };
+  }
+  const opts = { today: "2026-10-01", waitDefault: 3 };
+
+  test("each charge settles a different rule, and neither rule is claimed twice", () => {
+    const { db, acc, oleks, daryna } = gyms();
+    const first = charge(db, acc.id, { date: "2026-10-01T09:23:01+02:00", amount_minor: -13800, payee: GYM, source: "shortcut-guess" });
+    const second = charge(db, acc.id, { date: "2026-10-01T09:29:47+02:00", amount_minor: -13800, payee: GYM });
+    const a = claimRecurring(db, first, opts);
+    const b = claimRecurring(db, getRow(db, "transactions", second.id)!, opts);
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(new Set([a!.rule.id, b!.rule.id])).toEqual(new Set([oleks.id, daryna.id]));
+    expect(getRow(db, "transactions", first.id)!.recurring_id).not.toBe(getRow(db, "transactions", second.id)!.recurring_id);
+    for (const r of [oleks, daryna]) expect(getRow(db, "recurring_rules", r.id)!.next_date).toBe("2026-11-01");
+  });
+
+  test("a third identical charge has nothing left to claim and stays its own payment", () => {
+    const { db, acc } = gyms();
+    for (const at of ["09:23", "09:29"]) claimRecurring(db, charge(db, acc.id, { date: `2026-10-01T${at}:00+02:00`, amount_minor: -13800, payee: GYM }), opts);
+    const extra = charge(db, acc.id, { date: "2026-10-01T18:00:00+02:00", amount_minor: -13800, payee: GYM });
+    expect(claimRecurring(db, extra, opts)).toBeNull();
+    expect(getRow(db, "transactions", extra.id)!.recurring_id).toBeNull();
+  });
+
+  test("the calendar shows the two passes paid once each, and next month two expected", () => {
+    const { db, acc } = gyms();
+    for (const at of ["09:23", "09:29"]) claimRecurring(db, charge(db, acc.id, { date: `2026-10-01T${at}:00+02:00`, amount_minor: -13800, payee: GYM }), opts);
+    // Waiting is on, so once the charges have claimed the day nothing posts a row of its own.
+    expect(postDueRecurring(db, "2026-10-10", 3)).toEqual([]);
+    const oct = recurringCalendar(db, { from: "2026-10-01", to: "2026-11-01", today: "2026-10-10" });
+    expect(oct.map((c) => [c.day, c.status])).toEqual([["2026-10-01", "paid"], ["2026-10-01", "paid"]]);
+    expect(new Set(oct.map((c) => c.rule.id)).size).toBe(2);
+    const nov = recurringCalendar(db, { from: "2026-11-01", to: "2026-12-01", today: "2026-10-10" });
+    expect(nov.map((c) => [c.day, c.status])).toEqual([["2026-11-01", "expected"], ["2026-11-01", "expected"]]);
+    expect(listRows(db, "transactions", "deleted=0 AND amount_minor=-13800")).toHaveLength(2);
   });
 });

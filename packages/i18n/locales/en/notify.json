@@ -20,6 +20,10 @@
     "neverArrivedBody": { "message": "Nothing was charged in time, so the rule was used instead: {list}", "note": "list is payees with amounts, comma-separated." },
     "postedMissed": "{count, plural, =1 {Posted a missed recurring transaction} one {Posted # missed recurring transaction} other {Posted # missed recurring transactions}}"
   },
+  "pending": {
+    "title": { "message": "Payments to check", "note": "Title of the evening reminder (default 22:00) scheduled while entries wait in the Pending queue.", "max": 40 },
+    "body": { "message": "{count, plural, one {# payment is} other {# payments are}} waiting for a category. Tap to go through them.", "note": "count is how many entries wait in the Pending queue." }
+  },
   "debt": {
     "tomorrowTitle": { "message": "Tomorrow: {person}", "note": "Title of a debt reminder the day before it is due; person is who the debt is with." },
     "todayTitle": { "message": "Due today: {person}", "note": "Title of a debt reminder on the day." },

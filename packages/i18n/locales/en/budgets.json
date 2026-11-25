@@ -108,10 +108,12 @@
   "reorder": {
     "title": "Reorder budgets",
     "button": { "message": "Reorder", "max": 16 },
-    "hint": "Drag by the grip on the right. Spending and Past trips & events move as whole sections.",
+    "hint": "Drag by the grip on the right. Each section moves as a whole; budgets move within theirs.",
     "emptyTitle": "No budgets",
     "emptyHint": "Add one on the Budgets screen first.",
     "amountOff": { "message": "{amount} · not in Planned", "note": "amount is \"300.00 EUR\"." },
+    "budgetsTitle": "Budgets",
+    "budgetsSection": "Section · your budgets, in this order",
     "spendingSection": "Section · what each category cost",
     "travelSection": "Section · past trip and event budgets"
   }

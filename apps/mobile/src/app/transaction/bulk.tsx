@@ -99,13 +99,13 @@ export default function BulkPreview() {
           return (
             <Card style={styles.row}>
               <View style={styles.head}>
-                <Text style={styles.name} numberOfLines={1}>{item.row.payee || item.row.notes?.split("\n")[0] || item.row.bank_note?.split("\n")[0] || catName(item.row.category_id)}</Text>
+                <Text style={styles.name}>{item.row.payee || item.row.notes?.split("\n")[0] || item.row.bank_note?.split("\n")[0] || catName(item.row.category_id)}</Text>
                 <Text style={styles.amount}>{acc ? `${formatMinor(item.row.amount_minor, acc.currency)} ${acc.currency}` : ""}</Text>
               </View>
               <View style={styles.change}>
-                <Text style={styles.before} numberOfLines={1}>{before}</Text>
+                <Text style={styles.before}>{before}</Text>
                 <SymbolView name="arrow.right" size={11} tintColor={C.tertiary} />
-                <Text style={styles.after} numberOfLines={1}>{after}</Text>
+                <Text style={styles.after}>{after}</Text>
               </View>
             </Card>
           );
@@ -121,14 +121,14 @@ export default function BulkPreview() {
 
 const styles = themed(() => StyleSheet.create({
   what: { fontSize: 20, fontWeight: "700", color: C.label, paddingHorizontal: S.xl, paddingTop: S.md },
-  count: { fontSize: 14, color: C.secondary, paddingHorizontal: S.xl, paddingTop: 2, paddingBottom: S.md },
+  count: { fontSize: 15, color: C.secondary, paddingHorizontal: S.xl, paddingTop: 2, paddingBottom: S.md },
   row: { marginHorizontal: S.lg, marginBottom: S.sm, padding: S.md, borderRadius: R.card, gap: 6 },
   head: { flexDirection: "row", alignItems: "center", gap: S.sm },
   name: { flex: 1, fontSize: 15, color: C.label, fontWeight: "600" },
   amount: { fontSize: 15, color: C.secondary, fontVariant: ["tabular-nums"] },
   change: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  before: { flexShrink: 1, fontSize: 14, color: C.tertiary, textDecorationLine: "line-through" },
-  after: { flex: 1, fontSize: 14, color: C.label, fontWeight: "600" },
+  before: { flexShrink: 1, fontSize: 15, color: C.tertiary, textDecorationLine: "line-through" },
+  after: { flex: 1, fontSize: 15, color: C.label, fontWeight: "600" },
   none: { color: C.tertiary, fontSize: 15, textAlign: "center", paddingHorizontal: S.xl, paddingVertical: S.xxl },
   foot: { position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: S.xxl, paddingTop: S.sm, backgroundColor: C.bgGrouped },
 }));

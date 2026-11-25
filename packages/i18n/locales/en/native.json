@@ -72,7 +72,6 @@
     "payment": {
       "title": { "message": "Log payment from an app notification", "note": "Shortcuts action name. Key used as a literal (phone's language)." },
       "description": { "message": "Log a payment from a bank or Wallet notification. Made for the Shortcuts “When I receive a notification” automation: pass its Notification variable.", "note": "Shortcuts action description. Key used as a literal (phone's language). “When I receive a notification” and Notification are what the Shortcuts app calls them in this language." },
-      "unreadable": { "message": "Kopiyka could not read an amount out of that notification. Settings → Automate with Shortcut shows what it expects.", "note": "Shortcuts error: the notification names money but no amount could be read. The screen names must match the app's Settings." },
       "noAccounts": "No accounts in Kopiyka yet. Open it on your iPhone first.",
       "saveFailed": "Kopiyka could not save that payment. Open the app and add it by hand.",
       "saveFailedWhy": { "message": "Kopiyka could not save that payment: {reason}. Open the app and add it by hand.", "note": "reason is one of the native.writes / native.common.noDatabase messages, or a database error." },
@@ -116,9 +115,17 @@
     "unknown": { "message": "Not recognised — tap to choose a category.", "note": "Second line of the notification: nothing is known about this shop; the entry has no category." },
     "transferPaired": { "message": "Both sides matched — tap to check.", "note": "Second line of the notification: the debit and the credit notifications of one transfer were matched by account numbers." },
     "transferInferred": { "message": "The other side was added for you — tap to check.", "note": "Second line of the notification: only one side of the transfer was notified, so the app wrote the other." },
-    "transferWaiting": { "message": "Looks like a transfer — waiting for the other side.", "note": "Second line of the notification: the bank named another account; the other notification has not arrived yet." }
+    "transferWaiting": { "message": "Looks like a transfer — waiting for the other side.", "note": "Second line of the notification: the bank named another account; the other notification has not arrived yet." },
+    "eveningTitle": { "message": "Payments to check", "note": "Title of the evening reminder (default 22:00) posted while entries wait in the Pending queue.", "max": 40 },
+    "eveningBody": { "message": "{count, plural, one {# payment is} other {# payments are}} waiting for a category. Tap to go through them.", "note": "Body of the evening reminder; count is how many entries wait in the Pending queue." }
   },
   "receipt": {
+    "scan": {
+      "take": { "message": "Take photo", "note": "VoiceOver label of the receipt camera's shutter." },
+      "library": { "message": "Choose from library", "note": "VoiceOver label of the receipt camera's library button." },
+      "close": { "message": "Close", "note": "VoiceOver label of the receipt camera's close button." },
+      "cameraOff": { "message": "Camera access is off. Enable it in the Settings app.", "note": "When the receipt camera is opened without camera access." }
+    },
     "noImage": "The photo could not be read.",
     "noText": "No text found. Hold the phone flat over the receipt with good light.",
     "untitled": { "message": "Receipt", "note": "The shop's name when none could be read off the receipt; saved as the payee." },
@@ -219,7 +226,7 @@
     "status": {
       "title": { "message": "Status", "max": 16 },
       "refresh": { "message": "Refresh", "max": 14 },
-      "refreshing": { "message": "Refreshing…", "max": 14 },
+      "refreshing": { "message": "Refreshing", "max": 14 },
       "refreshHint": { "message": "Asks the iPhone for the latest accounts, categories and history", "note": "VoiceOver hint." },
       "never": { "message": "never", "note": "\"Data from iPhone\" when nothing ever arrived.", "max": 16 },
       "connected": { "message": "iPhone connected", "max": 24 },

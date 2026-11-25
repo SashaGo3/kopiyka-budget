@@ -67,7 +67,6 @@
   <string name="native_intents_payment_saveFailed">Копійка не змогла зберегти цей платіж. Відкрий застосунок і додай його вручну.</string>
   <string name="native_intents_payment_saveFailedWhy">Копійка не змогла зберегти цей платіж: %1$s. Відкрий застосунок і додай його вручну.</string>
   <string name="native_intents_payment_title">Записати платіж зі сповіщення застосунку</string>
-  <string name="native_intents_payment_unreadable">Копійка не змогла прочитати суму в цьому сповіщенні. Що вона очікує, показано в «Налаштування → Автоматизація зі швидкою командою».</string>
   <string name="native_intents_saveFailed">Не вдалося зберегти. Відкрий Копійку і спробуй ще раз.</string>
   <string name="native_intents_saveFailedWhy">Не вдалося зберегти: %1$s. Відкрий Копійку і спробуй ще раз.</string>
   <string name="native_intents_scan_description">Сфотографуй чек: сума, магазин, позиції й категорія розпізнаються на пристрої, а витрата зберігається й чекає на перевірку.</string>
@@ -82,6 +81,13 @@
   <string name="native_intents_shortcut_scanReceipt">Сканувати чек</string>
   <string name="native_intents_whichCategory">Яка категорія?</string>
   <string name="native_notify_check">Розпізнано як «%1$s» — натисни, щоб перевірити.</string>
+  <plurals name="native_notify_eveningBody">
+    <item quantity="one">%1$d платіж чекає на категорію. Торкнись, щоб переглянути.</item>
+    <item quantity="few">%1$d платежі чекають на категорію. Торкнись, щоб переглянути.</item>
+    <item quantity="many">%1$d платежів чекають на категорію. Торкнись, щоб переглянути.</item>
+    <item quantity="other">%1$d платежу чекають на категорію. Торкнись, щоб переглянути.</item>
+  </plurals>
+  <string name="native_notify_eveningTitle">Платежі на перевірку</string>
   <string name="native_notify_filed">Розпізнано: %1$s.</string>
   <string name="native_notify_guess">Схоже на «%1$s» — натисни, щоб підтвердити чи змінити.</string>
   <string name="native_notify_logged">Платіж записано</string>
@@ -101,6 +107,10 @@
   <string name="native_receipt_noRate">%1$s (у %2$s, немає курсу)</string>
   <string name="native_receipt_noText">Текст не знайдено. Тримай телефон рівно над чеком при доброму освітленні.</string>
   <string name="native_receipt_paid">сплачено %1$s</string>
+  <string name="native_receipt_scan_cameraOff">Доступ до камери вимкнено. Увімкніть його в застосунку «Параметри».</string>
+  <string name="native_receipt_scan_close">Закрити</string>
+  <string name="native_receipt_scan_library">Обрати з медіатеки</string>
+  <string name="native_receipt_scan_take">Зробити фото</string>
   <string name="native_receipt_total">разом %1$s</string>
   <string name="native_receipt_untitled">Чек</string>
   <string name="native_sample_account">Рахунок</string>
@@ -158,7 +168,7 @@
   <string name="native_watch_status_nothingWaitingDetail">Усі записи з годинника доставлено</string>
   <string name="native_watch_status_refresh">Оновити</string>
   <string name="native_watch_status_refreshHint">Запитує в iPhone актуальні рахунки, категорії та історію</string>
-  <string name="native_watch_status_refreshing">Оновлення…</string>
+  <string name="native_watch_status_refreshing">Оновлення</string>
   <string name="native_watch_status_title">Стан</string>
   <string name="native_watch_status_unreachable">iPhone недоступний</string>
   <string name="native_watch_status_unreachableDetail">Записи чекатимуть на годиннику до звʼязку</string>

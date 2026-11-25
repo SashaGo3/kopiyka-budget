@@ -56,8 +56,12 @@ Thank you for trying Kopiyka.
   can be bought.
 - Split one receipt into several entries (dinner and a lamp from the same shop), each with its own
   category and tags. Duplicate an entry, or select several and edit them at once.
-- Receipt photos on any entry. Scan a receipt and it is read on the device: shop, total, currency,
-  date and a category, with Apple Intelligence where it is available.
+- Receipt photos on any entry. Hold + for the receipt camera: it finds the paper, takes the picture
+  itself and reads the shop, total, address and every line on the device, then can split the lines
+  by category. A receipt in another currency asks which account paid.
+- Shops it already knows: Biedronka, Lidl, Сільпо, АТБ, Orlen, Uber and a few hundred more are
+  recognised the first time you pay there and filed into your category of that kind, whatever you
+  called it. The payment still waits in Pending for your yes.
 - Siri and Shortcuts actions: add an expense, open the keypad, scan a receipt.
 - **Bank notifications (beta, iOS 27):** a Shortcuts automation hands your bank's payment
   notification to Kopiyka, which reads the amount, shop, card and time out of the text on the
@@ -103,6 +107,8 @@ Thank you for trying Kopiyka.
 - Kopiyka spots repeats in your history and offers to make rules; the ones you do not want can be
   dismissed for good.
 - Each one shows the company's logo, or an icon, emoji or picture you choose.
+- A calendar of them: paid, late and still to come. One payee with two bills (rent and the service
+  charge) is told apart by the amount.
 
 **Trips and events**
 - Name a trip or an event (a birthday, a wedding, a night out), give it a budget and its days, and
@@ -110,6 +116,11 @@ Thank you for trying Kopiyka.
   spend. Your monthly budgets stay as they were.
 - Go without a limit and just count what was spent, record one that already happened, add earlier
   purchases to it, or keep a few (the flights booked months ago) outside its budget.
+- Rename one whenever you like: everything already tagged with it follows.
+
+**Friends**
+- Split a bill with friends: an equal share, their own items or a typed amount. Their part is
+  theirs, not your spending, and each friend has a page with what they owe, Remind and Let it go.
 
 **Debts**
 - Who owes whom, with a reminder on the due date.
@@ -120,6 +131,11 @@ Thank you for trying Kopiyka.
 - Left in budgets, days until salary and what you can spend per day, a savings goal, one account's
   balance, a payments checklist, subscriptions per year, regular spending, what the month went on
   and a safety buffer in months. Tap one to see what is behind it.
+- Siriusia sees the future: your own pace, every currency added into one, carried forward. When the
+  savings goal lands, what a home would take, what a daily coffee costs over ten years. She is a
+  cat, so it is a forecast, not a promise.
+- This month against your usual, your biggest one-off purchases, where you shop most, and a
+  spending map. Insights suggests cards from how you use the app.
 
 **Your data**
 - Everything is in a SQLite file on your phone. No account, no server, no analytics, no ads.
@@ -132,7 +148,9 @@ Thank you for trying Kopiyka.
   assistant and import the result.
 
 **Everything else**
-- iPhone, iPad and Apple Watch.
+- iPhone, iPad and Apple Watch, and ready for iPhone Duo, folded or open.
+- Undo instead of "Are you sure?", and categories ordered by how often you use them or dragged into
+  place.
 - Four colour themes, each named after a cat, each light and dark.
 - In English and Ukrainian.
 - Free and open source. Nothing to unlock, now or later.

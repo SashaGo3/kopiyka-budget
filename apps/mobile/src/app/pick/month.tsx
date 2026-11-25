@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Tap, ButtonText } from "@/components/ui";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { resolvePick } from "@/store/pick";
-import { C, S, themed } from "@/constants/theme";
+import { C, R, S, themed } from "@/constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { monthLong, monthShort } from "@/lib/dates";
 import { t } from "@/i18n";
@@ -24,11 +25,11 @@ export default function PickMonth() {
   const cur = new Date();
   const nowMonth = (now || `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-01`).slice(0, 7);
   return (
-    <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.md, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
+    <View style={{ backgroundColor: C.bgGrouped, paddingTop: S.xl, paddingBottom: Math.max(insets.bottom, S.md), gap: S.md }}>
       <View style={styles.yearRow}>
-        <Pressable onPress={() => setYear((y) => y - 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.previousYear")} style={styles.arrow}><SymbolView name="chevron.left" size={18} tintColor={C.tint} /></Pressable>
+        <Tap onPress={() => setYear((y) => y - 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.previousYear")} style={styles.arrow}><SymbolView name="chevron.left" size={18} tintColor={C.tint} /></Tap>
         <Text style={styles.year}>{year}</Text>
-        <Pressable onPress={() => setYear((y) => y + 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.nextYear")} style={styles.arrow}><SymbolView name="chevron.right" size={18} tintColor={C.tint} /></Pressable>
+        <Tap onPress={() => setYear((y) => y + 1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("pick.month.nextYear")} style={styles.arrow}><SymbolView name="chevron.right" size={18} tintColor={C.tint} /></Tap>
       </View>
       <View style={styles.grid}>
         {Array.from({ length: 12 }, (_, i) => monthShort(i + 1)).map((m, i) => {
@@ -46,7 +47,7 @@ export default function PickMonth() {
       <Pressable onPress={() => { resolvePick(key, `${nowMonth}-01`); router.back(); }} accessibilityRole="button" accessibilityLabel={t("pick.month.thisMonth")}
         style={({ pressed }) => [styles.now, pressed && { opacity: 0.6 }]}>
         <SymbolView name="calendar" size={16} tintColor={C.tint} />
-        <Text style={styles.nowText}>{t("pick.month.thisMonth")}</Text>
+        <ButtonText style={styles.nowText}>{t("pick.month.thisMonth")}</ButtonText>
       </Pressable>
     </View>
   );
@@ -54,12 +55,12 @@ export default function PickMonth() {
 
 const styles = themed(() => StyleSheet.create({
   yearRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.xl },
-  arrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: C.fill },
+  arrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: R.pill, backgroundColor: C.fill },
   year: { fontSize: 22, fontWeight: "700", color: C.label, minWidth: 80, textAlign: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, paddingHorizontal: S.md },
-  cell: { width: "23%", flexGrow: 1, minHeight: 52, paddingVertical: 8, borderRadius: 14, backgroundColor: C.card, alignItems: "center", justifyContent: "center" },
+  cell: { width: "23%", flexGrow: 1, minHeight: 52, paddingVertical: 8, borderRadius: R.card, backgroundColor: C.card, alignItems: "center", justifyContent: "center" },
   cellOn: { backgroundColor: C.tint },
   cellText: { fontSize: 17, fontWeight: "600", color: C.label },
-  now: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.md, minHeight: 44, borderRadius: 14, backgroundColor: C.fill },
-  nowText: { fontSize: 16, fontWeight: "600", color: C.tint },
+  now: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: S.md, minHeight: 44, borderRadius: R.card, backgroundColor: C.fill },
+  nowText: { fontSize: 17, fontWeight: "600", color: C.tint },
 }));

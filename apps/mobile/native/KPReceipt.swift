@@ -27,9 +27,20 @@ enum KPReceipt {
   // MARK: - Pipeline
 
   static func analyze(image: UIImage) async throws -> Parse {
-    guard let cg = normalized(image) else { throw Failure.noImage }
-    let lines = try await recognize(cg)
+    let lines = try await readText(image: image)
     guard !lines.isEmpty else { throw Failure.noText }
+    return await analyze(lines: lines)
+  }
+
+  /// Vision only: the photo's text as rows, top to bottom. The fast half of `analyze`, which the photo
+  /// viewer shows (and lets you copy) before the slower understanding below has finished.
+  static func readText(image: UIImage) async throws -> [String] {
+    guard let cg = normalized(image) else { throw Failure.noImage }
+    return try await recognize(cg)
+  }
+
+  /// The second half of `analyze`, from text already read.
+  static func analyze(lines: [String]) async -> Parse {
     let cats = KPStore.categoryRefs()
     // Polish fiscal receipts have a fixed layout: parse them deterministically, ask the model only for the category.
     var parse: Parse
@@ -45,15 +56,27 @@ enum KPReceipt {
     // The parser (KPReceiptParse.swift, also built on its own by scripts/receipt-parse) names a shop
     // it could not read "Receipt"; the name is saved as the payee, so it is put in the app's language here.
     if parse.merchant == "Receipt" { parse.merchant = L10n.Receipt.untitled }
+    parse.items = KPReceiptText.reconcile(parse.items, lines: lines)
+    // Items that add up to the total are right; the model's that do not, beside the layout reader's
+    // that do, are replaced by those.
+    if parse.method == "intelligence" {
+      let sum = { (xs: [Item]) in xs.reduce(0) { $0 + $1.price } }
+      let plain = KPReceiptText.heuristic(lines: lines).items
+      if abs(sum(parse.items) - parse.total) > 0.02, !plain.isEmpty, abs(sum(plain) - parse.total) <= 0.02 { parse.items = plain }
+    }
+    parse.address = KPReceiptText.address(in: lines)
     parse.summary = summary(parse)
     parse.text = lines.joined(separator: "\n")
     return parse
   }
 
-  /// Upright, at most ~2000 px on the long side (Vision is faster and just as accurate).
+  /// Upright, and no larger than ~12 MP or 4096 px on the long side. The limit used to be 2000 px on the
+  /// long side, which left a long, narrow receipt a few hundred pixels wide — too small for its print,
+  /// and the cause of most misread words. Area is what costs Vision time, so that is what is capped.
   static func normalized(_ image: UIImage) -> CGImage? {
-    let maxSide: CGFloat = 2000
-    let scale = min(1, maxSide / max(image.size.width, image.size.height))
+    let w = image.size.width * image.scale, h = image.size.height * image.scale
+    // In points with a renderer scale of 1, so `size` below is the output in pixels.
+    let scale = min(1, 4096 / max(w, h), (12_000_000 / max(w * h, 1)).squareRoot()) * image.scale
     let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
     let fmt = UIGraphicsImageRendererFormat.default(); fmt.scale = 1
     let out = UIGraphicsImageRenderer(size: size, format: fmt).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
@@ -147,6 +170,44 @@ enum KPReceipt {
     #endif
   }
 
+  #if canImport(FoundationModels)
+  @available(iOS 26.0, *)
+  @Generable
+  struct ModelItemCategory {
+    @Guide(description: "The item's number from the list") var item: Int
+    @Guide(description: "Exactly one category name copied from the categories list") var category: String
+  }
+  @available(iOS 26.0, *)
+  @Generable
+  struct ModelItemCategories { @Guide(description: "One entry per purchased item", .maximumCount(40)) var items: [ModelItemCategory] }
+  #endif
+
+  /// One category per item, in the items' order (nil where nothing fits), for sorting a mixed receipt —
+  /// dinner and a lamp — into the parts of a split. The on-device model when there is one; otherwise
+  /// only the items whose own words name a category are answered. Saves nothing.
+  static func categorize(items: [Item], merchant: String) async -> [String?] {
+    let cats = KPStore.categoryRefs()
+    guard !items.isEmpty, !cats.isEmpty else { return items.map { _ in nil } }
+    var out: [String?] = items.map { keywordCategory(text: $0.name, categories: cats)?.id }
+    #if canImport(FoundationModels)
+    if #available(iOS 26.0, *), case .available = SystemLanguageModel.default.availability {
+      let list = cats.map { c in c.description.map { "\(c.path) — \($0)" } ?? c.path }.joined(separator: "\n")
+      let numbered = items.prefix(40).enumerated().map { "\($0.offset + 1). \($0.element.name)" }.joined(separator: "\n")
+      let session = LanguageModelSession(instructions: """
+        You sort the lines of one shop receipt into the user's spending categories. Item names come from OCR, \
+        may be abbreviated and may be in Polish, Ukrainian, English or German. Food from a supermarket is groceries, \
+        not eating out. Answer every item, copying a category name exactly as listed.
+        """)
+      if let r = try? await session.respond(to: "Categories:\n\(list)\n\nShop: \(merchant)\nItems:\n\(numbered)", generating: ModelItemCategories.self).content {
+        for a in r.items where a.item >= 1 && a.item <= out.count {
+          if let c = matchCategory(name: a.category, in: cats) { out[a.item - 1] = c.id }
+        }
+      }
+    }
+    #endif
+    return out
+  }
+
   // MARK: - Keyword fallback
 
   /// The category whose name/description words appear most in the receipt; most-used category breaks ties, nil when nothing matches.
@@ -209,7 +270,7 @@ enum KPReceipt {
     [
       "merchant": p.merchant, "total": p.total, "currency": p.currency as Any, "date": p.date as Any,
       "items": p.items.map { ["name": $0.name, "price": $0.price] },
-      "category_id": p.category_id as Any, "category_name": p.category_name as Any, "summary": p.summary, "method": p.method, "text": p.text,
+      "category_id": p.category_id as Any, "category_name": p.category_name as Any, "summary": p.summary, "method": p.method, "text": p.text, "address": p.address as Any,
     ]
   }
 }

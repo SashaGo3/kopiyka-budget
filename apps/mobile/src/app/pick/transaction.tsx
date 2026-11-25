@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { formatMinor, listRows } from "@kopiyka/core";
+import { categorySearchNames, formatMinor, listRows } from "@kopiyka/core";
 import { resolvePick } from "@/store/pick";
 import { rowCategory, useTransactions } from "@/components/TransactionList";
 import { useQuery } from "@/store";
-import { catName, acctName } from "@/lib/names";
+import { acctName } from "@/lib/names";
 import { t } from "@/i18n";
-import { AmountPill, CategoryIcon } from "@/components/ui";
-import { C, S, themed } from "@/constants/theme";
+import { AmountPill, CategoryIcon, Tap } from "@/components/ui";
+import { C, R, S, themed } from "@/constants/theme";
 import { humanDayTime } from "@/lib/dates";
 
 /**
@@ -36,7 +36,7 @@ export default function PickTransaction() {
   // Category names are matched as shown too (DATA.md rule 16): a preset stored in English is found by
   // its Ukrainian name, which SQL cannot see, so those ids are worked out here and handed to it.
   const ql = q.trim().toLowerCase();
-  const shownIds = useQuery((d) => (ql ? listRows(d, "categories", "deleted=0").filter((c) => catName(c).toLowerCase().includes(ql)).map((c) => c.id) : []), [ql]);
+  const shownIds = useQuery((d) => (ql ? listRows(d, "categories", "deleted=0").filter((c) => categorySearchNames(c).some((n) => n.toLowerCase().includes(ql))).map((c) => c.id) : []), [ql]);
   if (q.trim()) {
     const ids = shownIds.length ? ` OR t.category_id IN (${shownIds.map(() => "?").join(",")}) OR c.parent_id IN (${shownIds.map(() => "?").join(",")})` : "";
     conds.push(`(t.notes LIKE ? OR t.bank_note LIKE ? OR t.payee LIKE ? OR c.name LIKE ? OR p.name LIKE ?${ids})`);
@@ -61,23 +61,23 @@ export default function PickTransaction() {
         // Towards zero, whichever way the row points, exactly as the entry sheet books it.
         const after = forReturn ? tx.amount_minor + (tx.amount_minor < 0 ? back : -back) : null;
         return (
-          <Pressable onPress={() => { resolvePick(key, tx.id); router.back(); }} style={styles.row} accessibilityRole="button"
+          <Tap onPress={() => { resolvePick(key, tx.id); router.back(); }} style={styles.row} accessibilityRole="button"
             accessibilityLabel={after !== null
               ? t("pick.transaction.returnA11y", { name, amount: `${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}`, after: `${formatMinor(after, tx.currency)} ${tx.currency}`, date: humanDayTime(tx.date.slice(0, 10)) })
               : `${name}, ${formatMinor(tx.amount_minor, tx.currency)} ${tx.currency}, ${humanDayTime(tx.date.slice(0, 10))}`}>
             <CategoryIcon name={shown.name ?? shown.parent ?? "?"} icon={tx.cat_icon ?? tx.parent_icon} color={tx.cat_color ?? tx.parent_color} size={30} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.name} numberOfLines={1}>{name}</Text>
-              <Text style={styles.sub} numberOfLines={1}>{humanDayTime(tx.date.slice(0, 10))} · {acctName({ name: tx.account_name })}{shown.name ? ` · ${shown.name}` : ""}</Text>
+              <Text style={styles.name}>{name}</Text>
+              <Text style={styles.sub}>{humanDayTime(tx.date.slice(0, 10))} · {acctName({ name: tx.account_name })}{shown.name ? ` · ${shown.name}` : ""}</Text>
             </View>
             {after !== null ? (
               <View style={styles.change}>
-                <Text style={styles.before} numberOfLines={1}>{formatMinor(tx.amount_minor, tx.currency)}</Text>
+                <Text style={styles.before}>{formatMinor(tx.amount_minor, tx.currency)}</Text>
                 <SymbolView name="arrow.right" size={11} tintColor={C.tertiary} />
-                <Text style={styles.after} numberOfLines={1}>{formatMinor(after, tx.currency)}</Text>
+                <Text style={styles.after}>{formatMinor(after, tx.currency)}</Text>
               </View>
             ) : <AmountPill minor={tx.amount_minor} currency={tx.currency} />}
-          </Pressable>
+          </Tap>
         );
       }}
       ListEmptyComponent={<Text style={styles.empty}>{forReturn ? t("pick.transaction.noneReturn") : t("pick.transaction.none")}</Text>} />
@@ -86,11 +86,11 @@ export default function PickTransaction() {
 
 const styles = themed(() => StyleSheet.create({
   title: { fontSize: 17, fontWeight: "600", color: C.label, textAlign: "center", paddingTop: S.md },
-  desc: { fontSize: 14, color: C.secondary, textAlign: "center", paddingHorizontal: S.xl, paddingTop: S.xs, lineHeight: 19 },
-  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, height: 40, borderRadius: 12, backgroundColor: C.fill },
-  input: { flex: 1, fontSize: 17, color: C.label, height: 40 },
+  desc: { fontSize: 15, color: C.secondary, textAlign: "center", paddingHorizontal: S.xl, paddingTop: S.xs, lineHeight: 19 },
+  search: { flexDirection: "row", alignItems: "center", gap: S.sm, marginHorizontal: S.lg, marginTop: S.sm, marginBottom: S.xs, paddingHorizontal: S.md, minHeight: 44, borderRadius: R.md, backgroundColor: C.fill },
+  input: { flex: 1, fontSize: 17, color: C.label, minHeight: 44 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, paddingHorizontal: S.xl, minHeight: 56, paddingVertical: 6 },
-  name: { fontSize: 16, color: C.label },
+  name: { fontSize: 17, color: C.label },
   sub: { fontSize: 12, color: C.secondary },
   change: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
   before: { fontSize: 13, color: C.tertiary, fontVariant: ["tabular-nums"], textDecorationLine: "line-through" },

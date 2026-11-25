@@ -4,7 +4,7 @@ import { mutate } from "@/store";
 import { pendingCount } from "./nativeWrites";
 import { db } from "@/db";
 import { humanDayTime, todayLocal } from "./dates";
-import { waitDefaultDays } from "./settings";
+import { getPendingReminder, waitDefaultDays } from "./settings";
 import { acctName, catName } from "./names";
 import { t } from "@/i18n";
 
@@ -53,7 +53,10 @@ function noticeRow(data: Record<string, unknown> | undefined): string | null {
 export async function dismissSettledPaymentNotices(opened?: string): Promise<void> {
   try {
     const shown = await Notifications.getPresentedNotificationsAsync();
+    const empty = pendingCount() === 0;
     for (const n of shown) {
+      // The evening reminder is about the queue as a whole, so it goes once the queue is empty.
+      if (n.request.content.data?.kind === PENDING_EVENING) { if (empty) await Notifications.dismissNotificationAsync(n.request.identifier); continue; }
       const id = noticeRow(n.request.content.data);
       if (!id) continue;
       const row = getRow(db, "transactions", id);
@@ -70,6 +73,7 @@ export async function dismissSettledPaymentNotices(opened?: string): Promise<voi
  * notifications at 64 and `cancelAllScheduledNotificationsAsync` is global — a second call from
  * a debts-only scheduler would wipe out whatever this function had just scheduled for recurring
  * rules (or vice versa), so both slices are cancelled and rebuilt together here.
+ * The Pending queue's evening reminders are rebuilt in the same pass (`schedulePendingEvenings`).
  * Recurring gets two per occurrence: a reminder `notify_days_before` days earlier, and one on the
  * day saying the transaction was posted (automatic rules) or asking to confirm (manual). Debts
  * get a reminder the day before their due date and one on the day itself. Both kinds fire at the
@@ -83,7 +87,7 @@ export async function rescheduleRecurringNotifications(): Promise<number> {
   const cats = new Map(listRows(db, "categories", "1=1").map((c) => [c.id, c]));
   await Notifications.cancelAllScheduledNotificationsAsync();
   const today = todayLocal();
-  const plan = plannedNotifications(rules, today, 60, waitDefaultDays()).slice(0, 48); // iOS caps pending at 64; debts share the rest of the budget
+  const plan = plannedNotifications(rules, today, 60, waitDefaultDays()).slice(0, 48); // iOS caps pending at 64; debts and the evening reminders share the rest
   let n = 0;
   for (const p of plan) {
     const rule = rules.find((r) => r.id === p.rule_id)!;
@@ -117,6 +121,7 @@ export async function rescheduleRecurringNotifications(): Promise<number> {
     });
     n++;
   }
+  n += await schedulePendingEvenings();
   const debts = listDebts(db, { settled: false });
   const debtPlan = plannedDebtNotifications(debts, today, 60).slice(0, 12);
   for (const p of debtPlan) {
@@ -133,6 +138,44 @@ export async function rescheduleRecurringNotifications(): Promise<number> {
       : t(tomorrow ? "notify.debt.oweTomorrow" : "notify.debt.oweToday", { person, amount });
     await Notifications.scheduleNotificationAsync({
       content: { title: t(tomorrow ? "notify.debt.tomorrowTitle" : "notify.debt.todayTitle", { person }), body, data: { url: "kopiyka://settings/debts" } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
+    });
+    n++;
+  }
+  return n;
+}
+
+/** `data.kind` of the evening reminder; native/KPNotify.swift posts the same, under the same identifiers. */
+const PENDING_EVENING = "pending_evening";
+/** How many evenings ahead are scheduled: a phone left alone for a few days still hears about it. */
+const PENDING_EVENINGS = 3;
+
+/**
+ * The evening reminder that something is waiting in the Pending queue — entries a Shortcut or a
+ * receipt wrote that still need a category. Recurring payments have their own reminders and their
+ * own confirm queue, and are not counted.
+ *
+ * A local notification cannot ask at 22:00 whether the queue is still full, so the question is
+ * asked here instead, after every write: with anything pending, the next few evenings are scheduled
+ * with today's count; with nothing, none are (the caller has just cancelled everything). The
+ * automation schedules the same identifiers when it writes with the app closed, so an empty queue
+ * that fills up overnight is covered too.
+ */
+async function schedulePendingEvenings(): Promise<number> {
+  const time = getPendingReminder();
+  const count = pendingCount();
+  if (!time || !count) return 0;
+  const [hh, mm] = time.split(":").map(Number) as [number, number];
+  const now = new Date();
+  let n = 0;
+  for (let day = 0; n < PENDING_EVENINGS; day++) {
+    const fireAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + day, hh, mm, 0);
+    if (fireAt.getTime() <= now.getTime()) continue;
+    await Notifications.scheduleNotificationAsync({
+      // Named by its day, the same as the automation names it: either one's schedule replaces the
+      // other's for that evening, and a tap is never mistaken for one already followed (_layout.tsx).
+      identifier: `kopiyka.pending.evening.${todayLocal(fireAt)}`,
+      content: { title: t("notify.pending.title"), body: t("notify.pending.body", { count }), badge: count, data: { url: "kopiyka://pending", kind: PENDING_EVENING } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
     });
     n++;
